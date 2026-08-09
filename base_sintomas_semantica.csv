@@ -1,0 +1,159 @@
+﻿Sintoma,Busqueda,Patologia_ID,Patologia,Indice
+Disminución de densidad,disminucion de densidad,P001,Caída de cabello (Alopecia),0
+entradas,entradas,P001,Caída de cabello (Alopecia),0
+afinamiento,afinamiento,P001,Caída de cabello (Alopecia),0
+caída difusa,caida difusa,P001,Caída de cabello (Alopecia),0
+picazón/caspa,picazon/caspa,P001,Caída de cabello (Alopecia),0
+cuero cabelludo sensible,cuero cabelludo sensible,P001,Caída de cabello (Alopecia),0
+cambios en uñas,cambios en unas,P001,Caída de cabello (Alopecia),0
+fatiga.,fatiga.,P001,Caída de cabello (Alopecia),0
+Chorro débil,chorro debil,P002,Salud prostática / Molestias prostáticas,1
+aumento de la frecuencia urinaria,aumento de la frecuencia urinaria,P002,Salud prostática / Molestias prostáticas,1
+levantarse varias veces en la noche,levantarse varias veces en la noche,P002,Salud prostática / Molestias prostáticas,1
+dificultad para iniciar la micción,dificultad para iniciar la miccion,P002,Salud prostática / Molestias prostáticas,1
+sensación de vaciamiento incompleto,sensacion de vaciamiento incompleto,P002,Salud prostática / Molestias prostáticas,1
+goteo postmiccional,goteo postmiccional,P002,Salud prostática / Molestias prostáticas,1
+ardor al orinar,ardor al orinar,P002,Salud prostática / Molestias prostáticas,1
+dolor pélvico,dolor pelvico,P002,Salud prostática / Molestias prostáticas,1
+dolor al eyacular,dolor al eyacular,P002,Salud prostática / Molestias prostáticas,1
+disminución de la libido,disminucion de la libido,P002,Salud prostática / Molestias prostáticas,1
+dificultad para lograr o mantener la erección.,dificultad para lograr o mantener la ereccion.,P002,Salud prostática / Molestias prostáticas,1
+Disminución de la libido,disminucion de la libido,P003,Disfunción sexual masculina / Dificultad para la erección,2
+dificultad para lograr la erección,dificultad para lograr la ereccion,P003,Disfunción sexual masculina / Dificultad para la erección,2
+dificultad para mantenerla,dificultad para mantenerla,P003,Disfunción sexual masculina / Dificultad para la erección,2
+erecciones menos firmes,erecciones menos firmes,P003,Disfunción sexual masculina / Dificultad para la erección,2
+disminución del deseo sexual,disminucion del deseo sexual,P003,Disfunción sexual masculina / Dificultad para la erección,2
+fatiga.,fatiga.,P003,Disfunción sexual masculina / Dificultad para la erección,2
+Disminución de la libido,disminucion de la libido,P004,Vitalidad masculina y apoyo hormonal (Hipogonadismo / Deficiencia de testosterona*),3
+fatiga persistente,fatiga persistente,P004,Vitalidad masculina y apoyo hormonal (Hipogonadismo / Deficiencia de testosterona*),3
+pérdida de fuerza,perdida de fuerza,P004,Vitalidad masculina y apoyo hormonal (Hipogonadismo / Deficiencia de testosterona*),3
+disminución de masa muscular,disminucion de masa muscular,P004,Vitalidad masculina y apoyo hormonal (Hipogonadismo / Deficiencia de testosterona*),3
+recuperación lenta después del ejercicio,recuperacion lenta despues del ejercicio,P004,Vitalidad masculina y apoyo hormonal (Hipogonadismo / Deficiencia de testosterona*),3
+menor rendimiento físico,menor rendimiento fisico,P004,Vitalidad masculina y apoyo hormonal (Hipogonadismo / Deficiencia de testosterona*),3
+aumento de grasa abdominal,aumento de grasa abdominal,P004,Vitalidad masculina y apoyo hormonal (Hipogonadismo / Deficiencia de testosterona*),3
+disminución de la motivación o vitalidad,disminucion de la motivacion o vitalidad,P004,Vitalidad masculina y apoyo hormonal (Hipogonadismo / Deficiencia de testosterona*),3
+erecciones matutinas menos frecuentes.,erecciones matutinas menos frecuentes.,P004,Vitalidad masculina y apoyo hormonal (Hipogonadismo / Deficiencia de testosterona*),3
+Diagnóstico de diabetes o prediabetes,diagnostico de diabetes o prediabetes,P005,Control glucémico (Diabetes mellitus tipo 2 / Prediabetes),4
+glucosa elevada,glucosa elevada,P005,Control glucémico (Diabetes mellitus tipo 2 / Prediabetes),4
+sed excesiva,sed excesiva,P005,Control glucémico (Diabetes mellitus tipo 2 / Prediabetes),4
+aumento de la frecuencia urinaria,aumento de la frecuencia urinaria,P005,Control glucémico (Diabetes mellitus tipo 2 / Prediabetes),4
+hambre constante,hambre constante,P005,Control glucémico (Diabetes mellitus tipo 2 / Prediabetes),4
+fatiga,fatiga,P005,Control glucémico (Diabetes mellitus tipo 2 / Prediabetes),4
+visión borrosa,vision borrosa,P005,Control glucémico (Diabetes mellitus tipo 2 / Prediabetes),4
+cicatrización lenta,cicatrizacion lenta,P005,Control glucémico (Diabetes mellitus tipo 2 / Prediabetes),4
+hormigueo o adormecimiento en manos o pies,hormigueo o adormecimiento en manos o pies,P005,Control glucémico (Diabetes mellitus tipo 2 / Prediabetes),4
+infecciones frecuentes,infecciones frecuentes,P005,Control glucémico (Diabetes mellitus tipo 2 / Prediabetes),4
+sobrepeso u obesidad abdominal.,sobrepeso u obesidad abdominal.,P005,Control glucémico (Diabetes mellitus tipo 2 / Prediabetes),4
+Alteraciones menstruales,alteraciones menstruales,P006,Perimenopausia / Menopausia,5
+sofocos,sofocos,P006,Perimenopausia / Menopausia,5
+sudoración nocturna,sudoracion nocturna,P006,Perimenopausia / Menopausia,5
+cambios del estado de ánimo,cambios del estado de animo,P006,Perimenopausia / Menopausia,5
+insomnio,insomnio,P006,Perimenopausia / Menopausia,5
+disminución de la libido,disminucion de la libido,P006,Perimenopausia / Menopausia,5
+resequedad vaginal,resequedad vaginal,P006,Perimenopausia / Menopausia,5
+aumento de peso,aumento de peso,P006,Perimenopausia / Menopausia,5
+caída del cabello,caida del cabello,P006,Perimenopausia / Menopausia,5
+cambios en la piel,cambios en la piel,P006,Perimenopausia / Menopausia,5
+dolor articular,dolor articular,P006,Perimenopausia / Menopausia,5
+fatiga,fatiga,P006,Perimenopausia / Menopausia,5
+infecciones urinarias recurrentes.,infecciones urinarias recurrentes.,P006,Perimenopausia / Menopausia,5
+Dificultad para conciliar el sueño,dificultad para conciliar el sueno,P007,Insomnio,6
+despertares frecuentes,despertares frecuentes,P007,Insomnio,6
+despertar muy temprano,despertar muy temprano,P007,Insomnio,6
+sensación de sueño poco reparador,sensacion de sueno poco reparador,P007,Insomnio,6
+cansancio al despertar,cansancio al despertar,P007,Insomnio,6
+somnolencia diurna,somnolencia diurna,P007,Insomnio,6
+irritabilidad,irritabilidad,P007,Insomnio,6
+dificultad para concentrarse,dificultad para concentrarse,P007,Insomnio,6
+disminución del rendimiento físico o mental,disminucion del rendimiento fisico o mental,P007,Insomnio,6
+fatiga.,fatiga.,P007,Insomnio,6
+Diagnóstico médico de varicocele,diagnostico medico de varicocele,P008,Varicocele (Apoyo a la salud vascular y reproductiva masculina),7
+sensación de pesadez o dolor en el escroto,sensacion de pesadez o dolor en el escroto,P008,Varicocele (Apoyo a la salud vascular y reproductiva masculina),7
+molestias que aumentan al estar de pie o al realizar esfuerzo,molestias que aumentan al estar de pie o al realizar esfuerzo,P008,Varicocele (Apoyo a la salud vascular y reproductiva masculina),7
+disminución de la fertilidad,disminucion de la fertilidad,P008,Varicocele (Apoyo a la salud vascular y reproductiva masculina),7
+disminución de la vitalidad masculina,disminucion de la vitalidad masculina,P008,Varicocele (Apoyo a la salud vascular y reproductiva masculina),7
+reducción de las erecciones matutinas,reduccion de las erecciones matutinas,P008,Varicocele (Apoyo a la salud vascular y reproductiva masculina),7
+disminución de la libido (en algunos casos).,disminucion de la libido (en algunos casos).,P008,Varicocele (Apoyo a la salud vascular y reproductiva masculina),7
+Disminución de la libido,disminucion de la libido,P009,Bienestar íntimo femenino y función sexual,8
+resequedad vaginal,resequedad vaginal,P009,Bienestar íntimo femenino y función sexual,8
+disminución de la lubricación,disminucion de la lubricacion,P009,Bienestar íntimo femenino y función sexual,8
+molestias o dolor durante las relaciones sexuales,molestias o dolor durante las relaciones sexuales,P009,Bienestar íntimo femenino y función sexual,8
+menor sensibilidad o excitación,menor sensibilidad o excitacion,P009,Bienestar íntimo femenino y función sexual,8
+dificultad para alcanzar el orgasmo,dificultad para alcanzar el orgasmo,P009,Bienestar íntimo femenino y función sexual,8
+infecciones urinarias o vaginales recurrentes,infecciones urinarias o vaginales recurrentes,P009,Bienestar íntimo femenino y función sexual,8
+disminución del bienestar íntimo.,disminucion del bienestar intimo.,P009,Bienestar íntimo femenino y función sexual,8
+Dificultad para lograr embarazo,dificultad para lograr embarazo,P010,Apoyo a la salud reproductiva femenina y planificación del embarazo,9
+planificación del embarazo,planificacion del embarazo,P010,Apoyo a la salud reproductiva femenina y planificación del embarazo,9
+ciclos menstruales irregulares,ciclos menstruales irregulares,P010,Apoyo a la salud reproductiva femenina y planificación del embarazo,9
+antecedentes de infertilidad,antecedentes de infertilidad,P010,Apoyo a la salud reproductiva femenina y planificación del embarazo,9
+fatiga o deficiencias nutricionales,fatiga o deficiencias nutricionales,P010,Apoyo a la salud reproductiva femenina y planificación del embarazo,9
+diagnóstico de baja reserva ovárica o alteraciones ovulatorias,diagnostico de baja reserva ovarica o alteraciones ovulatorias,P010,Apoyo a la salud reproductiva femenina y planificación del embarazo,9
+antecedentes de aborto temprano,antecedentes de aborto temprano,P010,Apoyo a la salud reproductiva femenina y planificación del embarazo,9
+deseo de optimizar el estado nutricional antes de la concepción.,deseo de optimizar el estado nutricional antes de la concepcion.,P010,Apoyo a la salud reproductiva femenina y planificación del embarazo,9
+Menstruaciones irregulares o ausencia de menstruación,menstruaciones irregulares o ausencia de menstruacion,P011,Síndrome de Ovario Poliquístico (SOP),38
+dificultad para quedar embarazada,dificultad para quedar embarazada,P011,Síndrome de Ovario Poliquístico (SOP),38
+acné,acne,P011,Síndrome de Ovario Poliquístico (SOP),38
+exceso de vello corporal o facial,exceso de vello corporal o facial,P011,Síndrome de Ovario Poliquístico (SOP),38
+caída del cabello,caida del cabello,P011,Síndrome de Ovario Poliquístico (SOP),38
+aumento de peso,aumento de peso,P011,Síndrome de Ovario Poliquístico (SOP),38
+resistencia a la insulina,resistencia a la insulina,P011,Síndrome de Ovario Poliquístico (SOP),38
+ovarios con múltiples folículos en ecografía.,ovarios con multiples foliculos en ecografia.,P011,Síndrome de Ovario Poliquístico (SOP),38
+Dolor pélvico unilateral,dolor pelvico unilateral,P012,Quistes ováricos funcionales,39
+sensación de presión o pesadez en la pelvis,sensacion de presion o pesadez en la pelvis,P012,Quistes ováricos funcionales,39
+dolor durante las relaciones sexuales,dolor durante las relaciones sexuales,P012,Quistes ováricos funcionales,39
+alteraciones del ciclo menstrual,alteraciones del ciclo menstrual,P012,Quistes ováricos funcionales,39
+distensión abdominal,distension abdominal,P012,Quistes ováricos funcionales,39
+en muchos casos ausencia de síntomas.,en muchos casos ausencia de sintomas.,P012,Quistes ováricos funcionales,39
+Dolor menstrual intenso,dolor menstrual intenso,P013,Endometriosis,40
+dolor pélvico crónico,dolor pelvico cronico,P013,Endometriosis,40
+dolor durante las relaciones sexuales,dolor durante las relaciones sexuales,P013,Endometriosis,40
+sangrado menstrual abundante o prolongado,sangrado menstrual abundante o prolongado,P013,Endometriosis,40
+dolor al evacuar o al orinar durante la menstruación,dolor al evacuar o al orinar durante la menstruacion,P013,Endometriosis,40
+infertilidad,infertilidad,P013,Endometriosis,40
+fatiga.,fatiga.,P013,Endometriosis,40
+Dolor de espalda frecuente,dolor de espalda frecuente,P014,Osteoporosis,41
+pérdida de estatura con los años,perdida de estatura con los anos,P014,Osteoporosis,41
+postura encorvada,postura encorvada,P014,Osteoporosis,41
+fracturas ante golpes leves,fracturas ante golpes leves,P014,Osteoporosis,41
+debilidad muscular,debilidad muscular,P014,Osteoporosis,41
+disminución de fuerza,disminucion de fuerza,P014,Osteoporosis,41
+dificultad para mantener actividad física,dificultad para mantener actividad fisica,P014,Osteoporosis,41
+antecedentes familiares de osteoporosis,antecedentes familiares de osteoporosis,P014,Osteoporosis,41
+menopausia o edad avanzada.,menopausia o edad avanzada.,P014,Osteoporosis,41
+"Dolor en rodillas, cadera, manos o columna","dolor en rodillas, cadera, manos o columna",P015,Artrosis (desgaste articular / osteoartritis),42
+rigidez después del reposo,rigidez despues del reposo,P015,Artrosis (desgaste articular / osteoartritis),42
+dificultad para movilizar la articulación,dificultad para movilizar la articulacion,P015,Artrosis (desgaste articular / osteoartritis),42
+crujidos o sensación de roce,crujidos o sensacion de roce,P015,Artrosis (desgaste articular / osteoartritis),42
+disminución de movilidad,disminucion de movilidad,P015,Artrosis (desgaste articular / osteoartritis),42
+molestias que aumentan con el uso de la articulación.,molestias que aumentan con el uso de la articulacion.,P015,Artrosis (desgaste articular / osteoartritis),42
+Dolor articular,dolor articular,P016,Artritis inflamatoria,43
+inflamación visible,inflamacion visible,P016,Artritis inflamatoria,43
+articulaciones calientes o sensibles,articulaciones calientes o sensibles,P016,Artritis inflamatoria,43
+rigidez prolongada especialmente al despertar,rigidez prolongada especialmente al despertar,P016,Artritis inflamatoria,43
+dificultad para mover la articulación,dificultad para mover la articulacion,P016,Artritis inflamatoria,43
+fatiga asociada,fatiga asociada,P016,Artritis inflamatoria,43
+molestias en varias articulaciones.,molestias en varias articulaciones.,P016,Artritis inflamatoria,43
+Dolor lumbar,dolor lumbar,P017,Ciática / Lumbalgia,44
+dolor que baja hacia glúteo o pierna,dolor que baja hacia gluteo o pierna,P017,Ciática / Lumbalgia,44
+sensación de tirón,sensacion de tiron,P017,Ciática / Lumbalgia,44
+rigidez de espalda,rigidez de espalda,P017,Ciática / Lumbalgia,44
+dificultad para moverse,dificultad para moverse,P017,Ciática / Lumbalgia,44
+molestias después de permanecer mucho tiempo sentado o de pie.,molestias despues de permanecer mucho tiempo sentado o de pie.,P017,Ciática / Lumbalgia,44
+Dolor localizado,dolor localizado,P018,"Dolor muscular, contracturas y molestias musculoesqueléticas localizadas",45
+sensación de tensión o contractura,sensacion de tension o contractura,P018,"Dolor muscular, contracturas y molestias musculoesqueléticas localizadas",45
+rigidez muscular,rigidez muscular,P018,"Dolor muscular, contracturas y molestias musculoesqueléticas localizadas",45
+molestias al mover la zona,molestias al mover la zona,P018,"Dolor muscular, contracturas y molestias musculoesqueléticas localizadas",45
+cuello o espalda cargados,cuello o espalda cargados,P018,"Dolor muscular, contracturas y molestias musculoesqueléticas localizadas",45
+sensación de cansancio muscular.,sensacion de cansancio muscular.,P018,"Dolor muscular, contracturas y molestias musculoesqueléticas localizadas",45
+Dolor generalizado en diferentes zonas del cuerpo,dolor generalizado en diferentes zonas del cuerpo,P019,Fibromialgia,46
+cansancio frecuente,cansancio frecuente,P019,Fibromialgia,46
+sueño no reparador,sueno no reparador,P019,Fibromialgia,46
+rigidez,rigidez,P019,Fibromialgia,46
+sensibilidad aumentada,sensibilidad aumentada,P019,Fibromialgia,46
+dificultad para concentrarse,dificultad para concentrarse,P019,Fibromialgia,46
+molestias musculares persistentes.,molestias musculares persistentes.,P019,Fibromialgia,46
+Dolor en el talón al dar los primeros pasos,dolor en el talon al dar los primeros pasos,P020,Espolón calcáneo / dolor de talón (fascitis plantar asociada),47
+dolor después de periodos de descanso,dolor despues de periodos de descanso,P020,Espolón calcáneo / dolor de talón (fascitis plantar asociada),47
+sensibilidad al apoyar,sensibilidad al apoyar,P020,Espolón calcáneo / dolor de talón (fascitis plantar asociada),47
+molestia al caminar,molestia al caminar,P020,Espolón calcáneo / dolor de talón (fascitis plantar asociada),47
+rigidez en la planta del pie.,rigidez en la planta del pie.,P020,Espolón calcáneo / dolor de talón (fascitis plantar asociada),47
