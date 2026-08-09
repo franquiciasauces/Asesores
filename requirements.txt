@@ -1,0 +1,10 @@
+streamlit
+pandas
+openpyxl
+numpy
+rapidfuzz
+scikit-learn
+sentence-transformers
+Pillow
+plotly
+reportlab
