@@ -869,7 +869,7 @@ if opcion_consulta == "Productos":
         st.error(
             "Base_Productos NO está disponible en este punto."
             
-```python
+
 # ============================================================
 # BLOQUE 2.1.2 — LISTADO ALFABÉTICO Y SELECCIÓN
 # ============================================================
