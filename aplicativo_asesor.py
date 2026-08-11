@@ -903,99 +903,106 @@ if (
             "No se encontró información para el producto seleccionado."
         )
 # ============================================================
-# BLOQUE 2.1.4 — BÚSQUEDA DE PRODUCTOS POR COMPONENTE
+# BLOQUE 2.1.4 — COMPONENTE → PRODUCTOS
 # ============================================================
 
 if (
     opcion_consulta == "Productos"
     and st.session_state.get("tipo_consulta_producto")
-    == "Buscar por componente"
+    == "Componente → productos"
 ):
 
     st.subheader("Buscar productos por componente")
 
     componente_buscado = st.text_input(
-        "Ingrese el componente que desea buscar:",
+        "Escriba el componente que desea buscar:",
         key="componente_buscado"
     )
 
-    if componente_buscado:
+    if componente_buscado.strip():
 
-        componente_normalizado = unidecode(
+        texto_buscado = (
             componente_buscado
-        ).lower().strip()
+            .strip()
+            .lower()
+        )
 
         resultados_componentes = []
 
         for _, fila in Base_Productos.iterrows():
 
-            componentes = fila.get("Componentes", "")
+            componente = fila.iloc[3]
 
-            if pd.isna(componentes):
+            if pd.isna(componente):
                 continue
 
-            componentes_normalizados = unidecode(
-                str(componentes)
-            ).lower()
+            texto_componente = str(componente).lower()
 
-            puntaje = fuzz.partial_ratio(
-                componente_normalizado,
-                componentes_normalizados
-            )
-
-            if puntaje >= 70:
+            if texto_buscado in texto_componente:
 
                 resultados_componentes.append(
-                    {
-                        "Producto": fila["Producto"],
-                        "Componentes": componentes,
-                        "Puntaje": puntaje
-                    }
+                    fila["Producto"]
                 )
 
-        if resultados_componentes:
+        productos_encontrados = sorted(
+            set(resultados_componentes)
+        )
 
-            resultados_componentes = sorted(
-                resultados_componentes,
-                key=lambda x: x["Puntaje"],
-                reverse=True
+        if len(productos_encontrados) == 0:
+
+            st.warning(
+                "No se encontraron productos que "
+                "contengan el componente buscado."
             )
 
-            st.write(
-                "Productos que contienen el componente buscado:"
+        elif len(productos_encontrados) == 1:
+
+            producto_seleccionado_componente = (
+                productos_encontrados[0]
             )
 
-            productos_encontrados = [
-                resultado["Producto"]
-                for resultado in resultados_componentes
-            ]
-
-            productos_encontrados = list(
-                dict.fromkeys(productos_encontrados)
-            )
-
-            if len(productos_encontrados) == 1:
-
-                producto_seleccionado_componente = (
-                    productos_encontrados[0]
-                )
-
-            else:
-
-                producto_seleccionado_componente = st.selectbox(
-                    "Seleccione el producto que desea consultar:",
-                    productos_encontrados,
-                    key="producto_seleccionado_componente"
-                )
-
-            st.write(
-                "Producto seleccionado:",
-                producto_seleccionado_componente
+            st.success(
+                f"Producto encontrado: "
+                f"{producto_seleccionado_componente}"
             )
 
         else:
 
-            st.warning(
-                "No se encontraron productos relacionados "
-                "con el componente ingresado."
+            st.write(
+                f"Se encontraron "
+                f"{len(productos_encontrados)} productos:"
             )
+
+            producto_seleccionado_componente = st.selectbox(
+                "Seleccione el producto que desea consultar:",
+                productos_encontrados,
+                key="producto_seleccionado_componente"
+            )
+
+        if (
+            "producto_seleccionado_componente" in locals()
+        ):
+
+            producto_data_componente = Base_Productos[
+                Base_Productos["Producto"].astype(str)
+                == str(producto_seleccionado_componente)
+            ]
+
+            if not producto_data_componente.empty:
+
+                st.subheader("Ficha del producto")
+
+                producto_info = (
+                    producto_data_componente.iloc[0]
+                )
+
+                for columna in Base_Productos.columns:
+
+                    valor = producto_info[columna]
+
+                    if pd.notna(valor):
+
+                        st.write(
+                            f"**{columna}:**",
+                            valor
+                        )
