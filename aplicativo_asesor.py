@@ -867,3 +867,38 @@ if opcion_consulta == "Productos" and st.session_state.get("tipo_consulta_produc
         "Producto seleccionado:",
         producto_seleccionado
     )
+# ============================================================
+# BLOQUE 2.1.3 — FICHA DEL PRODUCTO SELECCIONADO
+# ============================================================
+
+if (
+    opcion_consulta == "Productos"
+    and st.session_state.get("tipo_consulta_producto") == "Ver todos los productos"
+    and "producto_seleccionado" in locals()
+):
+
+    producto_data = Base_Productos[
+        Base_Productos["Producto"].astype(str) == str(producto_seleccionado)
+    ]
+
+    if not producto_data.empty:
+
+        st.subheader("Ficha del producto")
+
+        producto_info = producto_data.iloc[0]
+
+        for columna in Base_Productos.columns:
+
+            valor = producto_info[columna]
+
+            if pd.notna(valor):
+                st.write(
+                    f"**{columna}:**",
+                    valor
+                )
+
+    else:
+
+        st.warning(
+            "No se encontró información para el producto seleccionado."
+        )
