@@ -870,27 +870,34 @@ if opcion_consulta == "Productos":
             "Base_Productos NO está disponible en este punto."
         )
 # ============================================================
-# BLOQUE 2.1.2 — PRUEBA DE CONEXIÓN CON BASE_PRODUCTOS
+# BLOQUE 2.1.2 — LISTADO ALFABÉTICO Y SELECCIÓN
 # ============================================================
 
-if opcion_consulta == "Productos":
+if (
+    opcion_consulta == "Productos"
+    and st.session_state.get("tipo_consulta_producto")
+    == "Ver todos los productos"
+):
 
-    st.write("Prueba de conexión con Base_Productos")
+    st.subheader("Listado de productos")
 
-    if "Base_Productos" in globals():
+    productos_ordenados = sorted(
+        Base_Productos["Producto"]
+        .dropna()
+        .astype(str)
+        .unique()
+    )
 
-        st.success("Base_Productos está disponible")
+    producto_seleccionado = st.selectbox(
+        "Seleccione el producto que desea consultar:",
+        productos_ordenados,
+        key="producto_seleccionado_listado"
+    )
 
-        st.write(
-            "Filas:",
-            len(Base_Productos)
-        )
-
-        st.write(
-            "Columnas:",
-            list(Base_Productos.columns)
-        )
-
+    st.write(
+        "Producto seleccionado:",
+        producto_seleccionado
+    )
     else:
 
         st.error(
