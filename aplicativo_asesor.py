@@ -843,25 +843,13 @@ if opcion_consulta == "Productos":
         tipo_consulta_producto
     )
 # ============================================================
-
 # BLOQUE 2.1.2 — LISTADO ALFABÉTICO Y SELECCIÓN
-
 # ============================================================
 
-if (
-opcion_consulta == "Productos"
-and st.session_state.get("tipo_consulta_producto")
-== "Ver todos los productos"
-):
-
-```
 st.subheader("Listado de productos")
 
 productos_ordenados = sorted(
-    Base_Productos["Producto"]
-    .dropna()
-    .astype(str)
-    .unique()
+    Base_Productos["Producto"].dropna().astype(str).unique()
 )
 
 producto_seleccionado = st.selectbox(
@@ -870,10 +858,6 @@ producto_seleccionado = st.selectbox(
     key="producto_seleccionado_listado"
 )
 
-st.write(
-    "Producto seleccionado:",
-    producto_seleccionado
-)
-```
+st.write("Producto seleccionado:", producto_seleccionado)
 
   )
