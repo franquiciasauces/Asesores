@@ -227,7 +227,68 @@ else:
         "porque el archivo no fue encontrado."
     )
 
+# ============================================================
+# 7.1 CARGA DE HOJAS DE LA MATRIZ
+# ============================================================
 
+Base_Productos = None
+Patologias = None
+Condiciones = None
+Restricciones = None
+Complementarios = None
+Reglas_Paquetes = None
+Entrevista = None
+
+if matriz_ok:
+
+    try:
+
+        Base_Productos = pd.read_excel(
+            ARCHIVO_MATRIZ,
+            sheet_name="Base_Productos"
+        )
+
+        Patologias = pd.read_excel(
+            ARCHIVO_MATRIZ,
+            sheet_name="Patologias"
+        )
+
+        Condiciones = pd.read_excel(
+            ARCHIVO_MATRIZ,
+            sheet_name="Condiciones"
+        )
+
+        Restricciones = pd.read_excel(
+            ARCHIVO_MATRIZ,
+            sheet_name="Restricciones"
+        )
+
+        Complementarios = pd.read_excel(
+            ARCHIVO_MATRIZ,
+            sheet_name="Complementarios"
+        )
+
+        Reglas_Paquetes = pd.read_excel(
+            ARCHIVO_MATRIZ,
+            sheet_name="Reglas_Paquetes"
+        )
+
+        Entrevista = pd.read_excel(
+            ARCHIVO_MATRIZ,
+            sheet_name="Entrevista"
+        )
+
+        st.success(
+            "✓ Hojas de la matriz cargadas "
+            "correctamente para el aplicativo."
+        )
+
+    except Exception as error_matriz:
+
+        st.error(
+            f"Error cargando las hojas de la matriz: "
+            f"{error_matriz}"
+        )
 # ============================================================
 # 8. DIAGNÓSTICO DE BASE SEMÁNTICA
 # ============================================================
