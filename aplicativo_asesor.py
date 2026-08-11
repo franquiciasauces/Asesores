@@ -1013,10 +1013,10 @@ if (
 if (
     opcion_consulta == "Productos"
     and st.session_state.get("tipo_consulta_producto")
-    == "Buscar producto por nombre"
+    == "Buscar producto"
 ):
 
-    st.subheader("Buscar producto por nombre")
+    st.subheader("Buscar producto")
 
     nombre_buscado = st.text_input(
         "Escriba el nombre del producto:",
