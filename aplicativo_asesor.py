@@ -843,61 +843,37 @@ if opcion_consulta == "Productos":
         tipo_consulta_producto
     )
 # ============================================================
-# BLOQUE 2.1.2 — PRUEBA DE CONEXIÓN CON BASE_PRODUCTOS
-# ============================================================
 
-if opcion_consulta == "Productos":
-
-    st.write("Prueba de conexión con Base_Productos")
-
-    if "Base_Productos" in globals():
-
-        st.success("Base_Productos está disponible")
-
-        st.write(
-            "Filas:",
-            len(Base_Productos)
-        )
-
-        st.write(
-            "Columnas:",
-            list(Base_Productos.columns)
-        )
-
-    else:
-
-        st.error(
-            "Base_Productos NO está disponible en este punto."
-            
-
-# ============================================================
 # BLOQUE 2.1.2 — LISTADO ALFABÉTICO Y SELECCIÓN
+
 # ============================================================
 
 if (
-    opcion_consulta == "Productos"
-    and st.session_state.get("tipo_consulta_producto")
-    == "Ver todos los productos"
+opcion_consulta == "Productos"
+and st.session_state.get("tipo_consulta_producto")
+== "Ver todos los productos"
 ):
 
-    st.subheader("Listado de productos")
+```
+st.subheader("Listado de productos")
 
-    productos_ordenados = sorted(
-        Base_Productos["Producto"]
-        .dropna()
-        .astype(str)
-        .unique()
-    )
+productos_ordenados = sorted(
+    Base_Productos["Producto"]
+    .dropna()
+    .astype(str)
+    .unique()
+)
 
-    producto_seleccionado = st.selectbox(
-        "Seleccione el producto que desea consultar:",
-        productos_ordenados,
-        key="producto_seleccionado_listado"
-    )
+producto_seleccionado = st.selectbox(
+    "Seleccione el producto que desea consultar:",
+    productos_ordenados,
+    key="producto_seleccionado_listado"
+)
 
-    st.write(
-        "Producto seleccionado:",
-        producto_seleccionado
-    )
+st.write(
+    "Producto seleccionado:",
+    producto_seleccionado
+)
+```
 
   )
