@@ -1006,3 +1006,120 @@ if (
                             f"**{columna}:**",
                             valor
                         )
+# ============================================================
+# BLOQUE 2.1.5 — BÚSQUEDA DE PRODUCTO POR NOMBRE
+# ============================================================
+
+if (
+    opcion_consulta == "Productos"
+    and st.session_state.get("tipo_consulta_producto")
+    == "Buscar producto por nombre"
+):
+
+    st.subheader("Buscar producto por nombre")
+
+    nombre_buscado = st.text_input(
+        "Escriba el nombre del producto:",
+        key="nombre_buscado_producto"
+    )
+
+    if nombre_buscado.strip():
+
+        texto_buscado = (
+            unidecode(nombre_buscado)
+            .lower()
+            .strip()
+        )
+
+        productos_disponibles = (
+            Base_Productos["Producto"]
+            .dropna()
+            .astype(str)
+            .unique()
+        )
+
+        coincidencias = []
+
+        for producto in productos_disponibles:
+
+            producto_normalizado = (
+                unidecode(str(producto))
+                .lower()
+                .strip()
+            )
+
+            puntaje = fuzz.ratio(
+                texto_buscado,
+                producto_normalizado
+            )
+
+            if (
+                texto_buscado in producto_normalizado
+                or puntaje >= 60
+            ):
+
+                coincidencias.append(
+                    (str(producto), puntaje)
+                )
+
+        coincidencias = sorted(
+            coincidencias,
+            key=lambda x: x[1],
+            reverse=True
+        )
+
+        productos_encontrados = [
+            producto
+            for producto, puntaje in coincidencias
+        ]
+
+        if len(productos_encontrados) == 0:
+
+            st.warning(
+                "No se encontraron productos "
+                "que coincidan con la búsqueda."
+            )
+
+        elif len(productos_encontrados) == 1:
+
+            producto_seleccionado_nombre = (
+                productos_encontrados[0]
+            )
+
+        else:
+
+            st.write(
+                f"Se encontraron "
+                f"{len(productos_encontrados)} "
+                f"posibles coincidencias:"
+            )
+
+            producto_seleccionado_nombre = st.selectbox(
+                "Seleccione el producto que desea consultar:",
+                productos_encontrados,
+                key="producto_seleccionado_nombre"
+            )
+
+        if "producto_seleccionado_nombre" in locals():
+
+            producto_data_nombre = Base_Productos[
+                Base_Productos["Producto"].astype(str)
+                == str(producto_seleccionado_nombre)
+            ]
+
+            if not producto_data_nombre.empty:
+
+                st.subheader("Ficha del producto")
+
+                producto_info = producto_data_nombre.iloc[0]
+
+                for columna in Base_Productos.columns:
+
+                    valor = producto_info[columna]
+
+                    if pd.notna(valor):
+
+                        st.write(
+                            f"**{columna}:**",
+                            valor
+                        )
