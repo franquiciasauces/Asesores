@@ -625,8 +625,8 @@ if opcion_principal == "CONSULTA":
     st.header("CONSULTA")
 
     st.write(
-        "Consulta información de productos, patologías "
-        "y restricciones."
+        "Consulta información de Productos, Patologías, Complementarios "
+        "y Restricciones."
     )
 
     opcion_consulta = st.selectbox(
@@ -635,6 +635,7 @@ if opcion_principal == "CONSULTA":
             "Seleccione una opción",
             "Productos",
             "Patologías",
+            "Complementarios",
             "Restricciones"
         ]
     )
@@ -642,24 +643,29 @@ if opcion_principal == "CONSULTA":
     if opcion_consulta == "Productos":
 
         st.info(
-            "Módulo de consulta de productos. "
+            "Módulo de consulta de Productos. "
             "Se incorporará en el siguiente bloque."
         )
 
     elif opcion_consulta == "Patologías":
 
         st.info(
-            "Módulo de consulta de patologías. "
+            "Módulo de consulta de Patologías. "
             "Se incorporará posteriormente."
         )
 
+    elif opcion_consulta == "Complementarios":
+
+        st.info(
+            "Módulo de consulta de Complementarios. "
+            "Se incorporará posteriormente."
+        )
     elif opcion_consulta == "Restricciones":
 
         st.info(
-            "Módulo de consulta de restricciones. "
+            "Módulo de consulta de Restricciones. "
             "Se incorporará posteriormente."
         )
-
 
 # ============================================================
 # 6. SECCIÓN ASESORÍA
