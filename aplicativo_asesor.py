@@ -11,7 +11,7 @@ import numpy as np
 
 
 # ============================================================
-# 1. CONFIGURACIÓN
+# 1.1 CONFIGURACIÓN
 # ============================================================
 
 st.set_page_config(
@@ -518,3 +518,236 @@ else:
         "⚠ Faltan archivos principales. "
         "Debemos corregirlos antes de continuar."
     )
+# ============================================================
+# FITOASISTE
+# BLOQUE 1.2 — CONFIGURACIÓN GENERAL Y NAVEGACIÓN
+# ============================================================
+
+import streamlit as st
+
+
+# ============================================================
+# 1. CONFIGURACIÓN GENERAL
+# ============================================================
+
+st.set_page_config(
+    page_title="FITOASISTE",
+    page_icon="🌿",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
+
+
+# ============================================================
+# 2. ESTILOS BÁSICOS
+# ============================================================
+
+st.markdown(
+    """
+    <style>
+
+    .titulo-principal {
+        text-align: center;
+        font-size: 42px;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .subtitulo-principal {
+        text-align: center;
+        font-size: 18px;
+        margin-bottom: 35px;
+    }
+
+    .seccion-titulo {
+        font-size: 25px;
+        font-weight: 600;
+        margin-top: 15px;
+        margin-bottom: 10px;
+    }
+
+    .descripcion {
+        font-size: 16px;
+        margin-bottom: 15px;
+    }
+
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# 3. TÍTULO DE LA APLICACIÓN
+# ============================================================
+
+st.markdown(
+    '<div class="titulo-principal">FITOASISTE</div>',
+    unsafe_allow_html=True
+)
+
+st.markdown(
+    """
+    <div class="subtitulo-principal">
+    Herramienta de apoyo para tu proceso de aprendizaje y asesoría
+    </div>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# 4. MENÚ PRINCIPAL
+# ============================================================
+
+st.markdown(
+    '<div class="seccion-titulo">Menú principal</div>',
+    unsafe_allow_html=True
+)
+
+opcion_principal = st.radio(
+    "Seleccione una sección:",
+    [
+        "CONSULTA",
+        "ASESORÍA",
+        "EVALUACIÓN"
+    ],
+    horizontal=True
+)
+
+
+# ============================================================
+# 5. SECCIÓN CONSULTA
+# ============================================================
+
+if opcion_principal == "CONSULTA":
+
+    st.header("CONSULTA")
+
+    st.write(
+        "Consulta información de productos, patologías "
+        "y restricciones."
+    )
+
+    opcion_consulta = st.selectbox(
+        "¿Qué desea consultar?",
+        [
+            "Seleccione una opción",
+            "Productos",
+            "Patologías",
+            "Restricciones"
+        ]
+    )
+
+    if opcion_consulta == "Productos":
+
+        st.info(
+            "Módulo de consulta de productos. "
+            "Se incorporará en el siguiente bloque."
+        )
+
+    elif opcion_consulta == "Patologías":
+
+        st.info(
+            "Módulo de consulta de patologías. "
+            "Se incorporará posteriormente."
+        )
+
+    elif opcion_consulta == "Restricciones":
+
+        st.info(
+            "Módulo de consulta de restricciones. "
+            "Se incorporará posteriormente."
+        )
+
+
+# ============================================================
+# 6. SECCIÓN ASESORÍA
+# ============================================================
+
+elif opcion_principal == "ASESORÍA":
+
+    st.header("ASESORÍA")
+
+    st.write(
+        "La asesoría se desarrolla mediante un flujo "
+        "encadenado de entrevista, direccionamiento y "
+        "recomendación de paquetes."
+    )
+
+    st.subheader("Iniciar asesoría")
+
+    if st.button(
+        "Iniciar entrevista",
+        use_container_width=True
+    ):
+
+        st.info(
+            "El módulo de entrevista se incorporará "
+            "posteriormente."
+        )
+
+    st.write("")
+
+    st.caption(
+        "Flujo previsto: "
+        "Entrevista → Direccionamiento → "
+        "Recomendación de paquetes → Cotización"
+    )
+
+
+# ============================================================
+# 7. SECCIÓN EVALUACIÓN
+# ============================================================
+
+elif opcion_principal == "EVALUACIÓN":
+
+    st.header("EVALUACIÓN")
+
+    st.write(
+        "Espacio para el aprendizaje, la evaluación "
+        "y el seguimiento de resultados."
+    )
+
+    opcion_evaluacion = st.selectbox(
+        "Seleccione una opción:",
+        [
+            "Seleccione una opción",
+            "Autoevaluación",
+            "Evaluación controlada",
+            "Historial de evaluaciones"
+        ]
+    )
+
+    if opcion_evaluacion == "Autoevaluación":
+
+        st.info(
+            "Módulo de autoevaluación. "
+            "Se incorporará posteriormente."
+        )
+
+    elif opcion_evaluacion == "Evaluación controlada":
+
+        st.info(
+            "Módulo de evaluación controlada. "
+            "Se incorporará posteriormente."
+        )
+
+    elif opcion_evaluacion == "Historial de evaluaciones":
+
+        st.info(
+            "Módulo de historial de evaluaciones. "
+            "Se incorporará posteriormente."
+        )
+
+
+# ============================================================
+# 8. PIE DE APLICACIÓN
+# ============================================================
+
+st.divider()
+
+st.caption(
+    "FITOASISTE — Herramienta de apoyo para tu proceso "
+    "de aprendizaje y asesoría"
+)
