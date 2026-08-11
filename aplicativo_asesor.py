@@ -869,3 +869,30 @@ if opcion_consulta == "Productos":
         st.error(
             "Base_Productos NO está disponible en este punto."
         )
+# ============================================================
+# BLOQUE 2.1.2 — PRUEBA DE CONEXIÓN CON BASE_PRODUCTOS
+# ============================================================
+
+if opcion_consulta == "Productos":
+
+    st.write("Prueba de conexión con Base_Productos")
+
+    if "Base_Productos" in globals():
+
+        st.success("Base_Productos está disponible")
+
+        st.write(
+            "Filas:",
+            len(Base_Productos)
+        )
+
+        st.write(
+            "Columnas:",
+            list(Base_Productos.columns)
+        )
+
+    else:
+
+        st.error(
+            "Base_Productos NO está disponible en este punto."
+        )
