@@ -3,7 +3,6 @@
 # PAQUETE 1 - DIAGNÓSTICO Y CARGA DE ARCHIVOS
 # ============================================================
 
-import os
 from pathlib import Path
 
 import streamlit as st
@@ -12,7 +11,7 @@ import numpy as np
 
 
 # ============================================================
-# 1. CONFIGURACIÓN DE LA APLICACIÓN
+# 1. CONFIGURACIÓN
 # ============================================================
 
 st.set_page_config(
@@ -33,78 +32,86 @@ BASE_DIR = Path(__file__).resolve().parent
 # 3. ARCHIVOS PRINCIPALES
 # ============================================================
 
-ARCHIVO_MATRIZ = BASE_DIR / "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
+ARCHIVO_MATRIZ = (
+    BASE_DIR / "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
+)
 
-ARCHIVO_SEMANTICA = BASE_DIR / "base_sintomas_semantica.csv"
+ARCHIVO_SEMANTICA = (
+    BASE_DIR / "base_sintomas_semantica.csv"
+)
 
-ARCHIVO_EMBEDDINGS = BASE_DIR / "embeddings_sintomas.npy"
+ARCHIVO_EMBEDDINGS = (
+    BASE_DIR / "embeddings_sintomas.npy"
+)
 
 
 # ============================================================
-# 4. TÍTULO
+# 4. ENCABEZADO
 # ============================================================
 
 st.title("Aplicativo Asesores")
 
-st.subheader("Paquete 1 — Diagnóstico y carga de información")
+st.subheader(
+    "Paquete 1 — Diagnóstico y carga de información"
+)
 
 st.write(
-    "Esta etapa verifica los archivos disponibles en el proyecto "
-    "antes de desarrollar las consultas, la asesoría y las evaluaciones."
+    "Verificación inicial de los archivos necesarios "
+    "para el funcionamiento del aplicativo."
 )
 
 
 # ============================================================
-# 5. FUNCIÓN PARA MOSTRAR ESTADO DE ARCHIVOS
+# 5. FUNCIÓN DE VERIFICACIÓN
 # ============================================================
 
-def mostrar_estado_archivo(nombre, ruta):
+def verificar_archivo(nombre, ruta):
 
-    existe = ruta.exists()
-
-    if existe:
+    if ruta.exists():
 
         tamaño_mb = ruta.stat().st_size / (1024 * 1024)
 
         st.success(
-            f"✓ {nombre} encontrado — "
-            f"{ruta.name} — {tamaño_mb:.2f} MB"
+            f"✓ {nombre} encontrado: "
+            f"{ruta.name} "
+            f"({tamaño_mb:.2f} MB)"
         )
+
+        return True
 
     else:
 
         st.error(
-            f"✗ {nombre} NO encontrado — "
-            f"{ruta.name}"
+            f"✗ No se encontró: {ruta.name}"
         )
 
-    return existe
+        return False
 
 
 # ============================================================
-# 6. VERIFICACIÓN DE ARCHIVOS PRINCIPALES
+# 6. VERIFICAR ARCHIVOS
 # ============================================================
 
 st.header("1. Verificación de archivos")
 
-matriz_ok = mostrar_estado_archivo(
-    "Matriz de productos, patologías y paquetes",
+matriz_ok = verificar_archivo(
+    "Matriz",
     ARCHIVO_MATRIZ
 )
 
-semantica_ok = mostrar_estado_archivo(
+semantica_ok = verificar_archivo(
     "Base semántica",
     ARCHIVO_SEMANTICA
 )
 
-embeddings_ok = mostrar_estado_archivo(
-    "Embeddings de síntomas",
+embeddings_ok = verificar_archivo(
+    "Embeddings",
     ARCHIVO_EMBEDDINGS
 )
 
 
 # ============================================================
-# 7. DIAGNÓSTICO DEL ARCHIVO EXCEL
+# 7. DIAGNÓSTICO DEL EXCEL
 # ============================================================
 
 st.header("2. Diagnóstico de la matriz Excel")
@@ -113,17 +120,21 @@ if matriz_ok:
 
     try:
 
-        libro = pd.ExcelFile(ARCHIVO_MATRIZ)
+        libro = pd.ExcelFile(
+            ARCHIVO_MATRIZ
+        )
+
+        hojas = libro.sheet_names
 
         st.success(
-            f"Archivo Excel cargado correctamente. "
-            f"Número de hojas: {len(libro.sheet_names)}"
+            f"Excel cargado correctamente. "
+            f"Número de hojas: {len(hojas)}"
         )
 
         st.write("### Hojas encontradas")
 
         for numero, nombre_hoja in enumerate(
-            libro.sheet_names,
+            hojas,
             start=1
         ):
 
@@ -138,46 +149,56 @@ if matriz_ok:
                     sheet_name=nombre_hoja
                 )
 
-                filas, columnas = df.shape
+                filas = df.shape[0]
+                columnas = df.shape[1]
 
                 st.write(
-                    f"Filas: **{filas:,}**  |  "
+                    f"Filas: **{filas:,}** | "
                     f"Columnas: **{columnas}**"
                 )
 
-                # ------------------------------------------------
-                # Columnas y tipos de datos
-                # ------------------------------------------------
+                # --------------------------------------------
+                # Información de columnas
+                # --------------------------------------------
 
-                informacion_columnas = pd.DataFrame({
-                    "Columna": df.columns.astype(str),
-                    "Tipo de dato": [
-                        str(tipo)
-                        for tipo in df.dtypes
-                    ],
-                    "Valores no nulos": [
-                        int(df[col].notna().sum())
-                        for col in df.columns
-                    ],
-                    "Valores nulos": [
-                        int(df[col].isna().sum())
-                        for col in df.columns
-                    ]
-                })
+                informacion = []
 
-                st.write("**Estructura de columnas:**")
+                for columna in df.columns:
+
+                    informacion.append({
+                        "Columna": str(columna),
+                        "Tipo de dato": str(
+                            df[columna].dtype
+                        ),
+                        "No nulos": int(
+                            df[columna].notna().sum()
+                        ),
+                        "Nulos": int(
+                            df[columna].isna().sum()
+                        )
+                    })
+
+                tabla_columnas = pd.DataFrame(
+                    informacion
+                )
+
+                st.write(
+                    "**Estructura de columnas:**"
+                )
 
                 st.dataframe(
-                    informacion_columnas,
+                    tabla_columnas,
                     use_container_width=True,
                     hide_index=True
                 )
 
-                # ------------------------------------------------
+                # --------------------------------------------
                 # Muestra de datos
-                # ------------------------------------------------
+                # --------------------------------------------
 
-                st.write("**Muestra de registros:**")
+                st.write(
+                    "**Primeros 5 registros:**"
+                )
 
                 st.dataframe(
                     df.head(5),
@@ -188,20 +209,27 @@ if matriz_ok:
             except Exception as error_hoja:
 
                 st.error(
-                    f"No fue posible leer la hoja "
+                    f"Error leyendo la hoja "
                     f"'{nombre_hoja}': {error_hoja}"
                 )
+
+    except Exception as error_excel:
+
+        st.error(
+            f"Error cargando el archivo Excel: "
+            f"{error_excel}"
+        )
 
 else:
 
     st.warning(
-        "La matriz Excel no está disponible. "
-        "El diagnóstico de las hojas no puede realizarse."
+        "No se puede diagnosticar el Excel "
+        "porque el archivo no fue encontrado."
     )
 
 
 # ============================================================
-# 8. DIAGNÓSTICO DE LA BASE SEMÁNTICA
+# 8. DIAGNÓSTICO DE BASE SEMÁNTICA
 # ============================================================
 
 st.header("3. Diagnóstico de la base semántica")
@@ -216,38 +244,49 @@ if semantica_ok:
             ARCHIVO_SEMANTICA
         )
 
-        filas, columnas = base_semantica.shape
+        filas = base_semantica.shape[0]
+        columnas = base_semantica.shape[1]
 
         st.success(
-            f"Base semántica cargada correctamente: "
-            f"{filas:,} registros y {columnas} columnas."
+            f"Base semántica cargada: "
+            f"{filas:,} registros y "
+            f"{columnas} columnas."
         )
 
-        informacion_semantica = pd.DataFrame({
-            "Columna": base_semantica.columns.astype(str),
-            "Tipo de dato": [
-                str(tipo)
-                for tipo in base_semantica.dtypes
-            ],
-            "Valores no nulos": [
-                int(base_semantica[col].notna().sum())
-                for col in base_semantica.columns
-            ],
-            "Valores nulos": [
-                int(base_semantica[col].isna().sum())
-                for col in base_semantica.columns
-            ]
-        })
+        informacion = []
 
-        st.write("**Estructura de la base:**")
+        for columna in base_semantica.columns:
+
+            informacion.append({
+                "Columna": str(columna),
+                "Tipo de dato": str(
+                    base_semantica[columna].dtype
+                ),
+                "No nulos": int(
+                    base_semantica[columna].notna().sum()
+                ),
+                "Nulos": int(
+                    base_semantica[columna].isna().sum()
+                )
+            })
+
+        tabla_semantica = pd.DataFrame(
+            informacion
+        )
+
+        st.write(
+            "**Estructura de la base:**"
+        )
 
         st.dataframe(
-            informacion_semantica,
+            tabla_semantica,
             use_container_width=True,
             hide_index=True
         )
 
-        st.write("**Muestra de registros:**")
+        st.write(
+            "**Primeros 10 registros:**"
+        )
 
         st.dataframe(
             base_semantica.head(10),
@@ -258,14 +297,15 @@ if semantica_ok:
     except Exception as error_semantica:
 
         st.error(
-            f"No fue posible cargar la base semántica: "
+            f"Error cargando la base semántica: "
             f"{error_semantica}"
         )
 
 else:
 
     st.warning(
-        "La base semántica no está disponible."
+        "No se puede diagnosticar la base semántica "
+        "porque el archivo no fue encontrado."
     )
 
 
@@ -287,76 +327,83 @@ if embeddings_ok:
         )
 
         st.success(
-            "Archivo de embeddings cargado correctamente."
+            "Embeddings cargados correctamente."
         )
 
         st.write(
-            f"**Tipo de objeto:** `{type(embeddings).__name__}`"
+            f"Tipo: `{type(embeddings).__name__}`"
         )
 
         st.write(
-            f"**Tipo de dato:** `{embeddings.dtype}`"
+            f"Tipo de dato: `{embeddings.dtype}`"
         )
 
         st.write(
-            f"**Dimensiones:** `{embeddings.shape}`"
+            f"Dimensiones: `{embeddings.shape}`"
         )
 
         st.write(
-            f"**Número de elementos:** `{embeddings.size:,}`"
+            f"Cantidad total de elementos: "
+            f"`{embeddings.size:,}`"
         )
 
-        # --------------------------------------------------------
-        # Comparación con la base semántica
-        # --------------------------------------------------------
+        # --------------------------------------------
+        # Comparación con base semántica
+        # --------------------------------------------
 
         if base_semantica is not None:
 
-            numero_registros_semantica = len(
+            cantidad_base = len(
                 base_semantica
             )
 
             if embeddings.ndim >= 1:
 
-                numero_embeddings = embeddings.shape[0]
+                cantidad_embeddings = (
+                    embeddings.shape[0]
+                )
 
-                if numero_embeddings == numero_registros_semantica:
+                if (
+                    cantidad_embeddings
+                    == cantidad_base
+                ):
 
                     st.success(
-                        "✓ La cantidad de embeddings coincide "
-                        "con la cantidad de registros de la "
-                        "base semántica."
+                        "✓ La cantidad de embeddings "
+                        "coincide con la cantidad de "
+                        "registros de la base semántica."
                     )
 
                 else:
 
                     st.warning(
-                        "⚠ La cantidad de embeddings NO coincide "
-                        "con la cantidad de registros de la "
-                        "base semántica."
+                        "⚠ La cantidad de embeddings "
+                        "NO coincide con la cantidad "
+                        "de registros semánticos."
                     )
 
                     st.write(
-                        f"Registros base semántica: "
-                        f"**{numero_registros_semantica:,}**"
+                        f"Registros semánticos: "
+                        f"**{cantidad_base:,}**"
                     )
 
                     st.write(
                         f"Embeddings: "
-                        f"**{numero_embeddings:,}**"
+                        f"**{cantidad_embeddings:,}**"
                     )
 
     except Exception as error_embeddings:
 
         st.error(
-            f"No fue posible cargar los embeddings: "
+            f"Error cargando embeddings: "
             f"{error_embeddings}"
         )
 
 else:
 
     st.warning(
-        "El archivo de embeddings no está disponible."
+        "No se puede diagnosticar embeddings "
+        "porque el archivo no fue encontrado."
     )
 
 
@@ -366,43 +413,55 @@ else:
 
 st.header("5. Imágenes disponibles")
 
-extensiones_imagen = {
+EXTENSIONES_IMAGEN = {
     ".png",
     ".jpg",
     ".jpeg"
 }
 
-imagenes = sorted([
-    archivo
-    for archivo in BASE_DIR.iterdir()
-    if archivo.is_file()
-    and archivo.suffix.lower() in extensiones_imagen
-])
+imagenes = []
+
+for archivo in BASE_DIR.iterdir():
+
+    if archivo.is_file():
+
+        if archivo.suffix.lower() in EXTENSIONES_IMAGEN:
+
+            imagenes.append(archivo)
 
 
-if len(imagenes) > 0:
+imagenes.sort(
+    key=lambda archivo: archivo.name.lower()
+)
+
+
+if imagenes:
 
     st.success(
-        f"Se encontraron {len(imagenes)} imagen(es)."
+        f"Se encontraron "
+        f"{len(imagenes)} imágenes."
     )
 
-    tabla_imagenes = pd.DataFrame({
-        "Nombre del archivo": [
-            imagen.name
-            for imagen in imagenes
-        ],
-        "Extensión": [
-            imagen.suffix.lower()
-            for imagen in imagenes
-        ],
-        "Tamaño (KB)": [
-            round(
-                imagen.stat().st_size / 1024,
+    informacion_imagenes = []
+
+    for imagen in imagenes:
+
+        tamaño_kb = (
+            imagen.stat().st_size / 1024
+        )
+
+        informacion_imagenes.append({
+            "Nombre": imagen.name,
+            "Extensión": imagen.suffix.lower(),
+            "Tamaño (KB)": round(
+                tamaño_kb,
                 2
             )
-            for imagen in imagenes
-        ]
-    })
+        })
+
+    tabla_imagenes = pd.DataFrame(
+        informacion_imagenes
+    )
 
     st.dataframe(
         tabla_imagenes,
@@ -413,18 +472,19 @@ if len(imagenes) > 0:
 else:
 
     st.info(
-        "No se encontraron imágenes PNG, JPG o JPEG "
-        "en la raíz del proyecto."
+        "No se encontraron imágenes "
+        "PNG, JPG o JPEG en la carpeta "
+        "principal del proyecto."
     )
 
 
 # ============================================================
-# 11. RESUMEN DEL DIAGNÓSTICO
+# 11. RESUMEN
 # ============================================================
 
-st.header("6. Resumen")
+st.header("6. Resumen del diagnóstico")
 
-archivos_correctos = sum([
+archivos_encontrados = sum([
     matriz_ok,
     semantica_ok,
     embeddings_ok
@@ -432,7 +492,7 @@ archivos_correctos = sum([
 
 st.write(
     f"Archivos principales encontrados: "
-    f"**{archivos_correctos} de 3**"
+    f"**{archivos_encontrados} de 3**"
 )
 
 st.write(
@@ -448,13 +508,13 @@ if (
 ):
 
     st.success(
-        "✓ El paquete básico de archivos está disponible. "
-        "Podemos continuar con el siguiente bloque."
+        "✓ Los archivos principales están disponibles. "
+        "El diagnóstico inicial terminó correctamente."
     )
 
 else:
 
     st.warning(
-        "⚠ Hay archivos pendientes o con problemas. "
+        "⚠ Faltan archivos principales. "
         "Debemos corregirlos antes de continuar."
     )
