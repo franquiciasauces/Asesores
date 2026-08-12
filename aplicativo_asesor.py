@@ -3479,7 +3479,7 @@ if (
 
 # ============================================================
 # BLOQUE — RESTRICCIONES
-# MENÚ DE CONSULTA
+# MENÚ Y CONSULTAS
 # ============================================================
 
 if opcion_consulta == "Restricciones":
@@ -3501,4 +3501,205 @@ if opcion_consulta == "Restricciones":
     st.session_state["tipo_consulta_restriccion"] = (
         tipo_consulta_restriccion
     )
+
+    # ========================================================
+    # CONSULTA 1 — VER TODAS LAS RESTRICCIONES
+    # ========================================================
+
+    if (
+        tipo_consulta_restriccion
+        == "Ver todas las restricciones"
+    ):
+
+        st.write(
+            "Seleccione la restricción que desea consultar:"
+        )
+
+        opciones_restricciones = []
+
+        for _, fila in Restricciones.iterrows():
+
+            codigo = fila.iloc[0]
+            producto = fila.iloc[1]
+
+            if pd.isna(codigo) or pd.isna(producto):
+                continue
+
+            codigo = str(codigo).strip()
+            producto = str(producto).strip()
+
+            if codigo and producto:
+
+                opciones_restricciones.append(
+                    (producto.lower(), codigo, producto)
+                )
+
+        # ----------------------------------------------------
+        # ORDEN ALFABÉTICO
+        # ----------------------------------------------------
+
+        opciones_restricciones.sort(
+            key=lambda x: x[0]
+        )
+
+        # ----------------------------------------------------
+        # CREAR LISTADO
+        # ----------------------------------------------------
+
+        lista_restricciones = [
+            "Seleccione una restricción"
+        ]
+
+        for _, codigo, producto in opciones_restricciones:
+
+            lista_restricciones.append(
+                f"{codigo} — {producto}"
+            )
+
+        # ----------------------------------------------------
+        # SELECCIÓN
+        # ----------------------------------------------------
+
+        seleccion_restriccion = st.selectbox(
+            "Restricciones disponibles:",
+            lista_restricciones,
+            key="seleccion_restriccion_general"
+        )
+
+        # ====================================================
+        # MOSTRAR FICHA COMPLETA
+        # ====================================================
+
+        if (
+            seleccion_restriccion
+            != "Seleccione una restricción"
+        ):
+
+            codigo_seleccionado = (
+                seleccion_restriccion
+                .split(" — ")[0]
+                .strip()
+            )
+
+            ficha = Restricciones[
+                Restricciones.iloc[:, 0]
+                .astype(str)
+                .str.strip()
+                == codigo_seleccionado
+            ]
+
+            if not ficha.empty:
+
+                datos = ficha.iloc[0]
+
+                st.divider()
+
+                st.subheader(
+                    "Ficha completa de la restricción"
+                )
+
+                st.write(
+                    f"**Restricción ID:** "
+                    f"{datos.iloc[0]}"
+                )
+
+                st.write(
+                    f"**Producto:** "
+                    f"{datos.iloc[1]}"
+                )
+
+                st.write(
+                    f"**Tipo:** "
+                    f"{datos.iloc[2]}"
+                )
+
+                st.write(
+                    f"**Precaución / Contraindicación:** "
+                    f"{datos.iloc[3]}"
+                )
+
+                st.write(
+                    f"**Motivo:** "
+                    f"{datos.iloc[4]}"
+                )
+
+                st.write(
+                    f"**Alternativas seguras:** "
+                    f"{datos.iloc[5]}"
+                )
+
+                # ============================================
+                # NAVEGACIÓN
+                # ============================================
+
+                st.divider()
+
+                siguiente_accion = st.selectbox(
+                    "¿Qué desea hacer ahora?",
+                    [
+                        "Seleccione una opción",
+                        "Seleccionar otro producto de la lista",
+                        "Realizar otra búsqueda",
+                        "Ir al menú principal"
+                    ],
+                    key="navegacion_restricciones_general"
+                )
+
+                if (
+                    siguiente_accion
+                    == "Seleccionar otro producto de la lista"
+                ):
+
+                    st.info(
+                        "Seleccione otro producto "
+                        "en el listado anterior."
+                    )
+
+                elif (
+                    siguiente_accion
+                    == "Realizar otra búsqueda"
+                ):
+
+                    st.info(
+                        "Seleccione otra consulta "
+                        "en el menú de Restricciones."
+                    )
+
+                elif (
+                    siguiente_accion
+                    == "Ir al menú principal"
+                ):
+
+                    st.session_state[
+                        "volver_menu_principal"
+                    ] = True
+
+                    st.rerun()
+
+
+    # ========================================================
+    # CONSULTA 2 — INGRESAR CÓDIGO O NOMBRE DEL PRODUCTO
+    # ========================================================
+    #
+    # SE CONSTRUIRÁ AQUÍ DESPUÉS.
+    #
+    # ========================================================
+
+
+    # ========================================================
+    # CONSULTA 3 — RESTRICCIÓN → PRECAUCIÓN / CONTRAINDICACIÓN
+    # ========================================================
+    #
+    # SE CONSTRUIRÁ AQUÍ DESPUÉS.
+    #
+    # ========================================================
+
+
+    # ========================================================
+    # CONSULTA 4 — PRODUCTO → MOTIVO Y ALTERNATIVA
+    # ========================================================
+    #
+    # SE CONSTRUIRÁ AQUÍ DESPUÉS.
+    #
+    # ========================================================
 
