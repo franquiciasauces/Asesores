@@ -4170,8 +4170,12 @@ if (
                                     )
 
                             # =================================================
-                            # EVALUAR PATOLOGÍAS
+                            # EVALUAR PATOLOGÍAS POR CONJUNTO DE SÍNTOMAS
                             # =================================================
+
+                            # La matriz define dinámicamente qué síntomas
+                            # pertenecen a cada patología. No se utilizan
+                            # categorías rígidas de enfermedades.
 
                             resultados_finales = []
 
@@ -4203,6 +4207,11 @@ if (
 
                                         continue
 
+                                    # ---------------------------------------------
+                                    # CONSERVAR LA MEJOR COINCIDENCIA DEL SÍNTOMA
+                                    # DENTRO DE ESTA PATOLOGÍA
+                                    # ---------------------------------------------
+
                                     candidatos = sorted(
                                         candidatos,
                                         key=lambda x:
@@ -4214,8 +4223,6 @@ if (
 
                                     mejor = candidatos[0]
 
-                                    # Exacta/aproximada o semántica
-                                    # que supera el umbral correspondiente.
                                     if (
                                         mejor[
                                             "Tipo"
@@ -4251,6 +4258,10 @@ if (
                                             mejor
                                         )
 
+                                # ---------------------------------------------
+                                # SIN COINCIDENCIAS: NO ES CANDIDATA
+                                # ---------------------------------------------
+
                                 if not coincidencias_validas:
 
                                     continue
@@ -4283,14 +4294,68 @@ if (
                                     )
                                 )
 
-                                # La cobertura pesa más que la similitud,
-                                # para evitar que una sola coincidencia
-                                # semántica domine una consulta múltiple.
-                                puntaje_global = (
-                                    cobertura * 0.70
-                                    +
-                                    promedio * 0.30
+                                mejor_puntaje = max(
+                                    puntajes
                                 )
+
+                                # ---------------------------------------------
+                                # COHERENCIA DEL CONJUNTO
+                                # ---------------------------------------------
+                                # Con múltiples síntomas, una patología no debe
+                                # entrar al resultado principal solo porque
+                                # comparte un síntoma genérico como "dolor".
+                                # Necesitamos evidencia de al menos dos síntomas
+                                # de la consulta, salvo una coincidencia aislada
+                                # excepcionalmente fuerte.
+
+                                if total_sintomas >= 2:
+
+                                    if (
+                                        sintomas_respaldo
+                                        >=
+                                        2
+                                        and
+                                        promedio
+                                        >=
+                                        70.0
+                                    ):
+
+                                        es_candidata = True
+
+                                    elif (
+                                        sintomas_respaldo
+                                        ==
+                                        total_sintomas
+                                        and
+                                        promedio
+                                        >=
+                                        65.0
+                                    ):
+
+                                        es_candidata = True
+
+                                    else:
+
+                                        es_candidata = False
+
+                                else:
+
+                                    # Para un único síntoma sí permitimos
+                                    # candidatos, pero solamente si la evidencia
+                                    # individual es suficientemente fuerte.
+                                    es_candidata = (
+                                        mejor_puntaje
+                                        >=
+                                        70.0
+                                    )
+
+                                if not es_candidata:
+
+                                    continue
+
+                                # ---------------------------------------------
+                                # NIVEL DE EVIDENCIA
+                                # ---------------------------------------------
 
                                 if (
                                     sintomas_respaldo
@@ -4300,6 +4365,10 @@ if (
                                     total_sintomas
                                     >=
                                     2
+                                    and
+                                    promedio
+                                    >=
+                                    75.0
                                 ):
 
                                     nivel = (
@@ -4310,10 +4379,14 @@ if (
                                     sintomas_respaldo
                                     >=
                                     2
+                                    and
+                                    promedio
+                                    >=
+                                    70.0
                                 ):
 
                                     nivel = (
-                                        "EVIDENCIA MÚLTIPLE"
+                                        "EVIDENCIA MÚLTIPLE COHERENTE"
                                     )
 
                                 elif (
@@ -4323,18 +4396,17 @@ if (
                                     and
                                     promedio
                                     >=
-                                    70
+                                    85.0
                                 ):
 
                                     nivel = (
-                                        "COINCIDENCIA FUERTE"
+                                        "COINCIDENCIA FUERTE AISLADA"
                                     )
 
                                 else:
 
                                     nivel = (
-                                        "CANDIDATA - "
-                                        "REQUIERE CONFIRMACIÓN"
+                                        "CANDIDATA - REQUIERE CONFIRMACIÓN"
                                     )
 
                                 resultados_finales.append(
@@ -4362,9 +4434,9 @@ if (
                                                 2
                                             ),
 
-                                        "Puntaje_global":
+                                        "Mejor_puntaje":
                                             round(
-                                                puntaje_global,
+                                                mejor_puntaje,
                                                 2
                                             ),
 
@@ -4387,11 +4459,15 @@ if (
                                     ],
 
                                     x[
-                                        "Puntaje_global"
+                                        "Cobertura"
                                     ],
 
                                     x[
                                         "Promedio"
+                                    ],
+
+                                    x[
+                                        "Mejor_puntaje"
                                     ]
                                 ),
                                 reverse=True
@@ -4438,7 +4514,7 @@ if (
                                         f"{resultado['Patologia_ID']} — "
                                         f"{resultado['Patologia']} | "
                                         f"{resultado['Nivel']} | "
-                                        f"Global {resultado['Puntaje_global']:.0f}%"
+                                        f"{resultado['Sintomas_respaldo']}/{total_sintomas} síntomas"
                                     )
 
                                 seleccion = st.selectbox(
