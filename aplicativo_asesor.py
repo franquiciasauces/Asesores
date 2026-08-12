@@ -3519,7 +3519,7 @@ if opcion_consulta == "Restricciones":
         # OBTENER PRODUCTOS ÚNICOS
         # ====================================================
 
-        productos_restricciones = []
+        productos_unicos = {}
 
         for _, fila in Restricciones.iterrows():
 
@@ -3530,27 +3530,32 @@ if opcion_consulta == "Restricciones":
 
             producto = str(producto).strip()
 
-            if producto:
-                productos_restricciones.append(
-                    producto
-                )
+            if not producto:
+                continue
 
-        # Eliminar duplicados
-        productos_unicos = {}
-
-        for producto in productos_restricciones:
-
-            clave = normalizar_patologia(
+            # Normalización local para evitar depender
+            # de funciones del módulo de Patologías
+            clave = (
                 producto
+                .lower()
+                .strip()
             )
 
             if clave not in productos_unicos:
 
                 productos_unicos[clave] = producto
 
+        # ====================================================
+        # ORDEN ALFABÉTICO
+        # ====================================================
+
         productos_ordenados = sorted(
             productos_unicos.values(),
-            key=lambda x: normalizar_patologia(x)
+            key=lambda x: (
+                str(x)
+                .lower()
+                .strip()
+            )
         )
 
         # ====================================================
@@ -3572,7 +3577,7 @@ if opcion_consulta == "Restricciones":
         )
 
         # ====================================================
-        # MOSTRAR TODAS LAS RESTRICCIONES DEL PRODUCTO
+        # MOSTRAR FICHA
         # ====================================================
 
         if (
@@ -3581,15 +3586,18 @@ if opcion_consulta == "Restricciones":
         ):
 
             producto_normalizado = (
-                normalizar_patologia(
-                    producto_seleccionado
-                )
+                str(producto_seleccionado)
+                .lower()
+                .strip()
             )
 
+            # Buscar todas las filas correspondientes
+            # al producto seleccionado
             ficha = Restricciones[
                 Restricciones.iloc[:, 1]
                 .astype(str)
-                .apply(normalizar_patologia)
+                .str.lower()
+                .str.strip()
                 == producto_normalizado
             ]
 
@@ -3613,15 +3621,13 @@ if opcion_consulta == "Restricciones":
                     f"{producto_seleccionado}"
                 )
 
-                # ==========================================
-                # MOSTRAR CADA RESTRICCIÓN
-                # ==========================================
+                # =================================================
+                # MOSTRAR TODAS LAS RESTRICCIONES AGRUPADAS
+                # =================================================
 
                 for _, datos in ficha.iterrows():
 
-                    st.markdown(
-                        "---"
-                    )
+                    st.markdown("---")
 
                     st.write(
                         f"**Restricción ID:** "
@@ -3649,9 +3655,9 @@ if opcion_consulta == "Restricciones":
                         f"{datos.iloc[5]}"
                     )
 
-                # ==========================================
+                # =================================================
                 # NAVEGACIÓN
-                # ==========================================
+                # =================================================
 
                 st.divider()
 
