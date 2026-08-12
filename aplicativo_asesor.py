@@ -6998,26 +6998,32 @@ def buscar_patologias_asesoria(texto_busqueda, limite=10):
 
 if opcion_principal == "ASESORÍA":
 
-    st.header("Asesoría")
-
-    st.subheader("Selección de patología")
+    st.subheader("Asesoría")
 
     st.write(
-        "Busque la patología por código o por nombre."
+        "Seleccione la patología para iniciar la asesoría."
     )
 
+    #-----------------------------------------------------
+    # BUSCAR PATOLOGÍA
+    #-----------------------------------------------------
+
     busqueda_patologia = st.text_input(
-        "Código o nombre de la patología",
+        "Buscar patología por código o nombre:",
         key="asesoria_busqueda_patologia"
     )
 
     if busqueda_patologia.strip():
 
-        texto_busqueda = normalizar_texto(
-            busqueda_patologia
+        texto_busqueda = (
+            unidecode(
+                str(busqueda_patologia)
+            )
+            .lower()
+            .strip()
         )
 
-        resultados_patologias = []
+        resultados = []
 
         for _, fila in Patologias.iterrows():
 
@@ -7029,12 +7035,16 @@ if opcion_principal == "ASESORÍA":
                 fila["Patologia"]
             )
 
-            codigo_normalizado = normalizar_texto(
-                codigo
+            codigo_normalizado = (
+                unidecode(codigo)
+                .lower()
+                .strip()
             )
 
-            nombre_normalizado = normalizar_texto(
-                nombre
+            nombre_normalizado = (
+                unidecode(nombre)
+                .lower()
+                .strip()
             )
 
             if (
@@ -7043,64 +7053,82 @@ if opcion_principal == "ASESORÍA":
                 texto_busqueda in nombre_normalizado
             ):
 
-                resultados_patologias.append(
-                    fila
-                )
+                resultados.append(fila)
 
 
-        if len(resultados_patologias) == 0:
+        #-------------------------------------------------
+        # RESULTADOS DE BÚSQUEDA
+        #-------------------------------------------------
+
+        if len(resultados) == 0:
 
             st.warning(
-                "No se encontraron patologías "
-                "con ese criterio de búsqueda."
+                "No se encontró ninguna patología "
+                "con ese criterio."
             )
-
 
         else:
 
-            resultados_patologias_df = pd.DataFrame(
-                resultados_patologias
+            resultados_df = pd.DataFrame(
+                resultados
             ).reset_index(drop=True)
 
 
-            opciones_patologias = []
+            opciones = []
 
-            for _, fila in resultados_patologias_df.iterrows():
+            for _, fila in resultados_df.iterrows():
 
-                opciones_patologias.append(
+                opciones.append(
                     f"{fila['Patologia_ID']} - "
                     f"{fila['Patologia']}"
                 )
 
 
-            patologia_seleccionada = st.selectbox(
+            #---------------------------------------------
+            # SELECCIÓN
+            #---------------------------------------------
+
+            seleccion = st.selectbox(
                 "Seleccione la patología:",
-                opciones_patologias,
+                opciones,
                 key="asesoria_patologia_seleccionada"
             )
 
 
-            indice = opciones_patologias.index(
-                patologia_seleccionada
+            indice = opciones.index(
+                seleccion
             )
 
 
-            fila_patologia = (
-                resultados_patologias_df.iloc[indice]
+            fila_seleccionada = (
+                resultados_df.iloc[indice]
             )
 
 
-            st.session_state["asesoria_patologia_id"] = (
-                fila_patologia["Patologia_ID"]
-            )
+            #---------------------------------------------
+            # GUARDAR PATOLOGÍA SELECCIONADA
+            #---------------------------------------------
 
-            st.session_state["asesoria_patologia_nombre"] = (
-                fila_patologia["Patologia"]
-            )
+            st.session_state[
+                "asesoria_patologia_id"
+            ] = fila_seleccionada[
+                "Patologia_ID"
+            ]
 
+
+            st.session_state[
+                "asesoria_patologia_nombre"
+            ] = fila_seleccionada[
+                "Patologia"
+            ]
+
+
+            #---------------------------------------------
+            # MOSTRAR CONFIRMACIÓN
+            #---------------------------------------------
 
             st.success(
                 "Patología seleccionada: "
-                f"{fila_patologia['Patologia_ID']} - "
-                f"{fila_patologia['Patologia']}"
+                f"{fila_seleccionada['Patologia_ID']} - "
+                f"{fila_seleccionada['Patologia']}"
             )
