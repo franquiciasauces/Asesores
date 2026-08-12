@@ -2380,8 +2380,7 @@ if (
     # ========================================================
     # MENÚ DE CONSULTA
     # ========================================================
-
-   tipo_busqueda_patologia = st.selectbox(
+tipo_busqueda_patologia = st.selectbox(
     "¿Qué desea consultar?",
     [
         "Seleccione una opción",
@@ -2391,6 +2390,7 @@ if (
     ],
     key="tipo_busqueda_patologia"
 )
+ 
     # ========================================================
     # 1. VER TODAS LAS patologiaS
     # ========================================================
