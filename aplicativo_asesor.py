@@ -1189,7 +1189,7 @@ if (
         "¿Cómo desea realizar la consulta?",
         [
             "Seleccionar del listado de categorías",
-            "Ingresar categoría o patología"
+            "Ingresar categoría o patologia"
         ],
         key="tipo_busqueda_categoria"
     )
@@ -1337,7 +1337,7 @@ if (
             st.write(
                 "A continuación se presenta el listado "
                 "de productos que tienen una acción directa "
-                "sobre la patología:"
+                "sobre la patologia:"
             )
 
             # ------------------------------------------------
@@ -1406,18 +1406,18 @@ if (
 
     # ========================================================
     # OPCIÓN 2
-    # INGRESAR CATEGORÍA O PATOLOGÍA
+    # INGRESAR CATEGORÍA O PATOLOGIA
     # ========================================================
 
     else:
 
         st.write(
-            "Registre el nombre de la patología "
+            "Registre el nombre de la patologia "
             "o categoría que desea consultar:"
         )
 
         categoria_ingresada = st.text_input(
-            "Nombre de la patología o categoría:",
+            "Nombre de la patologia o categoría:",
             key="categoria_ingresada"
         )
 
@@ -1592,7 +1592,7 @@ if (
                 st.warning(
                     "No se encontraron productos "
                     "relacionados con la categoría o "
-                    "patología ingresada."
+                    "patologia ingresada."
                 )
 
             else:
@@ -2355,15 +2355,15 @@ if (
 
 
 # ============================================================
-# BLOQUE — PATOLOGÍAS
+# BLOQUE — PATOLOGIAS
 # CONSULTA GENERAL
 # ============================================================
 
 if (
-    opcion_consulta == "Patologías"
+    opcion_consulta == "Patologias"
 ):
 
-    st.subheader("Consulta de patologías")
+    st.subheader("Consulta de patologias")
 
     # ========================================================
     # FUNCIONES AUXILIARES
@@ -2384,27 +2384,27 @@ if (
     tipo_busqueda_patologia = st.radio(
         "¿Qué desea consultar?",
         [
-            "Ver todas las patologías",
-            "Ingresar código o nombre de la patología"
+            "Ver todas las patologias",
+            "Ingresar código o nombre de la patologia"
         ],
         key="tipo_busqueda_patologia"
     )
 
     # ========================================================
-    # 1. VER TODAS LAS PATOLOGÍAS
+    # 1. VER TODAS LAS patologiaS
     # ========================================================
 
     if (
         tipo_busqueda_patologia
-        == "Ver todas las patologías"
+        == "Ver todas las patologias"
     ):
 
         st.write(
-            "Seleccione la patología que desea consultar:"
+            "Seleccione la patologia que desea consultar:"
         )
 
         # ----------------------------------------------------
-        # OBTENER NOMBRES DE PATOLOGÍAS
+        # OBTENER NOMBRES DE patologiaS
         # COLUMNA 2
         # ----------------------------------------------------
 
@@ -2458,9 +2458,9 @@ if (
         # ----------------------------------------------------
 
         patologia_seleccionada = st.selectbox(
-            "Patología:",
+            "patologia:",
             [
-                "Seleccione una patología"
+                "Seleccione una patologia"
             ] + patologias_finales,
             key="patologia_listado_general"
         )
@@ -2471,7 +2471,7 @@ if (
 
         if (
             patologia_seleccionada
-            != "Seleccione una patología"
+            != "Seleccione una patologia"
         ):
 
             patologia_ficha = Patologias[
@@ -2492,7 +2492,7 @@ if (
                 st.divider()
 
                 st.subheader(
-                    "Ficha completa de la patología"
+                    "Ficha completa de la patologia"
                 )
 
                 st.write(
@@ -2501,7 +2501,7 @@ if (
                 )
 
                 st.write(
-                    f"**Patología:** "
+                    f"**patologia:** "
                     f"{datos.iloc[1]}"
                 )
 
@@ -2537,7 +2537,7 @@ if (
     else:
 
         st.write(
-            "Ingrese el código o nombre de la patología:"
+            "Ingrese el código o nombre de la patologia:"
         )
 
         texto_ingresado = st.text_input(
@@ -2556,7 +2556,7 @@ if (
             resultados = []
 
             # =================================================
-            # RECORRER LA BASE DE PATOLOGÍAS
+            # RECORRER LA BASE DE patologiaS
             # =================================================
 
             for _, fila in Patologias.iterrows():
@@ -2739,7 +2739,7 @@ if (
             if not resultados:
 
                 st.warning(
-                    "No se encontraron patologías "
+                    "No se encontraron patologias "
                     "relacionadas con la búsqueda."
                 )
 
@@ -2752,7 +2752,7 @@ if (
                 )
 
                 opciones = [
-                    "Seleccione una patología"
+                    "Seleccione una patologia"
                 ]
 
                 for resultado in resultados:
@@ -2763,7 +2763,7 @@ if (
                     )
 
                 seleccion = st.selectbox(
-                    "Seleccione la patología que desea consultar:",
+                    "Seleccione la patologia que desea consultar:",
                     opciones,
                     key="resultado_busqueda_patologia"
                 )
@@ -2774,7 +2774,7 @@ if (
 
                 if (
                     seleccion
-                    != "Seleccione una patología"
+                    != "Seleccione una patologia"
                 ):
 
                     codigo_seleccionado = (
@@ -2799,7 +2799,7 @@ if (
                         st.divider()
 
                         st.subheader(
-                            "Ficha completa de la patología"
+                            "Ficha completa de la patologia"
                         )
 
                         st.write(
@@ -2808,7 +2808,7 @@ if (
                         )
 
                         st.write(
-                            f"**Patología:** "
+                            f"**patologia:** "
                             f"{datos.iloc[1]}"
                         )
 
