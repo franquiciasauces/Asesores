@@ -3054,29 +3054,37 @@ if (
                             f"**Notas para el asesor:** "
                             f"{datos.iloc[6]}"
                         )
-    # ============================================================
-    # BLOQUE — PATOLOGIA → CAUSA Y SÍNTOMA
-    # ============================================================
+   # ============================================================
+# BLOQUE — PATOLOGIA → CAUSA Y SÍNTOMA
+# ============================================================
 
-    if (
-        tipo_busqueda_patologia
-        == "Patologia → causa y síntoma"
-    ):
+if (
+    tipo_busqueda_patologia
+    == "Patologia → causa y síntoma"
+):
 
-        st.subheader(
-            "Patología → causa y síntoma"
-        )
+    st.subheader(
+        "Patología → causa y síntoma"
+    )
 
-        tipo_busqueda_causa_sintoma = st.selectbox(
-            "¿Qué desea buscar?",
-            [
-                "Seleccione una opción",
-                "Patología",
-                "Causa",
-                "Síntoma"
-            ],
-            key="tipo_busqueda_causa_sintoma"
-        )
+    tipo_busqueda_causa_sintoma = st.selectbox(
+        "¿Qué desea buscar?",
+        [
+            "Seleccione una opción",
+            "Patología",
+            "Causa",
+            "Síntoma"
+        ],
+        key="tipo_busqueda_causa_sintoma"
+    )
+
+    # --------------------------------------------------------
+    # GUARDAR LA OPCIÓN SELECCIONADA
+    # --------------------------------------------------------
+
+    st.session_state[
+        "tipo_busqueda_causa_sintoma"
+    ] = tipo_busqueda_causa_sintoma
 
     # ========================================================
     # FUNCIÓN PARA COMPARAR TEXTO CON TOLERANCIA
