@@ -1125,6 +1125,8 @@ if (
                             valor
                         )
 # ============================================================
+```python
+# ============================================================
 # BLOQUE — CATEGORÍA → PRODUCTOS
 # ============================================================
 
@@ -1137,8 +1139,7 @@ if (
     st.subheader("Categoría → productos")
 
     # --------------------------------------------------------
-    # FUNCIÓN PARA NORMALIZAR TEXTOS
-    # Permite ignorar mayúsculas, minúsculas y tildes.
+    # FUNCIÓN PARA NORMALIZAR TEXTO
     # --------------------------------------------------------
 
     def normalizar_categoria(texto):
@@ -1150,8 +1151,39 @@ if (
         )
 
     # --------------------------------------------------------
-    # OPCIONES INTERNAS DE CONSULTA
+    # FUNCIÓN PARA SEPARAR CATEGORÍAS COMPLEMENTARIAS
     # --------------------------------------------------------
+
+    def separar_categorias_complementarias(valor):
+
+        if pd.isna(valor):
+            return []
+
+        texto = str(valor)
+
+        for separador in [";", "|", "/", "\n"]:
+
+            texto = texto.replace(
+                separador,
+                ","
+            )
+
+        categorias = []
+
+        for parte in texto.split(","):
+
+            categoria = parte.strip()
+
+            if categoria:
+                categorias.append(
+                    categoria
+                )
+
+        return categorias
+
+    # ========================================================
+    # OPCIONES INTERNAS DE CONSULTA
+    # ========================================================
 
     tipo_busqueda_categoria = st.radio(
         "¿Cómo desea realizar la consulta?",
@@ -1163,7 +1195,8 @@ if (
     )
 
     # ========================================================
-    # OPCIÓN 1 — SELECCIONAR DEL LISTADO
+    # OPCIÓN 1
+    # SELECCIONAR DEL LISTADO DE CATEGORÍAS
     # ========================================================
 
     if (
@@ -1176,32 +1209,64 @@ if (
         )
 
         # ----------------------------------------------------
-        # CATEGORÍA PRINCIPAL = COLUMNA 2 DE EXCEL
+        # OBTENER CATEGORÍAS DE LA COLUMNA 2
         # ----------------------------------------------------
 
-        categorias_principales = (
-            Base_Productos.iloc[:, 1]
-            .dropna()
-            .astype(str)
-            .str.strip()
-            .unique()
-            .tolist()
-        )
+        categorias_principales = []
 
-        categorias_principales = sorted(
-            categorias_principales,
+        for valor in Base_Productos.iloc[:, 1]:
+
+            if pd.isna(valor):
+                continue
+
+            categoria = str(valor).strip()
+
+            if categoria:
+                categorias_principales.append(
+                    categoria
+                )
+
+        # ----------------------------------------------------
+        # ELIMINAR DUPLICADOS
+        # ----------------------------------------------------
+
+        categorias_unicas = {}
+
+        for categoria in categorias_principales:
+
+            clave = normalizar_categoria(
+                categoria
+            )
+
+            if clave not in categorias_unicas:
+
+                categorias_unicas[clave] = (
+                    categoria
+                )
+
+        # ----------------------------------------------------
+        # ORDEN ALFABÉTICO
+        # ----------------------------------------------------
+
+        categorias_finales = sorted(
+            categorias_unicas.values(),
             key=lambda x: normalizar_categoria(x)
         )
 
+        # ----------------------------------------------------
+        # LISTADO DESPLEGABLE
+        # ----------------------------------------------------
+
         categoria_seleccionada = st.selectbox(
             "Categoría principal:",
-            ["Seleccione una categoría"]
-            + categorias_principales,
+            [
+                "Seleccione una categoría"
+            ] + categorias_finales,
             key="categoria_principal_seleccionada"
         )
 
         # ----------------------------------------------------
-        # CUANDO SE SELECCIONA UNA CATEGORÍA
+        # SI SELECCIONÓ UNA CATEGORÍA
         # ----------------------------------------------------
 
         if (
@@ -1209,23 +1274,19 @@ if (
             != "Seleccione una categoría"
         ):
 
-            categoria_normalizada = (
-                normalizar_categoria(
-                    categoria_seleccionada
-                )
+            categoria_buscada = normalizar_categoria(
+                categoria_seleccionada
             )
 
-            # ------------------------------------------------
-            # BUSCAR SOLO PRODUCTOS DE ACCIÓN DIRECTA
-            # COLUMNA 2 = CATEGORÍA PRINCIPAL
-            # ------------------------------------------------
+            productos_directos = []
 
-            productos_principales = []
+            # ------------------------------------------------
+            # BUSCAR EN COLUMNA 2
+            # ------------------------------------------------
 
             for _, fila in Base_Productos.iterrows():
 
                 producto = fila.iloc[0]
-
                 categoria_principal = fila.iloc[1]
 
                 if pd.isna(producto):
@@ -1234,31 +1295,38 @@ if (
                 if pd.isna(categoria_principal):
                     continue
 
-                if (
+                categoria_principal_normalizada = (
                     normalizar_categoria(
                         categoria_principal
                     )
-                    == categoria_normalizada
+                )
+
+                if (
+                    categoria_principal_normalizada
+                    == categoria_buscada
                 ):
 
-                    productos_principales.append(
-                        str(producto)
+                    productos_directos.append(
+                        str(producto).strip()
                     )
 
-            # Eliminar duplicados
-            productos_principales = list(
+            # ------------------------------------------------
+            # ELIMINAR DUPLICADOS
+            # ------------------------------------------------
+
+            productos_directos = list(
                 dict.fromkeys(
-                    productos_principales
+                    productos_directos
                 )
             )
 
-            productos_principales = sorted(
-                productos_principales,
+            productos_directos = sorted(
+                productos_directos,
                 key=lambda x: normalizar_categoria(x)
             )
 
             # ------------------------------------------------
-            # MOSTRAR RESULTADOS
+            # MENSAJE
             # ------------------------------------------------
 
             st.success(
@@ -1272,18 +1340,24 @@ if (
                 "sobre la patología:"
             )
 
-            if not productos_principales:
+            # ------------------------------------------------
+            # LISTADO DE PRODUCTOS
+            # ------------------------------------------------
+
+            if not productos_directos:
 
                 st.warning(
-                    "No se encontraron productos de "
-                    "acción directa para esta categoría."
+                    "No se encontraron productos "
+                    "de acción directa para esta categoría."
                 )
 
             else:
 
                 producto_seleccionado = st.selectbox(
                     "Seleccione el producto que desea consultar:",
-                    productos_principales,
+                    [
+                        "Seleccione un producto"
+                    ] + productos_directos,
                     key="producto_categoria_principal"
                 )
 
@@ -1291,7 +1365,10 @@ if (
                 # FICHA DEL PRODUCTO
                 # ------------------------------------------------
 
-                if producto_seleccionado:
+                if (
+                    producto_seleccionado
+                    != "Seleccione un producto"
+                ):
 
                     producto_ficha = Base_Productos[
                         Base_Productos.iloc[:, 0]
@@ -1328,7 +1405,8 @@ if (
                                 )
 
     # ========================================================
-    # OPCIÓN 2 — INGRESAR CATEGORÍA O PATOLOGÍA
+    # OPCIÓN 2
+    # INGRESAR CATEGORÍA O PATOLOGÍA
     # ========================================================
 
     else:
@@ -1349,15 +1427,11 @@ if (
                 categoria_ingresada
             )
 
-            # ------------------------------------------------
-            # LISTAS DE RESULTADOS
-            # ------------------------------------------------
-
             productos_directos = []
             productos_complementarios = []
 
             # ------------------------------------------------
-            # RECORRER BASE DE PRODUCTOS
+            # RECORRER TODA LA BASE DE PRODUCTOS
             # ------------------------------------------------
 
             for _, fila in Base_Productos.iterrows():
@@ -1370,12 +1444,11 @@ if (
                 producto = str(producto).strip()
 
                 # ============================================
-                # CATEGORÍA PRINCIPAL — COLUMNA 2
+                # COLUMNA 2
+                # CATEGORÍA PRINCIPAL
                 # ============================================
 
                 categoria_principal = fila.iloc[1]
-
-                es_principal = False
 
                 if not pd.isna(categoria_principal):
 
@@ -1385,56 +1458,86 @@ if (
                         )
                     )
 
-                    # Coincidencia exacta
-                    if texto_buscado == texto_principal:
+                    coincidencia_principal = False
 
-                        es_principal = True
-
-                    # Coincidencia parcial
-                    elif (
-                        texto_buscado in texto_principal
-                        or texto_principal in texto_buscado
+                    # Coincidencia directa
+                    if (
+                        texto_buscado
+                        in texto_principal
                     ):
 
-                        es_principal = True
+                        coincidencia_principal = True
 
-                if es_principal:
+                    # Coincidencia aproximada
+                    else:
 
-                    productos_directos.append(
-                        producto
-                    )
+                        similitud = fuzz.ratio(
+                            texto_buscado,
+                            texto_principal
+                        )
+
+                        if similitud >= 70:
+
+                            coincidencia_principal = True
+
+                    if coincidencia_principal:
+
+                        productos_directos.append(
+                            producto
+                        )
 
                 # ============================================
-                # CATEGORÍAS COMPLEMENTARIAS — COLUMNA 3
+                # COLUMNA 3
+                # CATEGORÍAS COMPLEMENTARIAS
                 # ============================================
 
                 valor_complementarias = fila.iloc[2]
 
-                es_complementario = False
+                categorias_complementarias = (
+                    separar_categorias_complementarias(
+                        valor_complementarias
+                    )
+                )
 
-                if not pd.isna(
-                    valor_complementarias
+                for categoria_complementaria in (
+                    categorias_complementarias
                 ):
 
                     texto_complementario = (
                         normalizar_categoria(
-                            valor_complementarias
+                            categoria_complementaria
                         )
                     )
 
-                    # Coincidencia exacta
-                    if texto_buscado in texto_complementario:
+                    coincidencia_complementaria = False
 
-                        es_complementario = True
+                    # Coincidencia directa
+                    if (
+                        texto_buscado
+                        in texto_complementario
+                    ):
 
-                if es_complementario:
+                        coincidencia_complementaria = True
 
-                    # Si ya es principal, no lo duplicamos
-                    if producto not in productos_directos:
+                    # Coincidencia aproximada
+                    else:
+
+                        similitud = fuzz.ratio(
+                            texto_buscado,
+                            texto_complementario
+                        )
+
+                        if similitud >= 70:
+
+                            coincidencia_complementaria = True
+
+                    if coincidencia_complementaria:
 
                         productos_complementarios.append(
                             producto
                         )
+
+                        break
 
             # ------------------------------------------------
             # ELIMINAR DUPLICADOS
@@ -1453,7 +1556,18 @@ if (
             )
 
             # ------------------------------------------------
-            # ORDENAR
+            # SI UN PRODUCTO ES PRINCIPAL,
+            # NO REPETIRLO COMO COMPLEMENTARIO
+            # ------------------------------------------------
+
+            productos_complementarios = [
+                producto
+                for producto in productos_complementarios
+                if producto not in productos_directos
+            ]
+
+            # ------------------------------------------------
+            # ORDENAR PRODUCTOS
             # ------------------------------------------------
 
             productos_directos = sorted(
@@ -1466,9 +1580,9 @@ if (
                 key=lambda x: normalizar_categoria(x)
             )
 
-            # ------------------------------------------------
-            # MOSTRAR RESULTADOS
-            # ------------------------------------------------
+            # =================================================
+            # RESULTADOS
+            # =================================================
 
             if (
                 not productos_directos
@@ -1488,73 +1602,97 @@ if (
                     f"{categoria_ingresada}"
                 )
 
-                # ============================================
-                # PRODUCTOS DE ACCIÓN DIRECTA
-                # ============================================
+                # =============================================
+                # DESPLEGABLE 1
+                # PRODUCTOS CON ACCIÓN DIRECTA
+                # =============================================
+
+                st.markdown(
+                    "### Productos con acción directa"
+                )
 
                 if productos_directos:
 
-                    st.markdown(
-                        "### Productos con acción directa"
-                    )
-
                     producto_directo_seleccionado = (
                         st.selectbox(
-                            "Seleccione un producto:",
-                            productos_directos,
+                            "Seleccione un producto principal:",
+                            [
+                                "Seleccione un producto"
+                            ] + productos_directos,
                             key="producto_directo_categoria"
                         )
                     )
 
                 else:
 
-                    producto_directo_seleccionado = None
+                    st.info(
+                        "No se encontraron productos "
+                        "con acción directa."
+                    )
 
-                # ============================================
+                    producto_directo_seleccionado = (
+                        "Seleccione un producto"
+                    )
+
+                # =============================================
+                # DESPLEGABLE 2
                 # PRODUCTOS COMPLEMENTARIOS
-                # ============================================
+                # =============================================
+
+                st.markdown(
+                    "### Productos complementarios"
+                )
 
                 if productos_complementarios:
 
-                    st.markdown(
-                        "### Productos complementarios"
-                    )
-
                     producto_complementario_seleccionado = (
                         st.selectbox(
-                            "Seleccione un producto:",
-                            productos_complementarios,
+                            "Seleccione un producto complementario:",
+                            [
+                                "Seleccione un producto"
+                            ] + productos_complementarios,
                             key="producto_complementario_categoria"
                         )
                     )
 
                 else:
 
-                    producto_complementario_seleccionado = None
+                    st.info(
+                        "No se encontraron productos "
+                        "complementarios."
+                    )
 
-                # ============================================
-                # SELECCIÓN DEL PRODUCTO
-                # ============================================
+                    producto_complementario_seleccionado = (
+                        "Seleccione un producto"
+                    )
 
-                if producto_directo_seleccionado:
+                # =============================================
+                # DETERMINAR PRODUCTO SELECCIONADO
+                # =============================================
+
+                producto_para_ficha = None
+
+                if (
+                    producto_directo_seleccionado
+                    != "Seleccione un producto"
+                ):
 
                     producto_para_ficha = (
                         producto_directo_seleccionado
                     )
 
-                elif producto_complementario_seleccionado:
+                elif (
+                    producto_complementario_seleccionado
+                    != "Seleccione un producto"
+                ):
 
                     producto_para_ficha = (
                         producto_complementario_seleccionado
                     )
 
-                else:
-
-                    producto_para_ficha = None
-
-                # ============================================
+                # =============================================
                 # MOSTRAR FICHA
-                # ============================================
+                # =============================================
 
                 if producto_para_ficha:
 
@@ -1593,7 +1731,7 @@ if (
                                 )
 
     # ========================================================
-    # OPCIONES DE NAVEGACIÓN
+    # NAVEGACIÓN
     # ========================================================
 
     st.divider()
@@ -1603,7 +1741,7 @@ if (
     with col1:
 
         if st.button(
-            "← Nueva consulta",
+            "🔎 Nueva consulta",
             key="nueva_consulta_categoria",
             use_container_width=True
         ):
@@ -1615,6 +1753,21 @@ if (
 
             st.session_state.pop(
                 "categoria_ingresada",
+                None
+            )
+
+            st.session_state.pop(
+                "producto_categoria_principal",
+                None
+            )
+
+            st.session_state.pop(
+                "producto_directo_categoria",
+                None
+            )
+
+            st.session_state.pop(
+                "producto_complementario_categoria",
                 None
             )
 
@@ -1651,4 +1804,5 @@ if (
             ] = "Seleccione una opción"
 
             st.rerun()
+
 
