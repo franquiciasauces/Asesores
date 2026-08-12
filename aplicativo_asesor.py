@@ -3477,5 +3477,28 @@ if (
             st.rerun()
 
 
+# ============================================================
+# BLOQUE — RESTRICCIONES
+# MENÚ DE CONSULTA
+# ============================================================
 
+if opcion_consulta == "Restricciones":
+
+    st.subheader("Consulta de restricciones")
+
+    tipo_consulta_restriccion = st.selectbox(
+        "¿Qué desea consultar?",
+        [
+            "Seleccione una opción",
+            "Ver todas las restricciones",
+            "Ingresar código o nombre del producto",
+            "Restricción → precaución / contraindicación",
+            "Producto → motivo y alternativa"
+        ],
+        key="menu_consulta_restricciones"
+    )
+
+    st.session_state["tipo_consulta_restriccion"] = (
+        tipo_consulta_restriccion
+    )
 
