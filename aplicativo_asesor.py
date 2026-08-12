@@ -2964,6 +2964,10 @@ elif (
         "Patología → causa y síntoma"
     )
 
+    # ========================================================
+    # MENÚ INTERNO
+    # ========================================================
+
     tipo_busqueda_causa_sintoma = st.selectbox(
         "¿Qué desea buscar?",
         [
@@ -2974,11 +2978,6 @@ elif (
         ],
         key="tipo_busqueda_causa_sintoma"
     )
-
-    st.session_state[
-        "tipo_busqueda_causa_sintoma"
-    ] = tipo_busqueda_causa_sintoma
-
     # ========================================================
     # FUNCIÓN DE COMPARACIÓN
     # ========================================================
