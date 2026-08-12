@@ -4332,8 +4332,288 @@ if opcion_consulta == "Restricciones":
     # ========================================================
     # CONSULTA 4 — PRODUCTO → MOTIVO Y ALTERNATIVA
     # ========================================================
-    #
-    # SE CONSTRUIRÁ AQUÍ DESPUÉS.
-    #
+
+    if (
+        tipo_consulta_restriccion
+        == "Producto → motivo y alternativa"
+    ):
+
+        st.write(
+            "Ingrese el nombre o código del producto:"
+        )
+
+        texto_busqueda_producto_4 = st.text_input(
+            "Buscar producto:",
+            key="busqueda_producto_motivo_alternativa"
+        )
+
+        if texto_busqueda_producto_4.strip():
+
+            consulta = (
+                texto_busqueda_producto_4
+                .strip()
+                .lower()
+            )
+
+            # =================================================
+            # BUSCAR PRODUCTOS
+            # =================================================
+
+            productos_encontrados_4 = {}
+
+            for _, fila in Restricciones.iterrows():
+
+                codigo = fila.iloc[0]
+                producto = fila.iloc[1]
+
+                if pd.isna(codigo) or pd.isna(producto):
+                    continue
+
+                codigo = str(codigo).strip()
+                producto = str(producto).strip()
+
+                if not codigo or not producto:
+                    continue
+
+                codigo_normalizado = codigo.lower()
+                producto_normalizado = producto.lower()
+
+                # ---------------------------------------------
+                # COINCIDENCIA DIRECTA
+                # ---------------------------------------------
+
+                if (
+                    consulta in codigo_normalizado
+                    or consulta in producto_normalizado
+                ):
+
+                    productos_encontrados_4[
+                        producto_normalizado
+                    ] = producto
+
+            # =================================================
+            # BÚSQUEDA TOLERANTE A ERRORES
+            # =================================================
+
+            if not productos_encontrados_4:
+
+                candidatos_4 = {}
+
+                for _, fila in Restricciones.iterrows():
+
+                    codigo = fila.iloc[0]
+                    producto = fila.iloc[1]
+
+                    if pd.isna(codigo) or pd.isna(producto):
+                        continue
+
+                    codigo = str(codigo).strip()
+                    producto = str(producto).strip()
+
+                    if not codigo or not producto:
+                        continue
+
+                    puntuacion_producto = fuzz.partial_ratio(
+                        consulta,
+                        producto.lower()
+                    )
+
+                    puntuacion_codigo = fuzz.partial_ratio(
+                        consulta,
+                        codigo.lower()
+                    )
+
+                    puntuacion = max(
+                        puntuacion_producto,
+                        puntuacion_codigo
+                    )
+
+                    if puntuacion >= 60:
+
+                        clave = producto.lower()
+
+                        if (
+                            clave not in candidatos_4
+                            or puntuacion
+                            > candidatos_4[clave][1]
+                        ):
+
+                            candidatos_4[clave] = (
+                                producto,
+                                puntuacion
+                            )
+
+                candidatos_ordenados_4 = sorted(
+                    candidatos_4.values(),
+                    key=lambda x: x[1],
+                    reverse=True
+                )
+
+                for producto, puntuacion in (
+                    candidatos_ordenados_4[:10]
+                ):
+
+                    productos_encontrados_4[
+                        producto.lower()
+                    ] = producto
+
+            # =================================================
+            # MOSTRAR PRODUCTOS ENCONTRADOS
+            # =================================================
+
+            if not productos_encontrados_4:
+
+                st.warning(
+                    "No se encontraron productos "
+                    "relacionados con la búsqueda."
+                )
+
+            else:
+
+                st.write(
+                    "Seleccione el producto que desea consultar:"
+                )
+
+                opciones_productos_4 = [
+                    "Seleccione un producto"
+                ]
+
+                opciones_productos_4.extend(
+                    sorted(
+                        productos_encontrados_4.values(),
+                        key=lambda x: x.lower()
+                    )
+                )
+
+                producto_seleccionado_4 = st.selectbox(
+                    "Productos encontrados:",
+                    opciones_productos_4,
+                    key="resultado_producto_motivo_alternativa"
+                )
+
+                # =================================================
+                # MOSTRAR MOTIVO Y ALTERNATIVAS
+                # =================================================
+
+                if (
+                    producto_seleccionado_4
+                    != "Seleccione un producto"
+                ):
+
+                    producto_normalizado_4 = (
+                        producto_seleccionado_4
+                        .lower()
+                        .strip()
+                    )
+
+                    ficha_4 = Restricciones[
+                        Restricciones.iloc[:, 1]
+                        .astype(str)
+                        .str.lower()
+                        .str.strip()
+                        == producto_normalizado_4
+                    ]
+
+                    if ficha_4.empty:
+
+                        st.warning(
+                            "No se encontraron restricciones "
+                            "para este producto."
+                        )
+
+                    else:
+
+                        st.divider()
+
+                        st.subheader(
+                            "Motivos y alternativas del producto"
+                        )
+
+                        st.write(
+                            f"**Producto:** "
+                            f"{producto_seleccionado_4}"
+                        )
+
+                        # =========================================
+                        # MOSTRAR CADA RESTRICCIÓN
+                        # =========================================
+
+                        for _, datos in ficha_4.iterrows():
+
+                            st.markdown("---")
+
+                            st.write(
+                                f"**Restricción ID:** "
+                                f"{datos.iloc[0]}"
+                            )
+
+                            st.write(
+                                f"**Tipo:** "
+                                f"{datos.iloc[2]}"
+                            )
+
+                            st.write(
+                                f"**Precaución / "
+                                f"Contraindicación:** "
+                                f"{datos.iloc[3]}"
+                            )
+
+                            st.write(
+                                f"**Motivo:** "
+                                f"{datos.iloc[4]}"
+                            )
+
+                            st.write(
+                                f"**Alternativas seguras:** "
+                                f"{datos.iloc[5]}"
+                            )
+
+                        # =========================================
+                        # NAVEGACIÓN
+                        # =========================================
+
+                        st.divider()
+
+                        siguiente_accion_4 = st.selectbox(
+                            "¿Qué desea hacer ahora?",
+                            [
+                                "Seleccione una opción",
+                                "Seleccionar otro producto",
+                                "Realizar otra búsqueda",
+                                "Ir al menú principal"
+                            ],
+                            key="navegacion_restricciones_4"
+                        )
+
+                        if (
+                            siguiente_accion_4
+                            == "Seleccionar otro producto"
+                        ):
+
+                            st.info(
+                                "Puede seleccionar otro "
+                                "producto de los resultados."
+                            )
+
+                        elif (
+                            siguiente_accion_4
+                            == "Realizar otra búsqueda"
+                        ):
+
+                            st.info(
+                                "Ingrese un nuevo "
+                                "producto o código."
+                            )
+
+                        elif (
+                            siguiente_accion_4
+                            == "Ir al menú principal"
+                        ):
+
+                            st.session_state[
+                                "volver_menu_principal"
+                            ] = True
+
+                            st.rerun()
     # ========================================================
 
