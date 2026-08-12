@@ -6813,23 +6813,28 @@ elif opcion_principal == "ASESORÍA":
         ],
         key="menu_asesoria"
     )
-# ============================================================
-# 6.1. ENTREVISTA — BÚSQUEDA Y SELECCIÓN DE PATOLOGÍA
-# ============================================================
+
+    # ========================================================
+    # 6.1. ENTREVISTA — BÚSQUEDA Y SELECCIÓN DE PATOLOGÍA
+    # ========================================================
 
     if opcion_asesoria == "Entrevista":
 
         st.subheader("Selección de patología")
 
         busqueda = st.text_input(
-            "Ingrese el código o nombre de la patología:"
+            "Ingrese el código o nombre de la patología:",
+            key="busqueda_patologia_asesoria"
         )
 
         if busqueda.strip():
 
-            texto_busqueda = unidecode(
-                busqueda.strip()
-            ).lower()
+            texto_busqueda = (
+                unidecode(
+                    busqueda.strip()
+                )
+                .lower()
+            )
 
             resultados_patologia = []
 
@@ -6843,19 +6848,28 @@ elif opcion_principal == "ASESORÍA":
                     fila.iloc[1]
                 ).strip()
 
-                codigo_normalizado = unidecode(
-                    codigo
-                ).lower()
+                codigo_normalizado = (
+                    unidecode(
+                        codigo
+                    )
+                    .lower()
+                )
 
-                nombre_normalizado = unidecode(
-                    nombre
-                ).lower()
+                nombre_normalizado = (
+                    unidecode(
+                        nombre
+                    )
+                    .lower()
+                )
 
                 # --------------------------------------------
                 # BÚSQUEDA POR CÓDIGO
                 # --------------------------------------------
 
-                if texto_busqueda == codigo_normalizado:
+                if (
+                    texto_busqueda
+                    == codigo_normalizado
+                ):
 
                     resultados_patologia.append(
                         (
@@ -6942,7 +6956,8 @@ elif opcion_principal == "ASESORÍA":
                     "Seleccione la patología correspondiente:",
                     [
                         "Seleccione una opción"
-                    ] + opciones_patologia
+                    ] + opciones_patologia,
+                    key="seleccion_patologia_asesoria"
                 )
 
                 if (
@@ -6966,7 +6981,10 @@ elif opcion_principal == "ASESORÍA":
             # CARGAR ENTREVISTA SEGÚN PATOLOGIA_ID
             # --------------------------------------------
 
-            if "codigo_seleccionado" in locals():
+            if (
+                "codigo_seleccionado"
+                in locals()
+            ):
 
                 st.success(
                     f"Patología seleccionada: "
@@ -6974,7 +6992,8 @@ elif opcion_principal == "ASESORÍA":
                 )
 
                 st.write(
-                    f"**Código:** {codigo_seleccionado}"
+                    f"**Código:** "
+                    f"{codigo_seleccionado}"
                 )
 
                 entrevista_actual = (
@@ -6982,12 +7001,17 @@ elif opcion_principal == "ASESORÍA":
                         Entrevista["Patologia_ID"]
                         .astype(str)
                         .str.strip()
-                        == str(
+                        ==
+                        str(
                             codigo_seleccionado
                         ).strip()
                     ]
-                    .sort_values("Orden")
-                    .reset_index(drop=True)
+                    .sort_values(
+                        "Orden"
+                    )
+                    .reset_index(
+                        drop=True
+                    )
                 )
 
                 st.session_state[
