@@ -3355,10 +3355,477 @@ elif (
                     )
 
 
+# ============================================================
+# 3. PATOLOGÍA → CAUSA Y SÍNTOMA
+# ============================================================
+
+elif (
+    tipo_busqueda_patologia
+    == "Patologia → causa y síntoma"
+):
+
+    st.subheader(
+        "Patología → causa y síntoma"
+    )
+
+    # ========================================================
+    # MENÚ INTERNO
+    # ========================================================
+
+    tipo_busqueda_causa_sintoma = st.selectbox(
+        "¿Qué desea buscar?",
+        [
+            "Seleccione una opción",
+            "Patología",
+            "Causa",
+            "Síntoma"
+        ],
+        key="tipo_busqueda_causa_sintoma"
+    )
+
+    # ========================================================
+    # FUNCIÓN DE COMPARACIÓN DE TEXTO
+    # ========================================================
+
+    def coincide_texto_patologia(
+        texto_buscado,
+        texto_base,
+        umbral=70
+    ):
+
+        buscado = normalizar_patologia(
+            texto_buscado
+        )
+
+        base = normalizar_patologia(
+            texto_base
+        )
+
+        if not buscado or not base:
+
+            return False
+
+        # ----------------------------------------------------
+        # COINCIDENCIA DIRECTA
+        # ----------------------------------------------------
+
+        if buscado in base:
+
+            return True
+
+        # ----------------------------------------------------
+        # COMPARACIÓN POR PALABRAS
+        # ----------------------------------------------------
+
+        palabras_buscadas = buscado.split()
+        palabras_base = base.split()
+
+        if not palabras_buscadas:
+
+            return False
+
+        palabras_encontradas = 0
+
+        for palabra_buscada in palabras_buscadas:
+
+            mejor_puntaje = 0
+
+            for palabra_base in palabras_base:
+
+                puntaje = fuzz.ratio(
+                    palabra_buscada,
+                    palabra_base
+                )
+
+                if puntaje > mejor_puntaje:
+
+                    mejor_puntaje = puntaje
+
+            if mejor_puntaje >= umbral:
+
+                palabras_encontradas += 1
+
+        porcentaje = (
+            palabras_encontradas
+            /
+            len(palabras_buscadas)
+        ) * 100
+
+        return porcentaje >= 70
+
+    # ========================================================
+    # FUNCIÓN — MOSTRAR FICHA COMPLETA
+    # ========================================================
+
+    def mostrar_ficha_patologia(
+        codigo_seleccionado
+    ):
+
+        ficha = Patologias[
+            Patologias.iloc[:, 0]
+            .astype(str)
+            .str.strip()
+            ==
+            str(
+                codigo_seleccionado
+            ).strip()
+        ]
+
+        if ficha.empty:
+
+            st.warning(
+                "No fue posible encontrar "
+                "la ficha de la patología."
+            )
+
+            return
+
+        datos = ficha.iloc[0]
+
+        st.divider()
+
+        st.subheader(
+            "Ficha completa de la patología"
+        )
+
+        st.write(
+            f"**Código:** {datos.iloc[0]}"
+        )
+
+        st.write(
+            f"**Patología:** {datos.iloc[1]}"
+        )
+
+        st.write(
+            f"**Descripción breve:** {datos.iloc[2]}"
+        )
+
+        st.write(
+            f"**Causas frecuentes:** {datos.iloc[3]}"
+        )
+
+        st.write(
+            f"**Síntomas / Señales clave:** {datos.iloc[4]}"
+        )
+
+        st.write(
+            f"**Objetivo del paquete:** {datos.iloc[5]}"
+        )
+
+        st.write(
+            f"**Notas para el asesor:** {datos.iloc[6]}"
+        )
+
+    # ========================================================
+    # 3.1 BUSCAR POR PATOLOGÍA
+    # ========================================================
+
+    if (
+        tipo_busqueda_causa_sintoma
+        == "Patología"
+    ):
+
+        texto_buscado = st.text_input(
+            "Ingrese el nombre de la patología:",
+            key="texto_busqueda_patologia_causa"
+        )
+
+        if texto_buscado.strip():
+
+            resultados = []
+
+            for _, fila in Patologias.iterrows():
+
+                codigo = fila.iloc[0]
+                nombre = fila.iloc[1]
+
+                if pd.isna(codigo):
+
+                    continue
+
+                if pd.isna(nombre):
+
+                    continue
+
+                if coincide_texto_patologia(
+                    texto_buscado,
+                    nombre,
+                    umbral=70
+                ):
+
+                    resultados.append(
+                        {
+                            "Codigo":
+                                str(
+                                    codigo
+                                ).strip(),
+
+                            "Patologia":
+                                str(
+                                    nombre
+                                ).strip()
+                        }
+                    )
+
+            # ------------------------------------------------
+            # ELIMINAR DUPLICADOS
+            # ------------------------------------------------
+
+            resultados_unicos = {}
+
+            for resultado in resultados:
+
+                clave = resultado[
+                    "Codigo"
+                ]
+
+                if clave not in resultados_unicos:
+
+                    resultados_unicos[
+                        clave
+                    ] = resultado
+
+            resultados = list(
+                resultados_unicos.values()
+            )
+
+            # ------------------------------------------------
+            # ORDENAR
+            # ------------------------------------------------
+
+            resultados = sorted(
+                resultados,
+                key=lambda x:
+                    normalizar_patologia(
+                        x["Patologia"]
+                    )
+            )
+
+            # ------------------------------------------------
+            # MOSTRAR
+            # ------------------------------------------------
+
+            if not resultados:
+
+                st.warning(
+                    "No se encontraron patologías "
+                    "relacionadas con la búsqueda."
+                )
+
+            else:
+
+                st.success(
+                    f"Se encontraron "
+                    f"{len(resultados)} "
+                    f"posibles coincidencias."
+                )
+
+                opciones = [
+                    "Seleccione una patología"
+                ]
+
+                for resultado in resultados:
+
+                    opciones.append(
+                        f"{resultado['Codigo']} — "
+                        f"{resultado['Patologia']}"
+                    )
+
+                seleccion = st.selectbox(
+                    "Seleccione la patología:",
+                    opciones,
+                    key="seleccion_patologia_causa"
+                )
+
+                if (
+                    seleccion
+                    != "Seleccione una patología"
+                ):
+
+                    codigo = (
+                        seleccion
+                        .split(" — ")[0]
+                        .strip()
+                    )
+
+                    mostrar_ficha_patologia(
+                        codigo
+                    )
+
+    # ========================================================
+    # 3.2 BUSCAR POR CAUSA
+    # ========================================================
+
+    elif (
+        tipo_busqueda_causa_sintoma
+        == "Causa"
+    ):
+
+        texto_buscado = st.text_input(
+            "Ingrese la causa que desea buscar:",
+            key="texto_busqueda_causa_patologia"
+        )
+
+        if texto_buscado.strip():
+
+            resultados = []
+
+            for _, fila in Patologias.iterrows():
+
+                codigo = fila.iloc[0]
+                nombre = fila.iloc[1]
+                causas = fila.iloc[3]
+
+                if pd.isna(codigo):
+
+                    continue
+
+                if pd.isna(nombre):
+
+                    continue
+
+                if pd.isna(causas):
+
+                    continue
+
+                elementos = str(
+                    causas
+                ).split(";")
+
+                coincide = False
+
+                causa_encontrada = ""
+
+                for elemento in elementos:
+
+                    elemento = elemento.strip()
+
+                    if not elemento:
+
+                        continue
+
+                    if coincide_texto_patologia(
+                        texto_buscado,
+                        elemento,
+                        umbral=70
+                    ):
+
+                        coincide = True
+
+                        causa_encontrada = (
+                            elemento
+                        )
+
+                        break
+
+                if coincide:
+
+                    resultados.append(
+                        {
+                            "Codigo":
+                                str(
+                                    codigo
+                                ).strip(),
+
+                            "Patologia":
+                                str(
+                                    nombre
+                                ).strip(),
+
+                            "Coincidencia":
+                                causa_encontrada
+                        }
+                    )
+
+            # ------------------------------------------------
+            # ELIMINAR DUPLICADOS
+            # ------------------------------------------------
+
+            resultados_unicos = {}
+
+            for resultado in resultados:
+
+                clave = resultado[
+                    "Codigo"
+                ]
+
+                if clave not in resultados_unicos:
+
+                    resultados_unicos[
+                        clave
+                    ] = resultado
+
+            resultados = list(
+                resultados_unicos.values()
+            )
+
+            # ------------------------------------------------
+            # ORDENAR
+            # ------------------------------------------------
+
+            resultados = sorted(
+                resultados,
+                key=lambda x:
+                    normalizar_patologia(
+                        x["Patologia"]
+                    )
+            )
+
+            # ------------------------------------------------
+            # MOSTRAR
+            # ------------------------------------------------
+
+            if not resultados:
+
+                st.warning(
+                    "No se encontraron patologías "
+                    "relacionadas con esa causa."
+                )
+
+            else:
+
+                st.success(
+                    f"Se encontraron "
+                    f"{len(resultados)} "
+                    f"patologías relacionadas."
+                )
+
+                opciones = [
+                    "Seleccione una patología"
+                ]
+
+                for resultado in resultados:
+
+                    opciones.append(
+                        f"{resultado['Codigo']} — "
+                        f"{resultado['Patologia']}"
+                    )
+
+                seleccion = st.selectbox(
+                    "Seleccione la patología:",
+                    opciones,
+                    key=(
+                        "seleccion_patologia_causa_busqueda"
+                    )
+                )
+
+                if (
+                    seleccion
+                    != "Seleccione una patología"
+                ):
+
+                    codigo = (
+                        seleccion
+                        .split(" — ")[0]
+                        .strip()
+                    )
+
+                    mostrar_ficha_patologia(
+                        codigo
+                    )
+
     # ========================================================
     # 3.3 BUSCAR POR SÍNTOMA
-    #
-    # AQUÍ VA LA BÚSQUEDA SEMÁNTICA 3F
     # ========================================================
 
     elif (
@@ -3366,1173 +3833,1035 @@ elif (
         == "Síntoma"
     ):
 
-        st.info(
-            "Búsqueda por síntoma activada."
+        # ====================================================
+        # CONFIGURACIÓN SEMÁNTICA
+        # ====================================================
+
+        UMBRAL_SEMANTICO = 65.0
+
+        MAX_RESULTADOS_SEMANTICOS = 5
+
+        # ====================================================
+        # OBTENER INFRAESTRUCTURA DE FORMA SEGURA
+        # ====================================================
+
+        base_semantica_local = globals().get(
+            "base_semantica",
+            None
+        )
+
+        embeddings_sintomas_local = globals().get(
+            "embeddings_sintomas",
+            None
+        )
+
+        modelo_biomedico_local = globals().get(
+            "modelo_biomedico",
+            None
         )
 
         # ====================================================
-        # IMPORTANTE
-        # ====================================================
-        # En este punto se integrará el BLOQUE 3F completo:
-        #
-        # - búsqueda exacta
-        # - embeddings
-        # - similitud coseno
-        # - umbral semántico
-        # - múltiples síntomas
-        # - eliminación de duplicados
-        # - cobertura
-        # - evidencia acumulada
-        # - ranking por patología
-        #
-        # NO SE REEMPLAZA ESA LÓGICA POR LA BÚSQUEDA
-        # SIMPLE DE fuzz.ratio().
+        # VERIFICAR INFRAESTRUCTURA
         # ====================================================
 
-    # ============================================================
-# 3. BUSCAR POR SÍNTOMA
-# BÚSQUEDA HÍBRIDA SEMÁNTICA 3F
-# ============================================================
-
-elif (
-    tipo_busqueda_causa_sintoma
-    == "Síntoma"
-):
-
-    # ========================================================
-    # CONFIGURACIÓN SEMÁNTICA
-    # ========================================================
-
-    UMBRAL_SEMANTICO = 65.0
-
-    MAX_RESULTADOS_SEMANTICOS = 5
-
-
-    # ========================================================
-    # FUNCIÓN DE LIMPIEZA
-    # ========================================================
-
-    def limpiar_texto_sintoma_3f(texto):
-
-        texto = str(texto)
-
-        texto = texto.lower()
-
-        texto = unidecode(
-            texto
-        )
-
-        texto = texto.strip()
-
-        return texto
-
-
-    # ========================================================
-    # VALIDAR INFRAESTRUCTURA SEMÁNTICA
-    # ========================================================
-
-    if (
-        base_semantica is None
-        or
-        embeddings_sintomas is None
-        or
-        modelo_biomedico is None
-    ):
-
-        st.error(
-            "La búsqueda semántica de síntomas "
-            "no está disponible."
-        )
-
-        st.info(
-            "Verifique la carga de la base semántica, "
-            "los embeddings y el modelo biomédico."
-        )
-
-    else:
-
-        # ====================================================
-        # PREPARAR BASE SEMÁNTICA
-        # ====================================================
-
-        df_3f = (
-            base_semantica
-            .copy()
-        )
-
-
-        # ====================================================
-        # VERIFICAR COLUMNAS NECESARIAS
-        # ====================================================
-
-        columnas_necesarias = [
-            "Sintoma",
-            "Patologia_ID",
-            "Patologia"
-        ]
-
-        columnas_faltantes = [
-
-            columna
-
-            for columna
-            in columnas_necesarias
-
-            if columna
-            not in df_3f.columns
-
-        ]
-
-
-        if columnas_faltantes:
+        if (
+            base_semantica_local is None
+            or
+            embeddings_sintomas_local is None
+            or
+            modelo_biomedico_local is None
+        ):
 
             st.error(
-                "La base semántica no contiene "
-                "las columnas necesarias: "
-                +
-                ", ".join(
-                    columnas_faltantes
-                )
+                "La búsqueda semántica de síntomas "
+                "no está disponible."
+            )
+
+            st.info(
+                "La aplicación necesita la base semántica, "
+                "los embeddings y el modelo biomédico."
             )
 
         else:
 
-            df_3f[
-                "Busqueda_3f"
-            ] = (
+            # =================================================
+            # PREPARAR BASE SEMÁNTICA
+            # =================================================
+
+            df_3f = (
+                base_semantica_local
+                .copy()
+            )
+
+            # =================================================
+            # COLUMNAS NECESARIAS
+            # =================================================
+
+            columnas_necesarias = [
+                "Sintoma",
+                "Patologia_ID",
+                "Patologia"
+            ]
+
+            columnas_faltantes = [
+
+                columna
+
+                for columna
+                in columnas_necesarias
+
+                if columna
+                not in df_3f.columns
+
+            ]
+
+            if columnas_faltantes:
+
+                st.error(
+                    "La base semántica no contiene "
+                    "las columnas necesarias: "
+                    +
+                    ", ".join(
+                        columnas_faltantes
+                    )
+                )
+
+            else:
+
+                # =============================================
+                # LIMPIAR TEXTO
+                # =============================================
+
+                def limpiar_texto_sintoma_3f(
+                    texto
+                ):
+
+                    texto = str(
+                        texto
+                    )
+
+                    texto = texto.lower()
+
+                    texto = unidecode(
+                        texto
+                    )
+
+                    texto = texto.strip()
+
+                    return texto
+
+                # =============================================
+                # PREPARAR COLUMNA DE BÚSQUEDA
+                # =============================================
 
                 df_3f[
-                    "Sintoma"
-                ]
-                .apply(
-                    limpiar_texto_sintoma_3f
-                )
-
-            )
-
-
-            # =================================================
-            # FUNCIÓN — BÚSQUEDA EXACTA
-            # =================================================
-
-            def buscar_exacta_3f(
-                consulta
-            ):
-
-                consulta_limpia = (
-                    limpiar_texto_sintoma_3f(
-                        consulta
-                    )
-                )
-
-                resultados = []
-
-
-                for _, fila in (
-                    df_3f.iterrows()
-                ):
-
-                    if (
-                        consulta_limpia
-                        ==
-                        fila[
-                            "Busqueda_3f"
-                        ]
-                    ):
-
-                        resultados.append({
-
-                            "Sintoma_consultado":
-                                consulta,
-
-                            "Sintoma_encontrado":
-                                fila[
-                                    "Sintoma"
-                                ],
-
-                            "Patologia_ID":
-                                fila[
-                                    "Patologia_ID"
-                                ],
-
-                            "Patologia":
-                                fila[
-                                    "Patologia"
-                                ],
-
-                            "Tipo":
-                                "Exacta",
-
-                            "Puntaje":
-                                100.0
-
-                        })
-
-
-                return resultados
-
-
-            # =================================================
-            # FUNCIÓN — BÚSQUEDA SEMÁNTICA
-            # =================================================
-
-            def buscar_semantica_3f(
-                consulta
-            ):
-
-                embedding_consulta = (
-
-                    modelo_biomedico.encode(
-
-                        [consulta],
-
-                        normalize_embeddings=True
-
-                    )
-
-                )
-
-
-                similitudes = (
-                    cosine_similarity(
-
-                        embedding_consulta,
-
-                        embeddings_sintomas
-
-                    )[0]
-                )
-
-
-                indices = (
-                    np.argsort(
-                        similitudes
-                    )[::-1][
-                        :MAX_RESULTADOS_SEMANTICOS
+                    "Busqueda_3f"
+                ] = (
+                    df_3f[
+                        "Sintoma"
                     ]
-                )
-
-
-                resultados = []
-
-
-                for indice in indices:
-
-                    puntaje = (
-
-                        similitudes[
-                            indice
-                        ]
-
-                        * 100
-
+                    .apply(
+                        limpiar_texto_sintoma_3f
                     )
-
-
-                    if (
-                        puntaje
-                        <
-                        UMBRAL_SEMANTICO
-                    ):
-
-                        continue
-
-
-                    fila = (
-                        df_3f.iloc[
-                            indice
-                        ]
-                    )
-
-
-                    resultados.append({
-
-                        "Sintoma_consultado":
-                            consulta,
-
-                        "Sintoma_encontrado":
-                            fila[
-                                "Sintoma"
-                            ],
-
-                        "Patologia_ID":
-                            fila[
-                                "Patologia_ID"
-                            ],
-
-                        "Patologia":
-                            fila[
-                                "Patologia"
-                            ],
-
-                        "Tipo":
-                            "Semantica",
-
-                        "Puntaje":
-                            round(
-                                float(
-                                    puntaje
-                                ),
-                                2
-                            )
-
-                    })
-
-
-                return resultados
-
-
-            # =================================================
-            # FUNCIÓN — BÚSQUEDA HÍBRIDA
-            # =================================================
-
-            def buscar_sintoma_3f(
-                consulta
-            ):
-
-                resultados = []
-
-
-                # ---------------------------------------------
-                # PRIMERO: EXACTA
-                # ---------------------------------------------
-
-                resultados.extend(
-
-                    buscar_exacta_3f(
-                        consulta
-                    )
-
                 )
-
-
-                # ---------------------------------------------
-                # SEGUNDO: SEMÁNTICA
-                # ---------------------------------------------
-
-                resultados.extend(
-
-                    buscar_semantica_3f(
-                        consulta
-                    )
-
-                )
-
-
-                return resultados
-
-
-            # =================================================
-            # FUNCIÓN — ELIMINAR DUPLICADOS
-            # =================================================
-
-            def eliminar_duplicados_3f(
-                resultados
-            ):
-
-                mejores = {}
-
-
-                for resultado in resultados:
-
-                    clave = (
-
-                        resultado[
-                            "Sintoma_consultado"
-                        ],
-
-                        resultado[
-                            "Patologia_ID"
-                        ],
-
-                        resultado[
-                            "Sintoma_encontrado"
-                        ]
-
-                    )
-
-
-                    if clave not in mejores:
-
-                        mejores[
-                            clave
-                        ] = resultado
-
-                        continue
-
-
-                    if (
-                        resultado[
-                            "Puntaje"
-                        ]
-                        >
-                        mejores[
-                            clave
-                        ][
-                            "Puntaje"
-                        ]
-                    ):
-
-                        mejores[
-                            clave
-                        ] = resultado
-
-
-                return list(
-                    mejores.values()
-                )
-
-
-            # =================================================
-            # INGRESO DE SÍNTOMAS
-            # =================================================
-
-            texto_buscado = st.text_input(
-
-                "Ingrese uno o varios síntomas o señales:",
-
-                placeholder=(
-                    "Ejemplo: dificultad para orinar, "
-                    "mal olor"
-                ),
-
-                key=(
-                    "texto_busqueda_sintoma_patologia"
-                )
-
-            )
-
-
-            st.caption(
-                "Puede ingresar uno o varios síntomas. "
-                "Sepárelos por coma."
-            )
-
-
-            # =================================================
-            # PROCESAR CONSULTA
-            # =================================================
-
-            if texto_buscado.strip():
 
                 # =============================================
-                # SEPARAR SÍNTOMAS
+                # VALIDAR EMBEDDINGS
                 # =============================================
 
-                sintomas = []
+                if len(
+                    embeddings_sintomas_local
+                ) != len(df_3f):
 
-
-                for elemento in (
-                    texto_buscado.split(",")
-                ):
-
-                    sintoma = (
-                        elemento.strip()
-                    )
-
-
-                    if sintoma == "":
-
-                        continue
-
-
-                    sintoma_limpio = (
-
-                        limpiar_texto_sintoma_3f(
-                            sintoma
-                        )
-
-                    )
-
-
-                    if (
-                        sintoma_limpio
-                        ==
-                        ""
-                    ):
-
-                        continue
-
-
-                    existentes = [
-
-                        limpiar_texto_sintoma_3f(
-                            x
-                        )
-
-                        for x
-                        in sintomas
-
-                    ]
-
-
-                    if (
-                        sintoma_limpio
-                        not in existentes
-                    ):
-
-                        sintomas.append(
-                            sintoma
-                        )
-
-
-                # =============================================
-                # VALIDAR
-                # =============================================
-
-                if not sintomas:
-
-                    st.warning(
-                        "No se ingresaron síntomas "
-                        "válidos para realizar la búsqueda."
+                    st.error(
+                        "La cantidad de embeddings "
+                        "no coincide con la cantidad "
+                        "de registros de la base semántica."
                     )
 
                 else:
 
                     # =========================================
-                    # BUSCAR CADA SÍNTOMA
-                    # INDEPENDIENTEMENTE
+                    # BÚSQUEDA EXACTA
                     # =========================================
 
-                    resultados_por_sintoma = {}
-
-
-                    for sintoma in sintomas:
-
-                        resultados = (
-                            buscar_sintoma_3f(
-                                sintoma
-                            )
-                        )
-
-
-                        resultados = (
-                            eliminar_duplicados_3f(
-                                resultados
-                            )
-                        )
-
-
-                        resultados_por_sintoma[
-                            sintoma
-                        ] = resultados
-
-
-                    # =========================================
-                    # INTEGRAR POR PATOLOGÍA
-                    # =========================================
-
-                    patologias_semanticas = {}
-
-
-                    for (
-                        sintoma,
-                        resultados
-                    ) in (
-                        resultados_por_sintoma.items()
+                    def buscar_exacta_3f(
+                        consulta
                     ):
 
-                        for resultado in resultados:
+                        consulta_limpia = (
+                            limpiar_texto_sintoma_3f(
+                                consulta
+                            )
+                        )
 
-                            pid = str(
-                                resultado[
-                                    "Patologia_ID"
-                                ]
-                            ).strip()
+                        resultados = []
 
+                        for _, fila in (
+                            df_3f.iterrows()
+                        ):
 
                             if (
-                                pid
-                                not in
-                                patologias_semanticas
+                                consulta_limpia
+                                ==
+                                fila[
+                                    "Busqueda_3f"
+                                ]
                             ):
 
-                                patologias_semanticas[
-                                    pid
-                                ] = {
+                                resultados.append(
+                                    {
+                                        "Sintoma_consultado":
+                                            consulta,
 
-                                    "Patologia_ID":
-                                        pid,
+                                        "Sintoma_encontrado":
+                                            fila[
+                                                "Sintoma"
+                                            ],
 
-                                    "Patologia":
-                                        str(
-                                            resultado[
+                                        "Patologia_ID":
+                                            fila[
+                                                "Patologia_ID"
+                                            ],
+
+                                        "Patologia":
+                                            fila[
                                                 "Patologia"
-                                            ]
-                                        ).strip(),
+                                            ],
 
-                                    "Por_sintoma":
-                                        {}
+                                        "Tipo":
+                                            "Exacta",
 
-                                }
-
-
-                            if (
-                                sintoma
-                                not in
-                                patologias_semanticas[
-                                    pid
-                                ][
-                                    "Por_sintoma"
-                                ]
-                            ):
-
-                                patologias_semanticas[
-                                    pid
-                                ][
-                                    "Por_sintoma"
-                                ][
-                                    sintoma
-                                ] = []
-
-
-                            patologias_semanticas[
-                                pid
-                            ][
-                                "Por_sintoma"
-                            ][
-                                sintoma
-                            ].append(
-                                resultado
-                            )
-
-
-                    # =========================================
-                    # EVALUAR CADA PATOLOGÍA
-                    # =========================================
-
-                    resultados_finales = []
-
-
-                    total_sintomas = len(
-                        sintomas
-                    )
-
-
-                    for (
-                        pid,
-                        datos
-                    ) in (
-                        patologias_semanticas.items()
-                    ):
-
-                        coincidencias_validas = []
-
-                        sintomas_respaldo = 0
-
-
-                        # -------------------------------------
-                        # CADA SÍNTOMA SE EVALÚA POR SEPARADO
-                        # -------------------------------------
-
-                        for sintoma in sintomas:
-
-                            resultados = (
-
-                                datos[
-                                    "Por_sintoma"
-                                ].get(
-                                    sintoma,
-                                    []
+                                        "Puntaje":
+                                            100.0
+                                    }
                                 )
 
+                        return resultados
+
+                    # =========================================
+                    # BÚSQUEDA SEMÁNTICA
+                    # =========================================
+
+                    def buscar_semantica_3f(
+                        consulta
+                    ):
+
+                        embedding_consulta = (
+                            modelo_biomedico_local.encode(
+                                [consulta],
+                                normalize_embeddings=True
                             )
+                        )
 
+                        similitudes = (
+                            cosine_similarity(
+                                embedding_consulta,
+                                embeddings_sintomas_local
+                            )[0]
+                        )
 
-                            if not resultados:
+                        indices = (
+                            np.argsort(
+                                similitudes
+                            )[::-1][
+                                :MAX_RESULTADOS_SEMANTICOS
+                            ]
+                        )
 
-                                continue
+                        resultados = []
 
+                        for indice in indices:
 
-                            resultados_ordenados = sorted(
-
-                                resultados,
-
-                                key=lambda x:
-                                    x[
-                                        "Puntaje"
-                                    ],
-
-                                reverse=True
-
+                            puntaje = (
+                                float(
+                                    similitudes[
+                                        indice
+                                    ]
+                                )
+                                * 100
                             )
-
-
-                            mejor = (
-                                resultados_ordenados[
-                                    0
-                                ]
-                            )
-
-
-                            # ---------------------------------
-                            # EVIDENCIA VÁLIDA
-                            # ---------------------------------
 
                             if (
-                                mejor[
-                                    "Tipo"
-                                ]
-                                ==
-                                "Exacta"
-                            ):
-
-                                es_valida = True
-
-
-                            elif (
-                                mejor[
-                                    "Tipo"
-                                ]
-                                ==
-                                "Semantica"
-
-                                and
-
-                                mejor[
-                                    "Puntaje"
-                                ]
-                                >=
+                                puntaje
+                                <
                                 UMBRAL_SEMANTICO
                             ):
 
-                                es_valida = True
+                                continue
 
-
-                            else:
-
-                                es_valida = False
-
-
-                            if es_valida:
-
-                                sintomas_respaldo += 1
-
-                                coincidencias_validas.append(
-                                    mejor
-                                )
-
-
-                        # -------------------------------------
-                        # SIN EVIDENCIA
-                        # -------------------------------------
-
-                        if (
-                            sintomas_respaldo
-                            ==
-                            0
-                        ):
-
-                            continue
-
-
-                        # -------------------------------------
-                        # COBERTURA
-                        # -------------------------------------
-
-                        cobertura = (
-
-                            sintomas_respaldo
-                            /
-                            total_sintomas
-
-                        ) * 100
-
-
-                        # -------------------------------------
-                        # PROMEDIO
-                        # -------------------------------------
-
-                        puntajes = [
-
-                            x[
-                                "Puntaje"
-                            ]
-
-                            for x
-                            in coincidencias_validas
-
-                        ]
-
-
-                        promedio = (
-
-                            sum(
-                                puntajes
-                            )
-                            /
-                            len(
-                                puntajes
+                            fila = (
+                                df_3f.iloc[
+                                    indice
+                                ]
                             )
 
+                            resultados.append(
+                                {
+                                    "Sintoma_consultado":
+                                        consulta,
+
+                                    "Sintoma_encontrado":
+                                        fila[
+                                            "Sintoma"
+                                        ],
+
+                                    "Patologia_ID":
+                                        fila[
+                                            "Patologia_ID"
+                                        ],
+
+                                    "Patologia":
+                                        fila[
+                                            "Patologia"
+                                        ],
+
+                                    "Tipo":
+                                        "Semantica",
+
+                                    "Puntaje":
+                                        round(
+                                            puntaje,
+                                            2
+                                        )
+                                }
+                            )
+
+                        return resultados
+
+                    # =========================================
+                    # BÚSQUEDA HÍBRIDA
+                    # =========================================
+
+                    def buscar_sintoma_3f(
+                        consulta
+                    ):
+
+                        resultados = []
+
+                        # -------------------------------------
+                        # EXACTA
+                        # -------------------------------------
+
+                        resultados.extend(
+                            buscar_exacta_3f(
+                                consulta
+                            )
                         )
 
-
                         # -------------------------------------
-                        # NIVEL DE EVIDENCIA
+                        # SEMÁNTICA
                         # -------------------------------------
 
-                        if (
-                            sintomas_respaldo
-                            ==
-                            total_sintomas
+                        resultados.extend(
+                            buscar_semantica_3f(
+                                consulta
+                            )
+                        )
 
-                            and
+                        return resultados
 
-                            total_sintomas
-                            >=
-                            2
-                        ):
+                    # =========================================
+                    # ELIMINAR DUPLICADOS
+                    # =========================================
 
-                            nivel = (
-                                "EVIDENCIA ACUMULADA"
+                    def eliminar_duplicados_3f(
+                        resultados
+                    ):
+
+                        mejores = {}
+
+                        for resultado in resultados:
+
+                            clave = (
+                                resultado[
+                                    "Sintoma_consultado"
+                                ],
+
+                                str(
+                                    resultado[
+                                        "Patologia_ID"
+                                    ]
+                                ),
+
+                                resultado[
+                                    "Sintoma_encontrado"
+                                ]
                             )
 
+                            if clave not in mejores:
 
-                        elif (
-                            sintomas_respaldo
-                            >=
-                            2
+                                mejores[
+                                    clave
+                                ] = resultado
+
+                                continue
+
+                            if (
+                                resultado[
+                                    "Puntaje"
+                                ]
+                                >
+                                mejores[
+                                    clave
+                                ][
+                                    "Puntaje"
+                                ]
+                            ):
+
+                                mejores[
+                                    clave
+                                ] = resultado
+
+                        return list(
+                            mejores.values()
+                        )
+
+                    # =========================================
+                    # INGRESAR SÍNTOMAS
+                    # =========================================
+
+                    texto_buscado = st.text_input(
+
+                        "Ingrese uno o varios síntomas o señales:",
+
+                        placeholder=(
+                            "Ejemplo: dificultad para orinar, "
+                            "mal olor"
+                        ),
+
+                        key=(
+                            "texto_busqueda_sintoma_patologia"
+                        )
+                    )
+
+                    st.caption(
+                        "Puede ingresar uno o varios síntomas. "
+                        "Sepárelos por coma."
+                    )
+
+                    # =========================================
+                    # PROCESAR
+                    # =========================================
+
+                    if texto_buscado.strip():
+
+                        sintomas = []
+
+                        for elemento in (
+                            texto_buscado.split(",")
                         ):
 
-                            nivel = (
-                                "EVIDENCIA MULTIPLE"
+                            sintoma = elemento.strip()
+
+                            if sintoma == "":
+
+                                continue
+
+                            sintoma_limpio = (
+                                limpiar_texto_sintoma_3f(
+                                    sintoma
+                                )
                             )
 
+                            if sintoma_limpio == "":
 
-                        elif (
-                            sintomas_respaldo
-                            ==
-                            1
+                                continue
 
-                            and
+                            existentes = [
 
-                            promedio
-                            >=
-                            70
-                        ):
+                                limpiar_texto_sintoma_3f(
+                                    x
+                                )
 
-                            nivel = (
-                                "COINCIDENCIA FUERTE"
+                                for x
+                                in sintomas
+
+                            ]
+
+                            if (
+                                sintoma_limpio
+                                not in existentes
+                            ):
+
+                                sintomas.append(
+                                    sintoma
+                                )
+
+                        # =====================================
+                        # VALIDAR
+                        # =====================================
+
+                        if not sintomas:
+
+                            st.warning(
+                                "No se ingresaron síntomas "
+                                "válidos para realizar la búsqueda."
                             )
-
 
                         else:
 
-                            nivel = (
-                                "CANDIDATA - "
-                                "REQUIERE CONFIRMACION"
+                            # =================================
+                            # BUSCAR CADA SÍNTOMA
+                            # =================================
+
+                            resultados_por_sintoma = {}
+
+                            for sintoma in sintomas:
+
+                                resultados = (
+                                    buscar_sintoma_3f(
+                                        sintoma
+                                    )
+                                )
+
+                                resultados = (
+                                    eliminar_duplicados_3f(
+                                        resultados
+                                    )
+                                )
+
+                                resultados_por_sintoma[
+                                    sintoma
+                                ] = resultados
+
+                            # =================================
+                            # INTEGRAR POR PATOLOGÍA
+                            # =================================
+
+                            patologias_semanticas = {}
+
+                            for (
+                                sintoma,
+                                resultados
+                            ) in (
+                                resultados_por_sintoma.items()
+                            ):
+
+                                for resultado in resultados:
+
+                                    pid = str(
+                                        resultado[
+                                            "Patologia_ID"
+                                        ]
+                                    ).strip()
+
+                                    if (
+                                        pid
+                                        not in
+                                        patologias_semanticas
+                                    ):
+
+                                        patologias_semanticas[
+                                            pid
+                                        ] = {
+
+                                            "Patologia_ID":
+                                                pid,
+
+                                            "Patologia":
+                                                str(
+                                                    resultado[
+                                                        "Patologia"
+                                                    ]
+                                                ).strip(),
+
+                                            "Por_sintoma":
+                                                {}
+
+                                        }
+
+                                    if (
+                                        sintoma
+                                        not in
+                                        patologias_semanticas[
+                                            pid
+                                        ][
+                                            "Por_sintoma"
+                                        ]
+                                    ):
+
+                                        patologias_semanticas[
+                                            pid
+                                        ][
+                                            "Por_sintoma"
+                                        ][
+                                            sintoma
+                                        ] = []
+
+                                    patologias_semanticas[
+                                        pid
+                                    ][
+                                        "Por_sintoma"
+                                    ][
+                                        sintoma
+                                    ].append(
+                                        resultado
+                                    )
+
+                            # =================================
+                            # EVALUAR PATOLOGÍAS
+                            # =================================
+
+                            resultados_finales = []
+
+                            total_sintomas = len(
+                                sintomas
                             )
 
-
-                        resultados_finales.append({
-
-                            "Patologia_ID":
+                            for (
                                 pid,
-
-                            "Patologia":
-                                datos[
-                                    "Patologia"
-                                ],
-
-                            "Sintomas_respaldo":
-                                sintomas_respaldo,
-
-                            "Cobertura":
-                                round(
-                                    cobertura,
-                                    2
-                                ),
-
-                            "Promedio":
-                                round(
-                                    promedio,
-                                    2
-                                ),
-
-                            "Nivel":
-                                nivel,
-
-                            "Coincidencias":
-                                coincidencias_validas
-
-                        })
-
-
-                    # =========================================
-                    # ORDENAR RESULTADOS
-                    # =========================================
-
-                    resultados_finales.sort(
-
-                        key=lambda x: (
-
-                            x[
-                                "Sintomas_respaldo"
-                            ],
-
-                            x[
-                                "Cobertura"
-                            ],
-
-                            x[
-                                "Promedio"
-                            ]
-
-                        ),
-
-                        reverse=True
-
-                    )
-
-
-                    # =========================================
-                    # MOSTRAR RESULTADOS
-                    # =========================================
-
-                    st.subheader(
-                        "Resultados de la búsqueda"
-                    )
-
-
-                    if not resultados_finales:
-
-                        st.warning(
-                            "No se encontró evidencia "
-                            "semántica suficiente para "
-                            "los síntomas ingresados."
-                        )
-
-                        st.info(
-                            "Pruebe describiendo el síntoma "
-                            "con otras palabras o agregando "
-                            "otro síntoma relacionado."
-                        )
-
-
-                    else:
-
-                        st.success(
-
-                            f"Se encontraron "
-                            f"{len(resultados_finales)} "
-                            f"patologías relacionadas."
-
-                        )
-
-
-                        opciones = [
-
-                            "Seleccione una patología"
-
-                        ]
-
-
-                        for resultado in (
-                            resultados_finales
-                        ):
-
-                            opciones.append(
-
-                                f"{resultado['Patologia_ID']} — "
-                                f"{resultado['Patologia']} | "
-                                f"{resultado['Nivel']} | "
-                                f"{resultado['Cobertura']:.0f}%"
-
-                            )
-
-
-                        seleccion = st.selectbox(
-
-                            "Seleccione la patología "
-                            "que desea consultar:",
-
-                            opciones,
-
-                            key=(
-                                "seleccion_patologia_sintoma_busqueda"
-                            )
-
-                        )
-
-
-                        # =====================================
-                        # MOSTRAR EVIDENCIA
-                        # =====================================
-
-                        if (
-                            seleccion
-                            !=
-                            "Seleccione una patología"
-                        ):
-
-                            indice_seleccionado = (
-
-                                opciones.index(
-                                    seleccion
-                                )
-                                - 1
-
-                            )
-
-
-                            resultado_seleccionado = (
-
-                                resultados_finales[
-                                    indice_seleccionado
-                                ]
-
-                            )
-
-
-                            st.write(
-                                "**Evidencia encontrada:**"
-                            )
-
-
-                            col1, col2, col3 = (
-                                st.columns(3)
-                            )
-
-
-                            with col1:
-
-                                st.metric(
-
-                                    "Síntomas de respaldo",
-
-                                    (
-                                        f"{resultado_seleccionado['Sintomas_respaldo']}"
-                                        f"/{total_sintomas}"
-                                    )
-
-                                )
-
-
-                            with col2:
-
-                                st.metric(
-
-                                    "Cobertura",
-
-                                    (
-                                        f"{resultado_seleccionado['Cobertura']:.2f}%"
-                                    )
-
-                                )
-
-
-                            with col3:
-
-                                st.metric(
-
-                                    "Promedio",
-
-                                    (
-                                        f"{resultado_seleccionado['Promedio']:.2f}%"
-                                    )
-
-                                )
-
-
-                            st.info(
-
-                                f"Nivel de evidencia: "
-                                f"**{resultado_seleccionado['Nivel']}**"
-
-                            )
-
-
-                            st.write(
-                                "**Síntomas que respaldan "
-                                "la coincidencia:**"
-                            )
-
-
-                            for coincidencia in (
-                                resultado_seleccionado[
-                                    "Coincidencias"
-                                ]
+                                datos
+                            ) in (
+                                patologias_semanticas.items()
                             ):
 
-                                st.write(
+                                coincidencias_validas = []
 
-                                    "• "
-                                    f"**{coincidencia['Sintoma_consultado']}**"
-                                    " → "
-                                    f"{coincidencia['Sintoma_encontrado']}"
-                                    " | "
-                                    f"{coincidencia['Tipo']}"
-                                    " | "
-                                    f"{coincidencia['Puntaje']:.2f}%"
+                                sintomas_respaldo = 0
 
-                                )
+                                for sintoma in sintomas:
 
+                                    resultados = (
+                                        datos[
+                                            "Por_sintoma"
+                                        ].get(
+                                            sintoma,
+                                            []
+                                        )
+                                    )
 
-                            # =============================
-                            # SÍNTOMAS SIN COINCIDENCIA
-                            # =============================
+                                    if not resultados:
 
-                            sintomas_resueltos = [
+                                        continue
 
-                                x[
-                                    "Sintoma_consultado"
-                                ]
+                                    resultados_ordenados = sorted(
 
-                                for x
-                                in resultado_seleccionado[
-                                    "Coincidencias"
-                                ]
+                                        resultados,
 
-                            ]
+                                        key=lambda x:
+                                            x[
+                                                "Puntaje"
+                                            ],
 
+                                        reverse=True
+                                    )
 
-                            sintomas_sin_coincidencia = [
+                                    mejor = (
+                                        resultados_ordenados[
+                                            0
+                                        ]
+                                    )
 
-                                sintoma
+                                    # -------------------------
+                                    # VALIDAR EVIDENCIA
+                                    # -------------------------
 
-                                for sintoma
-                                in sintomas
+                                    if (
+                                        mejor[
+                                            "Tipo"
+                                        ]
+                                        ==
+                                        "Exacta"
+                                    ):
 
-                                if sintoma
-                                not in
-                                sintomas_resueltos
+                                        es_valida = True
 
-                            ]
+                                    elif (
+                                        mejor[
+                                            "Tipo"
+                                        ]
+                                        ==
+                                        "Semantica"
 
+                                        and
 
-                            if (
-                                sintomas_sin_coincidencia
-                            ):
+                                        mejor[
+                                            "Puntaje"
+                                        ]
+                                        >=
+                                        UMBRAL_SEMANTICO
+                                    ):
 
-                                st.warning(
+                                        es_valida = True
 
-                                    "Síntomas sin coincidencia "
-                                    "semántica suficiente:"
+                                    else:
 
-                                )
+                                        es_valida = False
 
+                                    if es_valida:
 
-                                for sintoma in (
-                                    sintomas_sin_coincidencia
+                                        sintomas_respaldo += 1
+
+                                        coincidencias_validas.append(
+                                            mejor
+                                        )
+
+                                # -----------------------------
+                                # SIN EVIDENCIA
+                                # -----------------------------
+
+                                if (
+                                    sintomas_respaldo
+                                    ==
+                                    0
                                 ):
 
-                                    st.write(
-                                        f"• {sintoma}"
-                                    )
+                                    continue
 
+                                # -----------------------------
+                                # COBERTURA
+                                # -----------------------------
 
-                            # =============================
-                            # MOSTRAR FICHA
-                            # =============================
+                                cobertura = (
+                                    sintomas_respaldo
+                                    /
+                                    total_sintomas
+                                ) * 100
 
-                            mostrar_ficha_patologia(
+                                # -----------------------------
+                                # PROMEDIO
+                                # -----------------------------
 
-                                resultado_seleccionado[
-                                    "Patologia_ID"
+                                puntajes = [
+
+                                    x[
+                                        "Puntaje"
+                                    ]
+
+                                    for x
+                                    in coincidencias_validas
+
                                 ]
 
+                                promedio = (
+                                    sum(
+                                        puntajes
+                                    )
+                                    /
+                                    len(
+                                        puntajes
+                                    )
+                                )
+
+                                # -----------------------------
+                                # NIVEL DE EVIDENCIA
+                                # -----------------------------
+
+                                if (
+                                    sintomas_respaldo
+                                    ==
+                                    total_sintomas
+
+                                    and
+
+                                    total_sintomas
+                                    >=
+                                    2
+                                ):
+
+                                    nivel = (
+                                        "EVIDENCIA ACUMULADA"
+                                    )
+
+                                elif (
+                                    sintomas_respaldo
+                                    >=
+                                    2
+                                ):
+
+                                    nivel = (
+                                        "EVIDENCIA MULTIPLE"
+                                    )
+
+                                elif (
+                                    sintomas_respaldo
+                                    ==
+                                    1
+
+                                    and
+
+                                    promedio
+                                    >=
+                                    70
+                                ):
+
+                                    nivel = (
+                                        "COINCIDENCIA FUERTE"
+                                    )
+
+                                else:
+
+                                    nivel = (
+                                        "CANDIDATA - "
+                                        "REQUIERE CONFIRMACION"
+                                    )
+
+                                resultados_finales.append(
+                                    {
+                                        "Patologia_ID":
+                                            pid,
+
+                                        "Patologia":
+                                            datos[
+                                                "Patologia"
+                                            ],
+
+                                        "Sintomas_respaldo":
+                                            sintomas_respaldo,
+
+                                        "Cobertura":
+                                            round(
+                                                cobertura,
+                                                2
+                                            ),
+
+                                        "Promedio":
+                                            round(
+                                                promedio,
+                                                2
+                                            ),
+
+                                        "Nivel":
+                                            nivel,
+
+                                        "Coincidencias":
+                                            coincidencias_validas
+                                    }
+                                )
+
+                            # =================================
+                            # ORDENAR RESULTADOS
+                            # =================================
+
+                            resultados_finales.sort(
+
+                                key=lambda x: (
+
+                                    x[
+                                        "Sintomas_respaldo"
+                                    ],
+
+                                    x[
+                                        "Cobertura"
+                                    ],
+
+                                    x[
+                                        "Promedio"
+                                    ]
+
+                                ),
+
+                                reverse=True
                             )
+
+                            # =================================
+                            # MOSTRAR RESULTADOS
+                            # =================================
+
+                            st.subheader(
+                                "Resultados de la búsqueda"
+                            )
+
+                            if not resultados_finales:
+
+                                st.warning(
+                                    "No se encontró evidencia "
+                                    "semántica suficiente para "
+                                    "los síntomas ingresados."
+                                )
+
+                                st.info(
+                                    "Pruebe describiendo el síntoma "
+                                    "con otras palabras o agregando "
+                                    "otro síntoma relacionado."
+                                )
+
+                            else:
+
+                                st.success(
+                                    f"Se encontraron "
+                                    f"{len(resultados_finales)} "
+                                    f"patologías relacionadas."
+                                )
+
+                                opciones = [
+                                    "Seleccione una patología"
+                                ]
+
+                                for resultado in (
+                                    resultados_finales
+                                ):
+
+                                    opciones.append(
+                                        f"{resultado['Patologia_ID']} — "
+                                        f"{resultado['Patologia']} | "
+                                        f"{resultado['Nivel']} | "
+                                        f"{resultado['Cobertura']:.0f}%"
+                                    )
+
+                                seleccion = st.selectbox(
+
+                                    "Seleccione la patología "
+                                    "que desea consultar:",
+
+                                    opciones,
+
+                                    key=(
+                                        "seleccion_patologia_sintoma_busqueda"
+                                    )
+                                )
+
+                                # =============================
+                                # RESULTADO SELECCIONADO
+                                # =============================
+
+                                if (
+                                    seleccion
+                                    !=
+                                    "Seleccione una patología"
+                                ):
+
+                                    indice_seleccionado = (
+                                        opciones.index(
+                                            seleccion
+                                        )
+                                        - 1
+                                    )
+
+                                    resultado_seleccionado = (
+                                        resultados_finales[
+                                            indice_seleccionado
+                                        ]
+                                    )
+
+                                    # =============================
+                                    # EVIDENCIA
+                                    # =============================
+
+                                    st.write(
+                                        "**Evidencia encontrada:**"
+                                    )
+
+                                    col1, col2, col3 = (
+                                        st.columns(3)
+                                    )
+
+                                    with col1:
+
+                                        st.metric(
+                                            "Síntomas de respaldo",
+                                            (
+                                                f"{resultado_seleccionado['Sintomas_respaldo']}"
+                                                f"/{total_sintomas}"
+                                            )
+                                        )
+
+                                    with col2:
+
+                                        st.metric(
+                                            "Cobertura",
+                                            (
+                                                f"{resultado_seleccionado['Cobertura']:.2f}%"
+                                            )
+                                        )
+
+                                    with col3:
+
+                                        st.metric(
+                                            "Promedio",
+                                            (
+                                                f"{resultado_seleccionado['Promedio']:.2f}%"
+                                            )
+                                        )
+
+                                    st.info(
+                                        f"Nivel de evidencia: "
+                                        f"**{resultado_seleccionado['Nivel']}**"
+                                    )
+
+                                    # =============================
+                                    # COINCIDENCIAS
+                                    # =============================
+
+                                    st.write(
+                                        "**Síntomas que respaldan "
+                                        "la coincidencia:**"
+                                    )
+
+                                    for coincidencia in (
+                                        resultado_seleccionado[
+                                            "Coincidencias"
+                                        ]
+                                    ):
+
+                                        st.write(
+                                            "• "
+                                            f"**{coincidencia['Sintoma_consultado']}**"
+                                            " → "
+                                            f"{coincidencia['Sintoma_encontrado']}"
+                                            " | "
+                                            f"{coincidencia['Tipo']}"
+                                            " | "
+                                            f"{coincidencia['Puntaje']:.2f}%"
+                                        )
+
+                                    # =============================
+                                    # SÍNTOMAS SIN COINCIDENCIA
+                                    # =============================
+
+                                    sintomas_resueltos = [
+
+                                        x[
+                                            "Sintoma_consultado"
+                                        ]
+
+                                        for x
+                                        in resultado_seleccionado[
+                                            "Coincidencias"
+                                        ]
+
+                                    ]
+
+                                    sintomas_sin_coincidencia = [
+
+                                        sintoma
+
+                                        for sintoma
+                                        in sintomas
+
+                                        if sintoma
+                                        not in
+                                        sintomas_resueltos
+
+                                    ]
+
+                                    if (
+                                        sintomas_sin_coincidencia
+                                    ):
+
+                                        st.warning(
+                                            "Síntomas sin coincidencia "
+                                            "semántica suficiente:"
+                                        )
+
+                                        for sintoma in (
+                                            sintomas_sin_coincidencia
+                                        ):
+
+                                            st.write(
+                                                f"• {sintoma}"
+                                            )
+
+                                    # =============================
+                                    # MOSTRAR FICHA
+                                    # =============================
+
+                                    mostrar_ficha_patologia(
+                                        resultado_seleccionado[
+                                            "Patologia_ID"
+                                        ]
+                                    )
     # ========================================================
     # NAVEGACIÓN
     # ========================================================
