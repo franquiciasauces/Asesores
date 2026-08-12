@@ -4616,4 +4616,39 @@ if opcion_consulta == "Restricciones":
 
                             st.rerun()
     # ========================================================
+# ============================================================
+# VERIFICACIÓN RÁPIDA DE DATAFRAMES DE LA MATRIZ
+# ============================================================
 
+st.subheader("Verificación de hojas cargadas")
+
+dataframes_matriz = {
+    "Base_Productos": Base_Productos,
+    "Patologias": Patologias,
+    "Condiciones": Condiciones,
+    "Reglas_Paquetes": Reglas_Paquetes,
+    "Restricciones": Restricciones,
+    "Complementarios": Complementarios,
+    "Entrevista": Entrevista
+}
+
+for nombre, dataframe in dataframes_matriz.items():
+
+    if dataframe is not None:
+
+        st.success(
+            f"✓ {nombre} — DataFrame cargado "
+            f"({dataframe.shape[0]} filas × "
+            f"{dataframe.shape[1]} columnas)"
+        )
+
+        st.write(
+            "Columnas:",
+            list(dataframe.columns)
+        )
+
+    else:
+
+        st.error(
+            f"✗ {nombre} — NO está cargado"
+        )
