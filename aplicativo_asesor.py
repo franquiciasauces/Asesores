@@ -1036,26 +1036,26 @@ st.caption(
 # BLOQUE 2.1.1 — ESTRUCTURA Y MENÚ DE CONSULTA DE PRODUCTOS
 # ============================================================
 
-if opcion_consulta == "Productos":
+    if opcion_consulta == "Productos":
 
-    st.subheader("Consulta de productos")
+        st.subheader("Consulta de productos")
 
-    tipo_consulta_producto = st.selectbox(
-        "¿Qué desea consultar?",
-        [
-            "Seleccione una opción",
-            "Ver todos los productos",
-            "Buscar producto",
-            "Componente → productos",
-            "Categoría → productos",
-            "Producto → acciones generales"
-        ],
-        key="menu_consulta_productos"
-    )
+        tipo_consulta_producto = st.selectbox(
+            "¿Qué desea consultar?",
+            [
+                "Seleccione una opción",
+                "Ver todos los productos",
+                "Buscar producto",
+                "Componente → productos",
+                "Categoría → productos",
+                "Producto → acciones generales"
+            ],
+            key="menu_consulta_productos"
+        )
 
-    st.session_state["tipo_consulta_producto"] = (
-        tipo_consulta_producto
-    )
+        st.session_state["tipo_consulta_producto"] = (
+            tipo_consulta_producto
+        )
 # ============================================================
 # BLOQUE 2.1.2 — LISTADO ALFABÉTICO Y SELECCIÓN
 # ============================================================
