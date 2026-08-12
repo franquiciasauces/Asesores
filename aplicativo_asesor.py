@@ -899,6 +899,7 @@ opcion_principal = st.radio(
 # 5. SECCIÓN CONSULTA
 # ============================================================
 
+opcion_consulta = None
 if opcion_principal == "CONSULTA":
 
     st.header("CONSULTA")
