@@ -1,0 +1,1425 @@
+\#=========================================================
+
+# BLOQUE 4A
+
+# SELECCIÓN DE PATOLOGÍA Y PREPARACIÓN DE LA ENTREVISTA
+
+\#=========================================================
+
+print("\n=============================================")
+print("ENTREVISTA DINÁMICA")
+print("=============================================")
+
+\#---------------------------------------------------------
+
+# Buscar la patología
+
+\#---------------------------------------------------------
+
+busqueda = input(
+"\nIngrese código o nombre de la patología: "
+).strip()
+
+pat = None
+
+\#---------------------------------------------------------
+
+# Buscar por código (primera prioridad)
+
+\#---------------------------------------------------------
+
+tmp = patologias[
+patologias["Patologia\_ID"]
+.astype(str)
+.str.upper()
+\==
+busqueda.upper()
+]
+
+if len(tmp) > 0:
+
+```
+pat = tmp.iloc[0]
+```
+
+else:
+
+```
+#-----------------------------------------------------
+# Buscar por nombre usando fuzzy matching
+#-----------------------------------------------------
+fuzzy_results = buscar_patologia(busqueda)
+
+if fuzzy_results:
+    # Tomar la mejor coincidencia (la primera ya que están ordenadas por similitud descendente)
+    best_match = fuzzy_results[0]
+    # Si la similitud es alta, considerar como encontrado
+    if best_match['Coincidencia'] >= 60: # Umbral de similitud para considerar una coincidencia válida
+        pat = patologias.iloc[best_match['Indice']]
+        print(f"Se encontró la patología '{pat['Patología']}' por nombre (Coincidencia: {best_match['Coincidencia']}%).")
+    else:
+        print("No se encontró una patología con suficiente similitud por nombre.")
+```
+
+\#---------------------------------------------------------
+
+# Validación final
+
+\#---------------------------------------------------------
+
+if pat is None:
+
+```
+print("\n❌ Patología no encontrada.")
+
+entrevista_actual = pd.DataFrame()
+
+estado_entrevista = {}
+```
+
+else:
+
+```
+patologia_id = pat["Patologia_ID"]
+
+print("\n=============================================")
+print("PATOLOGÍA SELECCIONADA")
+print("=============================================")
+
+print(f"Código : {patologia_id}")
+print(f"Nombre : {pat['Patología']}")
+
+print("\nInicie la entrevista.")
+print("Puede omitir cualquier pregunta presionando ENTER.")
+
+entrevista_actual = (
+    Entrevista[
+        Entrevista["Patologia_ID"] == patologia_id
+    ]
+    .sort_values("Orden")
+    .reset_index(drop=True)
+)
+
+estado_entrevista = {}
+
+print(f"\nPreguntas encontradas: {len(entrevista_actual)}")
+```
+
+print("\n=============================================")
+print("FIN BLOQUE 4A")
+print("=============================================")   SON VARIOS BLOQUUES ASI QUE ESPERE...A QUE TERMINE
+
+
+
+\#=========================================================
+
+# BLOQUE 4B
+
+# EJECUTAR ENTREVISTA
+
+\#=========================================================
+
+if len(entrevista\_actual) > 0:
+
+```
+for _, fila in entrevista_actual.iterrows():
+
+    condicion = fila["Condicion_ID"]
+    pregunta = str(fila["Pregunta"])
+    tipo = str(fila["Tipo_Control"]).strip().lower()
+
+    opciones = fila["Opciones"]
+
+    print("\n--------------------------------------------")
+    print(pregunta)
+
+    respuesta = None
+
+    #=================================================
+    # TEXTO
+    #=================================================
+
+    if tipo == "texto":
+
+        r = input("Respuesta (ENTER para omitir): ").strip()
+
+        respuesta = r if r != "" else None
+
+    #=================================================
+    # NUMERO
+    #=================================================
+
+    elif tipo == "número":
+
+        r = input("Número (ENTER para omitir): ").strip()
+
+        if r != "":
+
+            try:
+
+                respuesta = float(r)
+
+                if respuesta.is_integer():
+                    respuesta = int(respuesta)
+
+            except:
+
+                print("Número inválido.")
+                respuesta = None
+
+    #=================================================
+    # SI / NO
+    #=================================================
+
+    elif tipo in ["sí/no","si/no"]:
+
+        print("1. Sí")
+        print("2. No")
+
+        r = input("Seleccione (ENTER para omitir): ").strip()
+
+        if r == "1":
+
+            respuesta = "Sí"
+
+        elif r == "2":
+
+            respuesta = "No"
+
+        else:
+
+            respuesta = None
+
+    #=================================================
+    # LISTA
+    #=================================================
+
+    elif tipo == "lista":
+
+        lista = []
+
+        if pd.notna(opciones):
+
+            lista = [
+                x.strip()
+                for x in str(opciones).split(";")
+            ]
+
+        for i, item in enumerate(lista,1):
+
+            print(f"{i}. {item}")
+
+        r = input(
+            "Seleccione UNA opción (ENTER para omitir): "
+        ).strip()
+
+        if r != "":
+
+            try:
+
+                respuesta = lista[int(r)-1]
+
+            except:
+
+                respuesta = None
+
+    #=================================================
+    # SELECCION MULTIPLE
+    #=================================================
+
+    elif tipo == "selección múltiple":
+
+        lista = []
+
+        if pd.notna(opciones):
+
+            lista = [
+                x.strip()
+                for x in str(opciones).split(";")
+            ]
+
+        for i,item in enumerate(lista,1):
+
+            print(f"{i}. {item}")
+
+        r = input(
+            "Seleccione varias (ej: 1,3,5) o ENTER: "
+        ).strip()
+
+        respuesta = []
+
+        if r != "":
+
+            for x in r.split(","):
+
+                try:
+
+                    respuesta.append(
+                        lista[int(x.strip())-1]
+                    )
+
+                except:
+
+                    pass
+
+    #=================================================
+    # OTROS TIPOS
+    #=================================================
+
+    else:
+
+        r = input("Respuesta (ENTER para omitir): ").strip()
+
+        respuesta = r if r != "" else None
+
+    #=================================================
+    # GUARDAR RESPUESTA
+    #=================================================
+
+    if pd.notna(condicion):
+
+        estado_entrevista[condicion] = respuesta
+```
+
+print("\n==============================================")
+print("ENTREVISTA FINALIZADA")
+print("==============================================")
+
+\#=========================================================
+
+# BLOQUE 4C
+
+# RESUMEN DE LA ENTREVISTA
+
+\#=========================================================
+
+print("\n==============================================")
+print("RESUMEN DE RESPUESTAS")
+print("==============================================")
+
+if len(estado\_entrevista) == 0:
+
+```
+print("\nNo se registraron respuestas.")
+```
+
+else:
+
+```
+respuestas_df = []
+
+for _, fila in entrevista_actual.iterrows():
+
+    condicion = fila["Condicion_ID"]
+
+    if pd.isna(condicion):
+        continue
+
+    respuestas_df.append({
+
+        "Condicion_ID": condicion,
+        "Pregunta": fila["Pregunta"],
+        "Respuesta": estado_entrevista.get(condicion, None)
+
+    })
+
+respuestas_df = pd.DataFrame(respuestas_df)
+
+display(respuestas_df)
+```
+
+print("\n==============================================")
+print("DICCIONARIO INTERNO")
+print("==============================================")
+
+for k, v in estado\_entrevista.items():
+
+```
+print(f"{k} : {v}")
+```
+
+print("\n==============================================")
+print("ENTREVISTA LISTA PARA EVALUAR REGLAS")
+print("==============================================")
+
+import re
+
+print("\n=============================================")
+print("EVALUANDO REGLAS")
+print("=============================================")
+
+\#---------------------------------------------------------
+
+# Reglas de la patología actual
+
+\#---------------------------------------------------------
+
+reglas\_actuales = reglas[
+reglas["Patologia\_ID"] == patologia\_id
+].copy()
+
+print(f"Reglas encontradas: {len(reglas\_actuales)}")
+
+reglas\_activadas = []
+
+\#---------------------------------------------------------
+
+# Función para obtener una respuesta
+
+\#---------------------------------------------------------
+
+def obtener(condicion):
+
+```
+return estado_entrevista.get(condicion, None)
+```
+
+\#---------------------------------------------------------
+
+# Función para evaluar una condición simple
+
+\#---------------------------------------------------------
+
+def evaluar\_condicion(texto):
+
+```
+texto = texto.strip()
+
+#-----------------------------------------
+# C=valor
+#-----------------------------------------
+
+if "=" in texto:
+
+    c, valor_esperado = texto.split("=", 1)
+
+    c = c.strip()
+
+    valor_esperado = valor_esperado.strip().lower()
+
+    r = obtener(c)
+
+
+    if r is None:
+        return False
+
+    # Manejar respuestas tipo lista (ej. selección múltiple)
+    if isinstance(r, list):
+
+        # Si la regla espera 'Sí'
+        if valor_esperado == 'sí':
+            # Es True si la lista no está vacía y no contiene solo 'Ninguno'
+            return bool(r) and 'ninguno' not in [str(item).lower() for item in r]
+
+        # Si la regla espera 'No'
+        elif valor_esperado == 'no':
+            # Es True si la lista está vacía o contiene solo 'Ninguno'
+            return not bool(r) or ('ninguno' in [str(item).lower() for item in r] and len(r) == 1)
+
+        # Para otros valores específicos esperados en una lista
+        else:
+            return valor_esperado in [str(item).lower() for item in r]
+
+    # Manejar respuestas de cadena simple
+    else:
+
+        response_lower = str(r).lower()
+
+        if valor_esperado == 'sí':
+            # Chequear por 'sí' o 'sospecha' directas
+            if response_lower == 'sí' or response_lower == 'sospecha':
+                return True
+            # Manejo especial para C011=Sí si la respuesta es 'sobrepeso' u 'obesidad'
+            if c == 'C011' and (response_lower == 'sobrepeso' or response_lower == 'obesidad'):
+                return True
+            return False
+
+        elif valor_esperado == 'no':
+            return response_lower == 'no'
+
+        # Para otros valores específicos (ej. CXXX=Sobrepeso)
+        else:
+            return response_lower == valor_esperado
+
+#-----------------------------------------
+# C contiene xxx
+#-----------------------------------------
+
+if "contiene" in texto.lower():
+
+    partes = re.split(
+        r"contiene",
+        texto,
+        flags=re.IGNORECASE
+    )
+
+    c = partes[0].strip()
+
+    valor = partes[1].strip()
+
+    r = obtener(c)
+
+
+    if r is None:
+        return False
+
+    if isinstance(r,list):
+
+        return any(
+            valor.lower() in str(x).lower()
+            for x in r
+        )
+
+    return valor.lower() in str(r).lower()
+
+#-----------------------------------------
+# C incluye xxx
+#-----------------------------------------
+
+if "incluye" in texto.lower():
+
+    partes = re.split(
+        r"incluye",
+        texto,
+        flags=re.IGNORECASE
+    )
+
+    c = partes[0].strip()
+
+    valor = partes[1].strip()
+
+    r = obtener(c)
+
+
+    if r is None:
+        return False
+
+    if isinstance(r,list):
+
+        return any(
+            valor.lower() in str(x).lower()
+            for x in r
+        )
+
+    return valor.lower() in str(r).lower()
+
+return False
+```
+
+print("Motor preparado.")
+import re
+
+print("\n=============================================")
+print("EVALUANDO REGLAS")
+print("=============================================")
+
+\#---------------------------------------------------------
+
+# Reglas de la patología actual
+
+\#---------------------------------------------------------
+
+reglas\_actuales = reglas[
+reglas["Patologia\_ID"] == patologia\_id
+].copy()
+
+print(f"Reglas encontradas: {len(reglas\_actuales)}")
+
+reglas\_activadas = []
+
+\#---------------------------------------------------------
+
+# Función para obtener una respuesta
+
+\#---------------------------------------------------------
+
+def obtener(condicion):
+
+```
+return estado_entrevista.get(condicion, None)
+```
+
+\#---------------------------------------------------------
+
+# Función para evaluar una condición simple
+
+\#---------------------------------------------------------
+
+def evaluar\_condicion(texto):
+
+```
+texto = texto.strip()
+
+#-----------------------------------------
+# C=valor
+#-----------------------------------------
+
+if "=" in texto:
+
+    c, valor_esperado = texto.split("=", 1)
+
+    c = c.strip()
+
+    valor_esperado = valor_esperado.strip().lower()
+
+    r = obtener(c)
+
+
+    if r is None:
+        return False
+
+    # Manejar respuestas tipo lista (ej. selección múltiple)
+    if isinstance(r, list):
+
+        # Si la regla espera 'Sí'
+        if valor_esperado == 'sí':
+            # Es True si la lista no está vacía y no contiene solo 'Ninguno'
+            return bool(r) and 'ninguno' not in [str(item).lower() for item in r]
+
+        # Si la regla espera 'No'
+        elif valor_esperado == 'no':
+            # Es True si la lista está vacía o contiene solo 'Ninguno'
+            return not bool(r) or ('ninguno' in [str(item).lower() for item in r] and len(r) == 1)
+
+        # Para otros valores específicos esperados en una lista
+        else:
+            return valor_esperado in [str(item).lower() for item in r]
+
+    # Manejar respuestas de cadena simple
+    else:
+
+        response_lower = str(r).lower()
+
+        if valor_esperado == 'sí':
+            # Chequear por 'sí' o 'sospecha' directas
+            if response_lower == 'sí' or response_lower == 'sospecha':
+                return True
+            # Manejo especial para C011=Sí si la respuesta es 'sobrepeso' u 'obesidad'
+            if c == 'C011' and (response_lower == 'sobrepeso' or response_lower == 'obesidad'):
+                return True
+            return False
+
+        elif valor_esperado == 'no':
+            return response_lower == 'no'
+
+        # Para otros valores específicos (ej. CXXX=Sobrepeso)
+        else:
+            return response_lower == valor_esperado
+
+#-----------------------------------------
+# C contiene xxx
+#-----------------------------------------
+
+if "contiene" in texto.lower():
+
+    partes = re.split(
+        r"contiene",
+        texto,
+        flags=re.IGNORECASE
+    )
+
+    c = partes[0].strip()
+
+    valor = partes[1].strip()
+
+    r = obtener(c)
+
+
+    if r is None:
+        return False
+
+    if isinstance(r,list):
+
+        return any(
+            valor.lower() in str(x).lower()
+            for x in r
+        )
+
+    return valor.lower() in str(r).lower()
+
+#-----------------------------------------
+# C incluye xxx
+#-----------------------------------------
+
+if "incluye" in texto.lower():
+
+    partes = re.split(
+        r"incluye",
+        texto,
+        flags=re.IGNORECASE
+    )
+
+    c = partes[0].strip()
+
+    valor = partes[1].strip()
+
+    r = obtener(c)
+
+
+    if r is None:
+        return False
+
+    if isinstance(r,list):
+
+        return any(
+            valor.lower() in str(x).lower()
+            for x in r
+        )
+
+    return valor.lower() in str(r).lower()
+
+return False
+```
+
+print("Motor preparado.")
+
+reglas_actuales[[
+    "Regla_ID",
+    "Condiciones (lógica)",
+    "Producto principal",
+    "Coadyuvantes sugeridos (1-3)"
+]].to_string(index=False)
+
+\#=========================================================
+
+# BLOQUE 4D - PARTE 2
+
+# EVALUAR REGLAS Y GENERAR PRODUCTOS SUGERIDOS
+
+\#=========================================================
+
+import pandas as pd
+import numpy as np
+import re
+
+\#=========================================================
+
+# NORMALIZAR NOMBRES DE PRODUCTOS
+
+\#=========================================================
+
+def normalize\_product\_name(name):
+
+```
+if pd.isna(name):
+
+    return ""
+
+name = str(name)
+
+name = re.sub(
+    r' x \d+ (CAP|ML|GR|SOFGELS|PERLAS|TABLETAS|TABS|CAPS|COMPRIMIDOS)',
+    '',
+    name,
+    flags=re.IGNORECASE
+)
+
+name = re.sub(
+    r'\s+',
+    ' ',
+    name
+)
+
+return name.strip().upper()
+```
+
+
+
+\#=========================================================
+
+# EVALUAR REGLAS
+
+\#=========================================================
+
+reglas\_activadas\_list=[]
+
+for \_, regla in reglas\_actuales.iterrows():
+
+```
+expresion=str(
+    regla["Condiciones (lógica)"]
+).strip()
+
+
+if expresion=="" or expresion.lower()=="nan":
+
+    continue
+
+
+
+cumple=False
+
+
+
+if " OR " in expresion.upper():
+
+
+    partes=re.split(
+        r"\s+OR\s+",
+        expresion,
+        flags=re.IGNORECASE
+    )
+
+
+    cumple=any(
+
+        evaluar_condicion(x)
+
+        for x in partes
+
+    )
+
+
+
+elif " AND " in expresion.upper():
+
+
+    partes=re.split(
+        r"\s+AND\s+",
+        expresion,
+        flags=re.IGNORECASE
+    )
+
+
+    cumple=all(
+
+        evaluar_condicion(x)
+
+        for x in partes
+
+    )
+
+
+
+else:
+
+
+    cumple=evaluar_condicion(
+        expresion
+    )
+
+
+
+if cumple:
+
+    reglas_activadas_list.append(
+        regla.to_dict()
+    )
+```
+
+
+
+\#=========================================================
+
+# RESULTADOS
+
+\#=========================================================
+
+print("\n=============================================")
+print("REGLAS ACTIVADAS")
+print("=============================================")
+
+
+
+if len(reglas\_activadas\_list)==0:
+
+```
+print("No se activó ninguna regla.")
+```
+
+else:
+
+```
+reglas_activadas=pd.DataFrame(
+    reglas_activadas_list
+)
+
+
+
+#-----------------------------------------------------
+# NORMALIZAR PRODUCTOS
+#-----------------------------------------------------
+
+reglas_activadas[
+    "Producto_Normalizado"
+] = reglas_activadas[
+    "Producto principal"
+].apply(
+    normalize_product_name
+)
+
+
+
+productos_info=productos.copy()
+
+
+
+productos_info[
+    "Producto_Normalizado"
+] = productos_info[
+    "Producto"
+].apply(
+    normalize_product_name
+)
+
+
+
+reglas_activadas=pd.merge(
+
+    reglas_activadas,
+
+    productos_info[
+        [
+        "Producto_Normalizado",
+        "Acciones generales",
+        "Precio público",
+        "Foto"
+        ]
+    ],
+
+    on="Producto_Normalizado",
+
+    how="left"
+
+)
+
+
+
+#=====================================================
+# CREAR LISTA PRODUCTOS SUGERIDOS
+#=====================================================
+
+productos_lista=[]
+
+
+
+#-----------------------------------------------------
+# PRODUCTOS PRINCIPALES
+#-----------------------------------------------------
+
+for _, fila in reglas_activadas.iterrows():
+
+
+    productos_lista.append({
+
+        "Producto principal":
+            fila["Producto principal"],
+
+        "Tipo":
+            "Principal",
+
+        "Precio público":
+            fila.get("Precio público",np.nan),
+
+        "Foto":
+            fila.get("Foto",np.nan),
+
+        "Acciones generales":
+            fila.get("Acciones generales",np.nan),
+
+        "Regla_ID":
+            fila["Regla_ID"],
+
+        "Condición":
+            fila["Condiciones (lógica)"]
+
+    })
+
+
+
+#-----------------------------------------------------
+# COADYUVANTES
+#-----------------------------------------------------
+
+for _, fila in reglas_activadas.iterrows():
+
+
+    coady=fila.get(
+        "Coadyuvantes sugeridos (1-3)"
+    )
+
+
+    if pd.notna(coady):
+
+
+        lista=re.split(
+            r"[;+]",
+            str(coady)
+        )
+
+
+        for c in lista:
+
+
+            nombre=c.strip()
+
+
+            if nombre!="":
+
+
+                productos_lista.append({
+
+                    "Producto principal":
+                        nombre,
+
+                    "Tipo":
+                        "Coadyuvante",
+
+                    "Precio público":
+                        np.nan,
+
+                    "Foto":
+                        np.nan,
+
+                    "Acciones generales":
+                        np.nan,
+
+                    "Regla_ID":
+                        fila["Regla_ID"],
+
+                    "Condición":
+                        fila["Condiciones (lógica)"]
+
+                })
+
+
+
+
+productos_sugeridos=pd.DataFrame(
+    productos_lista
+)
+
+
+
+#-----------------------------------------------------
+# ELIMINAR DUPLICADOS
+#-----------------------------------------------------
+
+productos_sugeridos[
+    "Normalizado"
+] = productos_sugeridos[
+    "Producto principal"
+].apply(
+    normalize_product_name
+)
+
+
+
+productos_sugeridos=(
+
+    productos_sugeridos
+
+    .drop_duplicates(
+        subset="Normalizado"
+    )
+
+    .drop(
+        columns="Normalizado"
+    )
+
+)
+
+
+
+#-----------------------------------------------------
+# MOSTRAR
+#-----------------------------------------------------
+
+print("\nPRODUCTOS SUGERIDOS:")
+
+
+for _, prod in productos_sugeridos.iterrows():
+
+    print(
+        "\nProducto:",
+        prod["Producto principal"]
+    )
+
+    print(
+        "Tipo:",
+        prod["Tipo"]
+    )
+
+    if pd.notna(prod["Precio público"]):
+
+        print(
+            "Precio:",
+            prod["Precio público"]
+        )
+
+
+    print(
+        "Regla:",
+        prod["Regla_ID"]
+    )
+
+
+
+print(
+    "\nTotal reglas activadas:",
+    len(reglas_activadas)
+)
+
+
+print(
+    "Total productos sugeridos únicos:",
+    len(productos_sugeridos)
+)
+
+
+import pandas as pd
+import re
+
+\#=========================================================
+
+# MOSTRAR Y SELECCIONAR PRODUCTOS PARA COTIZACIÓN
+
+# INCLUYE PRINCIPALES + COADYUVANTES
+
+# ELIMINA DUPLICADOS
+
+\#=========================================================
+
+def normalizar\_producto\_seleccion(nombre):
+
+```
+if pd.isna(nombre):
+    return ""
+
+nombre = str(nombre)
+
+# Quitar presentaciones
+nombre = re.sub(
+    r' x \d+ (CAP|ML|GR|SOFGELS|PERLAS|TABLETAS|TABS|CAPS|COMPRIMIDOS)',
+    '',
+    nombre,
+    flags=re.IGNORECASE
+)
+
+# Normalizar espacios
+nombre = re.sub(r'\s+', ' ', nombre)
+
+return nombre.strip().upper()
+```
+
+
+
+def construir\_lista\_productos\_cotizacion(productos\_sugeridos\_df):
+
+```
+productos_lista = []
+
+if productos_sugeridos_df.empty:
+    return pd.DataFrame()
+
+
+#---------------------------------------------------------
+# PRINCIPALES
+#---------------------------------------------------------
+
+for _, fila in productos_sugeridos_df.iterrows():
+
+    nombre = fila.get("Producto principal")
+
+    if pd.notna(nombre):
+
+        productos_lista.append({
+
+            "Producto": nombre,
+            "Precio público": fila.get("Precio público"),
+            "Foto": fila.get("Foto"),
+            "Origen": "Principal"
+
+        })
+
+
+#---------------------------------------------------------
+# COADYUVANTES
+#---------------------------------------------------------
+
+if "Coadyuvantes sugeridos (1-3)" in productos_sugeridos_df.columns:
+
+    for _, fila in productos_sugeridos_df.iterrows():
+
+        coadyuvantes = fila.get(
+            "Coadyuvantes sugeridos (1-3)"
+        )
+
+
+        if pd.notna(coadyuvantes):
+
+            # acepta + ; , como separadores
+
+            lista_coad = re.split(
+                r'[+;,]',
+                str(coadyuvantes)
+            )
+
+
+            for coad in lista_coad:
+
+                coad = coad.strip()
+
+                if coad:
+
+
+                    productos_lista.append({
+
+                        "Producto": coad,
+                        "Precio público": None,
+                        "Foto": None,
+                        "Origen": "Coadyuvante"
+
+                    })
+
+
+
+#---------------------------------------------------------
+# CREAR DATAFRAME
+#---------------------------------------------------------
+
+df = pd.DataFrame(productos_lista)
+
+
+if df.empty:
+    return df
+
+
+
+#---------------------------------------------------------
+# NORMALIZAR Y ELIMINAR DUPLICADOS
+#---------------------------------------------------------
+
+df["NORMALIZADO"] = (
+    df["Producto"]
+    .apply(normalizar_producto_seleccion)
+)
+
+
+df = df.drop_duplicates(
+    subset=["NORMALIZADO"]
+)
+
+
+df = df.drop(
+    columns=["NORMALIZADO"]
+)
+
+
+# Reiniciar numeración
+
+df = df.reset_index(drop=True)
+
+
+return df
+```
+
+
+
+\#=========================================================
+
+# SELECCIÓN MANUAL
+
+\#=========================================================
+
+def mostrar\_y\_seleccionar\_productos(productos\_sugeridos\_df):
+
+```
+print("\n=============================================")
+print("PRODUCTOS SUGERIDOS PARA COTIZACIÓN")
+print("=============================================")
+
+
+productos_disponibles = construir_lista_productos_cotizacion(
+    productos_sugeridos_df
+)
+
+
+if productos_disponibles.empty:
+
+    print("No hay productos disponibles para cotizar.")
+    return []
+
+
+
+productos_para_seleccion = []
+
+
+
+for i, fila in productos_disponibles.iterrows():
+
+
+    producto_id = i + 1
+
+
+    nombre = fila["Producto"]
+
+    precio = fila["Precio público"]
+
+    foto = fila["Foto"]
+
+
+
+    productos_para_seleccion.append({
+
+        "id": producto_id,
+        "nombre": nombre,
+        "precio": precio
+
+    })
+
+
+    print(
+        f"\n{producto_id}. Producto: {nombre}"
+    )
+
+
+    if pd.notna(precio):
+
+        print(
+            f"   Precio público: ${precio:,.2f}"
+        )
+
+    else:
+
+        print(
+            "   Precio público: No disponible"
+        )
+
+
+    if pd.notna(foto):
+
+        print(
+            f"   Foto: {foto}"
+        )
+
+
+
+while True:
+
+
+    seleccion = input(
+        "\nSeleccione números a cotizar (ej: 1,3,5) o 0 para continuar: "
+    ).strip()
+
+
+
+    if seleccion == "0":
+
+        return []
+
+
+
+    productos_seleccionados = []
+
+
+
+    for numero in seleccion.split(","):
+
+
+        try:
+
+            indice = int(numero.strip()) - 1
+
+
+            if 0 <= indice < len(productos_para_seleccion):
+
+                productos_seleccionados.append(
+                    productos_para_seleccion[indice]
+                )
+
+
+            else:
+
+                print(
+                    f"Número inválido: {numero}"
+                )
+
+
+        except:
+
+            print(
+                f"Entrada inválida: {numero}"
+            )
+
+
+
+    if productos_seleccionados:
+
+        return productos_seleccionados
+
+
+    print(
+        "No se seleccionaron productos válidos."
+    )
+```
+
+
+
+\#=========================================================
+
+# EJECUCIÓN
+
+\#=========================================================
+
+print("\n--- Demostración de selección de productos ---")
+
+productos\_cotizados = mostrar\_y\_seleccionar\_productos(
+productos\_sugeridos
+)
+
+if productos\_cotizados:
+
+```
+print("\nProductos seleccionados para la cotización:")
+
+
+for p in productos_cotizados:
+
+    print(
+        f"- {p['nombre']}"
+    )
+```
+
+else:
+
+```
+print(
+    "No se seleccionaron productos."
+)
+
+import numpy as np
+
+def calcular\_total\_cotizacion(productos\_seleccionados):
+total = 0
+if not productos\_seleccionados:
+return 0
+
+```
+for producto in productos_seleccionados:
+    # Check if the price is a valid number and not NaN
+    if isinstance(producto['precio'], (int, float)) and not np.isnan(producto['precio']):
+        total += producto['precio']
+    else:
+        # Treat NaN prices as 0 for calculation, but print a warning
+        if np.isnan(producto['precio']):
+            print(f"Advertencia: El producto '{producto['nombre']}' tiene un precio no válido (NaN) y se considerará 0 en el cálculo.")
+        else:
+            print(f"Advertencia: El producto '{producto['nombre']}' tiene un precio no válido '{producto['precio']}' y será omitido del cálculo.")
+return total
+```
+
+# Demostración con los productos seleccionados previamente
+
+if productos\_cotizados:
+total\_cotizacion = calcular\_total\_cotizacion(productos\_cotizados)
+print("\n=============================================")
+print("RESUMEN DE COTIZACIÓN")
+print("=============================================")
+for p in productos\_cotizados:
+\# Display price, explicitly handling NaN for display purposes as well
+display\_precio = f"${p['precio']:,.2f}" if isinstance(p['precio'], (int, float)) and not np.isnan(p['precio']) else "No disponible"
+print(f"- {p['nombre']}: {display\_precio}")
+print(f"\nTotal de la cotización: ${total\_cotizacion:,.2f}")
+else:
+print("No hay productos seleccionados para calcular la cotización.")
