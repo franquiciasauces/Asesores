@@ -1137,9 +1137,11 @@ if (
     if componente_buscado.strip():
 
         texto_buscado = (
-            componente_buscado
-            .strip()
+            unidecode(
+                componente_buscado
+            )
             .lower()
+            .strip()
         )
 
         resultados_componentes = []
@@ -1151,9 +1153,64 @@ if (
             if pd.isna(componente):
                 continue
 
-            texto_componente = str(componente).lower()
+            texto_componente = (
+                unidecode(
+                    str(componente)
+                )
+                .lower()
+                .strip()
+            )
+
+            # ------------------------------------------------
+            # COINCIDENCIA DIRECTA
+            # ------------------------------------------------
 
             if texto_buscado in texto_componente:
+
+                resultados_componentes.append(
+                    fila["Producto"]
+                )
+
+                continue
+
+            # ------------------------------------------------
+            # COINCIDENCIA TOLERANTE A ERRORES ORTOGRÁFICOS
+            # ------------------------------------------------
+
+            palabras_buscadas = (
+                texto_buscado.split()
+            )
+
+            palabras_componente = (
+                texto_componente.split()
+            )
+
+            coincidencias = 0
+
+            for palabra_buscada in palabras_buscadas:
+
+                mejor_puntaje = 0
+
+                for palabra_componente in palabras_componente:
+
+                    puntaje = fuzz.ratio(
+                        palabra_buscada,
+                        palabra_componente
+                    )
+
+                    if puntaje > mejor_puntaje:
+
+                        mejor_puntaje = puntaje
+
+                if mejor_puntaje >= 80:
+
+                    coincidencias += 1
+
+            if (
+                palabras_buscadas
+                and coincidencias
+                == len(palabras_buscadas)
+            ):
 
                 resultados_componentes.append(
                     fila["Producto"]
