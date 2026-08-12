@@ -6992,7 +6992,7 @@ def buscar_patologias_asesoria(texto_busqueda, limite=10):
 # 5.4 SECCIÓN ASESORÍA
 #---------------------------------------------------------
 
-elif opcion_principal == "ASESORÍA":
+elif opcion_principal == "ASESORIA":
 
     st.header("ASESORÍA")
 
