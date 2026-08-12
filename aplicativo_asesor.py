@@ -687,7 +687,7 @@ if opcion_principal == "CONSULTA":
     st.header("CONSULTA")
 
     st.write(
-        "Consulta información de Productos, Patologías, Complementarios "
+        "Consulta información de Productos, Patologias, Complementarios "
         "y Restricciones."
     )
 
@@ -696,7 +696,7 @@ if opcion_principal == "CONSULTA":
         [
             "Seleccione una opción",
             "Productos",
-            "Patologías",
+            "Patologias",
             "Complementarios",
             "Restricciones"
         ]
@@ -709,10 +709,10 @@ if opcion_principal == "CONSULTA":
             "Se incorporará en el siguiente bloque."
         )
 
-    elif opcion_consulta == "Patologías":
+    elif opcion_consulta == "Patologias":
 
         st.info(
-            "Módulo de consulta de Patologías. "
+            "Módulo de consulta de Patologias. "
             "Se incorporará posteriormente."
         )
 
