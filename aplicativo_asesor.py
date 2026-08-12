@@ -6742,3 +6742,399 @@ if opcion_consulta == "Complementarios":
                             ] = True
 
                             st.rerun()
+#=========================================================
+# BLOQUE 5 - MÓDULO DE ASESORÍA
+#=========================================================
+
+#---------------------------------------------------------
+# 5.1 INICIALIZAR ESTADO DE LA ASESORÍA
+#---------------------------------------------------------
+
+if "asesoria_iniciada" not in st.session_state:
+    st.session_state.asesoria_iniciada = False
+
+if "patologia_id" not in st.session_state:
+    st.session_state.patologia_id = None
+
+if "patologia_nombre" not in st.session_state:
+    st.session_state.patologia_nombre = None
+
+if "patologia_busqueda" not in st.session_state:
+    st.session_state.patologia_busqueda = ""
+
+
+#---------------------------------------------------------
+# 5.2 FUNCIÓN DE NORMALIZACIÓN DE TEXTO
+#---------------------------------------------------------
+
+def normalizar_texto_asesoria(texto):
+
+    if pd.isna(texto):
+        return ""
+
+    texto = str(texto)
+
+    texto = unidecode(texto)
+
+    texto = texto.lower().strip()
+
+    texto = " ".join(texto.split())
+
+    return texto
+
+
+#---------------------------------------------------------
+# 5.3 FUNCIÓN DE BÚSQUEDA DE PATOLOGÍAS
+#---------------------------------------------------------
+
+def buscar_patologias_asesoria(texto_busqueda, limite=10):
+
+    if texto_busqueda is None:
+        return pd.DataFrame()
+
+    texto_busqueda = str(texto_busqueda).strip()
+
+    if texto_busqueda == "":
+        return pd.DataFrame()
+
+    if "Patologias" not in globals():
+        return pd.DataFrame()
+
+    if Patologias.empty:
+        return pd.DataFrame()
+
+    columnas = list(Patologias.columns)
+
+    columna_id = None
+    columna_nombre = None
+
+    for columna in columnas:
+
+        nombre_columna = normalizar_texto_asesoria(
+            columna
+        )
+
+        if nombre_columna == "patologia_id":
+            columna_id = columna
+
+        elif nombre_columna in [
+            "patologia",
+            "nombre",
+            "nombre_patologia",
+            "tipo de patologia",
+            "descripcion"
+        ]:
+            columna_nombre = columna
+
+
+    if columna_id is None:
+
+        candidatos_id = [
+            columna
+            for columna in columnas
+            if "patologia" in normalizar_texto_asesoria(columna)
+            and "id" in normalizar_texto_asesoria(columna)
+        ]
+
+        if candidatos_id:
+            columna_id = candidatos_id[0]
+
+
+    if columna_nombre is None:
+
+        candidatos_nombre = [
+            columna
+            for columna in columnas
+            if any(
+                palabra in normalizar_texto_asesoria(columna)
+                for palabra in [
+                    "nombre",
+                    "patologia",
+                    "descripcion",
+                    "condicion"
+                ]
+            )
+            and columna != columna_id
+        ]
+
+        if candidatos_nombre:
+            columna_nombre = candidatos_nombre[0]
+
+
+    if columna_id is None or columna_nombre is None:
+
+        st.error(
+            "No fue posible identificar las columnas "
+            "de código y nombre en la hoja Patologias."
+        )
+
+        return pd.DataFrame()
+
+
+    texto_normalizado = normalizar_texto_asesoria(
+        texto_busqueda
+    )
+
+
+    resultados = []
+
+
+    for indice, fila in Patologias.iterrows():
+
+        codigo = str(
+            fila[columna_id]
+        ).strip()
+
+        nombre = str(
+            fila[columna_nombre]
+        ).strip()
+
+
+        codigo_normalizado = normalizar_texto_asesoria(
+            codigo
+        )
+
+        nombre_normalizado = normalizar_texto_asesoria(
+            nombre
+        )
+
+
+        puntuacion_codigo = 0
+        puntuacion_nombre = 0
+
+
+        if texto_normalizado == codigo_normalizado:
+
+            puntuacion_codigo = 100
+
+        elif texto_normalizado in codigo_normalizado:
+
+            puntuacion_codigo = 95
+
+        else:
+
+            puntuacion_codigo = fuzz.ratio(
+                texto_normalizado,
+                codigo_normalizado
+            )
+
+
+        if texto_normalizado == nombre_normalizado:
+
+            puntuacion_nombre = 100
+
+        elif texto_normalizado in nombre_normalizado:
+
+            puntuacion_nombre = 95
+
+        else:
+
+            puntuacion_nombre = fuzz.ratio(
+                texto_normalizado,
+                nombre_normalizado
+            )
+
+
+        puntuacion = max(
+            puntuacion_codigo,
+            puntuacion_nombre
+        )
+
+
+        if puntuacion >= 60:
+
+            resultados.append({
+
+                "Patologia_ID": codigo,
+
+                "Patologia": nombre,
+
+                "Puntuacion": puntuacion
+
+            })
+
+
+    if not resultados:
+
+        return pd.DataFrame()
+
+
+    resultados_df = pd.DataFrame(
+        resultados
+    )
+
+
+    resultados_df = resultados_df.sort_values(
+        by="Puntuacion",
+        ascending=False
+    )
+
+
+    resultados_df = resultados_df.drop_duplicates(
+        subset="Patologia_ID"
+    )
+
+
+    resultados_df = resultados_df.head(
+        limite
+    )
+
+
+    resultados_df = resultados_df.reset_index(
+        drop=True
+    )
+
+
+    return resultados_df
+
+
+#---------------------------------------------------------
+# 5.4 SECCIÓN ASESORÍA
+#---------------------------------------------------------
+
+elif opcion_principal == "ASESORÍA":
+
+    st.header("ASESORÍA")
+
+    st.write(
+        "Seleccione la patología para iniciar "
+        "el proceso de asesoría."
+    )
+
+
+    if not st.session_state.asesoria_iniciada:
+
+        st.subheader(
+            "Iniciar asesoría"
+        )
+
+
+        if st.button(
+            "Iniciar asesoría",
+            use_container_width=True
+        ):
+
+            st.session_state.asesoria_iniciada = True
+
+            st.session_state.patologia_id = None
+
+            st.session_state.patologia_nombre = None
+
+            st.session_state.patologia_busqueda = ""
+
+            st.rerun()
+
+
+    else:
+
+        st.subheader(
+            "5.1 Selección de patología"
+        )
+
+
+        st.write(
+            "Puede buscar por código o por nombre "
+            "de la patología."
+        )
+
+
+        busqueda = st.text_input(
+            "Buscar patología",
+            value=st.session_state.patologia_busqueda,
+            placeholder="Ejemplo: P001 o alopecia"
+        )
+
+
+        st.session_state.patologia_busqueda = busqueda
+
+
+        if busqueda.strip() != "":
+
+            resultados_patologias = (
+                buscar_patologias_asesoria(
+                    busqueda
+                )
+            )
+
+
+            if resultados_patologias.empty:
+
+                st.warning(
+                    "No se encontraron patologías "
+                    "que coincidan con la búsqueda."
+                )
+
+
+            else:
+
+                st.write(
+                    "Patologías encontradas:"
+                )
+
+
+                opciones_patologias = []
+
+                for _, fila in resultados_patologias.iterrows():
+
+                    opciones_patologias.append(
+                        f"{fila['Patologia_ID']} — "
+                        f"{fila['Patologia']}"
+                    )
+
+
+                seleccion_patologia = st.selectbox(
+                    "Seleccione la patología:",
+                    opciones_patologias
+                )
+
+
+                indice_seleccionado = (
+                    opciones_patologias.index(
+                        seleccion_patologia
+                    )
+                )
+
+
+                patologia_seleccionada = (
+                    resultados_patologias.iloc[
+                        indice_seleccionado
+                    ]
+                )
+
+
+                if st.button(
+                    "Confirmar patología",
+                    use_container_width=True
+                ):
+
+                    st.session_state.patologia_id = (
+                        patologia_seleccionada[
+                            "Patologia_ID"
+                        ]
+                    )
+
+                    st.session_state.patologia_nombre = (
+                        patologia_seleccionada[
+                            "Patologia"
+                        ]
+                    )
+
+                    st.success(
+                        "Patología seleccionada correctamente."
+                    )
+
+
+        if st.session_state.patologia_id is not None:
+
+            st.divider()
+
+            st.success(
+                f"Patología seleccionada: "
+                f"{st.session_state.patologia_id} — "
+                f"{st.session_state.patologia_nombre}"
+            )
+
+            st.info(
+                "La entrevista correspondiente "
+                "se incorporará en el siguiente subbloque."
+            )
