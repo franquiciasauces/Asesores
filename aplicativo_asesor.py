@@ -3427,548 +3427,1027 @@ elif (
     tipo_busqueda_causa_sintoma
     == "Síntoma"
 ):
-    # ========================================================
-    # NAVEGACIÓN
-    # ========================================================
 
-    st.divider()
-
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-
-        if st.button(
-            "🔎 Nueva consulta",
-            key="nueva_consulta_patologia_general",
-            use_container_width=True
-        ):
-
-            st.session_state.pop(
-                "patologia_listado_general",
-                None
-            )
-
-            st.session_state.pop(
-                "buscar_patologia_general",
-                None
-            )
-
-            st.session_state.pop(
-                "resultado_busqueda_patologia",
-                None
-            )
-
-            st.rerun()
-
-    with col2:
-
-        if st.button(
-            "← Menú principal",
-            key="volver_menu_principal_patologia",
-            use_container_width=True
-        ):
-
-            st.session_state[
-                "opcion_consulta"
-            ] = "Seleccione una opción"
-
-            st.rerun()
-
-    with col3:
-
-        if st.button(
-            "🏠 Inicio",
-            key="inicio_patologia_general",
-            use_container_width=True
-        ):
-
-            st.session_state[
-                "opcion_consulta"
-            ] = "Seleccione una opción"
-
-            st.rerun()
-
-
-# ============================================================
-# BLOQUE — RESTRICCIONES
-# MENÚ Y CONSULTAS
-# ============================================================
-
-if opcion_consulta == "Restricciones":
-
-    st.subheader("Consulta de restricciones")
-
-    tipo_consulta_restriccion = st.selectbox(
-        "¿Qué desea consultar?",
-        [
-            "Seleccione una opción",
-            "Ver todas las restricciones",
-            "Ingresar código o nombre del producto",
-            "Restricción → precaución / contraindicación",
-            "Producto → motivo y alternativa"
-        ],
-        key="menu_consulta_restricciones"
-    )
-
-    st.session_state["tipo_consulta_restriccion"] = (
-        tipo_consulta_restriccion
+    st.subheader(
+        "Búsqueda por síntomas"
     )
 
     # ========================================================
-    # CONSULTA 1 — VER TODAS LAS RESTRICCIONES
+    # CONFIGURACIÓN
     # ========================================================
 
-    if (
-        tipo_consulta_restriccion
-        == "Ver todas las restricciones"
-    ):
+    UMBRAL_SEMANTICO = 50.0
+    MAX_RESULTADOS_SEMANTICOS = 15
 
-        st.write(
-            "Seleccione el producto que desea consultar:"
+    # ========================================================
+    # OBTENER INFRAESTRUCTURA EXISTENTE
+    # ========================================================
+
+    base_semantica_local = globals().get(
+        "base_semantica",
+        None
+    )
+
+    embeddings_sintomas_local = globals().get(
+        "embeddings_sintomas",
+        None
+    )
+
+    modelo_biomedico_local = globals().get(
+        "modelo_biomedico",
+        None
+    )
+
+    # ========================================================
+    # VALIDAR INFRAESTRUCTURA
+    # ========================================================
+
+    if base_semantica_local is None:
+
+        st.error(
+            "No está disponible la base semántica "
+            "de síntomas."
+        )
+
+    elif embeddings_sintomas_local is None:
+
+        st.error(
+            "No están disponibles los embeddings "
+            "de síntomas."
+        )
+
+    elif modelo_biomedico_local is None:
+
+        st.error(
+            "No está disponible el modelo biomédico."
+        )
+
+    else:
+
+        # ====================================================
+        # COPIA DE LA BASE SEMÁNTICA
+        # ====================================================
+
+        df_3f = (
+            base_semantica_local
+            .copy()
         )
 
         # ====================================================
-        # OBTENER PRODUCTOS ÚNICOS
+        # VALIDAR COLUMNAS
         # ====================================================
 
-        productos_unicos = {}
-
-        for _, fila in Restricciones.iterrows():
-
-            producto = fila.iloc[1]
-
-            if pd.isna(producto):
-                continue
-
-            producto = str(producto).strip()
-
-            if not producto:
-                continue
-
-            # Normalización local para evitar depender
-            # de funciones del módulo de Patologías
-            clave = (
-                producto
-                .lower()
-                .strip()
-            )
-
-            if clave not in productos_unicos:
-
-                productos_unicos[clave] = producto
-
-        # ====================================================
-        # ORDEN ALFABÉTICO
-        # ====================================================
-
-        productos_ordenados = sorted(
-            productos_unicos.values(),
-            key=lambda x: (
-                str(x)
-                .lower()
-                .strip()
-            )
-        )
-
-        # ====================================================
-        # LISTADO DESPLEGABLE
-        # ====================================================
-
-        opciones_productos = [
-            "Seleccione un producto"
+        columnas_necesarias = [
+            "Sintoma",
+            "Patologia_ID",
+            "Patologia"
         ]
 
-        opciones_productos.extend(
-            productos_ordenados
-        )
+        columnas_faltantes = [
+            columna
+            for columna in columnas_necesarias
+            if columna not in df_3f.columns
+        ]
 
-        producto_seleccionado = st.selectbox(
-            "Productos con restricciones:",
-            opciones_productos,
-            key="producto_restriccion_general"
-        )
+        if columnas_faltantes:
 
-        # ====================================================
-        # MOSTRAR FICHA
-        # ====================================================
-
-        if (
-            producto_seleccionado
-            != "Seleccione un producto"
-        ):
-
-            producto_normalizado = (
-                str(producto_seleccionado)
-                .lower()
-                .strip()
+            st.error(
+                "Faltan columnas en la base semántica: "
+                +
+                ", ".join(
+                    columnas_faltantes
+                )
             )
 
-            # Buscar todas las filas correspondientes
-            # al producto seleccionado
-            ficha = Restricciones[
-                Restricciones.iloc[:, 1]
-                .astype(str)
-                .str.lower()
-                .str.strip()
-                == producto_normalizado
-            ]
+        else:
 
-            if ficha.empty:
+            # =================================================
+            # FUNCIÓN DE LIMPIEZA
+            # =================================================
 
-                st.warning(
-                    "No se encontraron restricciones "
-                    "para este producto."
+            def limpiar_sintoma_3f(
+                texto
+            ):
+
+                if pd.isna(texto):
+
+                    return ""
+
+                texto = str(
+                    texto
+                )
+
+                texto = texto.lower()
+
+                texto = unidecode(
+                    texto
+                )
+
+                texto = " ".join(
+                    texto.split()
+                )
+
+                return texto.strip()
+
+            # =================================================
+            # PREPARAR TEXTO DE LA BASE
+            # =================================================
+
+            df_3f[
+                "Busqueda_3f"
+            ] = (
+                df_3f[
+                    "Sintoma"
+                ]
+                .apply(
+                    limpiar_sintoma_3f
+                )
+            )
+
+            # =================================================
+            # CONVERTIR EMBEDDINGS
+            # =================================================
+
+            try:
+
+                embeddings_3f = np.asarray(
+                    embeddings_sintomas_local,
+                    dtype=np.float32
+                )
+
+            except Exception:
+
+                st.error(
+                    "No fue posible preparar "
+                    "los embeddings de síntomas."
+                )
+
+                st.stop()
+
+            # =================================================
+            # VALIDAR DIMENSIONES
+            # =================================================
+
+            if (
+                embeddings_3f.ndim
+                !=
+                2
+            ):
+
+                st.error(
+                    "Los embeddings no tienen "
+                    "el formato esperado."
+                )
+
+            elif (
+                len(
+                    embeddings_3f
+                )
+                !=
+                len(
+                    df_3f
+                )
+            ):
+
+                st.error(
+                    "La cantidad de embeddings "
+                    "no coincide con los registros "
+                    "de la base semántica."
                 )
 
             else:
 
-                st.divider()
+                # =============================================
+                # BÚSQUEDA EXACTA
+                # =============================================
 
-                st.subheader(
-                    "Ficha de restricciones del producto"
-                )
-
-                st.write(
-                    f"**Producto:** "
-                    f"{producto_seleccionado}"
-                )
-
-                # =================================================
-                # MOSTRAR TODAS LAS RESTRICCIONES AGRUPADAS
-                # =================================================
-
-                for _, datos in ficha.iterrows():
-
-                    st.markdown("---")
-
-                    st.write(
-                        f"**Restricción ID:** "
-                        f"{datos.iloc[0]}"
-                    )
-
-                    st.write(
-                        f"**Tipo:** "
-                        f"{datos.iloc[2]}"
-                    )
-
-                    st.write(
-                        f"**Precaución / "
-                        f"Contraindicación:** "
-                        f"{datos.iloc[3]}"
-                    )
-
-                    st.write(
-                        f"**Motivo:** "
-                        f"{datos.iloc[4]}"
-                    )
-
-                    st.write(
-                        f"**Alternativas seguras:** "
-                        f"{datos.iloc[5]}"
-                    )
-
-                # =================================================
-                # NAVEGACIÓN
-                # =================================================
-
-                st.divider()
-
-                siguiente_accion = st.selectbox(
-                    "¿Qué desea hacer ahora?",
-                    [
-                        "Seleccione una opción",
-                        "Seleccionar otro producto de la lista",
-                        "Realizar otra búsqueda",
-                        "Ir al menú principal"
-                    ],
-                    key="navegacion_restricciones_general"
-                )
-
-                if (
-                    siguiente_accion
-                    == "Seleccionar otro producto de la lista"
+                def buscar_exacta_3f(
+                    consulta
                 ):
 
-                    st.info(
-                        "Seleccione otro producto "
-                        "en el listado."
+                    consulta_limpia = (
+                        limpiar_sintoma_3f(
+                            consulta
+                        )
                     )
 
-                elif (
-                    siguiente_accion
-                    == "Realizar otra búsqueda"
-                ):
+                    resultados = []
 
-                    st.info(
-                        "Seleccione otra consulta "
-                        "en el menú de Restricciones."
-                    )
-
-                elif (
-                    siguiente_accion
-                    == "Ir al menú principal"
-                ):
-
-                    st.session_state[
-                        "volver_menu_principal"
-                    ] = True
-
-                    st.rerun()
-
-
-    # ========================================================
-    # CONSULTA 2 — INGRESAR CÓDIGO O NOMBRE DEL PRODUCTO
-    # ========================================================
-
-    if (
-        tipo_consulta_restriccion
-        == "Ingresar código o nombre del producto"
-    ):
-
-        st.write(
-            "Ingrese el código o nombre del producto:"
-        )
-
-        texto_busqueda_restriccion = st.text_input(
-            "Buscar producto:",
-            key="busqueda_producto_restriccion"
-        )
-
-        if texto_busqueda_restriccion.strip():
-
-            consulta = (
-                texto_busqueda_restriccion
-                .strip()
-                .lower()
-            )
-
-            resultados_restriccion = []
-
-            # =================================================
-            # BUSCAR PRODUCTOS
-            # =================================================
-
-            productos_encontrados = {}
-
-            for _, fila in Restricciones.iterrows():
-
-                codigo = fila.iloc[0]
-                producto = fila.iloc[1]
-
-                if pd.isna(codigo) or pd.isna(producto):
-                    continue
-
-                codigo = str(codigo).strip()
-                producto = str(producto).strip()
-
-                if not codigo or not producto:
-                    continue
-
-                codigo_normalizado = (
-                    codigo.lower()
-                )
-
-                producto_normalizado = (
-                    producto.lower()
-                )
-
-                # ---------------------------------------------
-                # COINCIDENCIA DIRECTA
-                # ---------------------------------------------
-
-                if (
-                    consulta in codigo_normalizado
-                    or consulta in producto_normalizado
-                ):
-
-                    clave = producto_normalizado
-
-                    productos_encontrados[
-                        clave
-                    ] = producto
-
-            # =================================================
-            # BÚSQUEDA TOLERANTE A ERRORES
-            # =================================================
-
-            if not productos_encontrados:
-
-                candidatos = {}
-
-                for _, fila in Restricciones.iterrows():
-
-                    codigo = fila.iloc[0]
-                    producto = fila.iloc[1]
-
-                    if pd.isna(codigo) or pd.isna(producto):
-                        continue
-
-                    codigo = str(codigo).strip()
-                    producto = str(producto).strip()
-
-                    if not codigo or not producto:
-                        continue
-
-                    # Buscar similitud contra producto
-                    puntuacion_producto = fuzz.partial_ratio(
-                        consulta,
-                        producto.lower()
-                    )
-
-                    # Buscar similitud contra código
-                    puntuacion_codigo = fuzz.partial_ratio(
-                        consulta,
-                        codigo.lower()
-                    )
-
-                    puntuacion = max(
-                        puntuacion_producto,
-                        puntuacion_codigo
-                    )
-
-                    if puntuacion >= 60:
-
-                        clave = producto.lower()
+                    for _, fila in (
+                        df_3f.iterrows()
+                    ):
 
                         if (
-                            clave not in candidatos
-                            or puntuacion
-                            > candidatos[clave][1]
+                            consulta_limpia
+                            ==
+                            fila[
+                                "Busqueda_3f"
+                            ]
                         ):
 
-                            candidatos[clave] = (
-                                producto,
-                                puntuacion
+                            resultados.append(
+                                {
+                                    "Sintoma_consultado":
+                                        consulta,
+
+                                    "Sintoma_encontrado":
+                                        fila[
+                                            "Sintoma"
+                                        ],
+
+                                    "Patologia_ID":
+                                        fila[
+                                            "Patologia_ID"
+                                        ],
+
+                                    "Patologia":
+                                        fila[
+                                            "Patologia"
+                                        ],
+
+                                    "Tipo":
+                                        "Exacta",
+
+                                    "Puntaje":
+                                        100.0
+                                }
                             )
 
-                # ---------------------------------------------
-                # ORDENAR POR MAYOR SIMILITUD
-                # ---------------------------------------------
+                    return resultados
 
-                candidatos_ordenados = sorted(
-                    candidatos.values(),
-                    key=lambda x: x[1],
-                    reverse=True
-                )
+                # =============================================
+                # BÚSQUEDA SEMÁNTICA
+                # =============================================
 
-                for producto, puntuacion in (
-                    candidatos_ordenados[:10]
+                def buscar_semantica_3f(
+                    consulta
                 ):
 
-                    productos_encontrados[
-                        producto.lower()
-                    ] = producto
+                    try:
 
-            # =================================================
-            # MOSTRAR RESULTADOS
-            # =================================================
+                        embedding_consulta = (
+                            modelo_biomedico_local.encode(
+                                [consulta],
+                                normalize_embeddings=True
+                            )
+                        )
 
-            if not productos_encontrados:
+                        embedding_consulta = np.asarray(
+                            embedding_consulta,
+                            dtype=np.float32
+                        )
 
-                st.warning(
-                    "No se encontraron productos "
-                    "que coincidan con la búsqueda."
-                )
+                    except Exception:
 
-            else:
+                        return []
 
-                st.write(
-                    "Seleccione el producto que desea consultar:"
-                )
+                    if (
+                        embedding_consulta.ndim
+                        !=
+                        2
+                    ):
 
-                opciones_resultados = [
-                    "Seleccione un producto"
-                ]
+                        return []
 
-                opciones_resultados.extend(
-                    sorted(
-                        productos_encontrados.values(),
-                        key=lambda x: x.lower()
-                    )
-                )
-
-                producto_resultado = st.selectbox(
-                    "Productos encontrados:",
-                    opciones_resultados,
-                    key="resultado_busqueda_restriccion"
-                )
-
-                # =================================================
-                # MOSTRAR FICHA DEL PRODUCTO
-                # =================================================
-
-                if (
-                    producto_resultado
-                    != "Seleccione un producto"
-                ):
-
-                    producto_normalizado = (
-                        producto_resultado
-                        .lower()
-                        .strip()
+                    vector_consulta = (
+                        embedding_consulta[0]
                     )
 
-                    ficha = Restricciones[
-                        Restricciones.iloc[:, 1]
-                        .astype(str)
-                        .str.lower()
-                        .str.strip()
-                        == producto_normalizado
+                    norma_consulta = np.linalg.norm(
+                        vector_consulta
+                    )
+
+                    if (
+                        norma_consulta
+                        ==
+                        0
+                    ):
+
+                        return []
+
+                    normas_base = np.linalg.norm(
+                        embeddings_3f,
+                        axis=1
+                    )
+
+                    denominadores = (
+                        normas_base
+                        *
+                        norma_consulta
+                    )
+
+                    similitudes = np.zeros(
+                        len(
+                            embeddings_3f
+                        ),
+                        dtype=np.float32
+                    )
+
+                    mascara = (
+                        denominadores
+                        >
+                        0
+                    )
+
+                    similitudes[
+                        mascara
+                    ] = (
+                        embeddings_3f[
+                            mascara
+                        ]
+                        @
+                        vector_consulta
+                    ) / (
+                        denominadores[
+                            mascara
+                        ]
+                    )
+
+                    indices = np.argsort(
+                        similitudes
+                    )[::-1]
+
+                    indices = indices[
+                        :MAX_RESULTADOS_SEMANTICOS
                     ]
 
-                    if ficha.empty:
+                    resultados = []
+
+                    for indice in indices:
+
+                        puntaje = (
+                            float(
+                                similitudes[
+                                    indice
+                                ]
+                            )
+                            *
+                            100
+                        )
+
+                        if (
+                            puntaje
+                            <
+                            UMBRAL_SEMANTICO
+                        ):
+
+                            continue
+
+                        fila = (
+                            df_3f.iloc[
+                                indice
+                            ]
+                        )
+
+                        resultados.append(
+                            {
+                                "Sintoma_consultado":
+                                    consulta,
+
+                                "Sintoma_encontrado":
+                                    fila[
+                                        "Sintoma"
+                                    ],
+
+                                "Patologia_ID":
+                                    fila[
+                                        "Patologia_ID"
+                                    ],
+
+                                "Patologia":
+                                    fila[
+                                        "Patologia"
+                                    ],
+
+                                "Tipo":
+                                    "Semantica",
+
+                                "Puntaje":
+                                    round(
+                                        puntaje,
+                                        2
+                                    )
+                            }
+                        )
+
+                    return resultados
+
+                # =============================================
+                # BÚSQUEDA HÍBRIDA
+                # =============================================
+
+                def buscar_sintoma_3f(
+                    consulta
+                ):
+
+                    resultados = []
+
+                    resultados.extend(
+                        buscar_exacta_3f(
+                            consulta
+                        )
+                    )
+
+                    resultados.extend(
+                        buscar_semantica_3f(
+                            consulta
+                        )
+                    )
+
+                    return resultados
+
+                # =============================================
+                # ELIMINAR DUPLICADOS
+                # =============================================
+
+                def eliminar_duplicados_3f(
+                    resultados
+                ):
+
+                    mejores = {}
+
+                    for resultado in resultados:
+
+                        clave = (
+                            str(
+                                resultado[
+                                    "Sintoma_consultado"
+                                ]
+                            ).strip(),
+
+                            str(
+                                resultado[
+                                    "Patologia_ID"
+                                ]
+                            ).strip(),
+
+                            str(
+                                resultado[
+                                    "Sintoma_encontrado"
+                                ]
+                            ).strip()
+                        )
+
+                        if (
+                            clave
+                            not in
+                            mejores
+                        ):
+
+                            mejores[
+                                clave
+                            ] = resultado
+
+                        elif (
+                            resultado[
+                                "Puntaje"
+                            ]
+                            >
+                            mejores[
+                                clave
+                            ][
+                                "Puntaje"
+                            ]
+                        ):
+
+                            mejores[
+                                clave
+                            ] = resultado
+
+                    return list(
+                        mejores.values()
+                    )
+
+                # =================================================
+                # INGRESAR SÍNTOMAS
+                # =================================================
+
+                texto_buscado = st.text_input(
+                    "Ingrese uno o varios síntomas o señales:",
+                    placeholder=(
+                        "Ejemplo: sangrado, dolor"
+                    ),
+                    key=(
+                        "texto_busqueda_sintoma_patologia"
+                    )
+                )
+
+                st.caption(
+                    "Puede ingresar varios síntomas "
+                    "separados por coma."
+                )
+
+                # =================================================
+                # PROCESAR CONSULTA
+                # =================================================
+
+                if texto_buscado.strip():
+
+                    sintomas = []
+
+                    for elemento in (
+                        texto_buscado.split(",")
+                    ):
+
+                        sintoma = (
+                            elemento.strip()
+                        )
+
+                        if not sintoma:
+
+                            continue
+
+                        sintoma_limpio = (
+                            limpiar_sintoma_3f(
+                                sintoma
+                            )
+                        )
+
+                        if not sintoma_limpio:
+
+                            continue
+
+                        if not any(
+                            limpiar_sintoma_3f(
+                                existente
+                            )
+                            ==
+                            sintoma_limpio
+                            for existente
+                            in sintomas
+                        ):
+
+                            sintomas.append(
+                                sintoma
+                            )
+
+                    # =================================================
+                    # VALIDAR SÍNTOMAS
+                    # =================================================
+
+                    if not sintomas:
 
                         st.warning(
-                            "No se encontraron restricciones "
-                            "para este producto."
+                            "No se ingresaron síntomas "
+                            "válidos."
                         )
 
                     else:
 
-                        st.divider()
+                        # =============================================
+                        # BUSCAR CADA SÍNTOMA
+                        # =============================================
+
+                        resultados_por_sintoma = {}
+
+                        for sintoma in sintomas:
+
+                            resultados = (
+                                buscar_sintoma_3f(
+                                    sintoma
+                                )
+                            )
+
+                            resultados = (
+                                eliminar_duplicados_3f(
+                                    resultados
+                                )
+                            )
+
+                            resultados_por_sintoma[
+                                sintoma
+                            ] = resultados
+
+                        # =============================================
+                        # AGRUPAR POR PATOLOGÍA
+                        # =============================================
+
+                        patologias = {}
+
+                        for (
+                            sintoma,
+                            resultados
+                        ) in (
+                            resultados_por_sintoma.items()
+                        ):
+
+                            for resultado in resultados:
+
+                                pid = str(
+                                    resultado[
+                                        "Patologia_ID"
+                                    ]
+                                ).strip()
+
+                                if (
+                                    pid
+                                    not in
+                                    patologias
+                                ):
+
+                                    patologias[
+                                        pid
+                                    ] = {
+                                        "Patologia_ID":
+                                            pid,
+
+                                        "Patologia":
+                                            str(
+                                                resultado[
+                                                    "Patologia"
+                                                ]
+                                            ).strip(),
+
+                                        "Por_sintoma":
+                                            {}
+                                    }
+
+                                if (
+                                    sintoma
+                                    not in
+                                    patologias[
+                                        pid
+                                    ][
+                                        "Por_sintoma"
+                                    ]
+                                ):
+
+                                    patologias[
+                                        pid
+                                    ][
+                                        "Por_sintoma"
+                                    ][
+                                        sintoma
+                                    ] = []
+
+                                patologias[
+                                    pid
+                                ][
+                                    "Por_sintoma"
+                                ][
+                                    sintoma
+                                ].append(
+                                    resultado
+                                )
+
+                        # =============================================
+                        # EVALUAR PATOLOGÍAS
+                        # =============================================
+
+                        resultados_finales = []
+
+                        total_sintomas = len(
+                            sintomas
+                        )
+
+                        for (
+                            pid,
+                            datos
+                        ) in patologias.items():
+
+                            coincidencias = []
+
+                            for sintoma in sintomas:
+
+                                candidatos = (
+                                    datos[
+                                        "Por_sintoma"
+                                    ].get(
+                                        sintoma,
+                                        []
+                                    )
+                                )
+
+                                if not candidatos:
+
+                                    continue
+
+                                mejor = max(
+                                    candidatos,
+                                    key=lambda x:
+                                        x[
+                                            "Puntaje"
+                                        ]
+                                )
+
+                                coincidencias.append(
+                                    mejor
+                                )
+
+                            if not coincidencias:
+
+                                continue
+
+                            sintomas_respaldo = len(
+                                coincidencias
+                            )
+
+                            cobertura = (
+                                sintomas_respaldo
+                                /
+                                total_sintomas
+                            ) * 100
+
+                            promedio = (
+                                sum(
+                                    x[
+                                        "Puntaje"
+                                    ]
+                                    for x
+                                    in coincidencias
+                                )
+                                /
+                                sintomas_respaldo
+                            )
+
+                            if (
+                                sintomas_respaldo
+                                ==
+                                total_sintomas
+                                and
+                                total_sintomas
+                                >=
+                                2
+                            ):
+
+                                nivel = (
+                                    "EVIDENCIA ACUMULADA"
+                                )
+
+                            elif (
+                                sintomas_respaldo
+                                >=
+                                2
+                            ):
+
+                                nivel = (
+                                    "EVIDENCIA MULTIPLE"
+                                )
+
+                            elif (
+                                promedio
+                                >=
+                                70
+                            ):
+
+                                nivel = (
+                                    "COINCIDENCIA FUERTE"
+                                )
+
+                            else:
+
+                                nivel = (
+                                    "COINCIDENCIA "
+                                    "POSIBLE"
+                                )
+
+                            resultados_finales.append(
+                                {
+                                    "Patologia_ID":
+                                        pid,
+
+                                    "Patologia":
+                                        datos[
+                                            "Patologia"
+                                        ],
+
+                                    "Sintomas_respaldo":
+                                        sintomas_respaldo,
+
+                                    "Cobertura":
+                                        round(
+                                            cobertura,
+                                            2
+                                        ),
+
+                                    "Promedio":
+                                        round(
+                                            promedio,
+                                            2
+                                        ),
+
+                                    "Nivel":
+                                        nivel,
+
+                                    "Coincidencias":
+                                        coincidencias
+                                }
+                            )
+
+                        # =============================================
+                        # ORDENAR RESULTADOS
+                        # =============================================
+
+                        resultados_finales.sort(
+                            key=lambda x: (
+                                x[
+                                    "Sintomas_respaldo"
+                                ],
+
+                                x[
+                                    "Cobertura"
+                                ],
+
+                                x[
+                                    "Promedio"
+                                ]
+                            ),
+                            reverse=True
+                        )
+
+                        # =============================================
+                        # MOSTRAR RESULTADOS
+                        # =============================================
 
                         st.subheader(
-                            "Ficha de restricciones del producto"
+                            "Resultados de la búsqueda"
                         )
 
-                        st.write(
-                            f"**Producto:** "
-                            f"{producto_resultado}"
-                        )
+                        if not resultados_finales:
 
-                        # =====================================
-                        # MOSTRAR TODAS LAS RESTRICCIONES
-                        # =====================================
-
-                        for _, datos in ficha.iterrows():
-
-                            st.markdown("---")
-
-                            st.write(
-                                f"**Restricción ID:** "
-                                f"{datos.iloc[0]}"
+                            st.warning(
+                                "No se encontraron "
+                                "patologías relacionadas "
+                                "con los síntomas ingresados."
                             )
 
-                            st.write(
-                                f"**Tipo:** "
-                                f"{datos.iloc[2]}"
+                        else:
+
+                            st.success(
+                                f"Se encontraron "
+                                f"{len(resultados_finales)} "
+                                f"patologías relacionadas."
                             )
 
-                            st.write(
-                                f"**Precaución / "
-                                f"Contraindicación:** "
-                                f"{datos.iloc[3]}"
+                            opciones = [
+                                "Seleccione una patología"
+                            ]
+
+                            for resultado in (
+                                resultados_finales
+                            ):
+
+                                opciones.append(
+                                    f"{resultado['Patologia_ID']} — "
+                                    f"{resultado['Patologia']} | "
+                                    f"{resultado['Nivel']} | "
+                                    f"{resultado['Cobertura']:.0f}%"
+                                )
+
+                            seleccion = st.selectbox(
+                                "Seleccione la patología:",
+                                opciones,
+                                key=(
+                                    "seleccion_patologia_sintoma_busqueda"
+                                )
                             )
 
-                            st.write(
-                                f"**Motivo:** "
-                                f"{datos.iloc[4]}"
-                            )
+                            if (
+                                seleccion
+                                !=
+                                "Seleccione una patología"
+                            ):
 
-                            st.write(
-                                f"**Alternativas seguras:** "
-                                f"{datos.iloc[5]}"
-                            )
+                                indice = (
+                                    opciones.index(
+                                        seleccion
+                                    )
+                                    - 1
+                                )
+
+                                resultado = (
+                                    resultados_finales[
+                                        indice
+                                    ]
+                                )
+
+                                # =================================
+                                # EVIDENCIA
+                                # =================================
+
+                                st.write(
+                                    "**Evidencia encontrada:**"
+                                )
+
+                                col1, col2, col3 = (
+                                    st.columns(3)
+                                )
+
+                                with col1:
+
+                                    st.metric(
+                                        "Síntomas de respaldo",
+                                        (
+                                            f"{resultado['Sintomas_respaldo']}"
+                                            f"/{total_sintomas}"
+                                        )
+                                    )
+
+                                with col2:
+
+                                    st.metric(
+                                        "Cobertura",
+                                        (
+                                            f"{resultado['Cobertura']:.2f}%"
+                                        )
+                                    )
+
+                                with col3:
+
+                                    st.metric(
+                                        "Promedio",
+                                        (
+                                            f"{resultado['Promedio']:.2f}%"
+                                        )
+                                    )
+
+                                st.info(
+                                    f"Nivel de evidencia: "
+                                    f"**{resultado['Nivel']}**"
+                                )
+
+                                # =================================
+                                # COINCIDENCIAS
+                                # =================================
+
+                                st.write(
+                                    "**Síntomas que respaldan "
+                                    "la coincidencia:**"
+                                )
+
+                                for coincidencia in (
+                                    resultado[
+                                        "Coincidencias"
+                                    ]
+                                ):
+
+                                    st.write(
+                                        "• "
+                                        f"**{coincidencia['Sintoma_consultado']}**"
+                                        " → "
+                                        f"{coincidencia['Sintoma_encontrado']}"
+                                        " | "
+                                        f"{coincidencia['Tipo']}"
+                                        " | "
+                                        f"{coincidencia['Puntaje']:.2f}%"
+                                    )
+
+                                # =================================
+                                # SÍNTOMAS SIN COINCIDENCIA
+                                # =================================
+
+                                sintomas_resueltos = [
+                                    limpiar_sintoma_3f(
+                                        x[
+                                            "Sintoma_consultado"
+                                        ]
+                                    )
+                                    for x
+                                    in resultado[
+                                        "Coincidencias"
+                                    ]
+                                ]
+
+                                sintomas_sin_coincidencia = [
+                                    sintoma
+                                    for sintoma
+                                    in sintomas
+                                    if (
+                                        limpiar_sintoma_3f(
+                                            sintoma
+                                        )
+                                        not in
+                                        sintomas_resueltos
+                                    )
+                                ]
+
+                                if (
+                                    sintomas_sin_coincidencia
+                                ):
+
+                                    st.warning(
+                                        "Síntomas sin coincidencia "
+                                        "suficiente:"
+                                    )
+
+                                    for sintoma in (
+                                        sintomas_sin_coincidencia
+                                    ):
+
+                                        st.write(
+                                            f"• {sintoma}"
+                                        )
+
+                                # =================================
+                                # FICHA DE PATOLOGÍA
+                                # =================================
+
+                                mostrar_ficha_patologia(
+                                    resultado[
+                                        "Patologia_ID"
+                                    ]
+                                )
+    
 
                         # =====================================
                         # NAVEGACIÓN
