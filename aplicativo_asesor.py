@@ -1981,295 +1981,369 @@ if (
                         "acciones generales registradas."
                     )
 
-    # ========================================================
-    # OPCIÓN 2 — BUSCAR POR ACCIÓN GENERAL
-    # ========================================================
+   ```python id="h7f3km"
+# ========================================================
+# OPCIÓN 2 — BUSCAR POR ACCIÓN GENERAL
+# ========================================================
 
-    else:
+else:
 
-        st.write(
-            "Registre la acción general que desea buscar:"
+    st.write(
+        "Registre la acción general que desea buscar:"
+    )
+
+    accion_ingresada = st.text_input(
+        "Acción general:",
+        key="accion_general_ingresada"
+    )
+
+    if accion_ingresada.strip():
+
+        texto_buscado = normalizar_accion(
+            accion_ingresada
         )
 
-        accion_ingresada = st.text_input(
-            "Acción general:",
-            key="accion_general_ingresada"
-        )
+        resultados_acciones = []
 
-        if accion_ingresada.strip():
+        # ------------------------------------------------
+        # FUNCIÓN PARA COMPARAR PALABRAS
+        # ------------------------------------------------
 
-            texto_buscado = normalizar_accion(
-                accion_ingresada
+        def palabra_relacionada(
+            palabra_buscada,
+            palabra_accion
+        ):
+
+            if not palabra_buscada:
+                return False
+
+            if not palabra_accion:
+                return False
+
+            # --------------------------------------------
+            # COINCIDENCIA EXACTA
+            # --------------------------------------------
+
+            if palabra_buscada == palabra_accion:
+                return True
+
+            # --------------------------------------------
+            # UNA CONTIENE A LA OTRA
+            # --------------------------------------------
+
+            if (
+                palabra_buscada in palabra_accion
+                or palabra_accion in palabra_buscada
+            ):
+
+                return True
+
+            # --------------------------------------------
+            # COMPARACIÓN APROXIMADA
+            # --------------------------------------------
+
+            similitud = fuzz.ratio(
+                palabra_buscada,
+                palabra_accion
             )
 
-            resultados_acciones = []
+            if similitud >= 70:
+                return True
 
-            # ------------------------------------------------
-            # RECORRER TODOS LOS PRODUCTOS
-            # ------------------------------------------------
+            # --------------------------------------------
+            # COMPARACIÓN DE RAÍZ
+            #
+            # Permite relacionar variantes como:
+            # hidratar
+            # hidratación
+            # hidratante
+            # hidratado
+            # --------------------------------------------
 
-            for _, fila in Base_Productos.iterrows():
+            if len(palabra_buscada) >= 6:
 
-                producto = fila.iloc[0]
+                raiz_buscada = palabra_buscada[:6]
 
-                if pd.isna(producto):
-                    continue
+                if (
+                    len(palabra_accion) >= 6
+                    and palabra_accion[:6]
+                    == raiz_buscada
+                ):
 
-                producto = str(producto).strip()
+                    return True
 
-                # --------------------------------------------
-                # COLUMNA 5 — ACCIONES GENERALES
-                # --------------------------------------------
+            return False
 
-                acciones = (
-                    separar_acciones_generales(
-                        fila.iloc[4]
+        # ------------------------------------------------
+        # RECORRER TODOS LOS PRODUCTOS
+        # ------------------------------------------------
+
+        for _, fila in Base_Productos.iterrows():
+
+            producto = fila.iloc[0]
+
+            if pd.isna(producto):
+                continue
+
+            producto = str(producto).strip()
+
+            # --------------------------------------------
+            # COLUMNA 5
+            # ACCIONES GENERALES
+            # --------------------------------------------
+
+            acciones = (
+                separar_acciones_generales(
+                    fila.iloc[4]
+                )
+            )
+
+            # --------------------------------------------
+            # REVISAR CADA ACCIÓN INDIVIDUAL
+            # --------------------------------------------
+
+            for accion in acciones:
+
+                accion_normalizada = (
+                    normalizar_accion(
+                        accion
                     )
                 )
 
-                # --------------------------------------------
-                # REVISAR CADA ACCIÓN POR SEPARADO
-                # --------------------------------------------
+                coincidencia = False
 
-                for accion in acciones:
+                # ========================================
+                # NIVEL 1
+                # FRASE COMPLETA
+                # ========================================
 
-                    accion_normalizada = (
-                        normalizar_accion(
-                            accion
-                        )
+                if (
+                    texto_buscado
+                    in accion_normalizada
+                ):
+
+                    coincidencia = True
+
+                # ========================================
+                # NIVEL 2
+                # PALABRAS INDIVIDUALES
+                # ========================================
+
+                if not coincidencia:
+
+                    palabras_buscadas = (
+                        texto_buscado.split()
                     )
 
-                    coincidencia = False
+                    palabras_accion = (
+                        accion_normalizada.split()
+                    )
 
-                    # ========================================
-                    # COINCIDENCIA DIRECTA
-                    # ========================================
+                    palabras_encontradas = 0
 
-                    if (
-                        texto_buscado
-                        in accion_normalizada
+                    for palabra_buscada in (
+                        palabras_buscadas
                     ):
 
-                        coincidencia = True
+                        encontrada = False
 
-                    # ========================================
-                    # COINCIDENCIA POR PALABRAS
-                    # ========================================
-
-                    if not coincidencia:
-
-                        palabras_buscadas = (
-                            texto_buscado.split()
-                        )
-
-                        palabras_accion = (
-                            accion_normalizada.split()
-                        )
-
-                        palabras_encontradas = 0
-
-                        for palabra_buscada in (
-                            palabras_buscadas
+                        for palabra_accion in (
+                            palabras_accion
                         ):
 
-                            mejor_puntaje = 0
-
-                            for palabra_accion in (
-                                palabras_accion
+                            if palabra_relacionada(
+                                palabra_buscada,
+                                palabra_accion
                             ):
 
-                                puntaje = fuzz.ratio(
-                                    palabra_buscada,
-                                    palabra_accion
-                                )
+                                encontrada = True
+                                break
 
-                                if (
-                                    puntaje
-                                    > mejor_puntaje
-                                ):
+                        if encontrada:
 
-                                    mejor_puntaje = (
-                                        puntaje
-                                    )
+                            palabras_encontradas += 1
 
-                            if mejor_puntaje >= 75:
+                    if palabras_buscadas:
 
-                                palabras_encontradas += 1
+                        porcentaje = (
+                            palabras_encontradas
+                            / len(
+                                palabras_buscadas
+                            )
+                        ) * 100
 
-                        if palabras_buscadas:
+                        if porcentaje >= 70:
 
-                            porcentaje = (
-                                palabras_encontradas
-                                / len(
-                                    palabras_buscadas
-                                )
-                            ) * 100
+                            coincidencia = True
 
-                            if porcentaje >= 70:
+                # ========================================
+                # GUARDAR PRODUCTO
+                # ========================================
 
-                                coincidencia = True
+                if coincidencia:
 
-                    # ========================================
-                    # GUARDAR RESULTADO
-                    # ========================================
+                    resultados_acciones.append(
+                        {
+                            "Producto": producto,
+                            "Acción": accion
+                        }
+                    )
 
-                    if coincidencia:
+                    # Un producto entra una sola vez
+                    break
 
-                        resultados_acciones.append(
-                            {
-                                "Producto": producto,
-                                "Acción": accion
-                            }
-                        )
+        # ------------------------------------------------
+        # ELIMINAR DUPLICADOS
+        # ------------------------------------------------
 
-                        # No repetir el mismo producto
-                        # por varias coincidencias
-                        break
+        resultados_unicos = {}
+
+        for resultado in resultados_acciones:
+
+            clave = (
+                normalizar_accion(
+                    resultado["Producto"]
+                )
+            )
+
+            if clave not in resultados_unicos:
+
+                resultados_unicos[clave] = (
+                    resultado
+                )
+
+        resultados_acciones = list(
+            resultados_unicos.values()
+        )
+
+        # ------------------------------------------------
+        # ORDENAR
+        # ------------------------------------------------
+
+        resultados_acciones = sorted(
+            resultados_acciones,
+            key=lambda x: normalizar_accion(
+                x["Producto"]
+            )
+        )
+
+        # =================================================
+        # MOSTRAR RESULTADOS
+        # =================================================
+
+        if not resultados_acciones:
+
+            st.warning(
+                "No se encontraron productos "
+                "con esa acción general."
+            )
+
+        else:
+
+            st.success(
+                f"Se encontraron "
+                f"{len(resultados_acciones)} "
+                f"productos relacionados con: "
+                f"{accion_ingresada}"
+            )
 
             # ------------------------------------------------
-            # ELIMINAR DUPLICADOS
+            # LISTADO DESPLEGABLE DE PRODUCTOS
             # ------------------------------------------------
 
-            resultados_unicos = {}
+            opciones_productos = [
+                "Seleccione un producto"
+            ]
 
             for resultado in resultados_acciones:
 
-                clave = (
-                    normalizar_accion(
-                        resultado["Producto"]
-                    )
+                opciones_productos.append(
+                    resultado["Producto"]
                 )
 
-                if clave not in resultados_unicos:
-
-                    resultados_unicos[clave] = (
-                        resultado
-                    )
-
-            resultados_acciones = list(
-                resultados_unicos.values()
-            )
-
-            # ------------------------------------------------
-            # ORDENAR
-            # ------------------------------------------------
-
-            resultados_acciones = sorted(
-                resultados_acciones,
-                key=lambda x: normalizar_accion(
-                    x["Producto"]
+            producto_accion_seleccionado = (
+                st.selectbox(
+                    "Seleccione el producto que desea consultar:",
+                    opciones_productos,
+                    key="producto_accion_general"
                 )
             )
 
             # ------------------------------------------------
-            # MOSTRAR RESULTADOS
+            # MOSTRAR ACCIÓN ENCONTRADA
             # ------------------------------------------------
 
-            if not resultados_acciones:
+            if (
+                producto_accion_seleccionado
+                != "Seleccione un producto"
+            ):
 
-                st.warning(
-                    "No se encontraron productos "
-                    "con esa acción general."
-                )
+                accion_encontrada = None
 
-            else:
-
-                st.success(
-                    f"Productos relacionados con: "
-                    f"{accion_ingresada}"
-                )
-
-                opciones_productos = [
-                    "Seleccione un producto"
-                ]
-
-                for resultado in resultados_acciones:
-
-                    opciones_productos.append(
-                        resultado["Producto"]
-                    )
-
-                producto_accion_seleccionado = (
-                    st.selectbox(
-                        "Seleccione el producto que desea consultar:",
-                        opciones_productos,
-                        key="producto_accion_general"
-                    )
-                )
-
-                # ------------------------------------------------
-                # MOSTRAR ACCIÓN ENCONTRADA
-                # ------------------------------------------------
-
-                if (
-                    producto_accion_seleccionado
-                    != "Seleccione un producto"
+                for resultado in (
+                    resultados_acciones
                 ):
 
-                    accion_encontrada = None
-
-                    for resultado in (
-                        resultados_acciones
+                    if (
+                        resultado["Producto"]
+                        == producto_accion_seleccionado
                     ):
 
-                        if (
-                            resultado["Producto"]
-                            == producto_accion_seleccionado
-                        ):
+                        accion_encontrada = (
+                            resultado["Acción"]
+                        )
 
-                            accion_encontrada = (
-                                resultado["Acción"]
+                        break
+
+                if accion_encontrada:
+
+                    st.write(
+                        "**Acción general encontrada:**"
+                    )
+
+                    st.info(
+                        accion_encontrada
+                    )
+
+                # --------------------------------------------
+                # FICHA COMPLETA
+                # --------------------------------------------
+
+                producto_ficha = Base_Productos[
+                    Base_Productos.iloc[:, 0]
+                    .astype(str)
+                    .str.strip()
+                    == str(
+                        producto_accion_seleccionado
+                    ).strip()
+                ]
+
+                if not producto_ficha.empty:
+
+                    st.divider()
+
+                    st.subheader(
+                        "Ficha completa del producto"
+                    )
+
+                    datos_producto = (
+                        producto_ficha.iloc[0]
+                    )
+
+                    for columna in Base_Productos.columns:
+
+                        valor = datos_producto[
+                            columna
+                        ]
+
+                        if pd.notna(valor):
+
+                            st.write(
+                                f"**{columna}:**",
+                                valor
                             )
 
-                            break
 
-                    if accion_encontrada:
-
-                        st.write(
-                            "**Acción general encontrada:**"
-                        )
-
-                        st.info(
-                            accion_encontrada
-                        )
-
-                    # ----------------------------------------
-                    # MOSTRAR FICHA COMPLETA
-                    # ----------------------------------------
-
-                    producto_ficha = Base_Productos[
-                        Base_Productos.iloc[:, 0]
-                        .astype(str)
-                        .str.strip()
-                        == str(
-                            producto_accion_seleccionado
-                        ).strip()
-                    ]
-
-                    if not producto_ficha.empty:
-
-                        st.divider()
-
-                        st.subheader(
-                            "Ficha completa del producto"
-                        )
-
-                        datos_producto = (
-                            producto_ficha.iloc[0]
-                        )
-
-                        for columna in Base_Productos.columns:
-
-                            valor = datos_producto[
-                                columna
-                            ]
-
-                            if pd.notna(valor):
-
-                                st.write(
-                                    f"**{columna}:**",
-                                    valor
-                                )
 
     # ========================================================
     # NAVEGACIÓN
