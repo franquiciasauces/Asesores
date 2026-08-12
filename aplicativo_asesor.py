@@ -4617,38 +4617,462 @@ if opcion_consulta == "Restricciones":
                             st.rerun()
     # ========================================================
 # ============================================================
-# VERIFICACIÓN RÁPIDA DE DATAFRAMES DE LA MATRIZ
+# MÓDULO — COMPLEMENTARIOS
 # ============================================================
 
-st.subheader("Verificación de hojas cargadas")
+if opcion_consulta == "Complementarios":
 
-dataframes_matriz = {
-    "Base_Productos": Base_Productos,
-    "Patologias": Patologias,
-    "Condiciones": Condiciones,
-    "Reglas_Paquetes": Reglas_Paquetes,
-    "Restricciones": Restricciones,
-    "Complementarios": Complementarios,
-    "Entrevista": Entrevista
-}
+    st.subheader("Consulta de productos complementarios")
 
-for nombre, dataframe in dataframes_matriz.items():
+    tipo_consulta_complementario = st.selectbox(
+        "¿Qué desea consultar?",
+        [
+            "Seleccione una opción",
+            "Ver todos los productos",
+            "Ingresar nombre del producto"
+        ],
+        key="menu_consulta_complementarios"
+    )
 
-    if dataframe is not None:
+    # ========================================================
+    # CONSULTA 1 — VER TODOS LOS PRODUCTOS
+    # ========================================================
 
-        st.success(
-            f"✓ {nombre} — DataFrame cargado "
-            f"({dataframe.shape[0]} filas × "
-            f"{dataframe.shape[1]} columnas)"
-        )
+    if (
+        tipo_consulta_complementario
+        == "Ver todos los productos"
+    ):
 
         st.write(
-            "Columnas:",
-            list(dataframe.columns)
+            "Seleccione el producto que desea consultar:"
         )
 
-    else:
+        productos_unicos = {}
 
-        st.error(
-            f"✗ {nombre} — NO está cargado"
+        for _, fila in Complementarios.iterrows():
+
+            producto = fila.iloc[0]
+
+            if pd.isna(producto):
+                continue
+
+            producto = str(producto).strip()
+
+            if not producto:
+                continue
+
+            clave = producto.lower().strip()
+
+            if clave not in productos_unicos:
+
+                productos_unicos[clave] = producto
+
+        productos_ordenados = sorted(
+            productos_unicos.values(),
+            key=lambda x: x.lower().strip()
         )
+
+        opciones_productos = [
+            "Seleccione un producto"
+        ]
+
+        opciones_productos.extend(
+            productos_ordenados
+        )
+
+        producto_seleccionado = st.selectbox(
+            "Productos disponibles:",
+            opciones_productos,
+            key="producto_complementario_lista"
+        )
+
+        # ====================================================
+        # MOSTRAR FICHA
+        # ====================================================
+
+        if (
+            producto_seleccionado
+            != "Seleccione un producto"
+        ):
+
+            producto_normalizado = (
+                producto_seleccionado
+                .lower()
+                .strip()
+            )
+
+            ficha = Complementarios[
+                Complementarios.iloc[:, 0]
+                .astype(str)
+                .str.lower()
+                .str.strip()
+                == producto_normalizado
+            ]
+
+            if ficha.empty:
+
+                st.warning(
+                    "No se encontró información "
+                    "para este producto."
+                )
+
+            else:
+
+                datos = ficha.iloc[0]
+
+                st.divider()
+
+                st.subheader(
+                    "Ficha del producto complementario"
+                )
+
+                st.write(
+                    f"**Producto:** "
+                    f"{datos.iloc[0]}"
+                )
+
+                st.write(
+                    f"**Categoría principal:** "
+                    f"{datos.iloc[1]}"
+                )
+
+                st.write(
+                    f"**Indicaciones / Escenarios:** "
+                    f"{datos.iloc[2]}"
+                )
+
+                st.write(
+                    f"**Modo de acción resumido:** "
+                    f"{datos.iloc[3]}"
+                )
+
+                st.write(
+                    f"**Combinaciones estratégicas:** "
+                    f"{datos.iloc[4]}"
+                )
+
+                # ============================================
+                # NAVEGACIÓN
+                # ============================================
+
+                st.divider()
+
+                siguiente_accion = st.selectbox(
+                    "¿Qué desea hacer ahora?",
+                    [
+                        "Seleccione una opción",
+                        "Seleccionar otro producto",
+                        "Realizar otra búsqueda",
+                        "Volver al menú de Complementarios",
+                        "Ir al menú principal"
+                    ],
+                    key="navegacion_complementarios_lista"
+                )
+
+                if (
+                    siguiente_accion
+                    == "Seleccionar otro producto"
+                ):
+
+                    st.info(
+                        "Seleccione otro producto "
+                        "del listado."
+                    )
+
+                elif (
+                    siguiente_accion
+                    == "Realizar otra búsqueda"
+                ):
+
+                    st.info(
+                        "Seleccione la opción "
+                        "'Ingresar nombre del producto'."
+                    )
+
+                elif (
+                    siguiente_accion
+                    == "Volver al menú de Complementarios"
+                ):
+
+                    st.info(
+                        "Seleccione nuevamente "
+                        "el tipo de consulta."
+                    )
+
+                elif (
+                    siguiente_accion
+                    == "Ir al menú principal"
+                ):
+
+                    st.session_state[
+                        "volver_menu_principal"
+                    ] = True
+
+                    st.rerun()
+
+
+    # ========================================================
+    # CONSULTA 2 — INGRESAR NOMBRE DEL PRODUCTO
+    # ========================================================
+
+    if (
+        tipo_consulta_complementario
+        == "Ingresar nombre del producto"
+    ):
+
+        st.write(
+            "Ingrese el nombre del producto:"
+        )
+
+        texto_busqueda = st.text_input(
+            "Buscar producto:",
+            key="busqueda_complementario_manual"
+        )
+
+        if texto_busqueda.strip():
+
+            consulta = (
+                texto_busqueda
+                .strip()
+                .lower()
+            )
+
+            productos_encontrados = {}
+
+            # =================================================
+            # 1. COINCIDENCIA DIRECTA
+            # =================================================
+
+            for _, fila in Complementarios.iterrows():
+
+                producto = fila.iloc[0]
+
+                if pd.isna(producto):
+                    continue
+
+                producto = str(producto).strip()
+
+                if not producto:
+                    continue
+
+                producto_normalizado = (
+                    producto.lower()
+                )
+
+                if consulta in producto_normalizado:
+
+                    productos_encontrados[
+                        producto_normalizado
+                    ] = producto
+
+            # =================================================
+            # 2. BÚSQUEDA TOLERANTE A ERRORES
+            # =================================================
+
+            if not productos_encontrados:
+
+                candidatos = {}
+
+                for _, fila in Complementarios.iterrows():
+
+                    producto = fila.iloc[0]
+
+                    if pd.isna(producto):
+                        continue
+
+                    producto = str(producto).strip()
+
+                    if not producto:
+                        continue
+
+                    puntuacion = fuzz.partial_ratio(
+                        consulta,
+                        producto.lower()
+                    )
+
+                    if puntuacion >= 60:
+
+                        clave = producto.lower()
+
+                        if (
+                            clave not in candidatos
+                            or puntuacion
+                            > candidatos[clave][1]
+                        ):
+
+                            candidatos[clave] = (
+                                producto,
+                                puntuacion
+                            )
+
+                candidatos_ordenados = sorted(
+                    candidatos.values(),
+                    key=lambda x: x[1],
+                    reverse=True
+                )
+
+                for producto, puntuacion in (
+                    candidatos_ordenados[:10]
+                ):
+
+                    productos_encontrados[
+                        producto.lower()
+                    ] = producto
+
+            # =================================================
+            # MOSTRAR RESULTADOS
+            # =================================================
+
+            if not productos_encontrados:
+
+                st.warning(
+                    "No se encontraron productos "
+                    "que coincidan con la búsqueda."
+                )
+
+            else:
+
+                st.write(
+                    "Seleccione el producto que desea consultar:"
+                )
+
+                opciones_resultados = [
+                    "Seleccione un producto"
+                ]
+
+                opciones_resultados.extend(
+                    sorted(
+                        productos_encontrados.values(),
+                        key=lambda x: x.lower()
+                    )
+                )
+
+                producto_resultado = st.selectbox(
+                    "Productos encontrados:",
+                    opciones_resultados,
+                    key="resultado_complementario_manual"
+                )
+
+                # =============================================
+                # MOSTRAR FICHA
+                # =============================================
+
+                if (
+                    producto_resultado
+                    != "Seleccione un producto"
+                ):
+
+                    producto_normalizado = (
+                        producto_resultado
+                        .lower()
+                        .strip()
+                    )
+
+                    ficha = Complementarios[
+                        Complementarios.iloc[:, 0]
+                        .astype(str)
+                        .str.lower()
+                        .str.strip()
+                        == producto_normalizado
+                    ]
+
+                    if ficha.empty:
+
+                        st.warning(
+                            "No se encontró información "
+                            "para este producto."
+                        )
+
+                    else:
+
+                        datos = ficha.iloc[0]
+
+                        st.divider()
+
+                        st.subheader(
+                            "Ficha del producto complementario"
+                        )
+
+                        st.write(
+                            f"**Producto:** "
+                            f"{datos.iloc[0]}"
+                        )
+
+                        st.write(
+                            f"**Categoría principal:** "
+                            f"{datos.iloc[1]}"
+                        )
+
+                        st.write(
+                            f"**Indicaciones / Escenarios:** "
+                            f"{datos.iloc[2]}"
+                        )
+
+                        st.write(
+                            f"**Modo de acción resumido:** "
+                            f"{datos.iloc[3]}"
+                        )
+
+                        st.write(
+                            f"**Combinaciones estratégicas:** "
+                            f"{datos.iloc[4]}"
+                        )
+
+                        # =====================================
+                        # NAVEGACIÓN
+                        # =====================================
+
+                        st.divider()
+
+                        siguiente_accion_2 = st.selectbox(
+                            "¿Qué desea hacer ahora?",
+                            [
+                                "Seleccione una opción",
+                                "Seleccionar otro producto",
+                                "Realizar otra búsqueda",
+                                "Volver al menú de Complementarios",
+                                "Ir al menú principal"
+                            ],
+                            key="navegacion_complementarios_manual"
+                        )
+
+                        if (
+                            siguiente_accion_2
+                            == "Seleccionar otro producto"
+                        ):
+
+                            st.info(
+                                "Puede seleccionar otro "
+                                "producto de los resultados."
+                            )
+
+                        elif (
+                            siguiente_accion_2
+                            == "Realizar otra búsqueda"
+                        ):
+
+                            st.info(
+                                "Ingrese un nuevo nombre "
+                                "de producto."
+                            )
+
+                        elif (
+                            siguiente_accion_2
+                            == "Volver al menú de Complementarios"
+                        ):
+
+                            st.info(
+                                "Seleccione nuevamente "
+                                "el tipo de consulta."
+                            )
+
+                        elif (
+                            siguiente_accion_2
+                            == "Ir al menú principal"
+                        ):
+
+                            st.session_state[
+                                "volver_menu_principal"
+                            ] = True
+
+                            st.rerun()
