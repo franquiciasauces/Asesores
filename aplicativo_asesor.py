@@ -2952,6 +2952,7 @@ elif (
 
 
 # ============================================================
+# ============================================================
 # 3. PATOLOGÍA → CAUSA Y SÍNTOMA
 # ============================================================
 
@@ -2978,8 +2979,9 @@ elif (
         ],
         key="tipo_busqueda_causa_sintoma"
     )
+
     # ========================================================
-    # FUNCIÓN DE COMPARACIÓN
+    # FUNCIÓN DE COMPARACIÓN DE TEXTO
     # ========================================================
 
     def coincide_texto_patologia(
@@ -3033,11 +3035,10 @@ elif (
             len(palabras_buscadas)
         ) * 100
 
-        return porcentaje >= 70
-
+        return porcentaje >= umbral
 
     # ========================================================
-    # FUNCIÓN — MOSTRAR FICHA
+    # FUNCIÓN — MOSTRAR FICHA DE PATOLOGÍA
     # ========================================================
 
     def mostrar_ficha_patologia(
@@ -3098,7 +3099,6 @@ elif (
         st.write(
             f"**Notas para el asesor:** {datos.iloc[6]}"
         )
-
 
     # ========================================================
     # 3.1 BUSCAR POR PATOLOGÍA
