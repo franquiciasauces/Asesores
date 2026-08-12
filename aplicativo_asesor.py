@@ -955,30 +955,26 @@ elif opcion_principal == "ASESORÍA":
     st.header("ASESORÍA")
 
     st.write(
-        "La asesoría se desarrolla mediante un flujo "
-        "encadenado de entrevista, direccionamiento y "
-        "recomendación de paquetes."
+        "Proceso de asesoría mediante entrevista."
     )
 
-    st.subheader("Iniciar asesoría")
+    opcion_asesoria = st.selectbox(
+        "¿Qué desea realizar?",
+        [
+            "Seleccione una opción",
+            "Entrevista"
+        ],
+        key="menu_asesoria"
+    )
 
-    if st.button(
-        "Iniciar entrevista",
-        use_container_width=True
-    ):
+    if opcion_asesoria == "Entrevista":
 
-        st.info(
-            "El módulo de entrevista se incorporará "
-            "posteriormente."
+        st.subheader("ENTREVISTA")
+
+        st.write(
+            "Inicie la entrevista para desarrollar "
+            "el proceso de asesoría."
         )
-
-    st.write("")
-
-    st.caption(
-        "Flujo previsto: "
-        "Entrevista → Direccionamiento → "
-        "Recomendación de paquetes → Cotización"
-    )
 
 
 # ============================================================
