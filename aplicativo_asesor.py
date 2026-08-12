@@ -3512,125 +3512,146 @@ if opcion_consulta == "Restricciones":
     ):
 
         st.write(
-            "Seleccione la restricción que desea consultar:"
+            "Seleccione el producto que desea consultar:"
         )
 
-        opciones_restricciones = []
+        # ====================================================
+        # OBTENER PRODUCTOS ÚNICOS
+        # ====================================================
+
+        productos_restricciones = []
 
         for _, fila in Restricciones.iterrows():
 
-            codigo = fila.iloc[0]
             producto = fila.iloc[1]
 
-            if pd.isna(codigo) or pd.isna(producto):
+            if pd.isna(producto):
                 continue
 
-            codigo = str(codigo).strip()
             producto = str(producto).strip()
 
-            if codigo and producto:
-
-                opciones_restricciones.append(
-                    (producto.lower(), codigo, producto)
+            if producto:
+                productos_restricciones.append(
+                    producto
                 )
 
-        # ----------------------------------------------------
-        # ORDEN ALFABÉTICO
-        # ----------------------------------------------------
+        # Eliminar duplicados
+        productos_unicos = {}
 
-        opciones_restricciones.sort(
-            key=lambda x: x[0]
-        )
+        for producto in productos_restricciones:
 
-        # ----------------------------------------------------
-        # CREAR LISTADO
-        # ----------------------------------------------------
-
-        lista_restricciones = [
-            "Seleccione una restricción"
-        ]
-
-        for _, codigo, producto in opciones_restricciones:
-
-            lista_restricciones.append(
-                f"{codigo} — {producto}"
+            clave = normalizar_patologia(
+                producto
             )
 
-        # ----------------------------------------------------
-        # SELECCIÓN
-        # ----------------------------------------------------
+            if clave not in productos_unicos:
 
-        seleccion_restriccion = st.selectbox(
-            "Restricciones disponibles:",
-            lista_restricciones,
-            key="seleccion_restriccion_general"
+                productos_unicos[clave] = producto
+
+        productos_ordenados = sorted(
+            productos_unicos.values(),
+            key=lambda x: normalizar_patologia(x)
         )
 
         # ====================================================
-        # MOSTRAR FICHA COMPLETA
+        # LISTADO DESPLEGABLE
+        # ====================================================
+
+        opciones_productos = [
+            "Seleccione un producto"
+        ]
+
+        opciones_productos.extend(
+            productos_ordenados
+        )
+
+        producto_seleccionado = st.selectbox(
+            "Productos con restricciones:",
+            opciones_productos,
+            key="producto_restriccion_general"
+        )
+
+        # ====================================================
+        # MOSTRAR TODAS LAS RESTRICCIONES DEL PRODUCTO
         # ====================================================
 
         if (
-            seleccion_restriccion
-            != "Seleccione una restricción"
+            producto_seleccionado
+            != "Seleccione un producto"
         ):
 
-            codigo_seleccionado = (
-                seleccion_restriccion
-                .split(" — ")[0]
-                .strip()
+            producto_normalizado = (
+                normalizar_patologia(
+                    producto_seleccionado
+                )
             )
 
             ficha = Restricciones[
-                Restricciones.iloc[:, 0]
+                Restricciones.iloc[:, 1]
                 .astype(str)
-                .str.strip()
-                == codigo_seleccionado
+                .apply(normalizar_patologia)
+                == producto_normalizado
             ]
 
-            if not ficha.empty:
+            if ficha.empty:
 
-                datos = ficha.iloc[0]
+                st.warning(
+                    "No se encontraron restricciones "
+                    "para este producto."
+                )
+
+            else:
 
                 st.divider()
 
                 st.subheader(
-                    "Ficha completa de la restricción"
-                )
-
-                st.write(
-                    f"**Restricción ID:** "
-                    f"{datos.iloc[0]}"
+                    "Ficha de restricciones del producto"
                 )
 
                 st.write(
                     f"**Producto:** "
-                    f"{datos.iloc[1]}"
+                    f"{producto_seleccionado}"
                 )
 
-                st.write(
-                    f"**Tipo:** "
-                    f"{datos.iloc[2]}"
-                )
+                # ==========================================
+                # MOSTRAR CADA RESTRICCIÓN
+                # ==========================================
 
-                st.write(
-                    f"**Precaución / Contraindicación:** "
-                    f"{datos.iloc[3]}"
-                )
+                for _, datos in ficha.iterrows():
 
-                st.write(
-                    f"**Motivo:** "
-                    f"{datos.iloc[4]}"
-                )
+                    st.markdown(
+                        "---"
+                    )
 
-                st.write(
-                    f"**Alternativas seguras:** "
-                    f"{datos.iloc[5]}"
-                )
+                    st.write(
+                        f"**Restricción ID:** "
+                        f"{datos.iloc[0]}"
+                    )
 
-                # ============================================
+                    st.write(
+                        f"**Tipo:** "
+                        f"{datos.iloc[2]}"
+                    )
+
+                    st.write(
+                        f"**Precaución / "
+                        f"Contraindicación:** "
+                        f"{datos.iloc[3]}"
+                    )
+
+                    st.write(
+                        f"**Motivo:** "
+                        f"{datos.iloc[4]}"
+                    )
+
+                    st.write(
+                        f"**Alternativas seguras:** "
+                        f"{datos.iloc[5]}"
+                    )
+
+                # ==========================================
                 # NAVEGACIÓN
-                # ============================================
+                # ==========================================
 
                 st.divider()
 
@@ -3652,7 +3673,7 @@ if opcion_consulta == "Restricciones":
 
                     st.info(
                         "Seleccione otro producto "
-                        "en el listado anterior."
+                        "en el listado."
                     )
 
                 elif (
