@@ -4496,6 +4496,28 @@ if (
                                 ] = True
 
                                 st.rerun()
+# ============================================================
+# BLOQUE — RESTRICCIONES
+# ============================================================
+
+if opcion_consulta == "Restricciones":
+
+    st.subheader("Consulta de restricciones")
+
+    # ========================================================
+    # MENÚ DE CONSULTA DE RESTRICCIONES
+    # ========================================================
+
+    tipo_consulta_restriccion = st.selectbox(
+        "¿Qué desea consultar?",
+        [
+            "Seleccione una opción",
+            "Restricción → precaución / contraindicación",
+            "Producto → motivo y alternativa"
+        ],
+        key="tipo_consulta_restriccion"
+    )
+
     # ========================================================
     # CONSULTA 3 — RESTRICCIÓN → PRECAUCIÓN / CONTRAINDICACIÓN
     # ========================================================
@@ -5107,6 +5129,7 @@ if (
 
                             st.rerun()
     # ========================================================
+# ============================================================
 # ============================================================
 # MÓDULO — COMPLEMENTARIOS
 # ============================================================
