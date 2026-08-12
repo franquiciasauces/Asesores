@@ -4584,9 +4584,9 @@ if (
                                     with col4:
 
                                         st.metric(
-                                            "Puntaje global",
+                                            "Mejor coincidencia",
                                             (
-                                                f"{resultado['Puntaje_global']:.2f}%"
+                                                f"{resultado['Mejor_puntaje']:.2f}%"
                                             )
                                         )
 
