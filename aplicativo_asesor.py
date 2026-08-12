@@ -1804,5 +1804,537 @@ if (
             ] = "Seleccione una opción"
 
             st.rerun()
+```python
+# ============================================================
+# BLOQUE — PRODUCTO → ACCIONES GENERALES
+# ============================================================
+
+if (
+    opcion_consulta == "Productos"
+    and st.session_state.get("tipo_consulta_producto")
+    == "Producto → acciones generales"
+):
+
+    st.subheader("Producto → acciones generales")
+
+    # --------------------------------------------------------
+    # FUNCIÓN PARA NORMALIZAR TEXTO
+    # --------------------------------------------------------
+
+    def normalizar_accion(texto):
+
+        return (
+            unidecode(str(texto))
+            .lower()
+            .strip()
+        )
+
+    # --------------------------------------------------------
+    # FUNCIÓN PARA SEPARAR LAS ACCIONES GENERALES
+    # LAS ACCIONES ESTÁN SEPARADAS POR ;
+    # --------------------------------------------------------
+
+    def separar_acciones_generales(valor):
+
+        if pd.isna(valor):
+            return []
+
+        acciones = []
+
+        partes = str(valor).split(";")
+
+        for parte in partes:
+
+            accion = parte.strip()
+
+            if accion:
+                acciones.append(accion)
+
+        return acciones
+
+    # ========================================================
+    # OPCIONES DE CONSULTA
+    # ========================================================
+
+    tipo_busqueda_acciones = st.radio(
+        "¿Cómo desea realizar la consulta?",
+        [
+            "Buscar por producto",
+            "Buscar por acción general"
+        ],
+        key="tipo_busqueda_acciones_generales"
+    )
+
+    # ========================================================
+    # OPCIÓN 1 — BUSCAR POR PRODUCTO
+    # ========================================================
+
+    if (
+        tipo_busqueda_acciones
+        == "Buscar por producto"
+    ):
+
+        st.write(
+            "Seleccione el producto para consultar "
+            "sus acciones generales:"
+        )
+
+        # ----------------------------------------------------
+        # OBTENER PRODUCTOS
+        # COLUMNA 1
+        # ----------------------------------------------------
+
+        productos = []
+
+        for valor in Base_Productos.iloc[:, 0]:
+
+            if pd.isna(valor):
+                continue
+
+            producto = str(valor).strip()
+
+            if producto:
+                productos.append(producto)
+
+        # ----------------------------------------------------
+        # ELIMINAR DUPLICADOS
+        # ----------------------------------------------------
+
+        productos_unicos = {}
+
+        for producto in productos:
+
+            clave = normalizar_accion(producto)
+
+            if clave not in productos_unicos:
+
+                productos_unicos[clave] = producto
+
+        productos_finales = sorted(
+            productos_unicos.values(),
+            key=lambda x: normalizar_accion(x)
+        )
+
+        # ----------------------------------------------------
+        # SELECCIONAR PRODUCTO
+        # ----------------------------------------------------
+
+        producto_seleccionado = st.selectbox(
+            "Producto:",
+            [
+                "Seleccione un producto"
+            ] + productos_finales,
+            key="producto_acciones_generales"
+        )
+
+        # ----------------------------------------------------
+        # MOSTRAR ACCIONES
+        # ----------------------------------------------------
+
+        if (
+            producto_seleccionado
+            != "Seleccione un producto"
+        ):
+
+            producto_fila = Base_Productos[
+                Base_Productos.iloc[:, 0]
+                .astype(str)
+                .str.strip()
+                == str(
+                    producto_seleccionado
+                ).strip()
+            ]
+
+            if not producto_fila.empty:
+
+                datos_producto = (
+                    producto_fila.iloc[0]
+                )
+
+                acciones = (
+                    separar_acciones_generales(
+                        datos_producto.iloc[4]
+                    )
+                )
+
+                st.divider()
+
+                st.subheader(
+                    "Acciones generales"
+                )
+
+                if acciones:
+
+                    for numero, accion in enumerate(
+                        acciones,
+                        start=1
+                    ):
+
+                        st.write(
+                            f"{numero}. {accion}"
+                        )
+
+                else:
+
+                    st.info(
+                        "Este producto no tiene "
+                        "acciones generales registradas."
+                    )
+
+    # ========================================================
+    # OPCIÓN 2 — BUSCAR POR ACCIÓN GENERAL
+    # ========================================================
+
+    else:
+
+        st.write(
+            "Registre la acción general que desea buscar:"
+        )
+
+        accion_ingresada = st.text_input(
+            "Acción general:",
+            key="accion_general_ingresada"
+        )
+
+        if accion_ingresada.strip():
+
+            texto_buscado = normalizar_accion(
+                accion_ingresada
+            )
+
+            resultados_acciones = []
+
+            # ------------------------------------------------
+            # RECORRER TODOS LOS PRODUCTOS
+            # ------------------------------------------------
+
+            for _, fila in Base_Productos.iterrows():
+
+                producto = fila.iloc[0]
+
+                if pd.isna(producto):
+                    continue
+
+                producto = str(producto).strip()
+
+                # --------------------------------------------
+                # COLUMNA 5 — ACCIONES GENERALES
+                # --------------------------------------------
+
+                acciones = (
+                    separar_acciones_generales(
+                        fila.iloc[4]
+                    )
+                )
+
+                # --------------------------------------------
+                # REVISAR CADA ACCIÓN POR SEPARADO
+                # --------------------------------------------
+
+                for accion in acciones:
+
+                    accion_normalizada = (
+                        normalizar_accion(
+                            accion
+                        )
+                    )
+
+                    coincidencia = False
+
+                    # ========================================
+                    # COINCIDENCIA DIRECTA
+                    # ========================================
+
+                    if (
+                        texto_buscado
+                        in accion_normalizada
+                    ):
+
+                        coincidencia = True
+
+                    # ========================================
+                    # COINCIDENCIA POR PALABRAS
+                    # ========================================
+
+                    if not coincidencia:
+
+                        palabras_buscadas = (
+                            texto_buscado.split()
+                        )
+
+                        palabras_accion = (
+                            accion_normalizada.split()
+                        )
+
+                        palabras_encontradas = 0
+
+                        for palabra_buscada in (
+                            palabras_buscadas
+                        ):
+
+                            mejor_puntaje = 0
+
+                            for palabra_accion in (
+                                palabras_accion
+                            ):
+
+                                puntaje = fuzz.ratio(
+                                    palabra_buscada,
+                                    palabra_accion
+                                )
+
+                                if (
+                                    puntaje
+                                    > mejor_puntaje
+                                ):
+
+                                    mejor_puntaje = (
+                                        puntaje
+                                    )
+
+                            if mejor_puntaje >= 75:
+
+                                palabras_encontradas += 1
+
+                        if palabras_buscadas:
+
+                            porcentaje = (
+                                palabras_encontradas
+                                / len(
+                                    palabras_buscadas
+                                )
+                            ) * 100
+
+                            if porcentaje >= 70:
+
+                                coincidencia = True
+
+                    # ========================================
+                    # GUARDAR RESULTADO
+                    # ========================================
+
+                    if coincidencia:
+
+                        resultados_acciones.append(
+                            {
+                                "Producto": producto,
+                                "Acción": accion
+                            }
+                        )
+
+                        # No repetir el mismo producto
+                        # por varias coincidencias
+                        break
+
+            # ------------------------------------------------
+            # ELIMINAR DUPLICADOS
+            # ------------------------------------------------
+
+            resultados_unicos = {}
+
+            for resultado in resultados_acciones:
+
+                clave = (
+                    normalizar_accion(
+                        resultado["Producto"]
+                    )
+                )
+
+                if clave not in resultados_unicos:
+
+                    resultados_unicos[clave] = (
+                        resultado
+                    )
+
+            resultados_acciones = list(
+                resultados_unicos.values()
+            )
+
+            # ------------------------------------------------
+            # ORDENAR
+            # ------------------------------------------------
+
+            resultados_acciones = sorted(
+                resultados_acciones,
+                key=lambda x: normalizar_accion(
+                    x["Producto"]
+                )
+            )
+
+            # ------------------------------------------------
+            # MOSTRAR RESULTADOS
+            # ------------------------------------------------
+
+            if not resultados_acciones:
+
+                st.warning(
+                    "No se encontraron productos "
+                    "con esa acción general."
+                )
+
+            else:
+
+                st.success(
+                    f"Productos relacionados con: "
+                    f"{accion_ingresada}"
+                )
+
+                opciones_productos = [
+                    "Seleccione un producto"
+                ]
+
+                for resultado in resultados_acciones:
+
+                    opciones_productos.append(
+                        resultado["Producto"]
+                    )
+
+                producto_accion_seleccionado = (
+                    st.selectbox(
+                        "Seleccione el producto que desea consultar:",
+                        opciones_productos,
+                        key="producto_accion_general"
+                    )
+                )
+
+                # ------------------------------------------------
+                # MOSTRAR ACCIÓN ENCONTRADA
+                # ------------------------------------------------
+
+                if (
+                    producto_accion_seleccionado
+                    != "Seleccione un producto"
+                ):
+
+                    accion_encontrada = None
+
+                    for resultado in (
+                        resultados_acciones
+                    ):
+
+                        if (
+                            resultado["Producto"]
+                            == producto_accion_seleccionado
+                        ):
+
+                            accion_encontrada = (
+                                resultado["Acción"]
+                            )
+
+                            break
+
+                    if accion_encontrada:
+
+                        st.write(
+                            "**Acción general encontrada:**"
+                        )
+
+                        st.info(
+                            accion_encontrada
+                        )
+
+                    # ----------------------------------------
+                    # MOSTRAR FICHA COMPLETA
+                    # ----------------------------------------
+
+                    producto_ficha = Base_Productos[
+                        Base_Productos.iloc[:, 0]
+                        .astype(str)
+                        .str.strip()
+                        == str(
+                            producto_accion_seleccionado
+                        ).strip()
+                    ]
+
+                    if not producto_ficha.empty:
+
+                        st.divider()
+
+                        st.subheader(
+                            "Ficha completa del producto"
+                        )
+
+                        datos_producto = (
+                            producto_ficha.iloc[0]
+                        )
+
+                        for columna in Base_Productos.columns:
+
+                            valor = datos_producto[
+                                columna
+                            ]
+
+                            if pd.notna(valor):
+
+                                st.write(
+                                    f"**{columna}:**",
+                                    valor
+                                )
+
+    # ========================================================
+    # NAVEGACIÓN
+    # ========================================================
+
+    st.divider()
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        if st.button(
+            "🔎 Nueva consulta",
+            key="nueva_consulta_acciones",
+            use_container_width=True
+        ):
+
+            st.session_state.pop(
+                "producto_acciones_generales",
+                None
+            )
+
+            st.session_state.pop(
+                "accion_general_ingresada",
+                None
+            )
+
+            st.session_state.pop(
+                "producto_accion_general",
+                None
+            )
+
+            st.rerun()
+
+    with col2:
+
+        if st.button(
+            "← Menú Productos",
+            key="volver_menu_productos_acciones",
+            use_container_width=True
+        ):
+
+            st.session_state[
+                "tipo_consulta_producto"
+            ] = "Seleccione una opción"
+
+            st.rerun()
+
+    with col3:
+
+        if st.button(
+            "🏠 Menú principal",
+            key="volver_menu_principal_acciones",
+            use_container_width=True
+        ):
+
+            st.session_state[
+                "opcion_consulta"
+            ] = "Seleccione una opción"
+
+            st.session_state[
+                "tipo_consulta_producto"
+            ] = "Seleccione una opción"
+
+            st.rerun()
+
 
 
