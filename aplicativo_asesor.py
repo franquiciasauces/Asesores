@@ -5076,3 +5076,55 @@ if opcion_consulta == "Complementarios":
                             ] = True
 
                             st.rerun()
+# ============================================================
+# DIAGNÓSTICO — ARCHIVOS SEMÁNTICOS
+# ============================================================
+
+import os
+
+st.subheader("Diagnóstico de archivos semánticos")
+
+print("ARCHIVOS Y CARPETAS DISPONIBLES:")
+
+for raiz, carpetas, archivos in os.walk("."):
+    nivel = raiz.count(os.sep)
+
+    if nivel > 3:
+        continue
+
+    print(f"\nCARPETA: {raiz}")
+
+    for archivo in archivos:
+        print(f"   - {archivo}")
+
+print("\nBUSCANDO ARCHIVOS SEMÁNTICOS...")
+
+archivos_buscar = [
+    "base_sintomas_semantica.csv",
+    "embeddings_sintomas.npy"
+]
+
+for archivo in archivos_buscar:
+
+    encontrado = False
+
+    for raiz, carpetas, archivos in os.walk("."):
+
+        if archivo in archivos:
+
+            ruta = os.path.join(
+                raiz,
+                archivo
+            )
+
+            print(
+                f"ENCONTRADO: {ruta}"
+            )
+
+            encontrado = True
+
+    if not encontrado:
+
+        print(
+            f"NO ENCONTRADO: {archivo}"
+        )
