@@ -1981,7 +1981,7 @@ if (
                         "acciones generales registradas."
                     )
 
-   ```python id="h7f3km"
+   
 # ========================================================
 # OPCIÓN 2 — BUSCAR POR ACCIÓN GENERAL
 # ========================================================
