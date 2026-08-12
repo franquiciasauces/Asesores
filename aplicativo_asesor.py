@@ -3634,96 +3634,141 @@ elif (
                         return resultados
 
                     # =========================================
-                    # FUNCIÓN — BÚSQUEDA SEMÁNTICA
-                    # =========================================
+            # =========================================
+            # FUNCIÓN — BÚSQUEDA SEMÁNTICA
+            # =========================================
 
-                    def buscar_semantica_3f(
-                        consulta
+            def buscar_semantica_3f(
+                consulta
+            ):
+
+                embedding_consulta = (
+                    modelo_biomedico_local.encode(
+                        [consulta],
+                        normalize_embeddings=True
+                    )
+                )
+
+                # -----------------------------------------
+                # CALCULAR SIMILITUD COSENO SIN DEPENDER
+                # DE cosine_similarity
+                # -----------------------------------------
+
+                embedding_consulta = np.asarray(
+                    embedding_consulta,
+                    dtype=np.float32
+                )
+
+                embeddings_base = np.asarray(
+                    embeddings_sintomas_local,
+                    dtype=np.float32
+                )
+
+                norma_consulta = np.linalg.norm(
+                    embedding_consulta,
+                    axis=1,
+                    keepdims=True
+                )
+
+                norma_base = np.linalg.norm(
+                    embeddings_base,
+                    axis=1,
+                    keepdims=True
+                )
+
+                norma_consulta[
+                    norma_consulta == 0
+                ] = 1
+
+                norma_base[
+                    norma_base == 0
+                ] = 1
+
+                embedding_consulta_normalizado = (
+                    embedding_consulta
+                    /
+                    norma_consulta
+                )
+
+                embeddings_base_normalizados = (
+                    embeddings_base
+                    /
+                    norma_base
+                )
+
+                similitudes = np.dot(
+                    embeddings_base_normalizados,
+                    embedding_consulta_normalizado.T
+                ).ravel()
+
+                # -----------------------------------------
+                # ORDENAR DE MAYOR A MENOR SIMILITUD
+                # -----------------------------------------
+
+                indices = np.argsort(
+                    similitudes
+                )[::-1]
+
+                indices = indices[
+                    :MAX_RESULTADOS_SEMANTICOS
+                ]
+
+                resultados = []
+
+                for indice in indices:
+
+                    puntaje = (
+                        float(
+                            similitudes[indice]
+                        )
+                        * 100
+                    )
+
+                    if (
+                        puntaje
+                        <
+                        UMBRAL_SEMANTICO
                     ):
+                        continue
 
-                        embedding_consulta = (
-                            modelo_biomedico_local.encode(
-                                [consulta],
-                                normalize_embeddings=True
-                            )
-                        )
-
-                        similitudes = (
-                            cosine_similarity(
-                                embedding_consulta,
-                                embeddings_sintomas_local
-                            )[0]
-                        )
-
-                        indices = (
-                            np.argsort(
-                                similitudes
-                            )[::-1]
-                        )
-
-                        indices = indices[
-                            :MAX_RESULTADOS_SEMANTICOS
+                    fila = (
+                        df_3f.iloc[
+                            indice
                         ]
+                    )
 
-                        resultados = []
+                    resultados.append(
+                        {
+                            "Sintoma_consultado":
+                                consulta,
 
-                        for indice in indices:
+                            "Sintoma_encontrado":
+                                fila[
+                                    "Sintoma"
+                                ],
 
-                            puntaje = (
-                                float(
-                                    similitudes[
-                                        indice
-                                    ]
+                            "Patologia_ID":
+                                fila[
+                                    "Patologia_ID"
+                                ],
+
+                            "Patologia":
+                                fila[
+                                    "Patologia"
+                                ],
+
+                            "Tipo":
+                                "Semantica",
+
+                            "Puntaje":
+                                round(
+                                    puntaje,
+                                    2
                                 )
-                                * 100
-                            )
+                        }
+                    )
 
-                            if (
-                                puntaje
-                                <
-                                UMBRAL_SEMANTICO
-                            ):
-
-                                continue
-
-                            fila = (
-                                df_3f.iloc[
-                                    indice
-                                ]
-                            )
-
-                            resultados.append(
-                                {
-                                    "Sintoma_consultado":
-                                        consulta,
-
-                                    "Sintoma_encontrado":
-                                        fila[
-                                            "Sintoma"
-                                        ],
-
-                                    "Patologia_ID":
-                                        fila[
-                                            "Patologia_ID"
-                                        ],
-
-                                    "Patologia":
-                                        fila[
-                                            "Patologia"
-                                        ],
-
-                                    "Tipo":
-                                        "Semantica",
-
-                                    "Puntaje":
-                                        round(
-                                            puntaje,
-                                            2
-                                        )
-                                }
-                            )
-
-                        return resultados
+                return resultados
 
                     # =========================================
                     # FUNCIÓN — BÚSQUEDA HÍBRIDA
