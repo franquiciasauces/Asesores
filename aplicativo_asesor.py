@@ -3101,116 +3101,133 @@ elif (
         )
 
     # ========================================================
-    # 3.1 BUSCAR POR PATOLOGÍA
     # ========================================================
+# 3.1 BUSCAR POR PATOLOGÍA
+# ========================================================
 
-    if (
-        tipo_busqueda_causa_sintoma
-        == "Patología"
-    ):
+if (
+    tipo_busqueda_causa_sintoma
+    == "Patología"
+):
 
-        texto_buscado = st.text_input(
-            "Ingrese el nombre de la patología:",
-            key="texto_busqueda_patologia_causa"
+    texto_buscado = st.text_input(
+        "Ingrese el nombre de la patología:",
+        key="texto_busqueda_patologia_causa"
+    )
+
+    if texto_buscado.strip():
+
+        resultados = []
+
+        for _, fila in Patologias.iterrows():
+
+            codigo = fila.iloc[0]
+            nombre = fila.iloc[1]
+
+            if pd.isna(codigo):
+                continue
+
+            if pd.isna(nombre):
+                continue
+
+            if coincide_texto_patologia(
+                texto_buscado,
+                nombre,
+                umbral=70
+            ):
+
+                resultados.append(
+                    {
+                        "Codigo":
+                            str(codigo).strip(),
+
+                        "Patologia":
+                            str(nombre).strip()
+                    }
+                )
+
+        # ====================================================
+        # ELIMINAR DUPLICADOS
+        # ====================================================
+
+        resultados_unicos = {}
+
+        for resultado in resultados:
+
+            clave = resultado["Codigo"]
+
+            if clave not in resultados_unicos:
+
+                resultados_unicos[
+                    clave
+                ] = resultado
+
+        resultados = list(
+            resultados_unicos.values()
         )
 
-        if texto_buscado.strip():
+        # ====================================================
+        # ORDENAR
+        # ====================================================
 
-            resultados = []
+        resultados = sorted(
+            resultados,
+            key=lambda x:
+                normalizar_patologia(
+                    x["Patologia"]
+                )
+        )
 
-            for _, fila in Patologias.iterrows():
+        # ====================================================
+        # MOSTRAR RESULTADOS
+        # ====================================================
 
-                codigo = fila.iloc[0]
-                nombre = fila.iloc[1]
+        if not resultados:
 
-                if pd.isna(codigo):
-                    continue
+            st.warning(
+                "No se encontraron patologías "
+                "relacionadas con la búsqueda."
+            )
 
-                if pd.isna(nombre):
-                    continue
+        else:
 
-                if coincide_texto_patologia(
-                    texto_buscado,
-                    nombre,
-                    umbral=70
-                ):
+            st.success(
+                f"Se encontraron "
+                f"{len(resultados)} "
+                f"posibles coincidencias."
+            )
 
-                    resultados.append(
-                        {
-                            "Codigo": str(
-                                codigo
-                            ).strip(),
-                            "Patologia": str(
-                                nombre
-                            ).strip()
-                        }
-                    )
-
-            resultados_unicos = {}
+            opciones = [
+                "Seleccione una patología"
+            ]
 
             for resultado in resultados:
 
-                clave = resultado["Codigo"]
-
-                if clave not in resultados_unicos:
-
-                    resultados_unicos[
-                        clave
-                    ] = resultado
-
-            resultados = list(
-                resultados_unicos.values()
-            )
-
-            resultados = sorted(
-                resultados,
-                key=lambda x:
-                    normalizar_patologia(
-                        x["Patologia"]
-                    )
-            )
-
-            if not resultados:
-
-                st.warning(
-                    "No se encontraron patologías "
-                    "relacionadas con la búsqueda."
+                opciones.append(
+                    f"{resultado['Codigo']} — "
+                    f"{resultado['Patologia']}"
                 )
 
-            else:
+            seleccion = st.selectbox(
+                "Seleccione la patología:",
+                opciones,
+                key="seleccion_patologia_causa"
+            )
 
-                opciones = [
-                    "Seleccione una patología"
-                ]
+            if (
+                seleccion
+                != "Seleccione una patología"
+            ):
 
-                for resultado in resultados:
-
-                    opciones.append(
-                        f"{resultado['Codigo']} — "
-                        f"{resultado['Patologia']}"
-                    )
-
-                seleccion = st.selectbox(
-                    "Seleccione la patología:",
-                    opciones,
-                    key="seleccion_patologia_causa"
-                )
-
-                if (
+                codigo = (
                     seleccion
-                    != "Seleccione una patología"
-                ):
+                    .split(" — ")[0]
+                    .strip()
+                )
 
-                    codigo = (
-                        seleccion
-                        .split(" — ")[0]
-                        .strip()
-                    )
-
-                    mostrar_ficha_patologia(
-                        codigo
-                    )
-
+                mostrar_ficha_patologia(
+                    codigo
+                )
 
     # ========================================================
     # 3.2 BUSCAR POR CAUSA
