@@ -3402,7 +3402,6 @@ elif (
         )
 
         if not buscado or not base:
-
             return False
 
         # ----------------------------------------------------
@@ -3410,7 +3409,6 @@ elif (
         # ----------------------------------------------------
 
         if buscado in base:
-
             return True
 
         # ----------------------------------------------------
@@ -3421,7 +3419,6 @@ elif (
         palabras_base = base.split()
 
         if not palabras_buscadas:
-
             return False
 
         palabras_encontradas = 0
@@ -3438,11 +3435,9 @@ elif (
                 )
 
                 if puntaje > mejor_puntaje:
-
                     mejor_puntaje = puntaje
 
             if mejor_puntaje >= umbral:
-
                 palabras_encontradas += 1
 
         porcentaje = (
@@ -3540,11 +3535,9 @@ elif (
                 nombre = fila.iloc[1]
 
                 if pd.isna(codigo):
-
                     continue
 
                 if pd.isna(nombre):
-
                     continue
 
                 if coincide_texto_patologia(
@@ -3677,15 +3670,12 @@ elif (
                 causas = fila.iloc[3]
 
                 if pd.isna(codigo):
-
                     continue
 
                 if pd.isna(nombre):
-
                     continue
 
                 if pd.isna(causas):
-
                     continue
 
                 elementos = str(
@@ -3693,7 +3683,6 @@ elif (
                 ).split(";")
 
                 coincide = False
-
                 causa_encontrada = ""
 
                 for elemento in elementos:
@@ -3701,7 +3690,6 @@ elif (
                     elemento = elemento.strip()
 
                     if not elemento:
-
                         continue
 
                     if coincide_texto_patologia(
@@ -3825,7 +3813,7 @@ elif (
                     )
 
     # ========================================================
-    # 3.3 BUSCAR POR SÍNTOMA
+    # 3.3 BUSCAR POR SÍNTOMA — BÚSQUEDA SEMÁNTICA 3F
     # ========================================================
 
     elif (
@@ -4139,19 +4127,11 @@ elif (
 
                         resultados = []
 
-                        # -------------------------------------
-                        # EXACTA
-                        # -------------------------------------
-
                         resultados.extend(
                             buscar_exacta_3f(
                                 consulta
                             )
                         )
-
-                        # -------------------------------------
-                        # SEMÁNTICA
-                        # -------------------------------------
 
                         resultados.extend(
                             buscar_semantica_3f(
@@ -4255,7 +4235,6 @@ elif (
                             sintoma = elemento.strip()
 
                             if sintoma == "":
-
                                 continue
 
                             sintoma_limpio = (
@@ -4265,7 +4244,6 @@ elif (
                             )
 
                             if sintoma_limpio == "":
-
                                 continue
 
                             existentes = [
@@ -4432,7 +4410,6 @@ elif (
                                     )
 
                                     if not resultados:
-
                                         continue
 
                                     resultados_ordenados = sorted(
@@ -4506,7 +4483,6 @@ elif (
                                     ==
                                     0
                                 ):
-
                                     continue
 
                                 # -----------------------------
