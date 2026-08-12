@@ -1124,3 +1124,532 @@ if (
                             f"**{columna}:**",
                             valor
                         )
+```python
+# ============================================================
+# BLOQUE — CATEGORÍA → PRODUCTOS
+# ============================================================
+
+if (
+    opcion_consulta == "Productos"
+    and st.session_state.get("tipo_consulta_producto")
+    == "Categoría → productos"
+):
+
+    st.subheader("Categoría → productos")
+
+    # --------------------------------------------------------
+    # FUNCIÓN PARA NORMALIZAR TEXTOS
+    # Permite ignorar mayúsculas, minúsculas y tildes.
+    # --------------------------------------------------------
+
+    def normalizar_categoria(texto):
+
+        return (
+            unidecode(str(texto))
+            .lower()
+            .strip()
+        )
+
+    # --------------------------------------------------------
+    # OPCIONES INTERNAS DE CONSULTA
+    # --------------------------------------------------------
+
+    tipo_busqueda_categoria = st.radio(
+        "¿Cómo desea realizar la consulta?",
+        [
+            "Seleccionar del listado de categorías",
+            "Ingresar categoría o patología"
+        ],
+        key="tipo_busqueda_categoria"
+    )
+
+    # ========================================================
+    # OPCIÓN 1 — SELECCIONAR DEL LISTADO
+    # ========================================================
+
+    if (
+        tipo_busqueda_categoria
+        == "Seleccionar del listado de categorías"
+    ):
+
+        st.write(
+            "Seleccione una categoría principal:"
+        )
+
+        # ----------------------------------------------------
+        # CATEGORÍA PRINCIPAL = COLUMNA 2 DE EXCEL
+        # ----------------------------------------------------
+
+        categorias_principales = (
+            Base_Productos.iloc[:, 1]
+            .dropna()
+            .astype(str)
+            .str.strip()
+            .unique()
+            .tolist()
+        )
+
+        categorias_principales = sorted(
+            categorias_principales,
+            key=lambda x: normalizar_categoria(x)
+        )
+
+        categoria_seleccionada = st.selectbox(
+            "Categoría principal:",
+            ["Seleccione una categoría"]
+            + categorias_principales,
+            key="categoria_principal_seleccionada"
+        )
+
+        # ----------------------------------------------------
+        # CUANDO SE SELECCIONA UNA CATEGORÍA
+        # ----------------------------------------------------
+
+        if (
+            categoria_seleccionada
+            != "Seleccione una categoría"
+        ):
+
+            categoria_normalizada = (
+                normalizar_categoria(
+                    categoria_seleccionada
+                )
+            )
+
+            # ------------------------------------------------
+            # BUSCAR SOLO PRODUCTOS DE ACCIÓN DIRECTA
+            # COLUMNA 2 = CATEGORÍA PRINCIPAL
+            # ------------------------------------------------
+
+            productos_principales = []
+
+            for _, fila in Base_Productos.iterrows():
+
+                producto = fila.iloc[0]
+
+                categoria_principal = fila.iloc[1]
+
+                if pd.isna(producto):
+                    continue
+
+                if pd.isna(categoria_principal):
+                    continue
+
+                if (
+                    normalizar_categoria(
+                        categoria_principal
+                    )
+                    == categoria_normalizada
+                ):
+
+                    productos_principales.append(
+                        str(producto)
+                    )
+
+            # Eliminar duplicados
+            productos_principales = list(
+                dict.fromkeys(
+                    productos_principales
+                )
+            )
+
+            productos_principales = sorted(
+                productos_principales,
+                key=lambda x: normalizar_categoria(x)
+            )
+
+            # ------------------------------------------------
+            # MOSTRAR RESULTADOS
+            # ------------------------------------------------
+
+            st.success(
+                f"Categoría seleccionada: "
+                f"{categoria_seleccionada}"
+            )
+
+            st.write(
+                "A continuación se presenta el listado "
+                "de productos que tienen una acción directa "
+                "sobre la patología:"
+            )
+
+            if not productos_principales:
+
+                st.warning(
+                    "No se encontraron productos de "
+                    "acción directa para esta categoría."
+                )
+
+            else:
+
+                producto_seleccionado = st.selectbox(
+                    "Seleccione el producto que desea consultar:",
+                    productos_principales,
+                    key="producto_categoria_principal"
+                )
+
+                # ------------------------------------------------
+                # FICHA DEL PRODUCTO
+                # ------------------------------------------------
+
+                if producto_seleccionado:
+
+                    producto_ficha = Base_Productos[
+                        Base_Productos.iloc[:, 0]
+                        .astype(str)
+                        .str.strip()
+                        == str(
+                            producto_seleccionado
+                        ).strip()
+                    ]
+
+                    if not producto_ficha.empty:
+
+                        st.divider()
+
+                        st.subheader(
+                            "Ficha completa del producto"
+                        )
+
+                        datos_producto = (
+                            producto_ficha.iloc[0]
+                        )
+
+                        for columna in Base_Productos.columns:
+
+                            valor = datos_producto[
+                                columna
+                            ]
+
+                            if pd.notna(valor):
+
+                                st.write(
+                                    f"**{columna}:**",
+                                    valor
+                                )
+
+    # ========================================================
+    # OPCIÓN 2 — INGRESAR CATEGORÍA O PATOLOGÍA
+    # ========================================================
+
+    else:
+
+        st.write(
+            "Registre el nombre de la patología "
+            "o categoría que desea consultar:"
+        )
+
+        categoria_ingresada = st.text_input(
+            "Nombre de la patología o categoría:",
+            key="categoria_ingresada"
+        )
+
+        if categoria_ingresada.strip():
+
+            texto_buscado = normalizar_categoria(
+                categoria_ingresada
+            )
+
+            # ------------------------------------------------
+            # LISTAS DE RESULTADOS
+            # ------------------------------------------------
+
+            productos_directos = []
+            productos_complementarios = []
+
+            # ------------------------------------------------
+            # RECORRER BASE DE PRODUCTOS
+            # ------------------------------------------------
+
+            for _, fila in Base_Productos.iterrows():
+
+                producto = fila.iloc[0]
+
+                if pd.isna(producto):
+                    continue
+
+                producto = str(producto).strip()
+
+                # ============================================
+                # CATEGORÍA PRINCIPAL — COLUMNA 2
+                # ============================================
+
+                categoria_principal = fila.iloc[1]
+
+                es_principal = False
+
+                if not pd.isna(categoria_principal):
+
+                    texto_principal = (
+                        normalizar_categoria(
+                            categoria_principal
+                        )
+                    )
+
+                    # Coincidencia exacta
+                    if texto_buscado == texto_principal:
+
+                        es_principal = True
+
+                    # Coincidencia parcial
+                    elif (
+                        texto_buscado in texto_principal
+                        or texto_principal in texto_buscado
+                    ):
+
+                        es_principal = True
+
+                if es_principal:
+
+                    productos_directos.append(
+                        producto
+                    )
+
+                # ============================================
+                # CATEGORÍAS COMPLEMENTARIAS — COLUMNA 3
+                # ============================================
+
+                valor_complementarias = fila.iloc[2]
+
+                es_complementario = False
+
+                if not pd.isna(
+                    valor_complementarias
+                ):
+
+                    texto_complementario = (
+                        normalizar_categoria(
+                            valor_complementarias
+                        )
+                    )
+
+                    # Coincidencia exacta
+                    if texto_buscado in texto_complementario:
+
+                        es_complementario = True
+
+                if es_complementario:
+
+                    # Si ya es principal, no lo duplicamos
+                    if producto not in productos_directos:
+
+                        productos_complementarios.append(
+                            producto
+                        )
+
+            # ------------------------------------------------
+            # ELIMINAR DUPLICADOS
+            # ------------------------------------------------
+
+            productos_directos = list(
+                dict.fromkeys(
+                    productos_directos
+                )
+            )
+
+            productos_complementarios = list(
+                dict.fromkeys(
+                    productos_complementarios
+                )
+            )
+
+            # ------------------------------------------------
+            # ORDENAR
+            # ------------------------------------------------
+
+            productos_directos = sorted(
+                productos_directos,
+                key=lambda x: normalizar_categoria(x)
+            )
+
+            productos_complementarios = sorted(
+                productos_complementarios,
+                key=lambda x: normalizar_categoria(x)
+            )
+
+            # ------------------------------------------------
+            # MOSTRAR RESULTADOS
+            # ------------------------------------------------
+
+            if (
+                not productos_directos
+                and not productos_complementarios
+            ):
+
+                st.warning(
+                    "No se encontraron productos "
+                    "relacionados con la categoría o "
+                    "patología ingresada."
+                )
+
+            else:
+
+                st.success(
+                    f"Resultados para: "
+                    f"{categoria_ingresada}"
+                )
+
+                # ============================================
+                # PRODUCTOS DE ACCIÓN DIRECTA
+                # ============================================
+
+                if productos_directos:
+
+                    st.markdown(
+                        "### Productos con acción directa"
+                    )
+
+                    producto_directo_seleccionado = (
+                        st.selectbox(
+                            "Seleccione un producto:",
+                            productos_directos,
+                            key="producto_directo_categoria"
+                        )
+                    )
+
+                else:
+
+                    producto_directo_seleccionado = None
+
+                # ============================================
+                # PRODUCTOS COMPLEMENTARIOS
+                # ============================================
+
+                if productos_complementarios:
+
+                    st.markdown(
+                        "### Productos complementarios"
+                    )
+
+                    producto_complementario_seleccionado = (
+                        st.selectbox(
+                            "Seleccione un producto:",
+                            productos_complementarios,
+                            key="producto_complementario_categoria"
+                        )
+                    )
+
+                else:
+
+                    producto_complementario_seleccionado = None
+
+                # ============================================
+                # SELECCIÓN DEL PRODUCTO
+                # ============================================
+
+                if producto_directo_seleccionado:
+
+                    producto_para_ficha = (
+                        producto_directo_seleccionado
+                    )
+
+                elif producto_complementario_seleccionado:
+
+                    producto_para_ficha = (
+                        producto_complementario_seleccionado
+                    )
+
+                else:
+
+                    producto_para_ficha = None
+
+                # ============================================
+                # MOSTRAR FICHA
+                # ============================================
+
+                if producto_para_ficha:
+
+                    producto_ficha = Base_Productos[
+                        Base_Productos.iloc[:, 0]
+                        .astype(str)
+                        .str.strip()
+                        == str(
+                            producto_para_ficha
+                        ).strip()
+                    ]
+
+                    if not producto_ficha.empty:
+
+                        st.divider()
+
+                        st.subheader(
+                            "Ficha completa del producto"
+                        )
+
+                        datos_producto = (
+                            producto_ficha.iloc[0]
+                        )
+
+                        for columna in Base_Productos.columns:
+
+                            valor = datos_producto[
+                                columna
+                            ]
+
+                            if pd.notna(valor):
+
+                                st.write(
+                                    f"**{columna}:**",
+                                    valor
+                                )
+
+    # ========================================================
+    # OPCIONES DE NAVEGACIÓN
+    # ========================================================
+
+    st.divider()
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        if st.button(
+            "← Nueva consulta",
+            key="nueva_consulta_categoria",
+            use_container_width=True
+        ):
+
+            st.session_state.pop(
+                "categoria_principal_seleccionada",
+                None
+            )
+
+            st.session_state.pop(
+                "categoria_ingresada",
+                None
+            )
+
+            st.rerun()
+
+    with col2:
+
+        if st.button(
+            "← Menú Productos",
+            key="volver_menu_productos_categoria",
+            use_container_width=True
+        ):
+
+            st.session_state[
+                "tipo_consulta_producto"
+            ] = "Seleccione una opción"
+
+            st.rerun()
+
+    with col3:
+
+        if st.button(
+            "🏠 Menú principal",
+            key="volver_menu_principal_categoria",
+            use_container_width=True
+        ):
+
+            st.session_state[
+                "opcion_consulta"
+            ] = "Seleccione una opción"
+
+            st.session_state[
+                "tipo_consulta_producto"
+            ] = "Seleccione una opción"
+
+            st.rerun()
+
