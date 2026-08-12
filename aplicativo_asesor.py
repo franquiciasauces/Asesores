@@ -2594,471 +2594,368 @@ if (
             .strip()
         )
 
-        # ========================================================
-    # MENÚ DE CONSULTA
-    # ========================================================
+# ============================================================
+# MENÚ DE CONSULTA — PATOLOGÍAS
+# ============================================================
 
-    tipo_busqueda_patologia = st.selectbox(
-        "¿Qué desea consultar?",
-        [
-            "Seleccione una opción",
-            "Ver todas las patologias",
-            "Ingresar código o nombre de la patologia",
-            "Patologia → causa y síntoma"
-        ],
-        key="tipo_busqueda_patologia"
+tipo_busqueda_patologia = st.selectbox(
+    "¿Qué desea consultar?",
+    [
+        "Seleccione una opción",
+        "Ver todas las patologias",
+        "Ingresar código o nombre de la patologia",
+        "Patologia → causa y síntoma"
+    ],
+    key="tipo_busqueda_patologia"
+)
+
+
+# ============================================================
+# 1. VER TODAS LAS PATOLOGÍAS
+# ============================================================
+
+if (
+    tipo_busqueda_patologia
+    == "Ver todas las patologias"
+):
+
+    st.write(
+        "Seleccione la patologia que desea consultar:"
     )
 
-    # ========================================================
-    # 1. VER TODAS LAS PATOLOGIAS
-    # ========================================================
+    patologias = []
+
+    for valor in Patologias.iloc[:, 1]:
+
+        if pd.isna(valor):
+            continue
+
+        patologia = str(valor).strip()
+
+        if patologia:
+            patologias.append(patologia)
+
+    # --------------------------------------------------------
+    # ELIMINAR DUPLICADOS
+    # --------------------------------------------------------
+
+    patologias_unicas = {}
+
+    for patologia in patologias:
+
+        clave = normalizar_patologia(
+            patologia
+        )
+
+        if clave not in patologias_unicas:
+
+            patologias_unicas[clave] = patologia
+
+    # --------------------------------------------------------
+    # ORDEN ALFABÉTICO
+    # --------------------------------------------------------
+
+    patologias_finales = sorted(
+        patologias_unicas.values(),
+        key=lambda x:
+            normalizar_patologia(x)
+    )
+
+    # --------------------------------------------------------
+    # SELECCIÓN
+    # --------------------------------------------------------
+
+    patologia_seleccionada = st.selectbox(
+        "Patologia:",
+        [
+            "Seleccione una patologia"
+        ] + patologias_finales,
+        key="patologia_listado_general"
+    )
+
+    # --------------------------------------------------------
+    # MOSTRAR FICHA
+    # --------------------------------------------------------
 
     if (
-        tipo_busqueda_patologia
-        == "Ver todas las patologias"
+        patologia_seleccionada
+        != "Seleccione una patologia"
     ):
 
-        st.write(
-            "Seleccione la patologia que desea consultar:"
+        patologia_ficha = Patologias[
+            Patologias.iloc[:, 1]
+            .astype(str)
+            .str.strip()
+            ==
+            str(
+                patologia_seleccionada
+            ).strip()
+        ]
+
+        if not patologia_ficha.empty:
+
+            datos = patologia_ficha.iloc[0]
+
+            st.divider()
+
+            st.subheader(
+                "Ficha completa de la patologia"
+            )
+
+            st.write(
+                f"**Código:** {datos.iloc[0]}"
+            )
+
+            st.write(
+                f"**Patología:** {datos.iloc[1]}"
+            )
+
+            st.write(
+                f"**Descripción breve:** {datos.iloc[2]}"
+            )
+
+            st.write(
+                f"**Causas frecuentes:** {datos.iloc[3]}"
+            )
+
+            st.write(
+                f"**Síntomas / Señales clave:** {datos.iloc[4]}"
+            )
+
+            st.write(
+                f"**Objetivo del paquete:** {datos.iloc[5]}"
+            )
+
+            st.write(
+                f"**Notas para el asesor:** {datos.iloc[6]}"
+            )
+
+
+# ============================================================
+# 2. INGRESAR CÓDIGO O NOMBRE
+# ============================================================
+
+elif (
+    tipo_busqueda_patologia
+    == "Ingresar código o nombre de la patologia"
+):
+
+    st.write(
+        "Ingrese el código o nombre de la patologia:"
+    )
+
+    texto_ingresado = st.text_input(
+        "Código o nombre:",
+        key="buscar_patologia_general"
+    )
+
+    if texto_ingresado.strip():
+
+        texto_buscado = normalizar_patologia(
+            texto_ingresado
         )
-        # ----------------------------------------------------
-        # OBTENER NOMBRES DE patologiaS
-        # COLUMNA 2
-        # ----------------------------------------------------
 
-        patologias = []
+        resultados = []
 
-        for valor in Patologias.iloc[:, 1]:
+        for _, fila in Patologias.iterrows():
 
-            if pd.isna(valor):
-                continue
+            codigo = fila.iloc[0]
+            nombre = fila.iloc[1]
 
-            patologia = str(valor).strip()
+            if pd.isna(codigo):
+                codigo = ""
 
-            if patologia:
+            if pd.isna(nombre):
+                nombre = ""
 
-                patologias.append(
-                    patologia
+            codigo = str(codigo).strip()
+            nombre = str(nombre).strip()
+
+            codigo_normalizado = normalizar_patologia(
+                codigo
+            )
+
+            nombre_normalizado = normalizar_patologia(
+                nombre
+            )
+
+            coincidencia = False
+
+            # ------------------------------------------------
+            # CÓDIGO
+            # ------------------------------------------------
+
+            if texto_buscado in codigo_normalizado:
+                coincidencia = True
+
+            # ------------------------------------------------
+            # NOMBRE
+            # ------------------------------------------------
+
+            if texto_buscado in nombre_normalizado:
+                coincidencia = True
+
+            # ------------------------------------------------
+            # SIMILITUD
+            # ------------------------------------------------
+
+            if not coincidencia:
+
+                similitud = fuzz.ratio(
+                    texto_buscado,
+                    nombre_normalizado
+                )
+
+                if similitud >= 65:
+                    coincidencia = True
+
+            # ------------------------------------------------
+            # SIMILITUD POR PALABRAS
+            # ------------------------------------------------
+
+            if not coincidencia:
+
+                palabras_buscadas = (
+                    texto_buscado.split()
+                )
+
+                palabras_nombre = (
+                    nombre_normalizado.split()
+                )
+
+                palabras_encontradas = 0
+
+                for palabra_buscada in palabras_buscadas:
+
+                    for palabra_nombre in palabras_nombre:
+
+                        similitud_palabra = fuzz.ratio(
+                            palabra_buscada,
+                            palabra_nombre
+                        )
+
+                        if similitud_palabra >= 70:
+
+                            palabras_encontradas += 1
+                            break
+
+                if palabras_buscadas:
+
+                    porcentaje = (
+                        palabras_encontradas
+                        /
+                        len(palabras_buscadas)
+                    ) * 100
+
+                    if porcentaje >= 70:
+                        coincidencia = True
+
+            # ------------------------------------------------
+            # GUARDAR
+            # ------------------------------------------------
+
+            if coincidencia:
+
+                resultados.append(
+                    {
+                        "Codigo": codigo,
+                        "Patologia": nombre
+                    }
                 )
 
         # ----------------------------------------------------
         # ELIMINAR DUPLICADOS
         # ----------------------------------------------------
 
-        patologias_unicas = {}
+        resultados_unicos = {}
 
-        for patologia in patologias:
+        for resultado in resultados:
 
             clave = (
-                normalizar_patologia(
-                    patologia
+                resultado["Codigo"]
+                + "|"
+                + normalizar_patologia(
+                    resultado["Patologia"]
                 )
             )
 
-            if clave not in patologias_unicas:
+            if clave not in resultados_unicos:
 
-                patologias_unicas[clave] = (
-                    patologia
-                )
+                resultados_unicos[clave] = resultado
+
+        resultados = list(
+            resultados_unicos.values()
+        )
 
         # ----------------------------------------------------
-        # ORDEN ALFABÉTICO
+        # ORDENAR
         # ----------------------------------------------------
 
-        patologias_finales = sorted(
-            patologias_unicas.values(),
+        resultados = sorted(
+            resultados,
             key=lambda x:
-                normalizar_patologia(x)
-        )
-
-        # ----------------------------------------------------
-        # LISTADO DESPLEGABLE
-        # ----------------------------------------------------
-
-        patologia_seleccionada = st.selectbox(
-            "patologia:",
-            [
-                "Seleccione una patologia"
-            ] + patologias_finales,
-            key="patologia_listado_general"
-        )
-
-        # ----------------------------------------------------
-        # MOSTRAR FICHA
-        # ----------------------------------------------------
-
-        if (
-            patologia_seleccionada
-            != "Seleccione una patologia"
-        ):
-
-            patologia_ficha = Patologias[
-                Patologias.iloc[:, 1]
-                .astype(str)
-                .str.strip()
-                == str(
-                    patologia_seleccionada
-                ).strip()
-            ]
-
-            if not patologia_ficha.empty:
-
-                datos = (
-                    patologia_ficha.iloc[0]
-                )
-
-                st.divider()
-
-                st.subheader(
-                    "Ficha completa de la patologia"
-                )
-
-                st.write(
-                    f"**Código:** "
-                    f"{datos.iloc[0]}"
-                )
-
-                st.write(
-                    f"**patologia:** "
-                    f"{datos.iloc[1]}"
-                )
-
-                st.write(
-                    f"**Descripción breve:** "
-                    f"{datos.iloc[2]}"
-                )
-
-                st.write(
-                    f"**Causas frecuentes:** "
-                    f"{datos.iloc[3]}"
-                )
-
-                st.write(
-                    f"**Síntomas / Señales clave:** "
-                    f"{datos.iloc[4]}"
-                )
-
-                st.write(
-                    f"**Objetivo del paquete:** "
-                    f"{datos.iloc[5]}"
-                )
-
-                st.write(
-                    f"**Notas para el asesor:** "
-                    f"{datos.iloc[6]}"
-                )
-
-    # ========================================================
-    # 2. INGRESAR CÓDIGO O NOMBRE
-    # ========================================================
-
-    else:
-
-        st.write(
-            "Ingrese el código o nombre de la patologia:"
-        )
-
-        texto_ingresado = st.text_input(
-            "Código o nombre:",
-            key="buscar_patologia_general"
-        )
-
-        if texto_ingresado.strip():
-
-            texto_buscado = (
                 normalizar_patologia(
-                    texto_ingresado
+                    x["Patologia"]
                 )
+        )
+
+        # ----------------------------------------------------
+        # MOSTRAR
+        # ----------------------------------------------------
+
+        if not resultados:
+
+            st.warning(
+                "No se encontraron patologias "
+                "relacionadas con la búsqueda."
             )
 
-            resultados = []
+        else:
 
-            # =================================================
-            # RECORRER LA BASE DE patologiaS
-            # =================================================
+            st.success(
+                f"Se encontraron "
+                f"{len(resultados)} "
+                f"posibles coincidencias."
+            )
 
-            for _, fila in Patologias.iterrows():
-
-                codigo = fila.iloc[0]
-                nombre = fila.iloc[1]
-
-                if pd.isna(codigo):
-                    codigo = ""
-
-                if pd.isna(nombre):
-                    nombre = ""
-
-                codigo = str(
-                    codigo
-                ).strip()
-
-                nombre = str(
-                    nombre
-                ).strip()
-
-                codigo_normalizado = (
-                    normalizar_patologia(
-                        codigo
-                    )
-                )
-
-                nombre_normalizado = (
-                    normalizar_patologia(
-                        nombre
-                    )
-                )
-
-                coincidencia = False
-
-                # =============================================
-                # COINCIDENCIA DIRECTA CON CÓDIGO
-                # =============================================
-
-                if (
-                    texto_buscado
-                    in codigo_normalizado
-                ):
-
-                    coincidencia = True
-
-                # =============================================
-                # COINCIDENCIA DIRECTA CON NOMBRE
-                # =============================================
-
-                if (
-                    texto_buscado
-                    in nombre_normalizado
-                ):
-
-                    coincidencia = True
-
-                # =============================================
-                # COINCIDENCIA APROXIMADA CON NOMBRE
-                # =============================================
-
-                if not coincidencia:
-
-                    similitud = fuzz.ratio(
-                        texto_buscado,
-                        nombre_normalizado
-                    )
-
-                    if similitud >= 65:
-
-                        coincidencia = True
-
-                # =============================================
-                # COINCIDENCIA POR PALABRAS
-                # =============================================
-
-                if not coincidencia:
-
-                    palabras_buscadas = (
-                        texto_buscado.split()
-                    )
-
-                    palabras_nombre = (
-                        nombre_normalizado.split()
-                    )
-
-                    palabras_encontradas = 0
-
-                    for palabra_buscada in (
-                        palabras_buscadas
-                    ):
-
-                        for palabra_nombre in (
-                            palabras_nombre
-                        ):
-
-                            similitud_palabra = (
-                                fuzz.ratio(
-                                    palabra_buscada,
-                                    palabra_nombre
-                                )
-                            )
-
-                            if (
-                                similitud_palabra
-                                >= 70
-                            ):
-
-                                palabras_encontradas += 1
-                                break
-
-                    if palabras_buscadas:
-
-                        porcentaje = (
-                            palabras_encontradas
-                            / len(
-                                palabras_buscadas
-                            )
-                        ) * 100
-
-                        if porcentaje >= 70:
-
-                            coincidencia = True
-
-                # =============================================
-                # GUARDAR RESULTADO
-                # =============================================
-
-                if coincidencia:
-
-                    resultados.append(
-                        {
-                            "Codigo": codigo,
-                            "Patologia": nombre
-                        }
-                    )
-
-            # =================================================
-            # ELIMINAR DUPLICADOS
-            # =================================================
-
-            resultados_unicos = {}
+            opciones = [
+                "Seleccione una patologia"
+            ]
 
             for resultado in resultados:
 
-                clave = (
-                    resultado["Codigo"]
-                    + "|"
-                    + normalizar_patologia(
-                        resultado["Patologia"]
-                    )
+                opciones.append(
+                    f"{resultado['Codigo']} — "
+                    f"{resultado['Patologia']}"
                 )
 
-                if clave not in resultados_unicos:
-
-                    resultados_unicos[clave] = (
-                        resultado
-                    )
-
-            resultados = list(
-                resultados_unicos.values()
+            seleccion = st.selectbox(
+                "Seleccione la patologia que desea consultar:",
+                opciones,
+                key="resultado_busqueda_patologia"
             )
 
-            # =================================================
-            # ORDENAR RESULTADOS
-            # =================================================
+            if (
+                seleccion
+                != "Seleccione una patologia"
+            ):
 
-            resultados = sorted(
-                resultados,
-                key=lambda x:
-                    normalizar_patologia(
-                        x["Patologia"]
-                    )
-            )
-
-            # =================================================
-            # MOSTRAR RESULTADOS
-            # =================================================
-
-            if not resultados:
-
-                st.warning(
-                    "No se encontraron patologias "
-                    "relacionadas con la búsqueda."
-                )
-
-            else:
-
-                st.success(
-                    f"Se encontraron "
-                    f"{len(resultados)} "
-                    f"posibles coincidencias."
-                )
-
-                opciones = [
-                    "Seleccione una patologia"
-                ]
-
-                for resultado in resultados:
-
-                    opciones.append(
-                        f"{resultado['Codigo']} — "
-                        f"{resultado['Patologia']}"
-                    )
-
-                seleccion = st.selectbox(
-                    "Seleccione la patologia que desea consultar:",
-                    opciones,
-                    key="resultado_busqueda_patologia"
-                )
-
-                # =================================================
-                # MOSTRAR FICHA DE LA SELECCIÓN
-                # =================================================
-
-                if (
+                codigo_seleccionado = (
                     seleccion
-                    != "Seleccione una patologia"
-                ):
+                    .split(" — ")[0]
+                    .strip()
+                )
 
-                    codigo_seleccionado = (
-                        seleccion.split(
-                            " — "
-                        )[0]
-                    )
+                mostrar_ficha_patologia(
+                    codigo_seleccionado
+                )
 
-                    patologia_ficha = Patologias[
-                        Patologias.iloc[:, 0]
-                        .astype(str)
-                        .str.strip()
-                        == codigo_seleccionado.strip()
-                    ]
 
-                    if not patologia_ficha.empty:
-
-                        datos = (
-                            patologia_ficha.iloc[0]
-                        )
-
-                        st.divider()
-
-                        st.subheader(
-                            "Ficha completa de la patologia"
-                        )
-
-                        st.write(
-                            f"**Código:** "
-                            f"{datos.iloc[0]}"
-                        )
-
-                        st.write(
-                            f"**patologia:** "
-                            f"{datos.iloc[1]}"
-                        )
-
-                        st.write(
-                            f"**Descripción breve:** "
-                            f"{datos.iloc[2]}"
-                        )
-
-                        st.write(
-                            f"**Causas frecuentes:** "
-                            f"{datos.iloc[3]}"
-                        )
-
-                        st.write(
-                            f"**Síntomas / Señales clave:** "
-                            f"{datos.iloc[4]}"
-                        )
-
-                        st.write(
-                            f"**Objetivo del paquete:** "
-                            f"{datos.iloc[5]}"
-                        )
-
-                        st.write(
-                            f"**Notas para el asesor:** "
-                            f"{datos.iloc[6]}"
-                        )
-   # ============================================================
-# BLOQUE — PATOLOGIA → CAUSA Y SÍNTOMA
+# ============================================================
+# 3. PATOLOGÍA → CAUSA Y SÍNTOMA
 # ============================================================
 
-if (
+elif (
     tipo_busqueda_patologia
     == "Patologia → causa y síntoma"
 ):
@@ -3078,16 +2975,12 @@ if (
         key="tipo_busqueda_causa_sintoma"
     )
 
-    # --------------------------------------------------------
-    # GUARDAR LA OPCIÓN SELECCIONADA
-    # --------------------------------------------------------
-
     st.session_state[
         "tipo_busqueda_causa_sintoma"
     ] = tipo_busqueda_causa_sintoma
 
     # ========================================================
-    # FUNCIÓN PARA COMPARAR TEXTO CON TOLERANCIA
+    # FUNCIÓN DE COMPARACIÓN
     # ========================================================
 
     def coincide_texto_patologia(
@@ -3107,16 +3000,8 @@ if (
         if not buscado or not base:
             return False
 
-        # ----------------------------------------
-        # COINCIDENCIA DIRECTA
-        # ----------------------------------------
-
         if buscado in base:
             return True
-
-        # ----------------------------------------
-        # COMPARACIÓN POR PALABRAS
-        # ----------------------------------------
 
         palabras_buscadas = buscado.split()
         palabras_base = base.split()
@@ -3145,13 +3030,15 @@ if (
 
         porcentaje = (
             palabras_encontradas
-            / len(palabras_buscadas)
+            /
+            len(palabras_buscadas)
         ) * 100
 
         return porcentaje >= 70
 
+
     # ========================================================
-    # FUNCIÓN PARA MOSTRAR LA FICHA COMPLETA
+    # FUNCIÓN — MOSTRAR FICHA
     # ========================================================
 
     def mostrar_ficha_patologia(
@@ -3162,7 +3049,8 @@ if (
             Patologias.iloc[:, 0]
             .astype(str)
             .str.strip()
-            == str(
+            ==
+            str(
                 codigo_seleccionado
             ).strip()
         ]
@@ -3212,8 +3100,9 @@ if (
             f"**Notas para el asesor:** {datos.iloc[6]}"
         )
 
+
     # ========================================================
-    # 1. BUSCAR POR PATOLOGÍA
+    # 3.1 BUSCAR POR PATOLOGÍA
     # ========================================================
 
     if (
@@ -3258,10 +3147,6 @@ if (
                         }
                     )
 
-            # --------------------------------------------
-            # ELIMINAR DUPLICADOS
-            # --------------------------------------------
-
             resultados_unicos = {}
 
             for resultado in resultados:
@@ -3285,10 +3170,6 @@ if (
                         x["Patologia"]
                     )
             )
-
-            # --------------------------------------------
-            # RESULTADOS
-            # --------------------------------------------
 
             if not resultados:
 
@@ -3331,8 +3212,9 @@ if (
                         codigo
                     )
 
+
     # ========================================================
-    # 2. BUSCAR POR CAUSA
+    # 3.2 BUSCAR POR CAUSA
     # ========================================================
 
     elif (
@@ -3364,13 +3246,7 @@ if (
                 if pd.isna(causas):
                     continue
 
-                causas = str(causas)
-
-                # ----------------------------------------
-                # LAS CAUSAS PUEDEN ESTAR SEPARADAS POR ;
-                # ----------------------------------------
-
-                elementos = causas.split(";")
+                elementos = str(causas).split(";")
 
                 coincide = False
                 causa_encontrada = ""
@@ -3407,10 +3283,6 @@ if (
                         }
                     )
 
-            # --------------------------------------------
-            # ELIMINAR DUPLICADOS
-            # --------------------------------------------
-
             resultados_unicos = {}
 
             for resultado in resultados:
@@ -3434,10 +3306,6 @@ if (
                         x["Patologia"]
                     )
             )
-
-            # --------------------------------------------
-            # MOSTRAR RESULTADOS
-            # --------------------------------------------
 
             if not resultados:
 
@@ -3485,6 +3353,41 @@ if (
                     mostrar_ficha_patologia(
                         codigo
                     )
+
+
+    # ========================================================
+    # 3.3 BUSCAR POR SÍNTOMA
+    #
+    # AQUÍ VA LA BÚSQUEDA SEMÁNTICA 3F
+    # ========================================================
+
+    elif (
+        tipo_busqueda_causa_sintoma
+        == "Síntoma"
+    ):
+
+        st.info(
+            "Búsqueda por síntoma activada."
+        )
+
+        # ====================================================
+        # IMPORTANTE
+        # ====================================================
+        # En este punto se integrará el BLOQUE 3F completo:
+        #
+        # - búsqueda exacta
+        # - embeddings
+        # - similitud coseno
+        # - umbral semántico
+        # - múltiples síntomas
+        # - eliminación de duplicados
+        # - cobertura
+        # - evidencia acumulada
+        # - ranking por patología
+        #
+        # NO SE REEMPLAZA ESA LÓGICA POR LA BÚSQUEDA
+        # SIMPLE DE fuzz.ratio().
+        # ====================================================
 
     # ============================================================
 # 3. BUSCAR POR SÍNTOMA
