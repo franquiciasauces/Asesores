@@ -291,12 +291,19 @@ if matriz_ok:
             f"{error_matriz}"
         )
 # ============================================================
+# ============================================================
 # 8. DIAGNÓSTICO DE BASE SEMÁNTICA
+#    Y CARGA DEL MODELO BIOMÉDICO
 # ============================================================
 
 st.header("3. Diagnóstico de la base semántica")
 
 base_semantica = None
+
+
+# ============================================================
+# 8.1 CARGAR BASE SEMÁNTICA
+# ============================================================
 
 if semantica_ok:
 
@@ -320,16 +327,21 @@ if semantica_ok:
         for columna in base_semantica.columns:
 
             informacion.append({
+
                 "Columna": str(columna),
+
                 "Tipo de dato": str(
                     base_semantica[columna].dtype
                 ),
+
                 "No nulos": int(
                     base_semantica[columna].notna().sum()
                 ),
+
                 "Nulos": int(
                     base_semantica[columna].isna().sum()
                 )
+
             })
 
         tabla_semantica = pd.DataFrame(
@@ -356,6 +368,7 @@ if semantica_ok:
             hide_index=True
         )
 
+
     except Exception as error_semantica:
 
         st.error(
@@ -370,6 +383,210 @@ else:
         "porque el archivo no fue encontrado."
     )
 
+
+# ============================================================
+# 8.2 CARGAR EMBEDDINGS PRECALCULADOS
+# ============================================================
+
+embeddings_sintomas = None
+
+
+if embeddings_ok:
+
+    try:
+
+        embeddings_sintomas = np.load(
+            ARCHIVO_EMBEDDINGS,
+            allow_pickle=False
+        )
+
+        st.success(
+            "Embeddings de síntomas cargados "
+            "correctamente."
+        )
+
+        st.write(
+            f"Cantidad de embeddings: "
+            f"{len(embeddings_sintomas):,}"
+        )
+
+        st.write(
+            f"Dimensiones de los embeddings: "
+            f"{embeddings_sintomas.shape}"
+        )
+
+
+        # ----------------------------------------------------
+        # VALIDAR CORRESPONDENCIA
+        # ----------------------------------------------------
+
+        if (
+            base_semantica is not None
+            and
+            len(embeddings_sintomas)
+            !=
+            len(base_semantica)
+        ):
+
+            st.error(
+                "ERROR: la cantidad de embeddings "
+                "no coincide con la cantidad de registros "
+                "de la base semántica."
+            )
+
+            embeddings_sintomas = None
+
+        elif base_semantica is not None:
+
+            st.success(
+                "Validación correcta: cada embedding "
+                "corresponde a un registro de la "
+                "base semántica."
+            )
+
+
+    except Exception as error_embeddings:
+
+        st.error(
+            f"Error cargando los embeddings: "
+            f"{error_embeddings}"
+        )
+
+else:
+
+    st.warning(
+        "No se puede cargar embeddings_sintomas.npy "
+        "porque el archivo no fue encontrado."
+    )
+
+
+# ============================================================
+# 8.3 CARGAR MODELO BIOMÉDICO
+# ============================================================
+
+modelo_biomedico = None
+
+
+try:
+
+    from sentence_transformers import SentenceTransformer
+
+
+    @st.cache_resource
+    def cargar_modelo_biomedico():
+
+        modelo = SentenceTransformer(
+            "SINAI/ALIA-MrBERT-es-biomedical-embeddings"
+        )
+
+        return modelo
+
+
+    modelo_biomedico = (
+        cargar_modelo_biomedico()
+    )
+
+
+    st.success(
+        "Modelo biomédico cargado correctamente."
+    )
+
+
+except Exception as error_modelo:
+
+    st.warning(
+        "El modelo biomédico no pudo cargarse "
+        "en este momento."
+    )
+
+    st.code(
+        str(error_modelo)
+    )
+
+
+# ============================================================
+# 8.4 VALIDACIÓN GENERAL DE LA INFRAESTRUCTURA
+# ============================================================
+
+st.write(
+    "**Estado de la búsqueda semántica:**"
+)
+
+
+estado_base = (
+    base_semantica is not None
+)
+
+estado_embeddings = (
+    embeddings_sintomas is not None
+)
+
+estado_modelo = (
+    modelo_biomedico is not None
+)
+
+
+if (
+    estado_base
+    and
+    estado_embeddings
+    and
+    estado_modelo
+):
+
+    st.success(
+        "✓ Infraestructura semántica preparada."
+    )
+
+    st.caption(
+        "Base semántica + embeddings precalculados "
+        "+ modelo biomédico disponibles."
+    )
+
+else:
+
+    st.warning(
+        "La infraestructura semántica "
+        "todavía no está completamente disponible."
+    )
+
+    if not estado_base:
+
+        st.write(
+            "• Base semántica: no disponible"
+        )
+
+    else:
+
+        st.write(
+            "• Base semántica: ✓ disponible"
+        )
+
+
+    if not estado_embeddings:
+
+        st.write(
+            "• Embeddings: no disponibles"
+        )
+
+    else:
+
+        st.write(
+            "• Embeddings: ✓ disponibles"
+        )
+
+
+    if not estado_modelo:
+
+        st.write(
+            "• Modelo biomédico: no disponible"
+        )
+
+    else:
+
+        st.write(
+            "• Modelo biomédico: ✓ disponible"
+        )
 
 # ============================================================
 # 9. DIAGNÓSTICO DE EMBEDDINGS
