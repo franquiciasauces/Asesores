@@ -3255,306 +3255,446 @@ if (
 # 3.2 BUSCAR POR CAUSA
 # ============================================================
 
-elif (
-    tipo_busqueda_causa_sintoma
-    == "Causa"
-):
+    elif (
+        tipo_busqueda_causa_sintoma
+        == "Causa"
+    ):
 
-    st.subheader(
-        "Búsqueda por causas"
-    )
-
-    # ========================================================
-    # CONFIGURACIÓN
-    # ========================================================
-
-    UMBRAL_DIRECTO_CAUSA = 82.0
-    UMBRAL_SEMANTICO_CAUSA = 65.0
-    MAX_RESULTADOS_SEMANTICOS_CAUSA = 5
-
-    # ========================================================
-    # OBTENER MODELO BIOMÉDICO
-    # ========================================================
-
-    modelo_biomedico_causa = globals().get(
-        "modelo_biomedico",
-        None
-    )
-
-    if modelo_biomedico_causa is None:
-
-        st.error(
-            "No está disponible el modelo biomédico "
-            "para la búsqueda de causas."
+        st.subheader(
+            "Búsqueda por causas"
         )
 
-    else:
+# ========================================================
+# CONFIGURACIÓN
+# ========================================================
 
-        # ====================================================
-        # CONSTRUIR BASE DE CAUSAS DESDE LA MATRIZ
-        # ====================================================
+        UMBRAL_DIRECTO_CAUSA = 82.0
+        UMBRAL_SEMANTICO_CAUSA = 65.0
+        MAX_RESULTADOS_SEMANTICOS_CAUSA = 5
 
-        base_causas_3_2 = []
+# ========================================================
+# OBTENER MODELO BIOMÉDICO
+# ========================================================
 
-        for _, fila in Patologias.iterrows():
-
-            codigo = fila.iloc[0]
-            nombre = fila.iloc[1]
-            causas = fila.iloc[3]
-
-            if pd.isna(codigo):
-                continue
-
-            if pd.isna(nombre):
-                continue
-
-            if pd.isna(causas):
-                continue
-
-            for elemento in str(causas).split(";"):
-
-                causa = elemento.strip()
-
-                if not causa:
-                    continue
-
-                base_causas_3_2.append(
-                    {
-                        "Patologia_ID":
-                            str(codigo).strip(),
-
-                        "Patologia":
-                            str(nombre).strip(),
-
-                        "Causa":
-                            causa
-                    }
-                )
-
-        df_causas_3_2 = pd.DataFrame(
-            base_causas_3_2
+        modelo_biomedico_causa = globals().get(
+            "modelo_biomedico",
+            None
         )
 
-        if df_causas_3_2.empty:
+        if modelo_biomedico_causa is None:
 
-            st.warning(
-                "No existen causas disponibles "
-                "en la matriz de patologías."
+            st.error(
+                "No está disponible el modelo biomédico "
+                "para la búsqueda de causas."
             )
 
         else:
 
-            # =================================================
-            # FUNCIÓN DE LIMPIEZA
-            # =================================================
+# ====================================================
+# CONSTRUIR BASE DE CAUSAS DESDE LA MATRIZ
+# ====================================================
 
-            def limpiar_causa_3_2(
-                texto
-            ):
+            base_causas_3_2 = []
 
-                if pd.isna(texto):
-                    return ""
+            for _, fila in Patologias.iterrows():
 
-                texto = str(
-                    texto
-                )
+                codigo = fila.iloc[0]
+                nombre = fila.iloc[1]
+                causas = fila.iloc[3]
 
-                texto = texto.lower()
+                if pd.isna(codigo):
+                    continue
 
-                texto = unidecode(
-                    texto
-                )
+                if pd.isna(nombre):
+                    continue
 
-                texto = " ".join(
-                    texto.split()
-                )
+                if pd.isna(causas):
+                    continue
 
-                return texto.strip()
+                for elemento in str(causas).split(";"):
 
-            # =================================================
-            # PREPARAR TEXTO
-            # =================================================
+                    causa = elemento.strip()
 
-            df_causas_3_2[
-                "Busqueda_3_2"
-            ] = (
-                df_causas_3_2[
-                    "Causa"
-                ]
-                .apply(
-                    limpiar_causa_3_2
-                )
+                    if not causa:
+                        continue
+
+                    base_causas_3_2.append(
+                        {
+                            "Patologia_ID":
+                                str(codigo).strip(),
+
+                            "Patologia":
+                                str(nombre).strip(),
+
+                            "Causa":
+                                causa
+                        }
+                    )
+
+            df_causas_3_2 = pd.DataFrame(
+                base_causas_3_2
             )
 
-            lista_causas_3_2 = (
+            if df_causas_3_2.empty:
+
+                st.warning(
+                    "No existen causas disponibles "
+                    "en la matriz de patologías."
+                )
+
+            else:
+
+# =================================================
+# FUNCIÓN DE LIMPIEZA
+# =================================================
+
+                def limpiar_causa_3_2(
+                    texto
+                ):
+
+                    if pd.isna(texto):
+                        return ""
+
+                    texto = str(
+                        texto
+                    )
+
+                    texto = texto.lower()
+
+                    texto = unidecode(
+                        texto
+                    )
+
+                    texto = " ".join(
+                        texto.split()
+                    )
+
+                    return texto.strip()
+
+# =================================================
+# PREPARAR TEXTO
+# =================================================
+
                 df_causas_3_2[
                     "Busqueda_3_2"
-                ]
-                .drop_duplicates()
-                .tolist()
-            )
+                ] = (
+                    df_causas_3_2[
+                        "Causa"
+                    ]
+                    .apply(
+                        limpiar_causa_3_2
+                    )
+                )
 
-            # =================================================
-            # EMBEDDINGS DINÁMICOS DE CAUSAS
-            # =================================================
-            #
-            # NO se reutilizan embeddings de síntomas.
-            # Se generan para la columna de causas de la matriz.
-            # Se guardan en session_state y se regeneran solo
-            # cuando cambia el contenido de la base.
-
-            firma_causas_3_2 = tuple(
-                df_causas_3_2[
-                    "Busqueda_3_2"
-                ].tolist()
-            )
-
-            if (
-                "firma_embeddings_causas_3_2"
-                not in
-                st.session_state
-                or
-                st.session_state[
-                    "firma_embeddings_causas_3_2"
-                ]
-                !=
-                firma_causas_3_2
-            ):
-
-                textos_causas_3_2 = (
+                lista_causas_3_2 = (
                     df_causas_3_2[
                         "Busqueda_3_2"
                     ]
+                    .drop_duplicates()
                     .tolist()
                 )
 
-                st.session_state[
-                    "embeddings_causas_3_2"
-                ] = (
-                    modelo_biomedico_causa.encode(
-                        textos_causas_3_2,
-                        normalize_embeddings=True
-                    )
+# =================================================
+# EMBEDDINGS DINÁMICOS DE CAUSAS
+# =================================================
+#
+# NO se reutilizan embeddings de síntomas.
+# Se generan para la columna de causas de la matriz.
+# Se guardan en session_state y se regeneran solo
+# cuando cambia el contenido de la base.
+
+                firma_causas_3_2 = tuple(
+                    df_causas_3_2[
+                        "Busqueda_3_2"
+                    ].tolist()
                 )
 
-                st.session_state[
+                if (
                     "firma_embeddings_causas_3_2"
-                ] = firma_causas_3_2
-
-            embeddings_causas_3_2 = np.asarray(
-                st.session_state[
-                    "embeddings_causas_3_2"
-                ],
-                dtype=np.float32
-            )
-
-            # =================================================
-            # BÚSQUEDA DIRECTA
-            # =================================================
-
-            def buscar_directa_causa_3_2(
-                consulta
-            ):
-
-                consulta_limpia = (
-                    limpiar_causa_3_2(
-                        consulta
-                    )
-                )
-
-                resultados = []
-
-                for _, fila in (
-                    df_causas_3_2.iterrows()
+                    not in
+                    st.session_state
+                    or
+                    st.session_state[
+                        "firma_embeddings_causas_3_2"
+                    ]
+                    !=
+                    firma_causas_3_2
                 ):
 
-                    causa_limpia = (
-                        fila[
-                            "Busqueda_3_2"
-                        ]
-                    )
-
-                    if (
-                        consulta_limpia
-                        ==
-                        causa_limpia
-                        or
-                        consulta_limpia
-                        in
-                        causa_limpia
-                        or
-                        causa_limpia
-                        in
-                        consulta_limpia
-                    ):
-
-                        resultados.append(
-                            {
-                                "Causa_consultada":
-                                    consulta,
-
-                                "Causa_encontrada":
-                                    fila[
-                                        "Causa"
-                                    ],
-
-                                "Patologia_ID":
-                                    fila[
-                                        "Patologia_ID"
-                                    ],
-
-                                "Patologia":
-                                    fila[
-                                        "Patologia"
-                                    ],
-
-                                "Tipo":
-                                    "Exacta",
-
-                                "Puntaje":
-                                    100.0
-                            }
-                        )
-
-                if resultados:
-                    return resultados
-
-                # --------------------------------------------
-                # COINCIDENCIA APROXIMADA
-                # --------------------------------------------
-
-                coincidencias = process.extract(
-                    consulta_limpia,
-                    lista_causas_3_2,
-                    scorer=fuzz.WRatio,
-                    limit=5
-                )
-
-                for coincidencia in coincidencias:
-
-                    causa_encontrada = coincidencia[0]
-                    puntaje = float(
-                        coincidencia[1]
-                    )
-
-                    if (
-                        puntaje
-                        <
-                        UMBRAL_DIRECTO_CAUSA
-                    ):
-                        continue
-
-                    filas = df_causas_3_2[
+                    textos_causas_3_2 = (
                         df_causas_3_2[
                             "Busqueda_3_2"
                         ]
-                        ==
-                        causa_encontrada
-                    ]
+                        .tolist()
+                    )
+
+                    st.session_state[
+                        "embeddings_causas_3_2"
+                    ] = (
+                        modelo_biomedico_causa.encode(
+                            textos_causas_3_2,
+                            normalize_embeddings=True
+                        )
+                    )
+
+                    st.session_state[
+                        "firma_embeddings_causas_3_2"
+                    ] = firma_causas_3_2
+
+                embeddings_causas_3_2 = np.asarray(
+                    st.session_state[
+                        "embeddings_causas_3_2"
+                    ],
+                    dtype=np.float32
+                )
+
+# =================================================
+# BÚSQUEDA DIRECTA
+# =================================================
+
+                def buscar_directa_causa_3_2(
+                    consulta
+                ):
+
+                    consulta_limpia = (
+                        limpiar_causa_3_2(
+                            consulta
+                        )
+                    )
+
+                    resultados = []
 
                     for _, fila in (
-                        filas.iterrows()
+                        df_causas_3_2.iterrows()
                     ):
+
+                        causa_limpia = (
+                            fila[
+                                "Busqueda_3_2"
+                            ]
+                        )
+
+                        if (
+                            consulta_limpia
+                            ==
+                            causa_limpia
+                            or
+                            consulta_limpia
+                            in
+                            causa_limpia
+                            or
+                            causa_limpia
+                            in
+                            consulta_limpia
+                        ):
+
+                            resultados.append(
+                                {
+                                    "Causa_consultada":
+                                        consulta,
+
+                                    "Causa_encontrada":
+                                        fila[
+                                            "Causa"
+                                        ],
+
+                                    "Patologia_ID":
+                                        fila[
+                                            "Patologia_ID"
+                                        ],
+
+                                    "Patologia":
+                                        fila[
+                                            "Patologia"
+                                        ],
+
+                                    "Tipo":
+                                        "Exacta",
+
+                                    "Puntaje":
+                                        100.0
+                                }
+                            )
+
+                    if resultados:
+                        return resultados
+
+# --------------------------------------------
+# COINCIDENCIA APROXIMADA
+# --------------------------------------------
+
+                    coincidencias = process.extract(
+                        consulta_limpia,
+                        lista_causas_3_2,
+                        scorer=fuzz.WRatio,
+                        limit=5
+                    )
+
+                    for coincidencia in coincidencias:
+
+                        causa_encontrada = coincidencia[0]
+                        puntaje = float(
+                            coincidencia[1]
+                        )
+
+                        if (
+                            puntaje
+                            <
+                            UMBRAL_DIRECTO_CAUSA
+                        ):
+                            continue
+
+                        filas = df_causas_3_2[
+                            df_causas_3_2[
+                                "Busqueda_3_2"
+                            ]
+                            ==
+                            causa_encontrada
+                        ]
+
+                        for _, fila in (
+                            filas.iterrows()
+                        ):
+
+                            resultados.append(
+                                {
+                                    "Causa_consultada":
+                                        consulta,
+
+                                    "Causa_encontrada":
+                                        fila[
+                                            "Causa"
+                                        ],
+
+                                    "Patologia_ID":
+                                        fila[
+                                            "Patologia_ID"
+                                        ],
+
+                                    "Patologia":
+                                        fila[
+                                            "Patologia"
+                                        ],
+
+                                    "Tipo":
+                                        "Directa aproximada",
+
+                                    "Puntaje":
+                                        round(
+                                            puntaje,
+                                            2
+                                        )
+                                }
+                            )
+
+                    return resultados
+
+# =================================================
+# BÚSQUEDA SEMÁNTICA
+# =================================================
+
+                def buscar_semantica_causa_3_2(
+                    consulta
+                ):
+
+                    try:
+
+                        embedding_consulta = (
+                            modelo_biomedico_causa.encode(
+                                [consulta],
+                                normalize_embeddings=True
+                            )
+                        )
+
+                        embedding_consulta = np.asarray(
+                            embedding_consulta,
+                            dtype=np.float32
+                        )[0]
+
+                    except Exception as error:
+
+                        st.error(
+                            "No fue posible generar el embedding "
+                            "de la causa consultada."
+                        )
+
+                        return []
+
+                    norma_consulta = np.linalg.norm(
+                        embedding_consulta
+                    )
+
+                    if norma_consulta == 0:
+                        return []
+
+                    normas_base = np.linalg.norm(
+                        embeddings_causas_3_2,
+                        axis=1
+                    )
+
+                    denominadores = (
+                        normas_base
+                        *
+                        norma_consulta
+                    )
+
+                    similitudes = np.zeros(
+                        len(
+                            embeddings_causas_3_2
+                        ),
+                        dtype=np.float32
+                    )
+
+                    mascara = (
+                        denominadores
+                        >
+                        0
+                    )
+
+                    similitudes[
+                        mascara
+                    ] = (
+                        embeddings_causas_3_2[
+                            mascara
+                        ]
+                        @
+                        embedding_consulta
+                    ) / denominadores[
+                        mascara
+                    ]
+
+                    indices = np.argsort(
+                        similitudes
+                    )[::-1][
+                        :MAX_RESULTADOS_SEMANTICOS_CAUSA
+                    ]
+
+                    resultados = []
+
+                    for indice in indices:
+
+                        puntaje = (
+                            float(
+                                similitudes[
+                                    indice
+                                ]
+                            )
+                            *
+                            100
+                        )
+
+                        if (
+                            puntaje
+                            <
+                            UMBRAL_SEMANTICO_CAUSA
+                        ):
+                            continue
+
+                        fila = (
+                            df_causas_3_2.iloc[
+                                indice
+                            ]
+                        )
 
                         resultados.append(
                             {
@@ -3577,7 +3717,7 @@ elif (
                                     ],
 
                                 "Tipo":
-                                    "Directa aproximada",
+                                    "Semántica",
 
                                 "Puntaje":
                                     round(
@@ -3587,372 +3727,240 @@ elif (
                             }
                         )
 
-                return resultados
+                    return resultados
 
-            # =================================================
-            # BÚSQUEDA SEMÁNTICA
-            # =================================================
+# =================================================
+# BÚSQUEDA HÍBRIDA
+# =================================================
 
-            def buscar_semantica_causa_3_2(
-                consulta
-            ):
-
-                try:
-
-                    embedding_consulta = (
-                        modelo_biomedico_causa.encode(
-                            [consulta],
-                            normalize_embeddings=True
-                        )
-                    )
-
-                    embedding_consulta = np.asarray(
-                        embedding_consulta,
-                        dtype=np.float32
-                    )[0]
-
-                except Exception as error:
-
-                    st.error(
-                        "No fue posible generar el embedding "
-                        "de la causa consultada."
-                    )
-
-                    return []
-
-                norma_consulta = np.linalg.norm(
-                    embedding_consulta
-                )
-
-                if norma_consulta == 0:
-                    return []
-
-                normas_base = np.linalg.norm(
-                    embeddings_causas_3_2,
-                    axis=1
-                )
-
-                denominadores = (
-                    normas_base
-                    *
-                    norma_consulta
-                )
-
-                similitudes = np.zeros(
-                    len(
-                        embeddings_causas_3_2
-                    ),
-                    dtype=np.float32
-                )
-
-                mascara = (
-                    denominadores
-                    >
-                    0
-                )
-
-                similitudes[
-                    mascara
-                ] = (
-                    embeddings_causas_3_2[
-                        mascara
-                    ]
-                    @
-                    embedding_consulta
-                ) / denominadores[
-                    mascara
-                ]
-
-                indices = np.argsort(
-                    similitudes
-                )[::-1][
-                    :MAX_RESULTADOS_SEMANTICOS_CAUSA
-                ]
-
-                resultados = []
-
-                for indice in indices:
-
-                    puntaje = (
-                        float(
-                            similitudes[
-                                indice
-                            ]
-                        )
-                        *
-                        100
-                    )
-
-                    if (
-                        puntaje
-                        <
-                        UMBRAL_SEMANTICO_CAUSA
-                    ):
-                        continue
-
-                    fila = (
-                        df_causas_3_2.iloc[
-                            indice
-                        ]
-                    )
-
-                    resultados.append(
-                        {
-                            "Causa_consultada":
-                                consulta,
-
-                            "Causa_encontrada":
-                                fila[
-                                    "Causa"
-                                ],
-
-                            "Patologia_ID":
-                                fila[
-                                    "Patologia_ID"
-                                ],
-
-                            "Patologia":
-                                fila[
-                                    "Patologia"
-                                ],
-
-                            "Tipo":
-                                "Semántica",
-
-                            "Puntaje":
-                                round(
-                                    puntaje,
-                                    2
-                                )
-                        }
-                    )
-
-                return resultados
-
-            # =================================================
-            # BÚSQUEDA HÍBRIDA
-            # =================================================
-
-            def buscar_causa_hibrida_3_2(
-                consulta
-            ):
-
-                resultados_directos = (
-                    buscar_directa_causa_3_2(
-                        consulta
-                    )
-                )
-
-                if resultados_directos:
-                    return resultados_directos
-
-                return (
-                    buscar_semantica_causa_3_2(
-                        consulta
-                    )
-                )
-
-            # =================================================
-            # ELIMINAR DUPLICADOS
-            # =================================================
-
-            def eliminar_duplicados_causa_3_2(
-                resultados
-            ):
-
-                mejores = {}
-
-                for resultado in resultados:
-
-                    clave = (
-                        limpiar_causa_3_2(
-                            resultado[
-                                "Causa_consultada"
-                            ]
-                        ),
-
-                        str(
-                            resultado[
-                                "Patologia_ID"
-                            ]
-                        ).strip(),
-
-                        limpiar_causa_3_2(
-                            resultado[
-                                "Causa_encontrada"
-                            ]
-                        )
-                    )
-
-                    if clave not in mejores:
-
-                        mejores[
-                            clave
-                        ] = resultado
-
-                    elif (
-                        resultado[
-                            "Puntaje"
-                        ]
-                        >
-                        mejores[
-                            clave
-                        ][
-                            "Puntaje"
-                        ]
-                    ):
-
-                        mejores[
-                            clave
-                        ] = resultado
-
-                return list(
-                    mejores.values()
-                )
-
-            # =================================================
-            # INGRESAR UNA O VARIAS CAUSAS
-            # =================================================
-
-            texto_buscado = st.text_input(
-                "Ingrese una o varias causas:",
-                placeholder=(
-                    "Ejemplo: infección, alteración hormonal"
-                ),
-                key=(
-                    "texto_busqueda_causa_patologia"
-                )
-            )
-
-            st.caption(
-                "Puede ingresar varias causas "
-                "separadas por coma."
-            )
-
-            # =================================================
-            # PROCESAR CONSULTA
-            # =================================================
-
-            if texto_buscado.strip():
-
-                causas_consultadas = []
-
-                for elemento in (
-                    texto_buscado.split(",")
+                def buscar_causa_hibrida_3_2(
+                    consulta
                 ):
 
-                    causa = (
-                        elemento.strip()
-                    )
-
-                    if not causa:
-                        continue
-
-                    causa_limpia = (
-                        limpiar_causa_3_2(
-                            causa
+                    resultados_directos = (
+                        buscar_directa_causa_3_2(
+                            consulta
                         )
                     )
 
-                    if not causa_limpia:
-                        continue
+                    if resultados_directos:
+                        return resultados_directos
 
-                    if not any(
-                        limpiar_causa_3_2(
-                            existente
+                    return (
+                        buscar_semantica_causa_3_2(
+                            consulta
                         )
-                        ==
-                        causa_limpia
-                        for existente
-                        in causas_consultadas
-                    ):
-
-                        causas_consultadas.append(
-                            causa
-                        )
-
-                if not causas_consultadas:
-
-                    st.warning(
-                        "No se ingresaron causas válidas."
                     )
 
-                else:
+# =================================================
+# ELIMINAR DUPLICADOS
+# =================================================
 
-                    resultados_por_causa = {}
+                def eliminar_duplicados_causa_3_2(
+                    resultados
+                ):
 
-                    for causa in causas_consultadas:
+                    mejores = {}
 
-                        resultados = (
-                            buscar_causa_hibrida_3_2(
-                                causa
-                            )
-                        )
+                    for resultado in resultados:
 
-                        resultados = (
-                            eliminar_duplicados_causa_3_2(
-                                resultados
-                            )
-                        )
+                        clave = (
+                            limpiar_causa_3_2(
+                                resultado[
+                                    "Causa_consultada"
+                                ]
+                            ),
 
-                        resultados_por_causa[
-                            causa
-                        ] = resultados
-
-                    # =========================================
-                    # AGRUPAR POR PATOLOGÍA
-                    # =========================================
-
-                    patologias_causa = {}
-
-                    for (
-                        causa,
-                        resultados
-                    ) in (
-                        resultados_por_causa.items()
-                    ):
-
-                        for resultado in resultados:
-
-                            pid = str(
+                            str(
                                 resultado[
                                     "Patologia_ID"
                                 ]
-                            ).strip()
+                            ).strip(),
 
-                            if (
-                                pid
-                                not in
-                                patologias_causa
-                            ):
-
-                                patologias_causa[
-                                    pid
-                                ] = {
-
-                                    "Patologia_ID":
-                                        pid,
-
-                                    "Patologia":
-                                        str(
-                                            resultado[
-                                                "Patologia"
-                                            ]
-                                        ).strip(),
-
-                                    "Por_causa":
-                                        {}
-                                }
-
-                            if (
-                                causa
-                                not in
-                                patologias_causa[
-                                    pid
-                                ][
-                                    "Por_causa"
+                            limpiar_causa_3_2(
+                                resultado[
+                                    "Causa_encontrada"
                                 ]
-                            ):
+                            )
+                        )
+
+                        if clave not in mejores:
+
+                            mejores[
+                                clave
+                            ] = resultado
+
+                        elif (
+                            resultado[
+                                "Puntaje"
+                            ]
+                            >
+                            mejores[
+                                clave
+                            ][
+                                "Puntaje"
+                            ]
+                        ):
+
+                            mejores[
+                                clave
+                            ] = resultado
+
+                    return list(
+                        mejores.values()
+                    )
+
+# =================================================
+# INGRESAR UNA O VARIAS CAUSAS
+# =================================================
+
+                texto_buscado = st.text_input(
+                    "Ingrese una o varias causas:",
+                    placeholder=(
+                        "Ejemplo: infección, alteración hormonal"
+                    ),
+                    key=(
+                        "texto_busqueda_causa_patologia"
+                    )
+                )
+
+                st.caption(
+                    "Puede ingresar varias causas "
+                    "separadas por coma."
+                )
+
+# =================================================
+# PROCESAR CONSULTA
+# =================================================
+
+                if texto_buscado.strip():
+
+                    causas_consultadas = []
+
+                    for elemento in (
+                        texto_buscado.split(",")
+                    ):
+
+                        causa = (
+                            elemento.strip()
+                        )
+
+                        if not causa:
+                            continue
+
+                        causa_limpia = (
+                            limpiar_causa_3_2(
+                                causa
+                            )
+                        )
+
+                        if not causa_limpia:
+                            continue
+
+                        if not any(
+                            limpiar_causa_3_2(
+                                existente
+                            )
+                            ==
+                            causa_limpia
+                            for existente
+                            in causas_consultadas
+                        ):
+
+                            causas_consultadas.append(
+                                causa
+                            )
+
+                    if not causas_consultadas:
+
+                        st.warning(
+                            "No se ingresaron causas válidas."
+                        )
+
+                    else:
+
+                        resultados_por_causa = {}
+
+                        for causa in causas_consultadas:
+
+                            resultados = (
+                                buscar_causa_hibrida_3_2(
+                                    causa
+                                )
+                            )
+
+                            resultados = (
+                                eliminar_duplicados_causa_3_2(
+                                    resultados
+                                )
+                            )
+
+                            resultados_por_causa[
+                                causa
+                            ] = resultados
+
+# =========================================
+# AGRUPAR POR PATOLOGÍA
+# =========================================
+
+                        patologias_causa = {}
+
+                        for (
+                            causa,
+                            resultados
+                        ) in (
+                            resultados_por_causa.items()
+                        ):
+
+                            for resultado in resultados:
+
+                                pid = str(
+                                    resultado[
+                                        "Patologia_ID"
+                                    ]
+                                ).strip()
+
+                                if (
+                                    pid
+                                    not in
+                                    patologias_causa
+                                ):
+
+                                    patologias_causa[
+                                        pid
+                                    ] = {
+
+                                        "Patologia_ID":
+                                            pid,
+
+                                        "Patologia":
+                                            str(
+                                                resultado[
+                                                    "Patologia"
+                                                ]
+                                            ).strip(),
+
+                                        "Por_causa":
+                                            {}
+                                    }
+
+                                if (
+                                    causa
+                                    not in
+                                    patologias_causa[
+                                        pid
+                                    ][
+                                        "Por_causa"
+                                    ]
+                                ):
+
+                                    patologias_causa[
+                                        pid
+                                    ][
+                                        "Por_causa"
+                                    ][
+                                        causa
+                                    ] = []
 
                                 patologias_causa[
                                     pid
@@ -3960,389 +3968,381 @@ elif (
                                     "Por_causa"
                                 ][
                                     causa
-                                ] = []
+                                ].append(
+                                    resultado
+                                )
 
-                            patologias_causa[
-                                pid
-                            ][
-                                "Por_causa"
-                            ][
-                                causa
-                            ].append(
-                                resultado
+# =========================================
+# EVALUAR PATOLOGÍAS
+# =========================================
+
+                        resultados_finales_causa = []
+
+                        total_causas = len(
+                            causas_consultadas
+                        )
+
+                        for (
+                            pid,
+                            datos
+                        ) in (
+                            patologias_causa.items()
+                        ):
+
+                            coincidencias_validas = []
+
+                            for causa in causas_consultadas:
+
+                                candidatos = (
+                                    datos[
+                                        "Por_causa"
+                                    ].get(
+                                        causa,
+                                        []
+                                    )
+                                )
+
+                                if not candidatos:
+                                    continue
+
+                                candidatos = sorted(
+                                    candidatos,
+                                    key=lambda x:
+                                        x[
+                                            "Puntaje"
+                                        ],
+                                    reverse=True
+                                )
+
+                                mejor = candidatos[0]
+
+# ---------------------------------
+# EVIDENCIA VÁLIDA
+# ---------------------------------
+
+                                if (
+                                    mejor[
+                                        "Tipo"
+                                    ]
+                                    ==
+                                    "Exacta"
+                                ):
+
+                                    es_valida = True
+
+                                elif (
+                                    mejor[
+                                        "Tipo"
+                                    ]
+                                    ==
+                                    "Directa aproximada"
+                                    and
+                                    mejor[
+                                        "Puntaje"
+                                    ]
+                                    >=
+                                    UMBRAL_DIRECTO_CAUSA
+                                ):
+
+                                    es_valida = True
+
+                                elif (
+                                    mejor[
+                                        "Tipo"
+                                    ]
+                                    ==
+                                    "Semántica"
+                                    and
+                                    mejor[
+                                        "Puntaje"
+                                    ]
+                                    >=
+                                    UMBRAL_SEMANTICO_CAUSA
+                                ):
+
+                                    es_valida = True
+
+                                else:
+
+                                    es_valida = False
+
+                                if es_valida:
+
+                                    coincidencias_validas.append(
+                                        mejor
+                                    )
+
+                            sintomas_respaldo = len(
+                                coincidencias_validas
                             )
 
-                    # =========================================
-                    # EVALUAR PATOLOGÍAS
-                    # =========================================
+                            if (
+                                sintomas_respaldo
+                                == 0
+                            ):
+                                continue
 
-                    resultados_finales_causa = []
+                            cobertura = (
+                                sintomas_respaldo
+                                /
+                                total_causas
+                            ) * 100
 
-                    total_causas = len(
-                        causas_consultadas
-                    )
+                            puntajes = [
+                                x[
+                                    "Puntaje"
+                                ]
+                                for x
+                                in coincidencias_validas
+                            ]
 
-                    for (
-                        pid,
-                        datos
-                    ) in (
-                        patologias_causa.items()
-                    ):
-
-                        coincidencias_validas = []
-
-                        for causa in causas_consultadas:
-
-                            candidatos = (
-                                datos[
-                                    "Por_causa"
-                                ].get(
-                                    causa,
-                                    []
+                            promedio = (
+                                sum(
+                                    puntajes
+                                )
+                                /
+                                len(
+                                    puntajes
                                 )
                             )
 
-                            if not candidatos:
-                                continue
-
-                            candidatos = sorted(
-                                candidatos,
-                                key=lambda x:
-                                    x[
-                                        "Puntaje"
-                                    ],
-                                reverse=True
-                            )
-
-                            mejor = candidatos[0]
-
-                            # ---------------------------------
-                            # EVIDENCIA VÁLIDA
-                            # ---------------------------------
+# ---------------------------------
+# NIVEL
+# ---------------------------------
 
                             if (
-                                mejor[
-                                    "Tipo"
-                                ]
+                                sintomas_respaldo
                                 ==
-                                "Exacta"
+                                total_causas
+                                and
+                                total_causas
+                                >=
+                                2
                             ):
 
-                                es_valida = True
+                                nivel = (
+                                    "EVIDENCIA ACUMULADA"
+                                )
 
                             elif (
-                                mejor[
-                                    "Tipo"
-                                ]
-                                ==
-                                "Directa aproximada"
-                                and
-                                mejor[
-                                    "Puntaje"
-                                ]
+                                sintomas_respaldo
                                 >=
-                                UMBRAL_DIRECTO_CAUSA
+                                2
                             ):
 
-                                es_valida = True
+                                nivel = (
+                                    "EVIDENCIA MULTIPLE"
+                                )
 
                             elif (
-                                mejor[
-                                    "Tipo"
-                                ]
-                                ==
-                                "Semántica"
-                                and
-                                mejor[
-                                    "Puntaje"
-                                ]
+                                promedio
                                 >=
-                                UMBRAL_SEMANTICO_CAUSA
+                                70
                             ):
 
-                                es_valida = True
+                                nivel = (
+                                    "COINCIDENCIA FUERTE"
+                                )
 
                             else:
 
-                                es_valida = False
-
-                            if es_valida:
-
-                                coincidencias_validas.append(
-                                    mejor
+                                nivel = (
+                                    "CANDIDATA - "
+                                    "REQUIERE CONFIRMACION"
                                 )
 
-                        sintomas_respaldo = len(
-                            coincidencias_validas
+                            resultados_finales_causa.append(
+                                {
+                                    "Codigo":
+                                        pid,
+
+                                    "Patologia":
+                                        datos[
+                                            "Patologia"
+                                        ],
+
+                                    "Causas_respaldo":
+                                        sintomas_respaldo,
+
+                                    "Cobertura":
+                                        round(
+                                            cobertura,
+                                            2
+                                        ),
+
+                                    "Promedio":
+                                        round(
+                                            promedio,
+                                            2
+                                        ),
+
+                                    "Nivel":
+                                        nivel,
+
+                                    "Coincidencias":
+                                        coincidencias_validas
+                                }
+                            )
+
+# =========================================
+# ORDENAR
+# =========================================
+
+                        resultados_finales_causa.sort(
+                            key=lambda x: (
+                                x[
+                                    "Causas_respaldo"
+                                ],
+
+                                x[
+                                    "Cobertura"
+                                ],
+
+                                x[
+                                    "Promedio"
+                                ]
+                            ),
+                            reverse=True
                         )
 
-                        if (
-                            sintomas_respaldo
-                            == 0
-                        ):
-                            continue
+# =========================================
+# MOSTRAR
+# =========================================
 
-                        cobertura = (
-                            sintomas_respaldo
-                            /
-                            total_causas
-                        ) * 100
+                        if not resultados_finales_causa:
 
-                        puntajes = [
-                            x[
-                                "Puntaje"
-                            ]
-                            for x
-                            in coincidencias_validas
-                        ]
-
-                        promedio = (
-                            sum(
-                                puntajes
-                            )
-                            /
-                            len(
-                                puntajes
-                            )
-                        )
-
-                        # ---------------------------------
-                        # NIVEL
-                        # ---------------------------------
-
-                        if (
-                            sintomas_respaldo
-                            ==
-                            total_causas
-                            and
-                            total_causas
-                            >=
-                            2
-                        ):
-
-                            nivel = (
-                                "EVIDENCIA ACUMULADA"
-                            )
-
-                        elif (
-                            sintomas_respaldo
-                            >=
-                            2
-                        ):
-
-                            nivel = (
-                                "EVIDENCIA MULTIPLE"
-                            )
-
-                        elif (
-                            promedio
-                            >=
-                            70
-                        ):
-
-                            nivel = (
-                                "COINCIDENCIA FUERTE"
+                            st.warning(
+                                "No se encontraron patologías "
+                                "con evidencia suficiente para "
+                                "las causas ingresadas."
                             )
 
                         else:
 
-                            nivel = (
-                                "CANDIDATA - "
-                                "REQUIERE CONFIRMACION"
+                            st.success(
+                                f"Se encontraron "
+                                f"{len(resultados_finales_causa)} "
+                                f"patologías relacionadas."
                             )
 
-                        resultados_finales_causa.append(
-                            {
-                                "Codigo":
-                                    pid,
-
-                                "Patologia":
-                                    datos[
-                                        "Patologia"
-                                    ],
-
-                                "Causas_respaldo":
-                                    sintomas_respaldo,
-
-                                "Cobertura":
-                                    round(
-                                        cobertura,
-                                        2
-                                    ),
-
-                                "Promedio":
-                                    round(
-                                        promedio,
-                                        2
-                                    ),
-
-                                "Nivel":
-                                    nivel,
-
-                                "Coincidencias":
-                                    coincidencias_validas
-                            }
-                        )
-
-                    # =========================================
-                    # ORDENAR
-                    # =========================================
-
-                    resultados_finales_causa.sort(
-                        key=lambda x: (
-                            x[
-                                "Causas_respaldo"
-                            ],
-
-                            x[
-                                "Cobertura"
-                            ],
-
-                            x[
-                                "Promedio"
+                            opciones = [
+                                "Seleccione una patología"
                             ]
-                        ),
-                        reverse=True
-                    )
 
-                    # =========================================
-                    # MOSTRAR
-                    # =========================================
-
-                    if not resultados_finales_causa:
-
-                        st.warning(
-                            "No se encontraron patologías "
-                            "con evidencia suficiente para "
-                            "las causas ingresadas."
-                        )
-
-                    else:
-
-                        st.success(
-                            f"Se encontraron "
-                            f"{len(resultados_finales_causa)} "
-                            f"patologías relacionadas."
-                        )
-
-                        opciones = [
-                            "Seleccione una patología"
-                        ]
-
-                        for resultado in (
-                            resultados_finales_causa
-                        ):
-
-                            opciones.append(
-                                f"{resultado['Codigo']} — "
-                                f"{resultado['Patologia']} | "
-                                f"{resultado['Nivel']} | "
-                                f"{resultado['Cobertura']:.0f}%"
-                            )
-
-                        seleccion = st.selectbox(
-                            "Seleccione la patología:",
-                            opciones,
-                            key=(
-                                "seleccion_patologia_causa_busqueda"
-                            )
-                        )
-
-                        if (
-                            seleccion
-                            !=
-                            "Seleccione una patología"
-                        ):
-
-                            indice = (
-                                opciones.index(
-                                    seleccion
-                                )
-                                - 1
-                            )
-
-                            resultado = (
-                                resultados_finales_causa[
-                                    indice
-                                ]
-                            )
-
-                            # =================================
-                            # EVIDENCIA
-                            # =================================
-
-                            st.write(
-                                "**Evidencia encontrada:**"
-                            )
-
-                            col1, col2, col3 = (
-                                st.columns(3)
-                            )
-
-                            with col1:
-
-                                st.metric(
-                                    "Causas de respaldo",
-                                    (
-                                        f"{resultado['Causas_respaldo']}"
-                                        f"/{total_causas}"
-                                    )
-                                )
-
-                            with col2:
-
-                                st.metric(
-                                    "Cobertura",
-                                    (
-                                        f"{resultado['Cobertura']:.2f}%"
-                                    )
-                                )
-
-                            with col3:
-
-                                st.metric(
-                                    "Promedio",
-                                    (
-                                        f"{resultado['Promedio']:.2f}%"
-                                    )
-                                )
-
-                            st.info(
-                                f"Nivel de evidencia: "
-                                f"**{resultado['Nivel']}**"
-                            )
-
-                            st.write(
-                                "**Causas que respaldan "
-                                "la coincidencia:**"
-                            )
-
-                            for coincidencia in (
-                                resultado[
-                                    "Coincidencias"
-                                ]
+                            for resultado in (
+                                resultados_finales_causa
                             ):
 
-                                st.write(
-                                    "• "
-                                    f"**{coincidencia['Causa_consultada']}**"
-                                    " → "
-                                    f"{coincidencia['Causa_encontrada']}"
-                                    " | "
-                                    f"{coincidencia['Tipo']}"
-                                    " | "
-                                    f"{coincidencia['Puntaje']:.2f}%"
+                                opciones.append(
+                                    f"{resultado['Codigo']} — "
+                                    f"{resultado['Patologia']} | "
+                                    f"{resultado['Nivel']} | "
+                                    f"{resultado['Cobertura']:.0f}%"
                                 )
 
-                            # =================================
-                            # FICHA
-                            # =================================
-
-                            mostrar_ficha_patologia(
-                                resultado[
-                                    "Codigo"
-                                ]
+                            seleccion = st.selectbox(
+                                "Seleccione la patología:",
+                                opciones,
+                                key=(
+                                    "seleccion_patologia_causa_busqueda"
+                                )
                             )
+
+                            if (
+                                seleccion
+                                !=
+                                "Seleccione una patología"
+                            ):
+
+                                indice = (
+                                    opciones.index(
+                                        seleccion
+                                    )
+                                    - 1
+                                )
+
+                                resultado = (
+                                    resultados_finales_causa[
+                                        indice
+                                    ]
+                                )
+
+# =================================
+# EVIDENCIA
+# =================================
+
+                                st.write(
+                                    "**Evidencia encontrada:**"
+                                )
+
+                                col1, col2, col3 = (
+                                    st.columns(3)
+                                )
+
+                                with col1:
+
+                                    st.metric(
+                                        "Causas de respaldo",
+                                        (
+                                            f"{resultado['Causas_respaldo']}"
+                                            f"/{total_causas}"
+                                        )
+                                    )
+
+                                with col2:
+
+                                    st.metric(
+                                        "Cobertura",
+                                        (
+                                            f"{resultado['Cobertura']:.2f}%"
+                                        )
+                                    )
+
+                                with col3:
+
+                                    st.metric(
+                                        "Promedio",
+                                        (
+                                            f"{resultado['Promedio']:.2f}%"
+                                        )
+                                    )
+
+                                st.info(
+                                    f"Nivel de evidencia: "
+                                    f"**{resultado['Nivel']}**"
+                                )
+
+                                st.write(
+                                    "**Causas que respaldan "
+                                    "la coincidencia:**"
+                                )
+
+                                for coincidencia in (
+                                    resultado[
+                                        "Coincidencias"
+                                    ]
+                                ):
+
+                                    st.write(
+                                        "• "
+                                        f"**{coincidencia['Causa_consultada']}**"
+                                        " → "
+                                        f"{coincidencia['Causa_encontrada']}"
+                                        " | "
+                                        f"{coincidencia['Tipo']}"
+                                        " | "
+                                        f"{coincidencia['Puntaje']:.2f}%"
+                                    )
+
+# =================================
+# FICHA
+# =================================
+
+                                mostrar_ficha_patologia(
+                                    resultado[
+                                        "Codigo"
+                                    ]
+                                )
 # ============================================================
 # 3.3 BUSCAR POR SÍNTOMA
 # ============================================================
