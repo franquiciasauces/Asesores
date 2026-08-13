@@ -6810,7 +6810,7 @@ if opcion_asesoria == "Entrevista":
 
     st.subheader("ENTREVISTA")
 
-    metodo_busqueda = st.radio(
+    metodo_busqueda_asesoria = st.radio(
         "¿Cómo desea buscar la patología?",
         [
             "Por código",
@@ -6823,25 +6823,27 @@ if opcion_asesoria == "Entrevista":
     # BÚSQUEDA POR CÓDIGO
     # ========================================================
 
-    if metodo_busqueda == "Por código":
+    if metodo_busqueda_asesoria == "Por código":
 
-        codigo_buscado = st.text_input(
+        codigo_buscado_asesoria = st.text_input(
             "Ingrese el código de la patología:",
             key="codigo_patologia_asesoria"
         )
 
-        if codigo_buscado.strip():
+        if codigo_buscado_asesoria.strip():
 
-            codigo_buscado = codigo_buscado.strip()
+            codigo_buscado_asesoria = (
+                codigo_buscado_asesoria.strip()
+            )
 
-            resultado = Patologias[
+            resultado_codigo_asesoria = Patologias[
                 Patologias.iloc[:, 1]
                 .astype(str)
                 .str.strip()
-                == codigo_buscado
+                == codigo_buscado_asesoria
             ]
 
-            if resultado.empty:
+            if resultado_codigo_asesoria.empty:
 
                 st.warning(
                     "No se encontró una patología "
@@ -6850,72 +6852,87 @@ if opcion_asesoria == "Entrevista":
 
             else:
 
-                fila = resultado.iloc[0]
+                fila_patologia_asesoria = (
+                    resultado_codigo_asesoria.iloc[0]
+                )
 
-                patologia_id = str(
-                    fila.iloc[1]
+                patologia_id_asesoria = str(
+                    fila_patologia_asesoria.iloc[1]
                 ).strip()
 
-                nombre_patologia = str(
-                    fila.iloc[0]
+                patologia_nombre_asesoria = str(
+                    fila_patologia_asesoria.iloc[0]
                 ).strip()
 
                 st.success(
-                    f"Patología: {nombre_patologia}"
+                    f"Patología: "
+                    f"{patologia_nombre_asesoria}"
                 )
 
                 st.write(
-                    f"**Código:** {patologia_id}"
+                    f"**Código:** "
+                    f"{patologia_id_asesoria}"
                 )
 
                 st.session_state[
                     "patologia_id_asesoria"
-                ] = patologia_id
+                ] = patologia_id_asesoria
 
                 st.session_state[
                     "patologia_nombre_asesoria"
-                ] = nombre_patologia
+                ] = patologia_nombre_asesoria
 
     # ========================================================
     # BÚSQUEDA POR NOMBRE
     # ========================================================
 
-    elif metodo_busqueda == "Por nombre":
+    elif metodo_busqueda_asesoria == "Por nombre":
 
-        nombre_buscado = st.text_input(
+        nombre_buscado_asesoria = st.text_input(
             "Ingrese el nombre de la patología:",
             key="nombre_patologia_asesoria"
         )
 
-        if nombre_buscado.strip():
+        if nombre_buscado_asesoria.strip():
 
-            texto_busqueda = unidecode(
-                nombre_buscado.strip()
+            texto_busqueda_asesoria = unidecode(
+                nombre_buscado_asesoria.strip()
             ).lower()
 
-            resultados = []
+            resultados_patologia_asesoria = []
 
-            for _, fila in Patologias.iterrows():
+            # BUSCAR DIRECTAMENTE EN DATAFRAME PATOLOGIAS
 
-                nombre = str(
-                    fila.iloc[0]
+            for _, fila_patologia_asesoria in (
+                Patologias.iterrows()
+            ):
+
+                nombre_patologia_asesoria = str(
+                    fila_patologia_asesoria.iloc[0]
                 ).strip()
 
-                codigo = str(
-                    fila.iloc[1]
+                codigo_patologia_asesoria = str(
+                    fila_patologia_asesoria.iloc[1]
                 ).strip()
 
-                nombre_normalizado = unidecode(
-                    nombre
-                ).lower()
+                nombre_normalizado_asesoria = (
+                    unidecode(
+                        nombre_patologia_asesoria
+                    )
+                    .lower()
+                )
 
                 # Coincidencia directa
-                if texto_busqueda in nombre_normalizado:
 
-                    resultados.append(
+                if (
+                    texto_busqueda_asesoria
+                    in nombre_normalizado_asesoria
+                ):
+
+                    resultados_patologia_asesoria.append(
                         (
-                            codigo,
-                            nombre,
+                            codigo_patologia_asesoria,
+                            nombre_patologia_asesoria,
                             100
                         )
                     )
@@ -6923,95 +6940,130 @@ if opcion_asesoria == "Entrevista":
                     continue
 
                 # Tolerancia a errores de digitación
-                puntaje = fuzz.WRatio(
-                    texto_busqueda,
-                    nombre_normalizado
+
+                puntaje_asesoria = fuzz.WRatio(
+                    texto_busqueda_asesoria,
+                    nombre_normalizado_asesoria
                 )
 
-                if puntaje >= 60:
+                if puntaje_asesoria >= 60:
 
-                    resultados.append(
+                    resultados_patologia_asesoria.append(
                         (
-                            codigo,
-                            nombre,
-                            puntaje
+                            codigo_patologia_asesoria,
+                            nombre_patologia_asesoria,
+                            puntaje_asesoria
                         )
                     )
 
-            resultados = sorted(
-                resultados,
+            resultados_patologia_asesoria = sorted(
+                resultados_patologia_asesoria,
                 key=lambda x: x[2],
                 reverse=True
             )
 
-            if not resultados:
+            # =================================================
+            # SIN RESULTADOS
+            # =================================================
+
+            if not resultados_patologia_asesoria:
 
                 st.warning(
                     "No se encontraron patologías "
                     "que coincidan con la búsqueda."
                 )
 
-            elif len(resultados) == 1:
+            # =================================================
+            # UNA COINCIDENCIA
+            # =================================================
 
-                codigo, nombre, puntaje = resultados[0]
+            elif len(resultados_patologia_asesoria) == 1:
+
+                (
+                    codigo_patologia_asesoria,
+                    nombre_patologia_asesoria,
+                    puntaje_asesoria
+                ) = resultados_patologia_asesoria[0]
 
                 st.success(
-                    f"Patología encontrada: {nombre}"
+                    f"Patología encontrada: "
+                    f"{nombre_patologia_asesoria}"
                 )
 
                 st.write(
-                    f"**Código:** {codigo}"
+                    f"**Código:** "
+                    f"{codigo_patologia_asesoria}"
                 )
 
                 st.session_state[
                     "patologia_id_asesoria"
-                ] = codigo
+                ] = codigo_patologia_asesoria
 
                 st.session_state[
                     "patologia_nombre_asesoria"
-                ] = nombre
+                ] = nombre_patologia_asesoria
+
+            # =================================================
+            # VARIAS COINCIDENCIAS
+            # =================================================
 
             else:
 
-                opciones = [
+                opciones_patologia_asesoria = [
                     "Seleccione una patología"
                 ]
 
-                for codigo, nombre, puntaje in resultados:
+                for (
+                    codigo_patologia_asesoria,
+                    nombre_patologia_asesoria,
+                    puntaje_asesoria
+                ) in resultados_patologia_asesoria:
 
-                    opciones.append(
-                        f"{codigo} — {nombre}"
+                    opciones_patologia_asesoria.append(
+                        f"{codigo_patologia_asesoria}"
+                        f" — "
+                        f"{nombre_patologia_asesoria}"
                     )
 
-                seleccion = st.selectbox(
-                    "Seleccione la patología correspondiente:",
-                    opciones,
-                    key="seleccion_patologia_asesoria"
+                seleccion_patologia_asesoria = (
+                    st.selectbox(
+                        "Seleccione la patología correspondiente:",
+                        opciones_patologia_asesoria,
+                        key="seleccion_patologia_asesoria"
+                    )
                 )
 
                 if (
-                    seleccion
+                    seleccion_patologia_asesoria
                     != "Seleccione una patología"
                 ):
 
-                    codigo, nombre = seleccion.split(
+                    (
+                        codigo_patologia_asesoria,
+                        nombre_patologia_asesoria
+                    ) = seleccion_patologia_asesoria.split(
                         " — ",
                         1
                     )
 
                     st.success(
                         f"Patología seleccionada: "
-                        f"{nombre}"
+                        f"{nombre_patologia_asesoria}"
                     )
 
                     st.write(
-                        f"**Código:** {codigo}"
+                        f"**Código:** "
+                        f"{codigo_patologia_asesoria}"
                     )
 
                     st.session_state[
                         "patologia_id_asesoria"
-                    ] = codigo.strip()
+                    ] = (
+                        codigo_patologia_asesoria.strip()
+                    )
 
                     st.session_state[
                         "patologia_nombre_asesoria"
-                    ] = nombre.strip()
+                    ] = (
+                        nombre_patologia_asesoria.strip()
+                    )
