@@ -6801,44 +6801,34 @@ elif opcion_principal == "ASESORÍA":
         key="menu_asesoria_principal"
     )
 
-from pathlib import Path
-import ast, textwrap
 
-block = r'''
 # ============================================================
-# 6.1. ENTREVISTA — SELECCIÓN DE PATOLOGÍA Y PREGUNTAS
+# 6.1 — ENTREVISTA
 # ============================================================
 
 if opcion_asesoria == "Entrevista":
 
-    st.subheader(
-        "Selección de patología"
-    )
-
     # ========================================================
-    # BUSCAR PATOLOGÍA DIRECTAMENTE EN LA HOJA PATOLOGIAS
+    # 6.1.1 — ENTRADA Y SELECCIÓN DE PATOLOGÍA
     # ========================================================
 
-    busqueda_patologia_asesoria = st.text_input(
+    st.subheader("ENTREVISTA")
+
+    busqueda_patologia = st.text_input(
         "Ingrese el código o nombre de la patología:",
         key="busqueda_patologia_asesoria"
     )
 
-    if busqueda_patologia_asesoria.strip():
+    if busqueda_patologia.strip():
 
         texto_busqueda = (
             unidecode(
-                busqueda_patologia_asesoria
+                busqueda_patologia.strip()
             )
-            .strip()
             .lower()
         )
 
-        resultados_patologia_asesoria = []
-
-        # ----------------------------------------------------
-        # 1. COINCIDENCIA EXACTA POR CÓDIGO
-        # ----------------------------------------------------
+        resultados_patologia = []
 
         for _, fila in Patologias.iterrows():
 
@@ -6850,611 +6840,177 @@ if opcion_asesoria == "Entrevista":
                 fila.iloc[1]
             ).strip()
 
-            if (
-                texto_busqueda
-                ==
-                unidecode(codigo).lower()
-            ):
+            codigo_normalizado = (
+                unidecode(codigo)
+                .lower()
+                .strip()
+            )
 
-                resultados_patologia_asesoria.append(
+            nombre_normalizado = (
+                unidecode(nombre)
+                .lower()
+                .strip()
+            )
+
+            # Búsqueda exacta por código
+
+            if texto_busqueda == codigo_normalizado:
+
+                resultados_patologia.append(
                     {
                         "Codigo": codigo,
                         "Patologia": nombre,
-                        "Coincidencia": 100.0
+                        "Coincidencia": 100
                     }
                 )
 
-        # ----------------------------------------------------
-        # 2. COINCIDENCIA EXACTA / CONTENIDA POR NOMBRE
-        # ----------------------------------------------------
+                continue
 
-        if not resultados_patologia_asesoria:
+            # Búsqueda por nombre
 
-            for _, fila in Patologias.iterrows():
+            if texto_busqueda in nombre_normalizado:
 
-                codigo = str(
-                    fila.iloc[0]
-                ).strip()
-
-                nombre = str(
-                    fila.iloc[1]
-                ).strip()
-
-                nombre_normalizado = (
-                    unidecode(
-                        nombre
-                    )
-                    .strip()
-                    .lower()
+                resultados_patologia.append(
+                    {
+                        "Codigo": codigo,
+                        "Patologia": nombre,
+                        "Coincidencia": 100
+                    }
                 )
 
-                if (
-                    texto_busqueda
-                    in
-                    nombre_normalizado
-                ):
+                continue
 
-                    resultados_patologia_asesoria.append(
-                        {
-                            "Codigo": codigo,
-                            "Patologia": nombre,
-                            "Coincidencia": 100.0
-                        }
-                    )
+            # Búsqueda tolerante a errores
 
-        # ----------------------------------------------------
-        # 3. BÚSQUEDA FUZZY SOBRE LA HOJA PATOLOGIAS
-        # ----------------------------------------------------
+            puntaje = fuzz.WRatio(
+                texto_busqueda,
+                nombre_normalizado
+            )
 
-        if not resultados_patologia_asesoria:
+            if puntaje >= 60:
 
-            nombres_patologias = []
-
-            for _, fila in Patologias.iterrows():
-
-                nombre = str(
-                    fila.iloc[1]
-                ).strip()
-
-                if nombre:
-
-                    nombres_patologias.append(
-                        (
-                            unidecode(
-                                nombre
-                            )
-                            .strip()
-                            .lower(),
-                            str(
-                                fila.iloc[0]
-                            ).strip(),
-                            nombre
+                resultados_patologia.append(
+                    {
+                        "Codigo": codigo,
+                        "Patologia": nombre,
+                        "Coincidencia": round(
+                            puntaje,
+                            2
                         )
-                    )
-
-            for (
-                nombre_normalizado,
-                codigo,
-                nombre_original
-            ) in nombres_patologias:
-
-                puntaje = fuzz.WRatio(
-                    texto_busqueda,
-                    nombre_normalizado
+                    }
                 )
 
-                if puntaje >= 60:
-
-                    resultados_patologia_asesoria.append(
-                        {
-                            "Codigo": codigo,
-                            "Patologia": nombre_original,
-                            "Coincidencia": round(
-                                float(puntaje),
-                                2
-                            )
-                        }
-                    )
-
-        # ----------------------------------------------------
-        # ELIMINAR DUPLICADOS Y ORDENAR
-        # ----------------------------------------------------
+        # Eliminar duplicados
 
         resultados_unicos = {}
 
-        for resultado in (
-            resultados_patologia_asesoria
-        ):
+        for resultado in resultados_patologia:
 
-            codigo = resultado[
-                "Codigo"
-            ]
-
-            anterior = (
-                resultados_unicos.get(
-                    codigo
-                )
-            )
+            codigo = resultado["Codigo"]
 
             if (
-                anterior is None
-                or
-                resultado[
-                    "Coincidencia"
-                ]
-                >
-                anterior[
-                    "Coincidencia"
-                ]
+                codigo not in resultados_unicos
+                or resultado["Coincidencia"]
+                > resultados_unicos[codigo]["Coincidencia"]
             ):
 
-                resultados_unicos[
-                    codigo
-                ] = resultado
+                resultados_unicos[codigo] = resultado
 
-        resultados_patologia_asesoria = sorted(
+        resultados_patologia = sorted(
             resultados_unicos.values(),
-            key=lambda x: (
-                x["Coincidencia"],
-                unidecode(
-                    x["Patologia"]
-                ).lower()
-            ),
+            key=lambda x: x["Coincidencia"],
             reverse=True
         )
 
-        # ====================================================
-        # SELECCIÓN DE PATOLOGÍA
-        # ====================================================
+        # Sin resultados
 
-        patologia_seleccionada_asesoria = None
-
-        if not resultados_patologia_asesoria:
+        if not resultados_patologia:
 
             st.warning(
                 "No se encontró una patología "
-                "suficientemente relacionada con la búsqueda."
+                "que coincida con la búsqueda."
             )
 
-        elif len(
-            resultados_patologia_asesoria
-        ) == 1:
+        # Una coincidencia
 
-            patologia_seleccionada_asesoria = (
-                resultados_patologia_asesoria[0]
+        elif len(resultados_patologia) == 1:
+
+            patologia_seleccionada = (
+                resultados_patologia[0]
             )
-
-        else:
-
-            opciones_patologia_asesoria = [
-                "Seleccione una patología"
-            ]
-
-            for resultado in (
-                resultados_patologia_asesoria
-            ):
-
-                opciones_patologia_asesoria.append(
-                    f"{resultado['Codigo']} — "
-                    f"{resultado['Patologia']}"
-                    f" | "
-                    f"{resultado['Coincidencia']:.0f}%"
-                )
-
-            seleccion_patologia_asesoria = st.selectbox(
-                "Seleccione la patología:",
-                opciones_patologia_asesoria,
-                key="seleccion_patologia_asesoria"
-            )
-
-            if (
-                seleccion_patologia_asesoria
-                !=
-                "Seleccione una patología"
-            ):
-
-                codigo_seleccionado = (
-                    seleccion_patologia_asesoria
-                    .split(" — ", 1)[0]
-                    .strip()
-                )
-
-                for resultado in (
-                    resultados_patologia_asesoria
-                ):
-
-                    if (
-                        resultado[
-                            "Codigo"
-                        ]
-                        ==
-                        codigo_seleccionado
-                    ):
-
-                        patologia_seleccionada_asesoria = (
-                            resultado
-                        )
-
-                        break
-
-        # ====================================================
-        # GUARDAR PATOLOGÍA SELECCIONADA
-        # ====================================================
-
-        if (
-            patologia_seleccionada_asesoria
-            is not None
-        ):
-
-            patologia_id_asesoria = str(
-                patologia_seleccionada_asesoria[
-                    "Codigo"
-                ]
-            ).strip()
-
-            patologia_nombre_asesoria = str(
-                patologia_seleccionada_asesoria[
-                    "Patologia"
-                ]
-            ).strip()
-
-            # -----------------------------------------------
-            # GUARDAR EN SESSION STATE
-            # -----------------------------------------------
-
-            st.session_state[
-                "patologia_id_asesoria"
-            ] = patologia_id_asesoria
-
-            st.session_state[
-                "patologia_nombre_asesoria"
-            ] = patologia_nombre_asesoria
 
             st.success(
-                "Patología seleccionada: "
-                +
-                patologia_nombre_asesoria
+                "Patología encontrada: "
+                + patologia_seleccionada["Patologia"]
             )
 
             st.write(
                 "**Código:** "
-                +
-                patologia_id_asesoria
-            )
-
-            # =================================================
-            # CARGAR PREGUNTAS DESDE LA HOJA ENTREVISTA
-            # =================================================
-
-            entrevista_actual_asesoria = (
-                Entrevista[
-                    Entrevista[
-                        "Patologia_ID"
-                    ]
-                    .astype(str)
-                    .str.strip()
-                    ==
-                    patologia_id_asesoria
-                ]
-                .copy()
-                .sort_values(
-                    "Orden"
-                )
-                .reset_index(
-                    drop=True
-                )
+                + patologia_seleccionada["Codigo"]
             )
 
             st.session_state[
-                "entrevista_actual_asesoria"
-            ] = entrevista_actual_asesoria
+                "patologia_id_asesoria"
+            ] = patologia_seleccionada["Codigo"]
 
-            # Inicializar / reiniciar respuestas
-            # para la patología seleccionada.
-            respuestas_entrevista_asesoria = {}
+            st.session_state[
+                "patologia_nombre_asesoria"
+            ] = patologia_seleccionada["Patologia"]
 
-            # =================================================
-            # MOSTRAR ENTREVISTA
-            # =================================================
+        # Varias coincidencias
 
-            if entrevista_actual_asesoria.empty:
+        else:
 
-                st.warning(
-                    "No se encontraron preguntas "
-                    "de entrevista para la patología "
-                    "seleccionada."
+            opciones_patologia = [
+                "Seleccione una patología"
+            ]
+
+            for resultado in resultados_patologia:
+
+                opciones_patologia.append(
+                    resultado["Codigo"]
+                    + " — "
+                    + resultado["Patologia"]
                 )
 
-            else:
+            seleccion_patologia = st.selectbox(
+                "Se encontraron varias coincidencias. "
+                "Seleccione la patología correspondiente:",
+                opciones_patologia,
+                key="seleccion_patologia_asesoria"
+            )
 
-                st.subheader(
-                    "Entrevista"
+            if (
+                seleccion_patologia
+                != "Seleccione una patología"
+            ):
+
+                codigo_seleccionado = (
+                    seleccion_patologia
+                    .split(" — ", 1)[0]
+                    .strip()
                 )
 
-                st.caption(
-                    "Las preguntas son opcionales. "
-                    "Puede dejar cualquier pregunta sin responder."
+                nombre_seleccionado = (
+                    seleccion_patologia
+                    .split(" — ", 1)[1]
+                    .strip()
                 )
-
-                for _, pregunta in (
-                    entrevista_actual_asesoria.iterrows()
-                ):
-
-                    flujo_id = str(
-                        pregunta[
-                            "Flujo_ID"
-                        ]
-                    ).strip()
-
-                    condicion_id = (
-                        pregunta[
-                            "Condicion_ID"
-                        ]
-                    )
-
-                    if pd.isna(
-                        condicion_id
-                    ):
-
-                        condicion_id = None
-
-                    else:
-
-                        condicion_id = str(
-                            condicion_id
-                        ).strip()
-
-                    pregunta_texto = str(
-                        pregunta[
-                            "Pregunta"
-                        ]
-                    ).strip()
-
-                    tipo_control = str(
-                        pregunta[
-                            "Tipo_Control"
-                        ]
-                    ).strip().lower()
-
-                    opciones_texto = (
-                        pregunta[
-                            "Opciones"
-                        ]
-                    )
-
-                    opciones = []
-
-                    if pd.notna(
-                        opciones_texto
-                    ):
-
-                        opciones = [
-                            opcion.strip()
-                            for opcion
-                            in str(
-                                opciones_texto
-                            ).split(";")
-                            if opcion.strip()
-                        ]
-
-                    clave_widget = (
-                        "asesoria_entrevista_"
-                        +
-                        flujo_id
-                    )
-
-                    respuesta = None
-
-                    # =============================================
-                    # TEXTO
-                    # =============================================
-
-                    if tipo_control == "texto":
-
-                        respuesta = st.text_input(
-                            pregunta_texto,
-                            key=clave_widget
-                        )
-
-                        if (
-                            not respuesta.strip()
-                        ):
-
-                            respuesta = None
-
-                    # =============================================
-                    # NÚMERO
-                    # =============================================
-
-                    elif tipo_control == "número":
-
-                        respuesta_texto = st.text_input(
-                            pregunta_texto,
-                            placeholder=(
-                                "Deje vacío para omitir"
-                            ),
-                            key=clave_widget
-                        ).strip()
-
-                        if respuesta_texto:
-
-                            try:
-
-                                valor_numerico = float(
-                                    respuesta_texto
-                                )
-
-                                if (
-                                    valor_numerico
-                                    .is_integer()
-                                ):
-
-                                    respuesta = int(
-                                        valor_numerico
-                                    )
-
-                                else:
-
-                                    respuesta = (
-                                        valor_numerico
-                                    )
-
-                            except ValueError:
-
-                                st.warning(
-                                    "Ingrese un número válido "
-                                    "o deje la pregunta vacía."
-                                )
-
-                                respuesta = None
-
-                    # =============================================
-                    # SÍ / NO
-                    # =============================================
-
-                    elif tipo_control in [
-                        "sí/no",
-                        "si/no"
-                    ]:
-
-                        opciones_si_no = [
-                            "Omitir"
-                        ]
-
-                        if opciones:
-
-                            opciones_si_no.extend(
-                                opciones
-                            )
-
-                        else:
-
-                            opciones_si_no.extend(
-                                [
-                                    "Sí",
-                                    "No"
-                                ]
-                            )
-
-                        seleccion_si_no = st.selectbox(
-                            pregunta_texto,
-                            opciones_si_no,
-                            key=clave_widget
-                        )
-
-                        if (
-                            seleccion_si_no
-                            !=
-                            "Omitir"
-                        ):
-
-                            respuesta = (
-                                seleccion_si_no
-                            )
-
-                    # =============================================
-                    # LISTA
-                    # =============================================
-
-                    elif tipo_control == "lista":
-
-                        seleccion_lista = st.selectbox(
-                            pregunta_texto,
-                            [
-                                "Omitir"
-                            ] + opciones,
-                            key=clave_widget
-                        )
-
-                        if (
-                            seleccion_lista
-                            !=
-                            "Omitir"
-                        ):
-
-                            respuesta = (
-                                seleccion_lista
-                            )
-
-                    # =============================================
-                    # SELECCIÓN MÚLTIPLE
-                    # =============================================
-
-                    elif tipo_control == "selección múltiple":
-
-                        seleccion_multiple = st.multiselect(
-                            pregunta_texto,
-                            opciones,
-                            key=clave_widget
-                        )
-
-                        if seleccion_multiple:
-
-                            respuesta = (
-                                seleccion_multiple
-                            )
-
-                        else:
-
-                            respuesta = None
-
-                    # =============================================
-                    # OTROS TIPOS
-                    # =============================================
-
-                    else:
-
-                        respuesta = st.text_input(
-                            pregunta_texto,
-                            key=clave_widget
-                        )
-
-                        if (
-                            not respuesta.strip()
-                        ):
-
-                            respuesta = None
-
-                    # =============================================
-                    # GUARDAR RESPUESTA
-                    # =============================================
-
-                    if condicion_id is not None:
-
-                        respuestas_entrevista_asesoria[
-                            condicion_id
-                        ] = respuesta
-
-                # =================================================
-                # GUARDAR RESPUESTAS
-                # =================================================
 
                 st.session_state[
-                    "respuestas_entrevista"
-                ] = (
-                    respuestas_entrevista_asesoria
+                    "patologia_id_asesoria"
+                ] = codigo_seleccionado
+
+                st.session_state[
+                    "patologia_nombre_asesoria"
+                ] = nombre_seleccionado
+
+                st.success(
+                    "Patología seleccionada: "
+                    + nombre_seleccionado
                 )
-'''
-# Validate as nested under 6.0.
-wrapped = """
-elif opcion_principal == "ASESORÍA":
-    st.header("ASESORÍA")
-    opcion_asesoria = st.selectbox(
-        "Seleccione una opción:",
-        ["Seleccione una opción", "Entrevista"],
-        key="menu_asesoria_principal"
-    )
-""" + "\n" + textwrap.indent(block, "    ")
 
-try:
-    ast.parse(wrapped)
-    syntax = "OK"
-except SyntaxError as e:
-    syntax = f"ERROR línea {e.lineno}: {e.msg}"
-
-out = Path("/mnt/data/BLOQUE_6_1_ENTREVISTA_CORREGIDO.txt")
-out.write_text(block.lstrip(), encoding="utf-8")
-
-print("Archivo:", out)
-print("Validación 6.0 + 6.1:", syntax)
-print("Líneas:", len(block.splitlines()))
+                st.write(
+                    "**Código:** "
+                    + codigo_seleccionado
+                )
