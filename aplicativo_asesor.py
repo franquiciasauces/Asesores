@@ -6801,13 +6801,23 @@ elif opcion_principal == "ASESORÍA":
         key="menu_asesoria_principal"
     )
 
+from pathlib import Path
+import ast, textwrap
+
+block = r'''
 # ============================================================
 # 6.1. ENTREVISTA — SELECCIÓN DE PATOLOGÍA Y PREGUNTAS
 # ============================================================
 
 if opcion_asesoria == "Entrevista":
 
-    st.subheader("Selección de patología")
+    st.subheader(
+        "Selección de patología"
+    )
+
+    # ========================================================
+    # BUSCAR PATOLOGÍA DIRECTAMENTE EN LA HOJA PATOLOGIAS
+    # ========================================================
 
     busqueda_patologia_asesoria = st.text_input(
         "Ingrese el código o nombre de la patología:",
@@ -6818,12 +6828,17 @@ if opcion_asesoria == "Entrevista":
 
         texto_busqueda = (
             unidecode(
-                busqueda_patologia_asesoria.strip()
+                busqueda_patologia_asesoria
             )
+            .strip()
             .lower()
         )
 
-        resultados_patologia = []
+        resultados_patologia_asesoria = []
+
+        # ----------------------------------------------------
+        # 1. COINCIDENCIA EXACTA POR CÓDIGO
+        # ----------------------------------------------------
 
         for _, fila in Patologias.iterrows():
 
@@ -6835,190 +6850,314 @@ if opcion_asesoria == "Entrevista":
                 fila.iloc[1]
             ).strip()
 
-            codigo_normalizado = (
+            if (
+                texto_busqueda
+                ==
                 unidecode(codigo).lower()
-            )
+            ):
 
-            nombre_normalizado = (
-                unidecode(nombre).lower()
-            )
-
-            if texto_busqueda == codigo_normalizado:
-
-                resultados_patologia.append(
+                resultados_patologia_asesoria.append(
                     {
                         "Codigo": codigo,
                         "Patologia": nombre,
-                        "Coincidencia": 100
+                        "Coincidencia": 100.0
                     }
                 )
 
-                continue
+        # ----------------------------------------------------
+        # 2. COINCIDENCIA EXACTA / CONTENIDA POR NOMBRE
+        # ----------------------------------------------------
 
-            if texto_busqueda in nombre_normalizado:
+        if not resultados_patologia_asesoria:
 
-                resultados_patologia.append(
-                    {
-                        "Codigo": codigo,
-                        "Patologia": nombre,
-                        "Coincidencia": 100
-                    }
+            for _, fila in Patologias.iterrows():
+
+                codigo = str(
+                    fila.iloc[0]
+                ).strip()
+
+                nombre = str(
+                    fila.iloc[1]
+                ).strip()
+
+                nombre_normalizado = (
+                    unidecode(
+                        nombre
+                    )
+                    .strip()
+                    .lower()
                 )
 
-                continue
+                if (
+                    texto_busqueda
+                    in
+                    nombre_normalizado
+                ):
 
-            puntaje = fuzz.WRatio(
-                texto_busqueda,
-                nombre_normalizado
-            )
+                    resultados_patologia_asesoria.append(
+                        {
+                            "Codigo": codigo,
+                            "Patologia": nombre,
+                            "Coincidencia": 100.0
+                        }
+                    )
 
-            if puntaje >= 60:
+        # ----------------------------------------------------
+        # 3. BÚSQUEDA FUZZY SOBRE LA HOJA PATOLOGIAS
+        # ----------------------------------------------------
 
-                resultados_patologia.append(
-                    {
-                        "Codigo": codigo,
-                        "Patologia": nombre,
-                        "Coincidencia": round(
-                            puntaje,
-                            2
+        if not resultados_patologia_asesoria:
+
+            nombres_patologias = []
+
+            for _, fila in Patologias.iterrows():
+
+                nombre = str(
+                    fila.iloc[1]
+                ).strip()
+
+                if nombre:
+
+                    nombres_patologias.append(
+                        (
+                            unidecode(
+                                nombre
+                            )
+                            .strip()
+                            .lower(),
+                            str(
+                                fila.iloc[0]
+                            ).strip(),
+                            nombre
                         )
-                    }
+                    )
+
+            for (
+                nombre_normalizado,
+                codigo,
+                nombre_original
+            ) in nombres_patologias:
+
+                puntaje = fuzz.WRatio(
+                    texto_busqueda,
+                    nombre_normalizado
                 )
+
+                if puntaje >= 60:
+
+                    resultados_patologia_asesoria.append(
+                        {
+                            "Codigo": codigo,
+                            "Patologia": nombre_original,
+                            "Coincidencia": round(
+                                float(puntaje),
+                                2
+                            )
+                        }
+                    )
+
+        # ----------------------------------------------------
+        # ELIMINAR DUPLICADOS Y ORDENAR
+        # ----------------------------------------------------
 
         resultados_unicos = {}
 
-        for resultado in resultados_patologia:
+        for resultado in (
+            resultados_patologia_asesoria
+        ):
 
-            codigo = resultado["Codigo"]
+            codigo = resultado[
+                "Codigo"
+            ]
+
+            anterior = (
+                resultados_unicos.get(
+                    codigo
+                )
+            )
 
             if (
-                codigo not in resultados_unicos
-                or resultado["Coincidencia"]
-                > resultados_unicos[codigo]["Coincidencia"]
+                anterior is None
+                or
+                resultado[
+                    "Coincidencia"
+                ]
+                >
+                anterior[
+                    "Coincidencia"
+                ]
             ):
 
-                resultados_unicos[codigo] = resultado
+                resultados_unicos[
+                    codigo
+                ] = resultado
 
-        resultados_patologia = sorted(
+        resultados_patologia_asesoria = sorted(
             resultados_unicos.values(),
-            key=lambda x: x["Coincidencia"],
+            key=lambda x: (
+                x["Coincidencia"],
+                unidecode(
+                    x["Patologia"]
+                ).lower()
+            ),
             reverse=True
         )
 
         # ====================================================
-        # SELECCIÓN DE LA PATOLOGÍA
+        # SELECCIÓN DE PATOLOGÍA
         # ====================================================
 
-        patologia_seleccionada = None
+        patologia_seleccionada_asesoria = None
 
-        if not resultados_patologia:
+        if not resultados_patologia_asesoria:
 
             st.warning(
                 "No se encontró una patología "
-                "que coincida con la búsqueda."
+                "suficientemente relacionada con la búsqueda."
             )
 
-        elif len(resultados_patologia) == 1:
+        elif len(
+            resultados_patologia_asesoria
+        ) == 1:
 
-            patologia_seleccionada = (
-                resultados_patologia[0]
+            patologia_seleccionada_asesoria = (
+                resultados_patologia_asesoria[0]
             )
 
         else:
 
-            opciones_patologia = [
+            opciones_patologia_asesoria = [
                 "Seleccione una patología"
             ]
 
-            opciones_patologia += [
-                resultado["Codigo"]
-                + " — "
-                + resultado["Patologia"]
-                for resultado in resultados_patologia
-            ]
+            for resultado in (
+                resultados_patologia_asesoria
+            ):
 
-            patologia_elegida = st.selectbox(
-                "Se encontraron varias coincidencias. "
-                "Seleccione la patología correspondiente:",
-                opciones_patologia,
+                opciones_patologia_asesoria.append(
+                    f"{resultado['Codigo']} — "
+                    f"{resultado['Patologia']}"
+                    f" | "
+                    f"{resultado['Coincidencia']:.0f}%"
+                )
+
+            seleccion_patologia_asesoria = st.selectbox(
+                "Seleccione la patología:",
+                opciones_patologia_asesoria,
                 key="seleccion_patologia_asesoria"
             )
 
             if (
-                patologia_elegida
-                != "Seleccione una patología"
+                seleccion_patologia_asesoria
+                !=
+                "Seleccione una patología"
             ):
 
-                codigo_elegido, nombre_elegido = (
-                    patologia_elegida.split(
-                        " — ",
-                        1
-                    )
+                codigo_seleccionado = (
+                    seleccion_patologia_asesoria
+                    .split(" — ", 1)[0]
+                    .strip()
                 )
 
-                patologia_seleccionada = {
-                    "Codigo": codigo_elegido.strip(),
-                    "Patologia": nombre_elegido.strip()
-                }
+                for resultado in (
+                    resultados_patologia_asesoria
+                ):
+
+                    if (
+                        resultado[
+                            "Codigo"
+                        ]
+                        ==
+                        codigo_seleccionado
+                    ):
+
+                        patologia_seleccionada_asesoria = (
+                            resultado
+                        )
+
+                        break
 
         # ====================================================
         # GUARDAR PATOLOGÍA SELECCIONADA
         # ====================================================
 
-        if patologia_seleccionada is not None:
+        if (
+            patologia_seleccionada_asesoria
+            is not None
+        ):
 
-            codigo_patologia = str(
-                patologia_seleccionada["Codigo"]
+            patologia_id_asesoria = str(
+                patologia_seleccionada_asesoria[
+                    "Codigo"
+                ]
             ).strip()
 
-            nombre_patologia = str(
-                patologia_seleccionada["Patologia"]
+            patologia_nombre_asesoria = str(
+                patologia_seleccionada_asesoria[
+                    "Patologia"
+                ]
             ).strip()
+
+            # -----------------------------------------------
+            # GUARDAR EN SESSION STATE
+            # -----------------------------------------------
 
             st.session_state[
                 "patologia_id_asesoria"
-            ] = codigo_patologia
+            ] = patologia_id_asesoria
 
             st.session_state[
                 "patologia_nombre_asesoria"
-            ] = nombre_patologia
+            ] = patologia_nombre_asesoria
 
             st.success(
                 "Patología seleccionada: "
-                + nombre_patologia
+                +
+                patologia_nombre_asesoria
             )
 
             st.write(
                 "**Código:** "
-                + codigo_patologia
+                +
+                patologia_id_asesoria
             )
 
             # =================================================
-            # BUSCAR LAS PREGUNTAS EN LA HOJA ENTREVISTA
+            # CARGAR PREGUNTAS DESDE LA HOJA ENTREVISTA
             # =================================================
 
-            entrevista_actual = Entrevista[
-                Entrevista["Patologia_ID"]
-                .astype(str)
-                .str.strip()
-                == codigo_patologia
-            ].copy()
-
-            entrevista_actual = (
-                entrevista_actual
-                .sort_values("Orden")
-                .reset_index(drop=True)
+            entrevista_actual_asesoria = (
+                Entrevista[
+                    Entrevista[
+                        "Patologia_ID"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    ==
+                    patologia_id_asesoria
+                ]
+                .copy()
+                .sort_values(
+                    "Orden"
+                )
+                .reset_index(
+                    drop=True
+                )
             )
 
             st.session_state[
-                "entrevista_actual"
-            ] = entrevista_actual
+                "entrevista_actual_asesoria"
+            ] = entrevista_actual_asesoria
+
+            # Inicializar / reiniciar respuestas
+            # para la patología seleccionada.
+            respuestas_entrevista_asesoria = {}
 
             # =================================================
             # MOSTRAR ENTREVISTA
             # =================================================
 
-            if entrevista_actual.empty:
+            if entrevista_actual_asesoria.empty:
 
                 st.warning(
                     "No se encontraron preguntas "
@@ -7032,111 +7171,290 @@ if opcion_asesoria == "Entrevista":
                     "Entrevista"
                 )
 
-                respuestas_entrevista = {}
+                st.caption(
+                    "Las preguntas son opcionales. "
+                    "Puede dejar cualquier pregunta sin responder."
+                )
 
-                for indice, pregunta in (
-                    entrevista_actual.iterrows()
+                for _, pregunta in (
+                    entrevista_actual_asesoria.iterrows()
                 ):
 
-                    pregunta_texto = str(
-                        pregunta["Pregunta"]
-                    )
-
-                    tipo_control = str(
-                        pregunta["Tipo_Control"]
+                    flujo_id = str(
+                        pregunta[
+                            "Flujo_ID"
+                        ]
                     ).strip()
 
-                    opciones_texto = str(
-                        pregunta["Opciones"]
-                    ).strip()
-
-                    opciones = [
-                        opcion.strip()
-                        for opcion in opciones_texto.split(";")
-                        if opcion.strip()
-                    ]
-
-                    numero = int(
-                        indice + 1
+                    condicion_id = (
+                        pregunta[
+                            "Condicion_ID"
+                        ]
                     )
 
-                    if tipo_control == "Número":
+                    if pd.isna(
+                        condicion_id
+                    ):
 
-                        respuestas_entrevista[
-                            pregunta["Flujo_ID"]
-                        ] = st.number_input(
-                            pregunta_texto,
-                            key=(
-                                "respuesta_entrevista_"
-                                + str(pregunta["Flujo_ID"])
-                            )
-                        )
-
-                    elif tipo_control == "Texto":
-
-                        respuestas_entrevista[
-                            pregunta["Flujo_ID"]
-                        ] = st.text_input(
-                            pregunta_texto,
-                            key=(
-                                "respuesta_entrevista_"
-                                + str(pregunta["Flujo_ID"])
-                            )
-                        )
-
-                    elif tipo_control == "Sí/No":
-
-                        respuestas_entrevista[
-                            pregunta["Flujo_ID"]
-                        ] = st.radio(
-                            pregunta_texto,
-                            opciones,
-                            key=(
-                                "respuesta_entrevista_"
-                                + str(pregunta["Flujo_ID"])
-                            )
-                        )
-
-                    elif tipo_control == "Selección múltiple":
-
-                        respuestas_entrevista[
-                            pregunta["Flujo_ID"]
-                        ] = st.multiselect(
-                            pregunta_texto,
-                            opciones,
-                            key=(
-                                "respuesta_entrevista_"
-                                + str(pregunta["Flujo_ID"])
-                            )
-                        )
-
-                    elif tipo_control == "Lista":
-
-                        respuestas_entrevista[
-                            pregunta["Flujo_ID"]
-                        ] = st.selectbox(
-                            pregunta_texto,
-                            [
-                                "Seleccione una opción"
-                            ] + opciones,
-                            key=(
-                                "respuesta_entrevista_"
-                                + str(pregunta["Flujo_ID"])
-                            )
-                        )
+                        condicion_id = None
 
                     else:
 
-                        respuestas_entrevista[
-                            pregunta["Flujo_ID"]
-                        ] = st.text_input(
+                        condicion_id = str(
+                            condicion_id
+                        ).strip()
+
+                    pregunta_texto = str(
+                        pregunta[
+                            "Pregunta"
+                        ]
+                    ).strip()
+
+                    tipo_control = str(
+                        pregunta[
+                            "Tipo_Control"
+                        ]
+                    ).strip().lower()
+
+                    opciones_texto = (
+                        pregunta[
+                            "Opciones"
+                        ]
+                    )
+
+                    opciones = []
+
+                    if pd.notna(
+                        opciones_texto
+                    ):
+
+                        opciones = [
+                            opcion.strip()
+                            for opcion
+                            in str(
+                                opciones_texto
+                            ).split(";")
+                            if opcion.strip()
+                        ]
+
+                    clave_widget = (
+                        "asesoria_entrevista_"
+                        +
+                        flujo_id
+                    )
+
+                    respuesta = None
+
+                    # =============================================
+                    # TEXTO
+                    # =============================================
+
+                    if tipo_control == "texto":
+
+                        respuesta = st.text_input(
                             pregunta_texto,
-                            key=(
-                                "respuesta_entrevista_"
-                                + str(pregunta["Flujo_ID"])
-                            )
+                            key=clave_widget
                         )
+
+                        if (
+                            not respuesta.strip()
+                        ):
+
+                            respuesta = None
+
+                    # =============================================
+                    # NÚMERO
+                    # =============================================
+
+                    elif tipo_control == "número":
+
+                        respuesta_texto = st.text_input(
+                            pregunta_texto,
+                            placeholder=(
+                                "Deje vacío para omitir"
+                            ),
+                            key=clave_widget
+                        ).strip()
+
+                        if respuesta_texto:
+
+                            try:
+
+                                valor_numerico = float(
+                                    respuesta_texto
+                                )
+
+                                if (
+                                    valor_numerico
+                                    .is_integer()
+                                ):
+
+                                    respuesta = int(
+                                        valor_numerico
+                                    )
+
+                                else:
+
+                                    respuesta = (
+                                        valor_numerico
+                                    )
+
+                            except ValueError:
+
+                                st.warning(
+                                    "Ingrese un número válido "
+                                    "o deje la pregunta vacía."
+                                )
+
+                                respuesta = None
+
+                    # =============================================
+                    # SÍ / NO
+                    # =============================================
+
+                    elif tipo_control in [
+                        "sí/no",
+                        "si/no"
+                    ]:
+
+                        opciones_si_no = [
+                            "Omitir"
+                        ]
+
+                        if opciones:
+
+                            opciones_si_no.extend(
+                                opciones
+                            )
+
+                        else:
+
+                            opciones_si_no.extend(
+                                [
+                                    "Sí",
+                                    "No"
+                                ]
+                            )
+
+                        seleccion_si_no = st.selectbox(
+                            pregunta_texto,
+                            opciones_si_no,
+                            key=clave_widget
+                        )
+
+                        if (
+                            seleccion_si_no
+                            !=
+                            "Omitir"
+                        ):
+
+                            respuesta = (
+                                seleccion_si_no
+                            )
+
+                    # =============================================
+                    # LISTA
+                    # =============================================
+
+                    elif tipo_control == "lista":
+
+                        seleccion_lista = st.selectbox(
+                            pregunta_texto,
+                            [
+                                "Omitir"
+                            ] + opciones,
+                            key=clave_widget
+                        )
+
+                        if (
+                            seleccion_lista
+                            !=
+                            "Omitir"
+                        ):
+
+                            respuesta = (
+                                seleccion_lista
+                            )
+
+                    # =============================================
+                    # SELECCIÓN MÚLTIPLE
+                    # =============================================
+
+                    elif tipo_control == "selección múltiple":
+
+                        seleccion_multiple = st.multiselect(
+                            pregunta_texto,
+                            opciones,
+                            key=clave_widget
+                        )
+
+                        if seleccion_multiple:
+
+                            respuesta = (
+                                seleccion_multiple
+                            )
+
+                        else:
+
+                            respuesta = None
+
+                    # =============================================
+                    # OTROS TIPOS
+                    # =============================================
+
+                    else:
+
+                        respuesta = st.text_input(
+                            pregunta_texto,
+                            key=clave_widget
+                        )
+
+                        if (
+                            not respuesta.strip()
+                        ):
+
+                            respuesta = None
+
+                    # =============================================
+                    # GUARDAR RESPUESTA
+                    # =============================================
+
+                    if condicion_id is not None:
+
+                        respuestas_entrevista_asesoria[
+                            condicion_id
+                        ] = respuesta
+
+                # =================================================
+                # GUARDAR RESPUESTAS
+                # =================================================
 
                 st.session_state[
                     "respuestas_entrevista"
-                ] = respuestas_entrevista
+                ] = (
+                    respuestas_entrevista_asesoria
+                )
+'''
+# Validate as nested under 6.0.
+wrapped = """
+elif opcion_principal == "ASESORÍA":
+    st.header("ASESORÍA")
+    opcion_asesoria = st.selectbox(
+        "Seleccione una opción:",
+        ["Seleccione una opción", "Entrevista"],
+        key="menu_asesoria_principal"
+    )
+""" + "\n" + textwrap.indent(block, "    ")
+
+try:
+    ast.parse(wrapped)
+    syntax = "OK"
+except SyntaxError as e:
+    syntax = f"ERROR línea {e.lineno}: {e.msg}"
+
+out = Path("/mnt/data/BLOQUE_6_1_ENTREVISTA_CORREGIDO.txt")
+out.write_text(block.lstrip(), encoding="utf-8")
+
+print("Archivo:", out)
+print("Validación 6.0 + 6.1:", syntax)
+print("Líneas:", len(block.splitlines()))
