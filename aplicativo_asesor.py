@@ -947,17 +947,13 @@ if opcion_principal == "CONSULTA":
             "Se incorporará posteriormente."
         )
 
-# ===========================================================
+# ============================================================
 # 6. SECCIÓN ASESORÍA
 # ============================================================
 
 elif opcion_principal == "ASESORÍA":
 
     st.header("ASESORÍA")
-
-    st.write(
-        "Proceso de asesoría mediante entrevista."
-    )
 
     opcion_asesoria = st.selectbox(
         "¿Qué desea realizar?",
@@ -967,16 +963,6 @@ elif opcion_principal == "ASESORÍA":
         ],
         key="menu_asesoria"
     )
-
-    if opcion_asesoria == "Entrevista":
-
-        st.subheader("ENTREVISTA")
-
-        st.write(
-            "Inicie la entrevista para desarrollar "
-            "el proceso de asesoría."
-        )
-
 
 # ============================================================
 # 7. SECCIÓN EVALUACIÓN
