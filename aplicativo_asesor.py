@@ -6803,214 +6803,215 @@ elif opcion_principal == "ASESORÍA":
 
 
 # ============================================================
-# 6.1 — ENTREVISTA
+# 6.1.1 — ENTRADA Y SELECCIÓN DE PATOLOGÍA
 # ============================================================
 
 if opcion_asesoria == "Entrevista":
 
-    # ========================================================
-    # 6.1.1 — ENTRADA Y SELECCIÓN DE PATOLOGÍA
-    # ========================================================
-
     st.subheader("ENTREVISTA")
 
-    busqueda_patologia = st.text_input(
-        "Ingrese el código o nombre de la patología:",
-        key="busqueda_patologia_asesoria"
+    metodo_busqueda = st.radio(
+        "¿Cómo desea buscar la patología?",
+        [
+            "Por código",
+            "Por nombre"
+        ],
+        key="metodo_busqueda_patologia_asesoria"
     )
 
-    if busqueda_patologia.strip():
+    # ========================================================
+    # BÚSQUEDA POR CÓDIGO
+    # ========================================================
 
-        texto_busqueda = (
-            unidecode(
-                busqueda_patologia.strip()
-            )
-            .lower()
+    if metodo_busqueda == "Por código":
+
+        codigo_buscado = st.text_input(
+            "Ingrese el código de la patología:",
+            key="codigo_patologia_asesoria"
         )
 
-        resultados_patologia = []
+        if codigo_buscado.strip():
 
-        for _, fila in Patologias.iterrows():
+            codigo_buscado = codigo_buscado.strip()
 
-            codigo = str(
-                fila.iloc[0]
-            ).strip()
-
-            nombre = str(
-                fila.iloc[1]
-            ).strip()
-
-            codigo_normalizado = (
-                unidecode(codigo)
-                .lower()
-                .strip()
-            )
-
-            nombre_normalizado = (
-                unidecode(nombre)
-                .lower()
-                .strip()
-            )
-
-            # Búsqueda exacta por código
-
-            if texto_busqueda == codigo_normalizado:
-
-                resultados_patologia.append(
-                    {
-                        "Codigo": codigo,
-                        "Patologia": nombre,
-                        "Coincidencia": 100
-                    }
-                )
-
-                continue
-
-            # Búsqueda por nombre
-
-            if texto_busqueda in nombre_normalizado:
-
-                resultados_patologia.append(
-                    {
-                        "Codigo": codigo,
-                        "Patologia": nombre,
-                        "Coincidencia": 100
-                    }
-                )
-
-                continue
-
-            # Búsqueda tolerante a errores
-
-            puntaje = fuzz.WRatio(
-                texto_busqueda,
-                nombre_normalizado
-            )
-
-            if puntaje >= 60:
-
-                resultados_patologia.append(
-                    {
-                        "Codigo": codigo,
-                        "Patologia": nombre,
-                        "Coincidencia": round(
-                            puntaje,
-                            2
-                        )
-                    }
-                )
-
-        # Eliminar duplicados
-
-        resultados_unicos = {}
-
-        for resultado in resultados_patologia:
-
-            codigo = resultado["Codigo"]
-
-            if (
-                codigo not in resultados_unicos
-                or resultado["Coincidencia"]
-                > resultados_unicos[codigo]["Coincidencia"]
-            ):
-
-                resultados_unicos[codigo] = resultado
-
-        resultados_patologia = sorted(
-            resultados_unicos.values(),
-            key=lambda x: x["Coincidencia"],
-            reverse=True
-        )
-
-        # Sin resultados
-
-        if not resultados_patologia:
-
-            st.warning(
-                "No se encontró una patología "
-                "que coincida con la búsqueda."
-            )
-
-        # Una coincidencia
-
-        elif len(resultados_patologia) == 1:
-
-            patologia_seleccionada = (
-                resultados_patologia[0]
-            )
-
-            st.success(
-                "Patología encontrada: "
-                + patologia_seleccionada["Patologia"]
-            )
-
-            st.write(
-                "**Código:** "
-                + patologia_seleccionada["Codigo"]
-            )
-
-            st.session_state[
-                "patologia_id_asesoria"
-            ] = patologia_seleccionada["Codigo"]
-
-            st.session_state[
-                "patologia_nombre_asesoria"
-            ] = patologia_seleccionada["Patologia"]
-
-        # Varias coincidencias
-
-        else:
-
-            opciones_patologia = [
-                "Seleccione una patología"
+            resultado = Patologias[
+                Patologias.iloc[:, 1]
+                .astype(str)
+                .str.strip()
+                == codigo_buscado
             ]
 
-            for resultado in resultados_patologia:
+            if resultado.empty:
 
-                opciones_patologia.append(
-                    resultado["Codigo"]
-                    + " — "
-                    + resultado["Patologia"]
+                st.warning(
+                    "No se encontró una patología "
+                    "con ese código."
                 )
 
-            seleccion_patologia = st.selectbox(
-                "Se encontraron varias coincidencias. "
-                "Seleccione la patología correspondiente:",
-                opciones_patologia,
-                key="seleccion_patologia_asesoria"
-            )
+            else:
 
-            if (
-                seleccion_patologia
-                != "Seleccione una patología"
-            ):
+                fila = resultado.iloc[0]
 
-                codigo_seleccionado = (
-                    seleccion_patologia
-                    .split(" — ", 1)[0]
-                    .strip()
+                patologia_id = str(
+                    fila.iloc[1]
+                ).strip()
+
+                nombre_patologia = str(
+                    fila.iloc[0]
+                ).strip()
+
+                st.success(
+                    f"Patología: {nombre_patologia}"
                 )
 
-                nombre_seleccionado = (
-                    seleccion_patologia
-                    .split(" — ", 1)[1]
-                    .strip()
+                st.write(
+                    f"**Código:** {patologia_id}"
                 )
 
                 st.session_state[
                     "patologia_id_asesoria"
-                ] = codigo_seleccionado
+                ] = patologia_id
 
                 st.session_state[
                     "patologia_nombre_asesoria"
-                ] = nombre_seleccionado
+                ] = nombre_patologia
+
+    # ========================================================
+    # BÚSQUEDA POR NOMBRE
+    # ========================================================
+
+    elif metodo_busqueda == "Por nombre":
+
+        nombre_buscado = st.text_input(
+            "Ingrese el nombre de la patología:",
+            key="nombre_patologia_asesoria"
+        )
+
+        if nombre_buscado.strip():
+
+            texto_busqueda = unidecode(
+                nombre_buscado.strip()
+            ).lower()
+
+            resultados = []
+
+            for _, fila in Patologias.iterrows():
+
+                nombre = str(
+                    fila.iloc[0]
+                ).strip()
+
+                codigo = str(
+                    fila.iloc[1]
+                ).strip()
+
+                nombre_normalizado = unidecode(
+                    nombre
+                ).lower()
+
+                # Coincidencia directa
+                if texto_busqueda in nombre_normalizado:
+
+                    resultados.append(
+                        (
+                            codigo,
+                            nombre,
+                            100
+                        )
+                    )
+
+                    continue
+
+                # Tolerancia a errores de digitación
+                puntaje = fuzz.WRatio(
+                    texto_busqueda,
+                    nombre_normalizado
+                )
+
+                if puntaje >= 60:
+
+                    resultados.append(
+                        (
+                            codigo,
+                            nombre,
+                            puntaje
+                        )
+                    )
+
+            resultados = sorted(
+                resultados,
+                key=lambda x: x[2],
+                reverse=True
+            )
+
+            if not resultados:
+
+                st.warning(
+                    "No se encontraron patologías "
+                    "que coincidan con la búsqueda."
+                )
+
+            elif len(resultados) == 1:
+
+                codigo, nombre, puntaje = resultados[0]
 
                 st.success(
-                    "Patología seleccionada: "
-                    + nombre_seleccionado
+                    f"Patología encontrada: {nombre}"
                 )
 
                 st.write(
-                    "**Código:** "
-                    + codigo_seleccionado
+                    f"**Código:** {codigo}"
                 )
+
+                st.session_state[
+                    "patologia_id_asesoria"
+                ] = codigo
+
+                st.session_state[
+                    "patologia_nombre_asesoria"
+                ] = nombre
+
+            else:
+
+                opciones = [
+                    "Seleccione una patología"
+                ]
+
+                for codigo, nombre, puntaje in resultados:
+
+                    opciones.append(
+                        f"{codigo} — {nombre}"
+                    )
+
+                seleccion = st.selectbox(
+                    "Seleccione la patología correspondiente:",
+                    opciones,
+                    key="seleccion_patologia_asesoria"
+                )
+
+                if (
+                    seleccion
+                    != "Seleccione una patología"
+                ):
+
+                    codigo, nombre = seleccion.split(
+                        " — ",
+                        1
+                    )
+
+                    st.success(
+                        f"Patología seleccionada: "
+                        f"{nombre}"
+                    )
+
+                    st.write(
+                        f"**Código:** {codigo}"
+                    )
+
+                    st.session_state[
+                        "patologia_id_asesoria"
+                    ] = codigo.strip()
+
+                    st.session_state[
+                        "patologia_nombre_asesoria"
+                    ] = nombre.strip()
