@@ -2639,17 +2639,16 @@ if (
 # MENÚ DE CONSULTA — PATOLOGÍAS
 # ============================================================
 
-tipo_busqueda_patologia = st.selectbox(
-    "¿Qué desea consultar?",
-    [
-        "Seleccione una opción",
-        "Ver todas las patologias",
-        "Ingresar código o nombre de la patologia",
-        "Patologia → causa y síntoma"
-    ],
-    key="tipo_busqueda_patologia"
-)
-
+    tipo_busqueda_patologia = st.selectbox(
+        "¿Qué desea consultar?",
+        [
+            "Seleccione una opción",
+            "Ver todas las patologias",
+            "Ingresar código o nombre de la patologia",
+            "Patologia → causa y síntoma"
+        ],
+        key="tipo_busqueda_patologia"
+    )
 
 # ============================================================
 # 1. VER TODAS LAS PATOLOGÍAS
