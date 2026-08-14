@@ -7021,7 +7021,7 @@ elif opcion_principal == "ASESORÍA":
                         f"{codigo_seleccionado_asesoria}"
                     )
 
-    # ========================================================
+       # ========================================================
     # 6.1.2 — CARGA DE PREGUNTAS DE LA ENTREVISTA
     # ========================================================
 
@@ -7072,3 +7072,21 @@ elif opcion_principal == "ASESORÍA":
             st.session_state[
                 "entrevista_actual"
             ] = entrevista_actual
+
+            # =================================================
+            # VALIDACIÓN DE CARGA
+            # =================================================
+
+            st.success(
+                "Preguntas cargadas correctamente."
+            )
+
+            st.write(
+                f"**Patología:** "
+                f"{patologia_id_actual}"
+            )
+
+            st.write(
+                f"**Número de preguntas cargadas:** "
+                f"{len(entrevista_actual)}"
+            )
