@@ -8157,7 +8157,7 @@ elif opcion_principal == "ASESORÍA":
                     "con las respuestas registradas."
                 )
 
-    ```python id="9h7m2k"
+    
 # ============================================================
 # 6.4 — DEPURACIÓN DE REGLAS, RESTRICCIONES Y PRODUCTOS
 # ============================================================
