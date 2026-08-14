@@ -7324,3 +7324,140 @@ elif opcion_principal == "ASESORÍA":
             st.success(
                 "Entrevista finalizada correctamente."
             )
+    # ========================================================
+    # 6.1.4 — RESUMEN DE LA ENTREVISTA
+    # ========================================================
+
+    if (
+        st.session_state.get(
+            "entrevista_finalizada",
+            False
+        )
+        and
+        "respuestas_entrevista"
+        in st.session_state
+    ):
+
+        respuestas_entrevista = (
+            st.session_state[
+                "respuestas_entrevista"
+            ]
+        )
+
+        st.divider()
+
+        st.subheader(
+            "RESUMEN DE LA ENTREVISTA"
+        )
+
+        total_preguntas = len(
+            respuestas_entrevista
+        )
+
+        preguntas_respondidas = 0
+        preguntas_sin_respuesta = 0
+
+        # ====================================================
+        # MOSTRAR RESUMEN
+        # ====================================================
+
+        for flujo_id, datos_respuesta in (
+            respuestas_entrevista.items()
+        ):
+
+            pregunta = datos_respuesta[
+                "Pregunta"
+            ]
+
+            respuesta = datos_respuesta[
+                "Respuesta"
+            ]
+
+            st.write(
+                f"**Pregunta:** {pregunta}"
+            )
+
+            # ------------------------------------------------
+            # RESPUESTA VACÍA
+            # ------------------------------------------------
+
+            if (
+                respuesta is None
+                or respuesta == ""
+                or respuesta == []
+            ):
+
+                st.caption(
+                    "Sin respuesta"
+                )
+
+                preguntas_sin_respuesta += 1
+
+            # ------------------------------------------------
+            # RESPUESTA REGISTRADA
+            # ------------------------------------------------
+
+            else:
+
+                preguntas_respondidas += 1
+
+                if isinstance(
+                    respuesta,
+                    list
+                ):
+
+                    respuesta_mostrada = (
+                        ", ".join(
+                            str(item)
+                            for item
+                            in respuesta
+                        )
+                    )
+
+                else:
+
+                    respuesta_mostrada = str(
+                        respuesta
+                    )
+
+                st.write(
+                    f"**Respuesta:** "
+                    f"{respuesta_mostrada}"
+                )
+
+            st.divider()
+
+        # ====================================================
+        # CONTADORES
+        # ====================================================
+
+        st.write(
+            f"**Preguntas respondidas:** "
+            f"{preguntas_respondidas} de "
+            f"{total_preguntas}"
+        )
+
+        st.write(
+            f"**Preguntas sin respuesta:** "
+            f"{preguntas_sin_respuesta} de "
+            f"{total_preguntas}"
+        )
+
+        # ====================================================
+        # CONFIRMAR ENTREVISTA
+        # ====================================================
+
+        if st.button(
+            "Confirmar y continuar",
+            key="confirmar_resumen_entrevista"
+        ):
+
+            st.session_state[
+                "resumen_entrevista_confirmado"
+            ] = True
+
+            st.success(
+                "Resumen confirmado. "
+                "La entrevista está lista "
+                "para iniciar la evaluación de reglas."
+            )
