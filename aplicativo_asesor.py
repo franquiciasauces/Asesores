@@ -7462,7 +7462,7 @@ elif opcion_principal == "ASESORÍA":
                 "para iniciar la evaluación de reglas."
             )
 
-```python
+
 # ============================================================
 # 6.2 — EVALUACIÓN DE REGLAS
 # ============================================================
