@@ -7461,3 +7461,331 @@ elif opcion_principal == "ASESORÍA":
                 "La entrevista está lista "
                 "para iniciar la evaluación de reglas."
             )
+
+# ============================================================
+# 6.2 — EVALUACIÓN DE REGLAS
+# ============================================================
+
+    if (
+        "entrevista_respuestas"
+        in st.session_state
+        and "patologia_id_asesoria"
+        in st.session_state
+    ):
+
+        respuestas_entrevista = st.session_state[
+            "entrevista_respuestas"
+        ]
+
+        patologia_id_actual = st.session_state[
+            "patologia_id_asesoria"
+        ]
+
+        reglas_actuales = Reglas_Paquetes[
+            Reglas_Paquetes["Patologia_ID"]
+            .astype(str)
+            .str.strip()
+            ==
+            str(
+                patologia_id_actual
+            ).strip()
+        ].copy()
+
+        if reglas_actuales.empty:
+
+            st.warning(
+                "No existen reglas configuradas "
+                "para la patología seleccionada."
+            )
+
+        else:
+
+            reglas_activadas = []
+
+            # =================================================
+            # EVALUAR CADA REGLA
+            # =================================================
+
+            for _, regla in reglas_actuales.iterrows():
+
+                condiciones_regla = str(
+                    regla["Condiciones (lógica)"]
+                ).strip()
+
+                if not condiciones_regla:
+                    continue
+
+                condiciones_and = [
+                    condicion.strip()
+                    for condicion in
+                    condiciones_regla.split("AND")
+                ]
+
+                regla_cumplida = True
+
+                # =============================================
+                # EVALUACIÓN DE CONDICIONES
+                # =============================================
+
+                for condicion in condiciones_and:
+
+                    condicion_cumplida = False
+
+                    # -----------------------------------------
+                    # OR
+                    # -----------------------------------------
+
+                    alternativas_or = [
+                        alternativa.strip()
+                        for alternativa in
+                        condicion.split(" OR ")
+                    ]
+
+                    for alternativa in alternativas_or:
+
+                        alternativa = alternativa.strip()
+
+                        # -------------------------------------
+                        # separar Cxxx y valor esperado
+                        # -------------------------------------
+
+                        partes = alternativa.split(
+                            "=",
+                            1
+                        )
+
+                        if len(partes) != 2:
+                            continue
+
+                        condicion_id = (
+                            partes[0]
+                            .strip()
+                        )
+
+                        valor_esperado = (
+                            partes[1]
+                            .strip()
+                        )
+
+                        if condicion_id not in (
+                            respuestas_entrevista
+                        ):
+                            continue
+
+                        valor_respuesta = (
+                            respuestas_entrevista[
+                                condicion_id
+                            ]
+                        )
+
+                        # -------------------------------------
+                        # normalizar respuesta
+                        # -------------------------------------
+
+                        if isinstance(
+                            valor_respuesta,
+                            list
+                        ):
+
+                            respuestas = [
+                                unidecode(
+                                    str(valor)
+                                )
+                                .lower()
+                                .strip()
+                                for valor in
+                                valor_respuesta
+                            ]
+
+                        else:
+
+                            respuestas = [
+                                unidecode(
+                                    str(
+                                        valor_respuesta
+                                    )
+                                )
+                                .lower()
+                                .strip()
+                            ]
+
+                        esperado = (
+                            unidecode(
+                                valor_esperado
+                            )
+                            .lower()
+                            .strip()
+                        )
+
+                        # -------------------------------------
+                        # INCLUYE / CONTIENE
+                        # -------------------------------------
+
+                        if (
+                            esperado.startswith(
+                                "incluye "
+                            )
+                        ):
+
+                            valor_buscado = (
+                                esperado[8:]
+                                .strip()
+                            )
+
+                            condicion_cumplida = any(
+                                valor_buscado
+                                in respuesta
+                                for respuesta
+                                in respuestas
+                            )
+
+                        elif (
+                            esperado.startswith(
+                                "contiene "
+                            )
+                        ):
+
+                            valor_buscado = (
+                                esperado[9:]
+                                .strip()
+                            )
+
+                            condicion_cumplida = any(
+                                valor_buscado
+                                in respuesta
+                                for respuesta
+                                in respuestas
+                            )
+
+                        # -------------------------------------
+                        # MAYOR QUE
+                        # -------------------------------------
+
+                        elif esperado.startswith(">"):
+
+                            try:
+
+                                limite = float(
+                                    esperado[1:]
+                                    .strip()
+                                )
+
+                                valor = float(
+                                    respuestas[0]
+                                )
+
+                                condicion_cumplida = (
+                                    valor > limite
+                                )
+
+                            except (
+                                ValueError,
+                                TypeError
+                            ):
+
+                                condicion_cumplida = False
+
+                        # -------------------------------------
+                        # MENOR QUE
+                        # -------------------------------------
+
+                        elif esperado.startswith("<"):
+
+                            try:
+
+                                limite = float(
+                                    esperado[1:]
+                                    .strip()
+                                )
+
+                                valor = float(
+                                    respuestas[0]
+                                )
+
+                                condicion_cumplida = (
+                                    valor < limite
+                                )
+
+                            except (
+                                ValueError,
+                                TypeError
+                            ):
+
+                                condicion_cumplida = False
+
+                        # -------------------------------------
+                        # IGUALDAD
+                        # -------------------------------------
+
+                        else:
+
+                            condicion_cumplida = any(
+                                respuesta
+                                == esperado
+                                for respuesta
+                                in respuestas
+                            )
+
+                        if condicion_cumplida:
+                            break
+
+                    # =========================================
+                    # SI UN AND NO SE CUMPLE
+                    # =========================================
+
+                    if not condicion_cumplida:
+
+                        regla_cumplida = False
+                        break
+
+                # =============================================
+                # GUARDAR REGLA ACTIVADA
+                # =============================================
+
+                if regla_cumplida:
+
+                    reglas_activadas.append(
+                        regla
+                    )
+
+            # =================================================
+            # ORDENAR POR PRIORIDAD
+            # =================================================
+
+            if reglas_activadas:
+
+                reglas_activadas = sorted(
+                    reglas_activadas,
+                    key=lambda fila:
+                        float(
+                            fila[
+                                "Prioridad (1=alta)"
+                            ]
+                        )
+                )
+
+                reglas_activadas_df = pd.DataFrame(
+                    reglas_activadas
+                )
+
+                st.session_state[
+                    "reglas_activadas"
+                ] = reglas_activadas_df
+
+                st.success(
+                    f"Se activaron "
+                    f"{len(reglas_activadas_df)} "
+                    f"reglas para la patología seleccionada."
+                )
+
+            else:
+
+                st.session_state[
+                    "reglas_activadas"
+                ] = pd.DataFrame()
+
+                st.info(
+                    "No se activaron reglas "
+                    "con las respuestas registradas."
+                )
+    
