@@ -7123,12 +7123,14 @@ elif opcion_principal == "ASESORÍA":
         )
 
         st.info(
-            "Responda las preguntas que correspondan. "
-            "Ninguna pregunta es obligatoria."
+            "Las preguntas no son obligatorias. "
+            "Puede dejar una pregunta sin responder."
         )
 
+        respuestas_entrevista = {}
+
         # ====================================================
-        # RECORRER LAS PREGUNTAS EXISTENTES
+        # MOSTRAR PREGUNTAS
         # ====================================================
 
         for indice, (_, fila) in enumerate(
@@ -7161,8 +7163,8 @@ elif opcion_principal == "ASESORÍA":
             ).strip()
 
             st.markdown(
-                f"**Pregunta {indice} de "
-                f"{len(entrevista_actual)}**"
+                f"### Pregunta {indice} de "
+                f"{len(entrevista_actual)}"
             )
 
             st.write(
@@ -7184,7 +7186,7 @@ elif opcion_principal == "ASESORÍA":
                 )
 
             # =================================================
-            # OPCIONES
+            # PREPARAR OPCIONES
             # =================================================
 
             opciones = []
@@ -7203,32 +7205,37 @@ elif opcion_principal == "ASESORÍA":
                 ]
 
             # =================================================
-            # CONTROL DE RESPUESTA
+            # LISTA — UNA SOLA RESPUESTA
             # =================================================
 
             if tipo_control == "Lista":
 
-                opciones_control = [
-                    "Omitir"
-                ] + opciones
-
-                respuesta = st.selectbox(
-                    "Seleccione una respuesta:",
-                    opciones_control,
+                respuesta = st.radio(
+                    "Seleccione una opción:",
+                    opciones,
+                    index=None,
                     key=f"respuesta_entrevista_{flujo_id}"
                 )
+
+            # =================================================
+            # SÍ / NO
+            # =================================================
 
             elif tipo_control == "Sí/No":
 
-                respuesta = st.selectbox(
-                    "Seleccione una respuesta:",
+                respuesta = st.radio(
+                    "Seleccione una opción:",
                     [
-                        "Omitir",
                         "Sí",
                         "No"
                     ],
+                    index=None,
                     key=f"respuesta_entrevista_{flujo_id}"
                 )
+
+            # =================================================
+            # NÚMERO
+            # =================================================
 
             elif tipo_control == "Número":
 
@@ -7239,12 +7246,16 @@ elif opcion_principal == "ASESORÍA":
                     key=f"respuesta_entrevista_{flujo_id}"
                 )
 
+            # =================================================
+            # SELECCIÓN MÚLTIPLE
+            # =================================================
+
             elif tipo_control == "Selección múltiple":
 
                 if opciones:
 
                     respuesta = st.multiselect(
-                        "Seleccione una o varias opciones:",
+                        "Seleccione las opciones que correspondan:",
                         opciones,
                         key=f"respuesta_entrevista_{flujo_id}"
                     )
@@ -7253,18 +7264,63 @@ elif opcion_principal == "ASESORÍA":
 
                     respuesta = []
 
+            # =================================================
+            # TEXTO
+            # =================================================
+
             elif tipo_control == "Texto":
 
                 respuesta = st.text_input(
-                    "Ingrese la respuesta:",
+                    "Respuesta:",
+                    placeholder="Opcional",
                     key=f"respuesta_entrevista_{flujo_id}"
                 )
+
+            # =================================================
+            # CONTROL NO DEFINIDO
+            # =================================================
 
             else:
 
                 respuesta = st.text_input(
-                    "Ingrese la respuesta:",
+                    "Respuesta:",
+                    placeholder="Opcional",
                     key=f"respuesta_entrevista_{flujo_id}"
                 )
 
+            # =================================================
+            # REGISTRAR RESPUESTA TEMPORAL
+            # =================================================
+
+            respuestas_entrevista[
+                flujo_id
+            ] = {
+                "Flujo_ID": flujo_id,
+                "Condicion_ID": condicion_id,
+                "Pregunta": pregunta,
+                "Tipo_Control": tipo_control,
+                "Respuesta": respuesta
+            }
+
             st.divider()
+
+        # ====================================================
+        # FINALIZAR ENTREVISTA
+        # ====================================================
+
+        if st.button(
+            "Finalizar entrevista",
+            key="finalizar_entrevista"
+        ):
+
+            st.session_state[
+                "respuestas_entrevista"
+            ] = respuestas_entrevista
+
+            st.session_state[
+                "entrevista_finalizada"
+            ] = True
+
+            st.success(
+                "Entrevista finalizada correctamente."
+            )
