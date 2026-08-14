@@ -6797,24 +6797,22 @@ elif opcion_principal == "ASESORÍA":
         key="menu_asesoria_principal"
     )
 
+    # ========================================================
+    # 6.1.1 — ENTRADA Y SELECCIÓN DE PATOLOGÍA
+    # ========================================================
 
-# ============================================================
-# 6.1.1 — ENTRADA Y SELECCIÓN DE PATOLOGÍA
-# ============================================================
+    if opcion_asesoria == "Entrevista":
 
-if opcion_asesoria == "Entrevista":
+        st.subheader("ENTREVISTA")
 
-    st.subheader("ENTREVISTA")
-
-    metodo_busqueda_asesoria = st.radio(
-        "¿Cómo desea buscar la patología?",
-        [
-            "Por código",
-            "Por nombre"
-        ],
-        key="metodo_busqueda_patologia_asesoria"
-    )
-
+        metodo_busqueda_asesoria = st.radio(
+            "¿Cómo desea buscar la patología?",
+            [
+                "Por código",
+                "Por nombre"
+            ],
+            key="metodo_busqueda_patologia_asesoria"
+        )
     # ========================================================
     # BÚSQUEDA POR CÓDIGO
     # ========================================================
