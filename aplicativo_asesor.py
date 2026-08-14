@@ -8157,4 +8157,475 @@ elif opcion_principal == "ASESORÍA":
                     "con las respuestas registradas."
                 )
 
-    
+    ```python id="9h7m2k"
+# ============================================================
+# 6.4 — DEPURACIÓN DE REGLAS, RESTRICCIONES Y PRODUCTOS
+# ============================================================
+
+    if (
+        "reglas_activadas"
+        in st.session_state
+    ):
+
+        reglas_activadas_df = (
+            st.session_state[
+                "reglas_activadas"
+            ]
+        )
+
+        st.divider()
+
+        st.subheader(
+            "DEPURACIÓN DE REGLAS ACTIVADAS"
+        )
+
+        # ====================================================
+        # VERIFICAR SI EXISTEN REGLAS
+        # ====================================================
+
+        if reglas_activadas_df.empty:
+
+            st.info(
+                "No existen reglas activadas "
+                "para generar productos."
+            )
+
+            st.session_state[
+                "productos_principales_temporal"
+            ] = []
+
+            st.session_state[
+                "productos_coadyuvantes_temporal"
+            ] = []
+
+            st.session_state[
+                "restricciones_productos_temporal"
+            ] = []
+
+        else:
+
+            # =================================================
+            # LISTAS TEMPORALES
+            # =================================================
+
+            productos_principales = []
+
+            productos_coadyuvantes = []
+
+            restricciones_productos = []
+
+            # =================================================
+            # RECORRER REGLAS ACTIVADAS
+            # =================================================
+
+            for _, regla in (
+                reglas_activadas_df.iterrows()
+            ):
+
+                regla_id = str(
+                    regla.get(
+                        "Regla_ID",
+                        ""
+                    )
+                ).strip()
+
+                st.markdown(
+                    f"### {regla_id}"
+                )
+
+                # =============================================
+                # COLUMNA 6 — PRODUCTO PRINCIPAL
+                # =============================================
+
+                producto_principal = str(
+                    regla.get(
+                        "Producto principal",
+                        ""
+                    )
+                ).strip()
+
+                if (
+                    producto_principal
+                    and
+                    producto_principal.lower()
+                    != "nan"
+                ):
+
+                    st.write(
+                        f"**Producto principal:** "
+                        f"{producto_principal}"
+                    )
+
+                    productos_principales.append(
+                        producto_principal
+                    )
+
+                # =============================================
+                # COLUMNA 7 — COADYUVANTES
+                # =============================================
+
+                coadyuvantes_texto = str(
+                    regla.get(
+                        "Coadyuvantes sugeridos (1-3)",
+                        ""
+                    )
+                ).strip()
+
+                if (
+                    coadyuvantes_texto
+                    and
+                    coadyuvantes_texto.lower()
+                    != "nan"
+                ):
+
+                    st.write(
+                        f"**Coadyuvantes sugeridos:** "
+                        f"{coadyuvantes_texto}"
+                    )
+
+                    coadyuvantes = [
+                        producto.strip()
+                        for producto
+                        in coadyuvantes_texto.split(";")
+                        if producto.strip()
+                    ]
+
+                    productos_coadyuvantes.extend(
+                        coadyuvantes
+                    )
+
+                else:
+
+                    coadyuvantes = []
+
+                # =============================================
+                # COLUMNA 8 — MOTIVO TÉCNICO
+                # =============================================
+
+                motivo_tecnico = str(
+                    regla.get(
+                        "Motivo técnico (mecanismo)",
+                        ""
+                    )
+                ).strip()
+
+                if (
+                    motivo_tecnico
+                    and
+                    motivo_tecnico.lower()
+                    != "nan"
+                ):
+
+                    st.write(
+                        f"**Motivo técnico:** "
+                        f"{motivo_tecnico}"
+                    )
+
+                # =============================================
+                # COLUMNA 9 — MENSAJE COMERCIAL
+                # =============================================
+
+                mensaje_comercial = str(
+                    regla.get(
+                        "Mensaje comercial (1 frase)",
+                        ""
+                    )
+                ).strip()
+
+                if (
+                    mensaje_comercial
+                    and
+                    mensaje_comercial.lower()
+                    != "nan"
+                ):
+
+                    st.write(
+                        f"**Mensaje comercial:** "
+                        f"{mensaje_comercial}"
+                    )
+
+                # =============================================
+                # COLUMNA 10 — RESTRICCIÓN
+                # =============================================
+
+                restriccion_texto = str(
+                    regla.get(
+                        "No sugerir si (restricción)",
+                        ""
+                    )
+                ).strip()
+
+                if (
+                    not restriccion_texto
+                    or
+                    restriccion_texto.lower()
+                    == "nan"
+                ):
+
+                    st.write(
+                        "**Restricción:** "
+                        "No registrada."
+                    )
+
+                else:
+
+                    st.write(
+                        f"**Restricción configurada:** "
+                        f"{restriccion_texto}"
+                    )
+
+                    # =========================================
+                    # BUSCAR CÓDIGOS DE RESTRICCIÓN
+                    # =========================================
+
+                    codigos_restriccion = [
+                        codigo.strip().upper()
+                        for codigo
+                        in restriccion_texto
+                        .replace(",", ";")
+                        .split(";")
+                        if codigo.strip()
+                    ]
+
+                    for codigo_restriccion in (
+                        codigos_restriccion
+                    ):
+
+                        # -------------------------------------
+                        # BUSCAR EN HOJA RESTRICCIONES
+                        # -------------------------------------
+
+                        if (
+                            "Restriccion_ID"
+                            not in Restricciones.columns
+                        ):
+
+                            continue
+
+                        coincidencia_restriccion = (
+                            Restricciones[
+                                Restricciones[
+                                    "Restriccion_ID"
+                                ]
+                                .astype(str)
+                                .str.strip()
+                                .str.upper()
+                                ==
+                                codigo_restriccion
+                            ]
+                        )
+
+                        if (
+                            coincidencia_restriccion.empty
+                        ):
+
+                            st.warning(
+                                f"No se encontró la "
+                                f"restricción "
+                                f"{codigo_restriccion} "
+                                f"en la hoja Restricciones."
+                            )
+
+                            continue
+
+                        datos_restriccion = (
+                            coincidencia_restriccion
+                            .iloc[0]
+                        )
+
+                        # =====================================
+                        # ÚLTIMAS 3 COLUMNAS
+                        # =====================================
+
+                        precaucion = str(
+                            datos_restriccion.iloc[-3]
+                        ).strip()
+
+                        motivo_restriccion = str(
+                            datos_restriccion.iloc[-2]
+                        ).strip()
+
+                        alternativas_seguras = str(
+                            datos_restriccion.iloc[-1]
+                        ).strip()
+
+                        st.warning(
+                            f"**{codigo_restriccion}**"
+                        )
+
+                        st.write(
+                            f"**Precaución / "
+                            f"Contraindicación:** "
+                            f"{precaucion}"
+                        )
+
+                        st.write(
+                            f"**Motivo:** "
+                            f"{motivo_restriccion}"
+                        )
+
+                        st.write(
+                            f"**Alternativas seguras:** "
+                            f"{alternativas_seguras}"
+                        )
+
+                        restricciones_productos.append(
+                            {
+                                "Regla_ID":
+                                    regla_id,
+                                "Restriccion_ID":
+                                    codigo_restriccion,
+                                "Precaucion":
+                                    precaucion,
+                                "Motivo":
+                                    motivo_restriccion,
+                                "Alternativas":
+                                    alternativas_seguras
+                            }
+                        )
+
+                st.divider()
+
+            # =================================================
+            # GUARDAR INFORMACIÓN TEMPORAL
+            # =================================================
+
+            st.session_state[
+                "productos_principales_temporal"
+            ] = productos_principales
+
+            st.session_state[
+                "productos_coadyuvantes_temporal"
+            ] = productos_coadyuvantes
+
+            st.session_state[
+                "restricciones_productos_temporal"
+            ] = restricciones_productos
+
+            # =================================================
+            # RESUMEN DE PRODUCTOS ANTES DE DEPURAR
+            # =================================================
+
+            st.subheader(
+                "Productos identificados antes "
+                "de eliminar duplicados"
+            )
+
+            st.write(
+                f"**Productos principales encontrados:** "
+                f"{len(productos_principales)}"
+            )
+
+            st.write(
+                f"**Coadyuvantes encontrados:** "
+                f"{len(productos_coadyuvantes)}"
+            )
+
+            # =================================================
+            # NORMALIZAR PRODUCTOS PARA COMPARACIÓN
+            # =================================================
+
+            def normalizar_producto(
+                producto
+            ):
+
+                return (
+                    unidecode(
+                        str(producto)
+                    )
+                    .lower()
+                    .strip()
+                )
+
+            # =================================================
+            # CONSOLIDAR PRODUCTOS ÚNICOS
+            # =================================================
+
+            productos_unicos = {}
+
+            # -----------------------------------------------
+            # PRINCIPALES
+            # -----------------------------------------------
+
+            for producto in (
+                productos_principales
+            ):
+
+                clave = normalizar_producto(
+                    producto
+                )
+
+                if clave not in productos_unicos:
+
+                    productos_unicos[
+                        clave
+                    ] = {
+                        "Producto":
+                            producto,
+                        "Tipo":
+                            "Principal"
+                    }
+
+            # -----------------------------------------------
+            # COADYUVANTES
+            # -----------------------------------------------
+
+            for producto in (
+                productos_coadyuvantes
+            ):
+
+                clave = normalizar_producto(
+                    producto
+                )
+
+                if clave not in productos_unicos:
+
+                    productos_unicos[
+                        clave
+                    ] = {
+                        "Producto":
+                            producto,
+                        "Tipo":
+                            "Coadyuvante"
+                    }
+
+            productos_unicos_df = pd.DataFrame(
+                list(
+                    productos_unicos.values()
+                )
+            )
+
+            st.session_state[
+                "productos_unicos_df"
+            ] = productos_unicos_df
+
+            # =================================================
+            # RESULTADO DE DEPURACIÓN
+            # =================================================
+
+            st.subheader(
+                "Productos únicos recomendados"
+            )
+
+            if productos_unicos_df.empty:
+
+                st.info(
+                    "No se identificaron productos "
+                    "a partir de las reglas activadas."
+                )
+
+            else:
+
+                st.success(
+                    f"Se identificaron "
+                    f"{len(productos_unicos_df)} "
+                    f"productos únicos."
+                )
+
+                st.dataframe(
+                    productos_unicos_df,
+                    use_container_width=True,
+                    hide_index=True
+                )
+```
+
