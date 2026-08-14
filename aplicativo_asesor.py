@@ -7090,3 +7090,181 @@ elif opcion_principal == "ASESORÍA":
                 f"**Número de preguntas cargadas:** "
                 f"{len(entrevista_actual)}"
             )
+    # ========================================================
+    # 6.1.3 — INICIO Y REGISTRO DE LA ENTREVISTA
+    # ========================================================
+
+    if (
+        "entrevista_actual"
+        in st.session_state
+        and not st.session_state[
+            "entrevista_actual"
+        ].empty
+    ):
+
+        entrevista_actual = st.session_state[
+            "entrevista_actual"
+        ]
+
+        st.divider()
+
+        st.subheader(
+            "INICIO DE LA ENTREVISTA"
+        )
+
+        st.write(
+            f"**Patología:** "
+            f"{st.session_state['patologia_nombre_asesoria']}"
+        )
+
+        st.write(
+            f"**Preguntas:** "
+            f"{len(entrevista_actual)}"
+        )
+
+        st.info(
+            "Responda las preguntas que correspondan. "
+            "Ninguna pregunta es obligatoria."
+        )
+
+        # ====================================================
+        # RECORRER LAS PREGUNTAS EXISTENTES
+        # ====================================================
+
+        for indice, (_, fila) in enumerate(
+            entrevista_actual.iterrows(),
+            start=1
+        ):
+
+            flujo_id = str(
+                fila["Flujo_ID"]
+            ).strip()
+
+            condicion_id = str(
+                fila["Condicion_ID"]
+            ).strip()
+
+            pregunta = str(
+                fila["Pregunta"]
+            ).strip()
+
+            tipo_control = str(
+                fila["Tipo_Control"]
+            ).strip()
+
+            opciones_texto = str(
+                fila["Opciones"]
+            ).strip()
+
+            observaciones = str(
+                fila["Observaciones"]
+            ).strip()
+
+            st.markdown(
+                f"**Pregunta {indice} de "
+                f"{len(entrevista_actual)}**"
+            )
+
+            st.write(
+                pregunta
+            )
+
+            # =================================================
+            # OBSERVACIONES
+            # =================================================
+
+            if (
+                observaciones
+                and observaciones.lower()
+                != "nan"
+            ):
+
+                st.caption(
+                    observaciones
+                )
+
+            # =================================================
+            # OPCIONES
+            # =================================================
+
+            opciones = []
+
+            if (
+                opciones_texto
+                and opciones_texto.lower()
+                != "nan"
+            ):
+
+                opciones = [
+                    opcion.strip()
+                    for opcion
+                    in opciones_texto.split(";")
+                    if opcion.strip()
+                ]
+
+            # =================================================
+            # CONTROL DE RESPUESTA
+            # =================================================
+
+            if tipo_control == "Lista":
+
+                opciones_control = [
+                    "Omitir"
+                ] + opciones
+
+                respuesta = st.selectbox(
+                    "Seleccione una respuesta:",
+                    opciones_control,
+                    key=f"respuesta_entrevista_{flujo_id}"
+                )
+
+            elif tipo_control == "Sí/No":
+
+                respuesta = st.selectbox(
+                    "Seleccione una respuesta:",
+                    [
+                        "Omitir",
+                        "Sí",
+                        "No"
+                    ],
+                    key=f"respuesta_entrevista_{flujo_id}"
+                )
+
+            elif tipo_control == "Número":
+
+                respuesta = st.number_input(
+                    "Ingrese la respuesta:",
+                    value=None,
+                    placeholder="Opcional",
+                    key=f"respuesta_entrevista_{flujo_id}"
+                )
+
+            elif tipo_control == "Selección múltiple":
+
+                if opciones:
+
+                    respuesta = st.multiselect(
+                        "Seleccione una o varias opciones:",
+                        opciones,
+                        key=f"respuesta_entrevista_{flujo_id}"
+                    )
+
+                else:
+
+                    respuesta = []
+
+            elif tipo_control == "Texto":
+
+                respuesta = st.text_input(
+                    "Ingrese la respuesta:",
+                    key=f"respuesta_entrevista_{flujo_id}"
+                )
+
+            else:
+
+                respuesta = st.text_input(
+                    "Ingrese la respuesta:",
+                    key=f"respuesta_entrevista_{flujo_id}"
+                )
+
+            st.divider()
