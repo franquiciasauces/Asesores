@@ -6781,6 +6781,7 @@ if opcion_consulta == "Complementarios":
                             st.rerun()
 # ============================================================
 # ============================================================
+# ============================================================
 # 6. SECCIÓN ASESORÍA
 # ============================================================
 
@@ -6788,308 +6789,289 @@ elif opcion_principal == "ASESORÍA":
 
     st.header("ASESORÍA")
 
-    opcion_asesoria = st.selectbox(
-        "Seleccione una opción:",
-        [
-            "Seleccione una opción",
-            "Entrevista"
-        ],
-        key="menu_asesoria_principal"
-    )
+    st.subheader("ENTREVISTA")
 
-      # ========================================================
+    # ========================================================
     # 6.1.1 — ENTRADA Y SELECCIÓN DE PATOLOGÍA
     # ========================================================
 
-    if opcion_asesoria == "Entrevista":
+    metodo_busqueda_asesoria = st.radio(
+        "¿Cómo desea buscar la patología?",
+        [
+            "Por código",
+            "Por nombre"
+        ],
+        key="metodo_busqueda_patologia_asesoria"
+    )
 
-        st.subheader("ENTREVISTA")
+    # ========================================================
+    # BÚSQUEDA POR CÓDIGO
+    # ========================================================
 
-        metodo_busqueda_asesoria = st.radio(
-            "¿Cómo desea buscar la patología?",
-            [
-                "Por código",
-                "Por nombre"
-            ],
-            key="metodo_busqueda_patologia_asesoria"
+    if metodo_busqueda_asesoria == "Por código":
+
+        codigo_buscado_asesoria = st.text_input(
+            "Ingrese el código de la patología:",
+            key="codigo_patologia_asesoria"
         )
 
-        # ====================================================
-        # BÚSQUEDA POR CÓDIGO
-        # ====================================================
+        if codigo_buscado_asesoria.strip():
 
-        if metodo_busqueda_asesoria == "Por código":
-
-            codigo_buscado_asesoria = st.text_input(
-                "Ingrese el código de la patología:",
-                key="codigo_patologia_asesoria"
+            codigo_buscado_asesoria = (
+                codigo_buscado_asesoria
+                .strip()
+                .upper()
             )
 
-            if codigo_buscado_asesoria.strip():
+            resultado_codigo_asesoria = Patologias[
+                Patologias.iloc[:, 0]
+                .astype(str)
+                .str.strip()
+                .str.upper()
+                == codigo_buscado_asesoria
+            ]
 
-                codigo_buscado_asesoria = (
-                    codigo_buscado_asesoria
-                    .strip()
-                    .upper()
+            if resultado_codigo_asesoria.empty:
+
+                st.warning(
+                    "No se encontró una patología "
+                    "con ese código."
                 )
 
-                resultado_codigo_asesoria = Patologias[
-                    Patologias.iloc[:, 0]
-                    .astype(str)
-                    .str.strip()
-                    .str.upper()
-                    == codigo_buscado_asesoria
-                ]
+            else:
 
-                if resultado_codigo_asesoria.empty:
+                fila_patologia_asesoria = (
+                    resultado_codigo_asesoria.iloc[0]
+                )
 
-                    st.warning(
-                        "No se encontró una patología "
-                        "con ese código."
-                    )
+                patologia_id_asesoria = str(
+                    fila_patologia_asesoria.iloc[0]
+                ).strip()
 
-                else:
+                patologia_nombre_asesoria = str(
+                    fila_patologia_asesoria.iloc[1]
+                ).strip()
 
-                    fila_patologia_asesoria = (
-                        resultado_codigo_asesoria.iloc[0]
-                    )
+                st.session_state[
+                    "patologia_id_asesoria"
+                ] = patologia_id_asesoria
 
-                    patologia_id_asesoria = str(
-                        fila_patologia_asesoria.iloc[0]
-                    ).strip()
+                st.session_state[
+                    "patologia_nombre_asesoria"
+                ] = patologia_nombre_asesoria
 
-                    patologia_nombre_asesoria = str(
-                        fila_patologia_asesoria.iloc[1]
-                    ).strip()
+                st.success(
+                    f"Patología seleccionada: "
+                    f"{patologia_nombre_asesoria}"
+                )
 
-                    st.session_state[
-                        "patologia_id_asesoria"
-                    ] = patologia_id_asesoria
+                st.write(
+                    f"**Código:** "
+                    f"{patologia_id_asesoria}"
+                )
 
-                    st.session_state[
-                        "patologia_nombre_asesoria"
-                    ] = patologia_nombre_asesoria
+    # ========================================================
+    # BÚSQUEDA POR NOMBRE
+    # ========================================================
 
-                    st.success(
-                        f"Patología seleccionada: "
-                        f"{patologia_nombre_asesoria}"
-                    )
+    elif metodo_busqueda_asesoria == "Por nombre":
 
-                    st.write(
-                        f"**Código:** "
-                        f"{patologia_id_asesoria}"
-                    )
+        nombre_buscado_asesoria = st.text_input(
+            "Ingrese el nombre de la patología:",
+            key="nombre_patologia_asesoria"
+        )
 
-        # ====================================================
-        # BÚSQUEDA POR NOMBRE
-        # ====================================================
+        if nombre_buscado_asesoria.strip():
 
-        elif metodo_busqueda_asesoria == "Por nombre":
-
-            nombre_buscado_asesoria = st.text_input(
-                "Ingrese el nombre de la patología:",
-                key="nombre_patologia_asesoria"
+            texto_busqueda_asesoria = (
+                unidecode(
+                    nombre_buscado_asesoria
+                )
+                .lower()
+                .strip()
             )
 
-            if nombre_buscado_asesoria.strip():
+            resultados_patologia_asesoria = []
 
-                texto_busqueda_asesoria = (
+            # =================================================
+            # BUSCAR DIRECTAMENTE EN DATAFRAME PATOLOGIAS
+            # =================================================
+
+            for _, fila_patologia_asesoria in (
+                Patologias.iterrows()
+            ):
+
+                codigo_patologia_asesoria = str(
+                    fila_patologia_asesoria.iloc[0]
+                ).strip()
+
+                nombre_patologia_asesoria = str(
+                    fila_patologia_asesoria.iloc[1]
+                ).strip()
+
+                if not nombre_patologia_asesoria:
+                    continue
+
+                nombre_normalizado_asesoria = (
                     unidecode(
-                        nombre_buscado_asesoria
+                        nombre_patologia_asesoria
                     )
                     .lower()
                     .strip()
                 )
 
-                resultados_patologia_asesoria = []
+                # ---------------------------------------------
+                # COINCIDENCIA EXACTA
+                # ---------------------------------------------
 
-                # ============================================
-                # BUSCAR DIRECTAMENTE EN DATAFRAME PATOLOGIAS
-                # ============================================
-
-                for _, fila_patologia_asesoria in (
-                    Patologias.iterrows()
+                if (
+                    texto_busqueda_asesoria
+                    == nombre_normalizado_asesoria
                 ):
 
-                    codigo_patologia_asesoria = str(
-                        fila_patologia_asesoria.iloc[0]
-                    ).strip()
+                    puntaje_asesoria = 100
 
-                    nombre_patologia_asesoria = str(
-                        fila_patologia_asesoria.iloc[1]
-                    ).strip()
+                # ---------------------------------------------
+                # COINCIDENCIA PARCIAL
+                # ---------------------------------------------
 
-                    if not nombre_patologia_asesoria:
-                        continue
+                elif (
+                    texto_busqueda_asesoria
+                    in nombre_normalizado_asesoria
+                ):
 
-                    nombre_normalizado_asesoria = (
-                        unidecode(
-                            nombre_patologia_asesoria
-                        )
-                        .lower()
-                        .strip()
+                    puntaje_asesoria = 95
+
+                # ---------------------------------------------
+                # TOLERANCIA A ERRORES DE DIGITACIÓN
+                # ---------------------------------------------
+
+                else:
+
+                    puntaje_asesoria = fuzz.WRatio(
+                        texto_busqueda_asesoria,
+                        nombre_normalizado_asesoria
                     )
 
-                    # ----------------------------------------
-                    # COINCIDENCIA EXACTA
-                    # ----------------------------------------
+                if puntaje_asesoria >= 60:
 
-                    if (
-                        texto_busqueda_asesoria
-                        == nombre_normalizado_asesoria
-                    ):
+                    resultados_patologia_asesoria.append(
+                        {
+                            "Codigo":
+                                codigo_patologia_asesoria,
+                            "Patologia":
+                                nombre_patologia_asesoria,
+                            "Puntaje":
+                                round(
+                                    puntaje_asesoria,
+                                    2
+                                )
+                        }
+                    )
 
-                        puntaje_asesoria = 100
+            # =================================================
+            # ELIMINAR DUPLICADOS
+            # =================================================
 
-                    # ----------------------------------------
-                    # COINCIDENCIA PARCIAL
-                    # ----------------------------------------
+            resultados_unicos_asesoria = {}
 
-                    elif (
-                        texto_busqueda_asesoria
-                        in nombre_normalizado_asesoria
-                    ):
+            for resultado in (
+                resultados_patologia_asesoria
+            ):
 
-                        puntaje_asesoria = 95
+                codigo = resultado["Codigo"]
 
-                    # ----------------------------------------
-                    # TOLERANCIA A ERRORES DE DIGITACIÓN
-                    # ----------------------------------------
+                if codigo not in (
+                    resultados_unicos_asesoria
+                ):
 
-                    else:
+                    resultados_unicos_asesoria[
+                        codigo
+                    ] = resultado
 
-                        puntaje_asesoria = fuzz.WRatio(
-                            texto_busqueda_asesoria,
-                            nombre_normalizado_asesoria
-                        )
+            resultados_patologia_asesoria = list(
+                resultados_unicos_asesoria.values()
+            )
 
-                    if puntaje_asesoria >= 60:
+            # =================================================
+            # ORDENAR POR COINCIDENCIA
+            # =================================================
 
-                        resultados_patologia_asesoria.append(
-                            {
-                                "Codigo":
-                                    codigo_patologia_asesoria,
-                                "Patologia":
-                                    nombre_patologia_asesoria,
-                                "Puntaje":
-                                    round(
-                                        puntaje_asesoria,
-                                        2
-                                    )
-                            }
-                        )
+            resultados_patologia_asesoria = sorted(
+                resultados_patologia_asesoria,
+                key=lambda x: x["Puntaje"],
+                reverse=True
+            )
 
-                # ============================================
-                # ELIMINAR DUPLICADOS
-                # ============================================
+            # =================================================
+            # SIN RESULTADOS
+            # =================================================
 
-                resultados_unicos_asesoria = {}
+            if not resultados_patologia_asesoria:
+
+                st.warning(
+                    "No se encontraron patologías "
+                    "que coincidan con la búsqueda."
+                )
+
+            else:
+
+                opciones_patologia_asesoria = [
+                    "Seleccione una patología"
+                ]
 
                 for resultado in (
                     resultados_patologia_asesoria
                 ):
 
-                    codigo = resultado["Codigo"]
-
-                    if codigo not in (
-                        resultados_unicos_asesoria
-                    ):
-
-                        resultados_unicos_asesoria[
-                            codigo
-                        ] = resultado
-
-                resultados_patologia_asesoria = list(
-                    resultados_unicos_asesoria.values()
-                )
-
-                # ============================================
-                # ORDENAR POR COINCIDENCIA
-                # ============================================
-
-                resultados_patologia_asesoria = sorted(
-                    resultados_patologia_asesoria,
-                    key=lambda x: x["Puntaje"],
-                    reverse=True
-                )
-
-                # ============================================
-                # SIN RESULTADOS
-                # ============================================
-
-                if not resultados_patologia_asesoria:
-
-                    st.warning(
-                        "No se encontraron patologías "
-                        "que coincidan con la búsqueda."
+                    opciones_patologia_asesoria.append(
+                        f"{resultado['Codigo']} — "
+                        f"{resultado['Patologia']}"
                     )
 
-                # ============================================
-                # RESULTADOS
-                # ============================================
-
-                else:
-
-                    opciones_patologia_asesoria = [
-                        "Seleccione una patología"
-                    ]
-
-                    for resultado in (
-                        resultados_patologia_asesoria
-                    ):
-
-                        opciones_patologia_asesoria.append(
-                            f"{resultado['Codigo']} — "
-                            f"{resultado['Patologia']}"
-                        )
-
-                    seleccion_patologia_asesoria = (
-                        st.selectbox(
-                            "Seleccione la patología correspondiente:",
-                            opciones_patologia_asesoria,
-                            key="seleccion_patologia_asesoria"
-                        )
+                seleccion_patologia_asesoria = (
+                    st.selectbox(
+                        "Seleccione la patología correspondiente:",
+                        opciones_patologia_asesoria,
+                        key="seleccion_patologia_asesoria"
                     )
+                )
 
-                    # ========================================
-                    # GUARDAR PATOLOGÍA SELECCIONADA
-                    # ========================================
+                # =================================================
+                # GUARDAR PATOLOGÍA SELECCIONADA
+                # =================================================
 
-                    if (
+                if (
+                    seleccion_patologia_asesoria
+                    != "Seleccione una patología"
+                ):
+
+                    codigo_seleccionado_asesoria = (
                         seleccion_patologia_asesoria
-                        != "Seleccione una patología"
-                    ):
+                        .split(" — ", 1)[0]
+                        .strip()
+                    )
 
-                        codigo_seleccionado_asesoria = (
-                            seleccion_patologia_asesoria
-                            .split(" — ", 1)[0]
-                            .strip()
-                        )
+                    nombre_seleccionado_asesoria = (
+                        seleccion_patologia_asesoria
+                        .split(" — ", 1)[1]
+                        .strip()
+                    )
 
-                        nombre_seleccionado_asesoria = (
-                            seleccion_patologia_asesoria
-                            .split(" — ", 1)[1]
-                            .strip()
-                        )
+                    st.session_state[
+                        "patologia_id_asesoria"
+                    ] = codigo_seleccionado_asesoria
 
-                        st.session_state[
-                            "patologia_id_asesoria"
-                        ] = (
-                            codigo_seleccionado_asesoria
-                        )
+                    st.session_state[
+                        "patologia_nombre_asesoria"
+                    ] = nombre_seleccionado_asesoria
 
-                        st.session_state[
-                            "patologia_nombre_asesoria"
-                        ] = (
-                            nombre_seleccionado_asesoria
-                        )
+                    st.success(
+                        f"Patología seleccionada: "
+                        f"{nombre_seleccionado_asesoria}"
+                    )
 
-                        st.success(
-                            f"Patología seleccionada: "
-                            f"{nombre_seleccionado_asesoria}"
-                        )
-
-                        st.write(
-                            f"**Código:** "
-                            f"{codigo_seleccionado_asesoria}"
-                        )
+                    st.write(
+                        f"**Código:** "
+                        f"{codigo_seleccionado_asesoria}"
+                    )
