@@ -7127,6 +7127,7 @@ elif opcion_principal == "ASESORÍA":
                         f"**Código:** "
                         f"{codigo_seleccionado_asesoria}"
                     )
+
     # ========================================================
     # 6.1.2 — CARGA DE PREGUNTAS DE LA ENTREVISTA
     # ========================================================
