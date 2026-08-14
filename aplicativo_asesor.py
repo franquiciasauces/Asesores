@@ -7127,3 +7127,54 @@ elif opcion_principal == "ASESORÍA":
                         f"**Código:** "
                         f"{codigo_seleccionado_asesoria}"
                     )
+    # ========================================================
+    # 6.1.2 — CARGA DE PREGUNTAS DE LA ENTREVISTA
+    # ========================================================
+
+    if (
+        "patologia_id_asesoria"
+        in st.session_state
+    ):
+
+        patologia_id_actual = (
+            st.session_state[
+                "patologia_id_asesoria"
+            ]
+        )
+
+        entrevista_actual = Entrevista[
+            Entrevista["Patologia_ID"]
+            .astype(str)
+            .str.strip()
+            ==
+            str(
+                patologia_id_actual
+            ).strip()
+        ].copy()
+
+        if entrevista_actual.empty:
+
+            st.warning(
+                "No existen preguntas de entrevista "
+                "para la patología seleccionada."
+            )
+
+            st.session_state[
+                "entrevista_actual"
+            ] = pd.DataFrame()
+
+        else:
+
+            entrevista_actual = (
+                entrevista_actual
+                .sort_values(
+                    by="Orden"
+                )
+                .reset_index(
+                    drop=True
+                )
+            )
+
+            st.session_state[
+                "entrevista_actual"
+            ] = entrevista_actual
