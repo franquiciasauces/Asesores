@@ -5975,7 +5975,59 @@ if opcion_consulta == "Restricciones":
                                 f"**Motivo:** "
                                 f"{datos.iloc[4]}"
                             )
+    # ========================================================
+    # 6.1.2 — CARGA DE LA ENTREVISTA
+    # ========================================================
 
+    if "patologia_id_asesoria" in st.session_state:
+
+        patologia_id_actual = (
+            st.session_state[
+                "patologia_id_asesoria"
+            ]
+        )
+
+        # ====================================================
+        # FILTRAR ENTREVISTA POR PATOLOGIA_ID
+        # ====================================================
+
+        entrevista_actual = Entrevista[
+            Entrevista["Patologia_ID"]
+            .astype(str)
+            .str.strip()
+            == str(
+                patologia_id_actual
+            ).strip()
+        ].copy()
+
+        # ====================================================
+        # ORDENAR POR ORDEN
+        # ====================================================
+
+        if not entrevista_actual.empty:
+
+            entrevista_actual = (
+                entrevista_actual
+                .sort_values(
+                    by="Orden"
+                )
+                .reset_index(drop=True)
+            )
+
+            st.session_state[
+                "entrevista_actual"
+            ] = entrevista_actual
+
+        else:
+
+            st.session_state[
+                "entrevista_actual"
+            ] = pd.DataFrame()
+
+            st.warning(
+                "No existen preguntas de entrevista "
+                "para la patología seleccionada."
+            )
                             st.write(
                                 f"**Alternativas seguras:** "
                                 f"{datos.iloc[5]}"
