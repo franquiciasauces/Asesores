@@ -148,6 +148,109 @@ if not st.session_state["usuario_autenticado"]:
             )
 
     st.stop()
+
+# ============================================================
+# 3.1 — INICIO DE SESIÓN
+# ============================================================
+
+st.session_state.setdefault(
+    "usuario_autenticado",
+    False
+)
+
+st.session_state.setdefault(
+    "usuario_actual",
+    ""
+)
+
+st.session_state.setdefault(
+    "rol_usuario",
+    ""
+)
+
+
+# ============================================================
+# USUARIO ADMINISTRADOR INICIAL
+# ============================================================
+
+USUARIO_ADMIN = "FRANQUICIASAUCES"
+CLAVE_ADMIN = "8810"
+
+
+# ============================================================
+# PANTALLA DE INGRESO
+# ============================================================
+
+if not st.session_state["usuario_autenticado"]:
+
+    st.title(
+        "Ingreso a FITOASISTE"
+    )
+
+    st.write(
+        "Ingrese sus credenciales para acceder al sistema."
+    )
+
+    usuario_ingresado = st.text_input(
+        "Nombre de usuario:",
+        key="login_usuario"
+    )
+
+    clave_ingresada = st.text_input(
+        "Contraseña:",
+        type="password",
+        key="login_clave"
+    )
+
+    if st.button(
+        "Ingresar",
+        key="boton_ingresar"
+    ):
+
+        usuario_normalizado = (
+            usuario_ingresado
+            .strip()
+            .upper()
+        )
+
+        clave_normalizada = (
+            clave_ingresada
+            .strip()
+        )
+
+        if (
+            usuario_normalizado
+            == USUARIO_ADMIN
+            and
+            clave_normalizada
+            == CLAVE_ADMIN
+        ):
+
+            st.session_state[
+                "usuario_autenticado"
+            ] = True
+
+            st.session_state[
+                "usuario_actual"
+            ] = USUARIO_ADMIN
+
+            st.session_state[
+                "rol_usuario"
+            ] = "ADMINISTRADOR"
+
+            st.success(
+                "Ingreso exitoso."
+            )
+
+            st.rerun()
+
+        else:
+
+            st.error(
+                "Usuario o contraseña incorrectos."
+            )
+
+    st.stop()
 # ============================================================
 # 4. ENCABEZADO
 # ============================================================
