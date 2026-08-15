@@ -759,6 +759,13 @@ if ROL_ACTUAL == "ADMINISTRADOR":
         mostrar_administracion_usuarios()
 
         st.stop()
+        # ============================================================
+# CONTROL DE VISIBILIDAD DEL DIAGNÓSTICO
+# ============================================================
+
+MOSTRAR_DIAGNOSTICO = (
+    ROL_ACTUAL == "ADMINISTRADOR"
+)
 # ============================================================
 # 4. ENCABEZADO
 # ============================================================
@@ -1510,6 +1517,8 @@ else:
         "⚠ Faltan archivos principales. "
         "Debemos corregirlos antes de continuar."
     )
+
+
 # ============================================================
 # FITOASISTE
 # BLOQUE 1.2 — CONFIGURACIÓN GENERAL Y NAVEGACIÓN
