@@ -9157,3 +9157,444 @@ if (
                     datos_producto,
                     informacion_producto
                 )
+
+# ============================================================
+# 6.3.2 — SELECCIÓN DE PRODUCTOS Y COTIZACIÓN
+# ============================================================
+
+if (
+    "productos_principales_asesoria"
+    in st.session_state
+    or
+    "productos_coadyuvantes_asesoria"
+    in st.session_state
+):
+
+    productos_principales = st.session_state.get(
+        "productos_principales_asesoria",
+        {}
+    )
+
+    productos_coadyuvantes = st.session_state.get(
+        "productos_coadyuvantes_asesoria",
+        {}
+    )
+
+    # ========================================================
+    # UNIFICAR PRODUCTOS
+    # ========================================================
+
+    productos_cotizacion = {}
+
+    for nombre, datos in (
+        productos_principales.items()
+    ):
+
+        productos_cotizacion[nombre] = datos
+
+    for nombre, datos in (
+        productos_coadyuvantes.items()
+    ):
+
+        if nombre not in productos_cotizacion:
+
+            productos_cotizacion[nombre] = datos
+
+    if productos_cotizacion:
+
+        st.divider()
+
+        st.subheader(
+            "COTIZACIÓN"
+        )
+
+        st.write(
+            "Seleccione los productos que "
+            "el cliente desea llevar."
+        )
+
+        st.info(
+            "La selección es opcional. "
+            "Los productos sin precio disponible "
+            "no se incluyen en el total."
+        )
+
+        # ====================================================
+        # INICIALIZAR SELECCIÓN TEMPORAL
+        # ====================================================
+
+        if (
+            "productos_seleccionados_cotizacion"
+            not in st.session_state
+        ):
+
+            st.session_state[
+                "productos_seleccionados_cotizacion"
+            ] = {}
+
+        # ====================================================
+        # MOSTRAR PRODUCTOS
+        # ====================================================
+
+        columnas = st.columns(3)
+
+        for indice, (
+            nombre_producto,
+            informacion_producto
+        ) in enumerate(
+            productos_cotizacion.items()
+        ):
+
+            with columnas[
+                indice % 3
+            ]:
+
+                datos_producto = (
+                    buscar_producto_base_631(
+                        nombre_producto
+                    )
+                )
+
+                with st.container(
+                    border=True
+                ):
+
+                    st.markdown(
+                        f"### {nombre_producto}"
+                    )
+
+                    st.caption(
+                        informacion_producto[
+                            "Tipo"
+                        ]
+                    )
+
+                    # ========================================
+                    # IMAGEN
+                    # ========================================
+
+                    imagen = None
+
+                    if datos_producto is not None:
+
+                        if (
+                            "Foto"
+                            in Base_Productos.columns
+                        ):
+
+                            valor_imagen = (
+                                datos_producto[
+                                    "Foto"
+                                ]
+                            )
+
+                            if (
+                                pd.notna(
+                                    valor_imagen
+                                )
+                                and
+                                str(
+                                    valor_imagen
+                                ).strip()
+                            ):
+
+                                imagen = str(
+                                    valor_imagen
+                                ).strip()
+
+                    if imagen:
+
+                        try:
+
+                            st.image(
+                                imagen,
+                                width=180
+                            )
+
+                        except Exception:
+
+                            st.caption(
+                                "Imagen no disponible"
+                            )
+
+                    else:
+
+                        st.caption(
+                            "Imagen no disponible"
+                        )
+
+                    # ========================================
+                    # PRECIO
+                    # ========================================
+
+                    precio_disponible = False
+                    precio_numerico = None
+
+                    if datos_producto is not None:
+
+                        if (
+                            "Precio público"
+                            in Base_Productos.columns
+                        ):
+
+                            precio = (
+                                datos_producto[
+                                    "Precio público"
+                                ]
+                            )
+
+                            if (
+                                pd.notna(precio)
+                                and
+                                str(
+                                    precio
+                                ).strip()
+                                and
+                                str(
+                                    precio
+                                ).strip().lower()
+                                != "nan"
+                            ):
+
+                                try:
+
+                                    texto_precio = (
+                                        str(
+                                            precio
+                                        )
+                                        .replace(
+                                            "$",
+                                            ""
+                                        )
+                                        .replace(
+                                            " ",
+                                            ""
+                                        )
+                                        .strip()
+                                    )
+
+                                    if (
+                                        ","
+                                        in texto_precio
+                                        and
+                                        "."
+                                        in texto_precio
+                                    ):
+
+                                        texto_precio = (
+                                            texto_precio
+                                            .replace(
+                                                ".",
+                                                ""
+                                            )
+                                            .replace(
+                                                ",",
+                                                "."
+                                            )
+                                        )
+
+                                    elif (
+                                        ","
+                                        in texto_precio
+                                    ):
+
+                                        texto_precio = (
+                                            texto_precio
+                                            .replace(
+                                                ",",
+                                                "."
+                                            )
+                                        )
+
+                                    elif (
+                                        "."
+                                        in texto_precio
+                                        and
+                                        len(
+                                            texto_precio
+                                            .split(
+                                                "."
+                                            )[-1]
+                                        ) == 3
+                                    ):
+
+                                        texto_precio = (
+                                            texto_precio
+                                            .replace(
+                                                ".",
+                                                ""
+                                            )
+                                        )
+
+                                    precio_numerico = float(
+                                        texto_precio
+                                    )
+
+                                    precio_disponible = True
+
+                                except (
+                                    ValueError,
+                                    TypeError
+                                ):
+
+                                    precio_disponible = False
+
+                    if precio_disponible:
+
+                        st.markdown(
+                            f"**Precio: "
+                            f"${precio_numerico:,.0f}**"
+                        )
+
+                    else:
+
+                        st.warning(
+                            "Precio no disponible"
+                        )
+
+                    # ========================================
+                    # SELECCIÓN
+                    # ========================================
+
+                    seleccionado = st.checkbox(
+                        "Llevar",
+                        key=(
+                            f"llevar_producto_"
+                            f"{nombre_producto}"
+                        )
+                    )
+
+                    # ========================================
+                    # GUARDAR SELECCIÓN TEMPORAL
+                    # ========================================
+
+                    if seleccionado:
+
+                        st.session_state[
+                            "productos_seleccionados_cotizacion"
+                        ][nombre_producto] = {
+                            "Producto":
+                                nombre_producto,
+                            "Tipo":
+                                informacion_producto[
+                                    "Tipo"
+                                ],
+                            "Precio":
+                                precio_numerico
+                                if precio_disponible
+                                else None,
+                            "Precio_disponible":
+                                precio_disponible
+                        }
+
+                    else:
+
+                        st.session_state[
+                            "productos_seleccionados_cotizacion"
+                        ].pop(
+                            nombre_producto,
+                            None
+                        )
+
+        # ====================================================
+        # RESUMEN DE COTIZACIÓN
+        # ====================================================
+
+        seleccionados = (
+            st.session_state.get(
+                "productos_seleccionados_cotizacion",
+                {}
+            )
+        )
+
+        if seleccionados:
+
+            st.divider()
+
+            st.subheader(
+                "PRODUCTOS SELECCIONADOS"
+            )
+
+            total_cotizacion = 0
+
+            productos_con_precio = 0
+            productos_sin_precio = 0
+
+            for (
+                nombre_producto,
+                datos_producto
+            ) in seleccionados.items():
+
+                precio = datos_producto[
+                    "Precio"
+                ]
+
+                if (
+                    datos_producto[
+                        "Precio_disponible"
+                    ]
+                    and precio is not None
+                ):
+
+                    st.write(
+                        f"**{nombre_producto}** "
+                        f"— ${precio:,.0f}"
+                    )
+
+                    total_cotizacion += precio
+
+                    productos_con_precio += 1
+
+                else:
+
+                    st.write(
+                        f"**{nombre_producto}** "
+                        f"— Precio no disponible"
+                    )
+
+                    productos_sin_precio += 1
+
+            # =================================================
+            # TOTAL
+            # =================================================
+
+            st.divider()
+
+            st.markdown(
+                f"## TOTAL: "
+                f"${total_cotizacion:,.0f}"
+            )
+
+            st.caption(
+                f"{productos_con_precio} producto(s) "
+                f"con precio incluido en el total."
+            )
+
+            if productos_sin_precio:
+
+                st.warning(
+                    f"{productos_sin_precio} producto(s) "
+                    f"seleccionado(s) no tienen precio "
+                    f"disponible y no fueron incluidos "
+                    f"en el total."
+                )
+
+            # =================================================
+            # GUARDAR COTIZACIÓN TEMPORAL
+            # =================================================
+
+            st.session_state[
+                "cotizacion_final"
+            ] = {
+                "Productos":
+                    seleccionados,
+                "Total":
+                    total_cotizacion
+            }
+
+        else:
+
+            st.info(
+                "Aún no se han seleccionado "
+                "productos para llevar."
+            )
