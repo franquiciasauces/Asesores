@@ -9598,3 +9598,83 @@ if (
                 "Aún no se han seleccionado "
                 "productos para llevar."
             )
+            # ============================================================
+# 6.4 — FINALIZAR ASESORÍA Y REGRESAR AL MENÚ PRINCIPAL
+# ============================================================
+
+if (
+    "cotizacion_final" in st.session_state
+):
+
+    st.divider()
+
+    st.success(
+        "La asesoría y cotización han finalizado correctamente."
+    )
+
+    if st.button(
+        "Finalizar asesoría",
+        key="finalizar_asesoria"
+    ):
+
+        # ====================================================
+        # LIMPIAR INFORMACIÓN TEMPORAL DE LA ASESORÍA
+        # ====================================================
+
+        variables_temporales_asesoria = [
+
+            "patologia_id_asesoria",
+            "patologia_nombre_asesoria",
+
+            "entrevista_actual",
+
+            "respuestas_entrevista",
+            "entrevista_finalizada",
+            "resumen_entrevista_confirmado",
+
+            "reglas_activadas",
+
+            "productos_principales_asesoria",
+            "productos_coadyuvantes_asesoria",
+
+            "productos_seleccionados_cotizacion",
+            "cotizacion_final"
+        ]
+
+        for variable in (
+            variables_temporales_asesoria
+        ):
+
+            st.session_state.pop(
+                variable,
+                None
+            )
+
+        # ====================================================
+        # LIMPIAR CONTROLES PROPIOS DE LA ASESORÍA
+        # ====================================================
+
+        controles_asesoria = [
+
+            "metodo_busqueda_patologia_asesoria",
+            "codigo_patologia_asesoria",
+            "nombre_patologia_asesoria",
+            "seleccion_patologia_asesoria"
+        ]
+
+        for variable in controles_asesoria:
+
+            st.session_state.pop(
+                variable,
+                None
+            )
+
+        # ====================================================
+        # REGRESAR AL MENÚ PRINCIPAL
+        # ====================================================
+
+        st.session_state[
+            "opcion_principal"
+        ] = "Seleccione una opción"
+
+        st.rerun()
