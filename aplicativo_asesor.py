@@ -741,7 +741,24 @@ def mostrar_administracion_usuarios():
                     )
 
                     st.rerun()
+# ============================================================
+# 3.2 — ADMINISTRACIÓN DE USUARIOS
+# ============================================================
 
+if ROL_ACTUAL == "ADMINISTRADOR":
+
+    st.sidebar.divider()
+
+    mostrar_administracion = st.sidebar.checkbox(
+        "Administración de usuarios",
+        key="mostrar_administracion_usuarios"
+    )
+
+    if mostrar_administracion:
+
+        mostrar_administracion_usuarios()
+
+        st.stop()
 # ============================================================
 # 4. ENCABEZADO
 # ============================================================
