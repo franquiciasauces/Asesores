@@ -167,7 +167,10 @@ if not st.session_state["usuario_autenticado"]:
 
     st.stop()
 
-
+ROL_ACTUAL = st.session_state.get(
+    "rol_usuario",
+    ""
+)
 
 # ============================================================
 # 4. ENCABEZADO
