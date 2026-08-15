@@ -49,6 +49,10 @@ ARCHIVO_EMBEDDINGS = (
 # 3.1 CONFIGURACIÓN — USUARIOS Y PERMISOS
 # ============================================================
 
+# ============================================================
+# CONFIGURACIÓN — USUARIOS Y PERMISOS
+# ============================================================
+
 RUTA_USUARIOS = "USUARIOS.xlsx"
 
 COLUMNAS_USUARIOS = [
