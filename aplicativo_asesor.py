@@ -65,7 +65,160 @@ ARCHIVO_EMBEDDINGS = (
 
 
 # ============================================================
-# 3.1 — INICIO DE SESIÓN
+# 3.1 — USUARIOS, AUTENTICACIÓN Y PERMISOS
+# ============================================================
+
+RUTA_USUARIOS = (
+    BASE_DIR / "USUARIOS.xlsx"
+)
+
+COLUMNAS_USUARIOS = [
+    "Usuario_ID",
+    "Nombre",
+    "Documento_ID",
+    "Nombre_Usuario",
+    "Clave",
+    "Correo",
+    "Rol",
+    "Estado"
+]
+
+
+# ============================================================
+# CARGAR USUARIOS
+# ============================================================
+
+def cargar_usuarios():
+
+    if RUTA_USUARIOS.exists():
+
+        usuarios = pd.read_excel(
+            RUTA_USUARIOS,
+            dtype=str
+        )
+
+        usuarios = usuarios.fillna("")
+
+        for columna in COLUMNAS_USUARIOS:
+
+            if columna not in usuarios.columns:
+
+                usuarios[columna] = ""
+
+        usuarios = usuarios[
+            COLUMNAS_USUARIOS
+        ]
+
+        return usuarios
+
+
+    # ========================================================
+    # CREAR ADMINISTRADOR INICIAL
+    # SOLO SI EL ARCHIVO NO EXISTE
+    # ========================================================
+
+    usuarios = pd.DataFrame(
+        [
+            {
+                "Usuario_ID": "USR0001",
+                "Nombre": "Administrador",
+                "Documento_ID": "",
+                "Nombre_Usuario": "FRANQUICIASAUCES",
+                "Clave": "8810",
+                "Correo": (
+                    "FRANQUICIASAUCES"
+                    "@FITOMEDICS.COM"
+                ),
+                "Rol": "ADMINISTRADOR",
+                "Estado": "ACTIVO"
+            }
+        ],
+        columns=COLUMNAS_USUARIOS
+    )
+
+    usuarios.to_excel(
+        RUTA_USUARIOS,
+        index=False
+    )
+
+    return usuarios
+
+
+# ============================================================
+# CARGAR REGISTRO PERMANENTE
+# ============================================================
+
+Usuarios = cargar_usuarios()
+
+
+# ============================================================
+# GUARDAR USUARIOS
+# ============================================================
+
+def guardar_usuarios(usuarios):
+
+    usuarios = usuarios[
+        COLUMNAS_USUARIOS
+    ]
+
+    usuarios.to_excel(
+        RUTA_USUARIOS,
+        index=False
+    )
+
+
+# ============================================================
+# GENERAR ID AUTOMÁTICO
+# ============================================================
+
+def generar_usuario_id(usuarios):
+
+    numeros = []
+
+    for valor in usuarios[
+        "Usuario_ID"
+    ]:
+
+        texto = str(
+            valor
+        ).strip().upper()
+
+        if texto.startswith("USR"):
+
+            try:
+
+                numero = int(
+                    texto.replace(
+                        "USR",
+                        ""
+                    )
+                )
+
+                numeros.append(
+                    numero
+                )
+
+            except ValueError:
+
+                pass
+
+    if not numeros:
+
+        siguiente = 1
+
+    else:
+
+        siguiente = (
+            max(numeros) + 1
+        )
+
+    return (
+        f"USR{siguiente:04d}"
+    )
+
+
+# ============================================================
+# INICIO DE SESIÓN
 # ============================================================
 
 st.session_state.setdefault(
@@ -85,25 +238,20 @@ st.session_state.setdefault(
 
 
 # ============================================================
-# USUARIO ADMINISTRADOR INICIAL
-# ============================================================
-
-USUARIO_ADMIN = "FRANQUICIASAUCES"
-CLAVE_ADMIN = "8810"
-
-
-# ============================================================
 # PANTALLA DE INGRESO
 # ============================================================
 
-if not st.session_state["usuario_autenticado"]:
+if not st.session_state[
+    "usuario_autenticado"
+]:
 
     st.title(
         "Ingreso a FITOASISTE"
     )
 
     st.write(
-        "Ingrese sus credenciales para acceder al sistema."
+        "Ingrese sus credenciales "
+        "para acceder al sistema."
     )
 
     usuario_ingresado = st.text_input(
@@ -133,44 +281,466 @@ if not st.session_state["usuario_autenticado"]:
             .strip()
         )
 
-        if (
-            usuario_normalizado
-            == USUARIO_ADMIN
-            and
-            clave_normalizada
-            == CLAVE_ADMIN
-        ):
+        usuarios_actuales = (
+            cargar_usuarios()
+        )
 
-            st.session_state[
-                "usuario_autenticado"
-            ] = True
+        coincidencias = (
+            usuarios_actuales[
+                usuarios_actuales[
+                    "Nombre_Usuario"
+                ]
+                .astype(str)
+                .str.strip()
+                .str.upper()
+                ==
+                usuario_normalizado
+            ]
+        )
 
-            st.session_state[
-                "usuario_actual"
-            ] = USUARIO_ADMIN
+        if coincidencias.empty:
 
-            st.session_state[
-                "rol_usuario"
-            ] = "ADMINISTRADOR"
-
-            st.success(
-                "Ingreso exitoso."
+            st.error(
+                "Usuario o contraseña "
+                "incorrectos."
             )
-
-            st.rerun()
 
         else:
 
-            st.error(
-                "Usuario o contraseña incorrectos."
+            usuario = (
+                coincidencias.iloc[0]
             )
+
+            clave_guardada = str(
+                usuario["Clave"]
+            ).strip()
+
+            estado_usuario = str(
+                usuario["Estado"]
+            ).strip().upper()
+
+            if estado_usuario != "ACTIVO":
+
+                st.error(
+                    "El usuario se encuentra "
+                    "INACTIVO. No puede "
+                    "ingresar al sistema."
+                )
+
+            elif (
+                clave_guardada
+                != clave_normalizada
+            ):
+
+                st.error(
+                    "Usuario o contraseña "
+                    "incorrectos."
+                )
+
+            else:
+
+                st.session_state[
+                    "usuario_autenticado"
+                ] = True
+
+                st.session_state[
+                    "usuario_actual"
+                ] = (
+                    usuario_normalizado
+                )
+
+                st.session_state[
+                    "rol_usuario"
+                ] = str(
+                    usuario["Rol"]
+                ).strip().upper()
+
+                st.success(
+                    "Ingreso exitoso."
+                )
+
+                st.rerun()
 
     st.stop()
 
-ROL_ACTUAL = st.session_state.get(
-    "rol_usuario",
-    ""
+
+# ============================================================
+# ROL ACTUAL
+# ============================================================
+
+ROL_ACTUAL = (
+    st.session_state.get(
+        "rol_usuario",
+        ""
+    )
+    .strip()
+    .upper()
 )
+
+
+# ============================================================
+# ADMINISTRACIÓN DE USUARIOS
+# ============================================================
+
+def mostrar_administracion_usuarios():
+
+    global Usuarios
+
+    if ROL_ACTUAL != "ADMINISTRADOR":
+
+        st.error(
+            "No tiene permisos para "
+            "acceder a esta sección."
+        )
+
+        return
+
+
+    st.header(
+        "Administración de usuarios"
+    )
+
+
+    # ========================================================
+    # RECARGAR INFORMACIÓN ACTUAL
+    # ========================================================
+
+    Usuarios = cargar_usuarios()
+
+
+    # ========================================================
+    # REGISTRAR NUEVO USUARIO
+    # ========================================================
+
+    st.subheader(
+        "Registrar nuevo usuario"
+    )
+
+    with st.form(
+        "formulario_nuevo_usuario"
+    ):
+
+        nombre = st.text_input(
+            "Nombre completo"
+        )
+
+        documento = st.text_input(
+            "Documento de identidad"
+        )
+
+        nombre_usuario = st.text_input(
+            "Nombre de usuario"
+        )
+
+        clave = st.text_input(
+            "Clave asignada",
+            type="password"
+        )
+
+        correo = st.text_input(
+            "Correo electrónico"
+        )
+
+        rol = st.selectbox(
+            "Rol",
+            [
+                "ASESOR",
+                "ADMINISTRADOR"
+            ]
+        )
+
+        registrar = st.form_submit_button(
+            "Registrar usuario"
+        )
+
+
+    if registrar:
+
+        nombre_limpio = (
+            nombre.strip()
+        )
+
+        documento_limpio = (
+            documento.strip()
+        )
+
+        usuario_limpio = (
+            nombre_usuario
+            .strip()
+            .upper()
+        )
+
+        clave_limpia = (
+            clave.strip()
+        )
+
+        correo_limpio = (
+            correo.strip()
+            .lower()
+        )
+
+        # ====================================================
+        # VALIDAR CAMPOS
+        # ====================================================
+
+        if not nombre_limpio:
+
+            st.error(
+                "Debe ingresar el nombre."
+            )
+
+        elif not documento_limpio:
+
+            st.error(
+                "Debe ingresar el documento."
+            )
+
+        elif not usuario_limpio:
+
+            st.error(
+                "Debe ingresar el nombre "
+                "de usuario."
+            )
+
+        elif not clave_limpia:
+
+            st.error(
+                "Debe asignar una clave."
+            )
+
+        elif not correo_limpio:
+
+            st.error(
+                "Debe registrar un correo."
+            )
+
+        else:
+
+            usuarios_actuales = (
+                cargar_usuarios()
+            )
+
+            # ================================================
+            # VALIDAR USUARIO REPETIDO
+            # ================================================
+
+            usuario_repetido = (
+                usuarios_actuales[
+                    usuarios_actuales[
+                        "Nombre_Usuario"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .str.upper()
+                    ==
+                    usuario_limpio
+                ]
+            )
+
+            if not usuario_repetido.empty:
+
+                st.error(
+                    "Ese nombre de usuario "
+                    "ya existe. "
+                    "Debe utilizar otro."
+                )
+
+            else:
+
+                # ============================================
+                # VALIDAR DOCUMENTO REPETIDO
+                # ============================================
+
+                documento_repetido = (
+                    usuarios_actuales[
+                        usuarios_actuales[
+                            "Documento_ID"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        ==
+                        documento_limpio
+                    ]
+                )
+
+                if not documento_repetido.empty:
+
+                    st.error(
+                        "Ese documento de "
+                        "identidad ya está "
+                        "registrado."
+                    )
+
+                else:
+
+                    nuevo_id = (
+                        generar_usuario_id(
+                            usuarios_actuales
+                        )
+                    )
+
+                    nuevo_usuario = {
+                        "Usuario_ID": nuevo_id,
+                        "Nombre": nombre_limpio,
+                        "Documento_ID": (
+                            documento_limpio
+                        ),
+                        "Nombre_Usuario": (
+                            usuario_limpio
+                        ),
+                        "Clave": clave_limpia,
+                        "Correo": correo_limpio,
+                        "Rol": rol,
+                        "Estado": "ACTIVO"
+                    }
+
+                    usuarios_actuales = pd.concat(
+                        [
+                            usuarios_actuales,
+                            pd.DataFrame(
+                                [nuevo_usuario]
+                            )
+                        ],
+                        ignore_index=True
+                    )
+
+                    guardar_usuarios(
+                        usuarios_actuales
+                    )
+
+                    Usuarios = (
+                        usuarios_actuales
+                    )
+
+                    st.success(
+                        f"Usuario {nuevo_id} "
+                        f"registrado correctamente."
+                    )
+
+                    st.rerun()
+
+
+    st.divider()
+
+
+    # ========================================================
+    # USUARIOS REGISTRADOS
+    # ========================================================
+
+    st.subheader(
+        "Usuarios registrados"
+    )
+
+    if Usuarios.empty:
+
+        st.info(
+            "No existen usuarios registrados."
+        )
+
+        return
+
+
+    for indice, fila in Usuarios.iterrows():
+
+        usuario_id = str(
+            fila["Usuario_ID"]
+        )
+
+        nombre_usuario = str(
+            fila["Nombre_Usuario"]
+        )
+
+        nombre = str(
+            fila["Nombre"]
+        )
+
+        estado = str(
+            fila["Estado"]
+        ).upper()
+
+        rol_usuario = str(
+            fila["Rol"]
+        ).upper()
+
+
+        with st.expander(
+            f"{usuario_id} — "
+            f"{nombre_usuario} — "
+            f"{estado}"
+        ):
+
+            st.write(
+                f"**Nombre:** {nombre}"
+            )
+
+            st.write(
+                f"**Documento:** "
+                f"{fila['Documento_ID']}"
+            )
+
+            st.write(
+                f"**Usuario:** "
+                f"{nombre_usuario}"
+            )
+
+            st.write(
+                f"**Correo:** "
+                f"{fila['Correo']}"
+            )
+
+            st.write(
+                f"**Rol:** "
+                f"{rol_usuario}"
+            )
+
+            st.write(
+                f"**Estado:** "
+                f"{estado}"
+            )
+
+
+            # =================================================
+            # ACTIVAR / INACTIVAR
+            # =================================================
+
+            if usuario_id != "USR0001":
+
+                nuevo_estado = (
+                    "INACTIVO"
+                    if estado == "ACTIVO"
+                    else "ACTIVO"
+                )
+
+                texto_boton = (
+                    "Inactivar usuario"
+                    if estado == "ACTIVO"
+                    else "Activar usuario"
+                )
+
+                if st.button(
+                    texto_boton,
+                    key=(
+                        f"cambiar_estado_"
+                        f"{usuario_id}"
+                    )
+                ):
+
+                    Usuarios.loc[
+                        indice,
+                        "Estado"
+                    ] = nuevo_estado
+
+                    guardar_usuarios(
+                        Usuarios
+                    )
+
+                    st.success(
+                        f"Usuario {usuario_id} "
+                        f"ahora está "
+                        f"{nuevo_estado}."
+                    )
+
+                    st.rerun()
 
 # ============================================================
 # 4. ENCABEZADO
