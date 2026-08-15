@@ -45,7 +45,132 @@ ARCHIVO_EMBEDDINGS = (
     BASE_DIR / "embeddings_sintomas.npy"
 )
 
+# ============================================================
+# 3.1 CONFIGURACIÓN — USUARIOS Y PERMISOS
+# ============================================================
 
+RUTA_USUARIOS = "USUARIOS.xlsx"
+
+COLUMNAS_USUARIOS = [
+    "Usuario_ID",
+    "Nombre",
+    "Documento_ID",
+    "Nombre_Usuario",
+    "Clave",
+    "Correo",
+    "Rol",
+    "Estado"
+]
+
+
+# ============================================================
+# CARGAR O CREAR REGISTRO PERMANENTE DE USUARIOS
+# ============================================================
+
+def cargar_usuarios():
+
+    if os.path.exists(RUTA_USUARIOS):
+
+        usuarios = pd.read_excel(
+            RUTA_USUARIOS
+        )
+
+        for columna in COLUMNAS_USUARIOS:
+
+            if columna not in usuarios.columns:
+
+                usuarios[columna] = ""
+
+        usuarios = usuarios[
+            COLUMNAS_USUARIOS
+        ]
+
+    else:
+
+        usuarios = pd.DataFrame(
+            [
+                {
+                    "Usuario_ID": "USR0001",
+                    "Nombre": "Administrador",
+                    "Documento_ID": "",
+                    "Nombre_Usuario": "FRANQUICIASAUCES",
+                    "Clave": "8810",
+                    "Correo": (
+                        "FRANQUICIASAUCES"
+                        "@FITOMEDICS.COM"
+                    ),
+                    "Rol": "ADMINISTRADOR",
+                    "Estado": "ACTIVO"
+                }
+            ],
+            columns=COLUMNAS_USUARIOS
+        )
+
+        usuarios.to_excel(
+            RUTA_USUARIOS,
+            index=False
+        )
+
+    return usuarios
+
+
+Usuarios = cargar_usuarios()
+
+
+# ============================================================
+# FUNCIÓN — GENERAR ID AUTOMÁTICO
+# ============================================================
+
+def generar_usuario_id(usuarios):
+
+    if usuarios.empty:
+
+        return "USR0001"
+
+    numeros = []
+
+    for valor in usuarios["Usuario_ID"]:
+
+        texto = str(valor).strip()
+
+        if texto.startswith("USR"):
+
+            try:
+
+                numero = int(
+                    texto.replace(
+                        "USR",
+                        ""
+                    )
+                )
+
+                numeros.append(numero)
+
+            except ValueError:
+
+                pass
+
+    if not numeros:
+
+        siguiente = 1
+
+    else:
+
+        siguiente = max(numeros) + 1
+
+    return f"USR{siguiente:04d}"
+
+
+# ============================================================
+# FUNCIÓN — GUARDAR USUARIOS
+# ============================================================
+
+def guardar_usuarios(usuarios):
+
+    usuarios.to_excel(
+        RUTA_USUARIOS,
+        index=False
+    )
 # ============================================================
 # 4. ENCABEZADO
 # ============================================================
