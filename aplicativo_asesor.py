@@ -47,6 +47,22 @@ ARCHIVO_EMBEDDINGS = (
 
 # ============================================================
 # ============================================================
+# ============================================================
+# 3. ARCHIVOS PRINCIPALES
+# ============================================================
+
+ARCHIVO_MATRIZ = (
+    BASE_DIR / "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
+)
+
+ARCHIVO_SEMANTICA = (
+    BASE_DIR / "base_sintomas_semantica.csv"
+)
+
+ARCHIVO_EMBEDDINGS = (
+    BASE_DIR / "embeddings_sintomas.npy"
+)
+
 
 # ============================================================
 # 3.1 — INICIO DE SESIÓN
@@ -150,6 +166,9 @@ if not st.session_state["usuario_autenticado"]:
             )
 
     st.stop()
+
+
+
 # ============================================================
 # 4. ENCABEZADO
 # ============================================================
