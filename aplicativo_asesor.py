@@ -770,16 +770,18 @@ MOSTRAR_DIAGNOSTICO = (
 # 4. ENCABEZADO
 # ============================================================
 
-st.title("Aplicativo Asesores")
+if MOSTRAR_DIAGNOSTICO:
 
-st.subheader(
-    "Paquete 1 — Diagnóstico y carga de información"
-)
+    st.title("Aplicativo Asesores")
 
-st.write(
-    "Verificación inicial de los archivos necesarios "
-    "para el funcionamiento del aplicativo."
-)
+    st.subheader(
+        "Paquete 1 — Diagnóstico y carga de información"
+    )
+
+    st.write(
+        "Verificación inicial de los archivos necesarios "
+        "para el funcionamiento del aplicativo."
+    )
 
 
 # ============================================================
