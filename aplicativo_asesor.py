@@ -46,135 +46,108 @@ ARCHIVO_EMBEDDINGS = (
 )
 
 # ============================================================
-# 3.1 CONFIGURACIÓN — USUARIOS Y PERMISOS
+# ============================================================
+# 3.1 — INICIO DE SESIÓN
 # ============================================================
 
-# ============================================================
-# CONFIGURACIÓN — USUARIOS Y PERMISOS
-# ============================================================
+st.session_state.setdefault(
+    "usuario_autenticado",
+    False
+)
 
-RUTA_USUARIOS = "USUARIOS.xlsx"
+st.session_state.setdefault(
+    "usuario_actual",
+    ""
+)
 
-COLUMNAS_USUARIOS = [
-    "Usuario_ID",
-    "Nombre",
-    "Documento_ID",
-    "Nombre_Usuario",
-    "Clave",
-    "Correo",
-    "Rol",
-    "Estado"
-]
-
-
-# ============================================================
-# CARGAR O CREAR REGISTRO PERMANENTE DE USUARIOS
-# ============================================================
-
-def cargar_usuarios():
-
-    if os.path.exists(RUTA_USUARIOS):
-
-        usuarios = pd.read_excel(
-            RUTA_USUARIOS
-        )
-
-        for columna in COLUMNAS_USUARIOS:
-
-            if columna not in usuarios.columns:
-
-                usuarios[columna] = ""
-
-        usuarios = usuarios[
-            COLUMNAS_USUARIOS
-        ]
-
-    else:
-
-        usuarios = pd.DataFrame(
-            [
-                {
-                    "Usuario_ID": "USR0001",
-                    "Nombre": "Administrador",
-                    "Documento_ID": "",
-                    "Nombre_Usuario": "FRANQUICIASAUCES",
-                    "Clave": "8810",
-                    "Correo": (
-                        "FRANQUICIASAUCES"
-                        "@FITOMEDICS.COM"
-                    ),
-                    "Rol": "ADMINISTRADOR",
-                    "Estado": "ACTIVO"
-                }
-            ],
-            columns=COLUMNAS_USUARIOS
-        )
-
-        usuarios.to_excel(
-            RUTA_USUARIOS,
-            index=False
-        )
-
-    return usuarios
-
-
-Usuarios = cargar_usuarios()
+st.session_state.setdefault(
+    "rol_usuario",
+    ""
+)
 
 
 # ============================================================
-# FUNCIÓN — GENERAR ID AUTOMÁTICO
+# USUARIO ADMINISTRADOR INICIAL
 # ============================================================
 
-def generar_usuario_id(usuarios):
-
-    if usuarios.empty:
-
-        return "USR0001"
-
-    numeros = []
-
-    for valor in usuarios["Usuario_ID"]:
-
-        texto = str(valor).strip()
-
-        if texto.startswith("USR"):
-
-            try:
-
-                numero = int(
-                    texto.replace(
-                        "USR",
-                        ""
-                    )
-                )
-
-                numeros.append(numero)
-
-            except ValueError:
-
-                pass
-
-    if not numeros:
-
-        siguiente = 1
-
-    else:
-
-        siguiente = max(numeros) + 1
-
-    return f"USR{siguiente:04d}"
+USUARIO_ADMIN = "FRANQUICIASAUCES"
+CLAVE_ADMIN = "8810"
 
 
 # ============================================================
-# FUNCIÓN — GUARDAR USUARIOS
+# PANTALLA DE INGRESO
 # ============================================================
 
-def guardar_usuarios(usuarios):
+if not st.session_state["usuario_autenticado"]:
 
-    usuarios.to_excel(
-        RUTA_USUARIOS,
-        index=False
+    st.title(
+        "Ingreso a FITOASISTE"
     )
+
+    st.write(
+        "Ingrese sus credenciales para acceder al sistema."
+    )
+
+    usuario_ingresado = st.text_input(
+        "Nombre de usuario:",
+        key="login_usuario"
+    )
+
+    clave_ingresada = st.text_input(
+        "Contraseña:",
+        type="password",
+        key="login_clave"
+    )
+
+    if st.button(
+        "Ingresar",
+        key="boton_ingresar"
+    ):
+
+        usuario_normalizado = (
+            usuario_ingresado
+            .strip()
+            .upper()
+        )
+
+        clave_normalizada = (
+            clave_ingresada
+            .strip()
+        )
+
+        if (
+            usuario_normalizado
+            == USUARIO_ADMIN
+            and
+            clave_normalizada
+            == CLAVE_ADMIN
+        ):
+
+            st.session_state[
+                "usuario_autenticado"
+            ] = True
+
+            st.session_state[
+                "usuario_actual"
+            ] = USUARIO_ADMIN
+
+            st.session_state[
+                "rol_usuario"
+            ] = "ADMINISTRADOR"
+
+            st.success(
+                "Ingreso exitoso."
+            )
+
+            st.rerun()
+
+        else:
+
+            st.error(
+                "Usuario o contraseña incorrectos."
+            )
+
+    st.stop()
 # ============================================================
 # 4. ENCABEZADO
 # ============================================================
