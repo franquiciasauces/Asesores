@@ -8628,4 +8628,532 @@ elif opcion_principal == "ASESORÍA":
                     hide_index=True
                 )
 
+# ============================================================
+# 6.3.1 — VISUALIZACIÓN DE PRODUCTOS Y MODO DE ACCIÓN
+# ============================================================
 
+if (
+    "reglas_activadas" in st.session_state
+    and not st.session_state[
+        "reglas_activadas"
+    ].empty
+):
+
+    reglas_activadas = st.session_state[
+        "reglas_activadas"
+    ]
+
+    st.divider()
+
+    st.subheader(
+        "PRODUCTOS RECOMENDADOS"
+    )
+
+    # ========================================================
+    # ESTRUCTURA TEMPORAL DE PRODUCTOS
+    # ========================================================
+
+    productos_principales_631 = {}
+    productos_coadyuvantes_631 = {}
+
+    # ========================================================
+    # RECORRER LAS REGLAS ACTIVADAS
+    # ========================================================
+
+    for _, regla in reglas_activadas.iterrows():
+
+        regla_id = str(
+            regla["Regla_ID"]
+        ).strip()
+
+        motivo_tecnico = str(
+            regla["Motivo técnico (mecanismo)"]
+        ).strip()
+
+        if (
+            not motivo_tecnico
+            or motivo_tecnico.lower() == "nan"
+        ):
+
+            motivo_tecnico = (
+                "Información de acción no disponible."
+            )
+
+        # ====================================================
+        # PRODUCTO PRINCIPAL
+        # ====================================================
+
+        producto_principal = str(
+            regla["Producto principal"]
+        ).strip()
+
+        if (
+            producto_principal
+            and producto_principal.lower()
+            != "nan"
+        ):
+
+            if producto_principal not in (
+                productos_principales_631
+            ):
+
+                productos_principales_631[
+                    producto_principal
+                ] = {
+                    "Producto":
+                        producto_principal,
+                    "Tipo":
+                        "Principal",
+                    "Reglas": [],
+                    "Motivos": []
+                }
+
+            if regla_id not in (
+                productos_principales_631[
+                    producto_principal
+                ]["Reglas"]
+            ):
+
+                productos_principales_631[
+                    producto_principal
+                ]["Reglas"].append(
+                    regla_id
+                )
+
+            if motivo_tecnico not in (
+                productos_principales_631[
+                    producto_principal
+                ]["Motivos"]
+            ):
+
+                productos_principales_631[
+                    producto_principal
+                ]["Motivos"].append(
+                    motivo_tecnico
+                )
+
+        # ====================================================
+        # COADYUVANTES
+        # ====================================================
+
+        texto_coadyuvantes = str(
+            regla[
+                "Coadyuvantes sugeridos (1-3)"
+            ]
+        ).strip()
+
+        if (
+            texto_coadyuvantes
+            and texto_coadyuvantes.lower()
+            != "nan"
+        ):
+
+            coadyuvantes = (
+                texto_coadyuvantes.split(";")
+            )
+
+            for producto_coadyuvante in (
+                coadyuvantes
+            ):
+
+                producto_coadyuvante = (
+                    producto_coadyuvante.strip()
+                )
+
+                if (
+                    not producto_coadyuvante
+                    or producto_coadyuvante.lower()
+                    == "nan"
+                ):
+                    continue
+
+                # --------------------------------------------
+                # SI YA ES PRINCIPAL, NO SE CREA DUPLICADO
+                # --------------------------------------------
+
+                if producto_coadyuvante in (
+                    productos_principales_631
+                ):
+
+                    continue
+
+                if producto_coadyuvante not in (
+                    productos_coadyuvantes_631
+                ):
+
+                    productos_coadyuvantes_631[
+                        producto_coadyuvante
+                    ] = {
+                        "Producto":
+                            producto_coadyuvante,
+                        "Tipo":
+                            "Coadyuvante",
+                        "Reglas": [],
+                        "Motivos": []
+                    }
+
+                if regla_id not in (
+                    productos_coadyuvantes_631[
+                        producto_coadyuvante
+                    ]["Reglas"]
+                ):
+
+                    productos_coadyuvantes_631[
+                        producto_coadyuvante
+                    ]["Reglas"].append(
+                        regla_id
+                    )
+
+                if motivo_tecnico not in (
+                    productos_coadyuvantes_631[
+                        producto_coadyuvante
+                    ]["Motivos"]
+                ):
+
+                    productos_coadyuvantes_631[
+                        producto_coadyuvante
+                    ]["Motivos"].append(
+                        motivo_tecnico
+                    )
+
+    # ========================================================
+    # GUARDAR ESTRUCTURA TEMPORAL
+    # ========================================================
+
+    st.session_state[
+        "productos_principales_asesoria"
+    ] = productos_principales_631
+
+    st.session_state[
+        "productos_coadyuvantes_asesoria"
+    ] = productos_coadyuvantes_631
+
+    # ========================================================
+    # FUNCIÓN PARA BUSCAR PRODUCTO EN BASE_PRODUCTOS
+    # ========================================================
+
+    def buscar_producto_base_631(
+        nombre_producto
+    ):
+
+        resultado = Base_Productos[
+            Base_Productos["Producto"]
+            .astype(str)
+            .str.strip()
+            .str.casefold()
+            ==
+            str(nombre_producto)
+            .strip()
+            .casefold()
+        ]
+
+        if resultado.empty:
+
+            return None
+
+        return resultado.iloc[0]
+
+    # ========================================================
+    # FUNCIÓN PARA MOSTRAR TARJETA
+    # ========================================================
+
+    def mostrar_tarjeta_producto_631(
+        datos_producto,
+        informacion_producto
+    ):
+
+        nombre_producto = (
+            informacion_producto[
+                "Producto"
+            ]
+        )
+
+        tipo_producto = (
+            informacion_producto[
+                "Tipo"
+            ]
+        )
+
+        reglas_producto = (
+            informacion_producto[
+                "Reglas"
+            ]
+        )
+
+        motivos_producto = (
+            informacion_producto[
+                "Motivos"
+            ]
+        )
+
+        # ====================================================
+        # CONTENEDOR VISUAL
+        # ====================================================
+
+        with st.container(
+            border=True
+        ):
+
+            st.markdown(
+                f"### {nombre_producto}"
+            )
+
+            st.caption(
+                f"{tipo_producto}"
+            )
+
+            # =================================================
+            # IMAGEN
+            # =================================================
+
+            imagen = None
+
+            if datos_producto is not None:
+
+                if "Foto" in Base_Productos.columns:
+
+                    valor_imagen = (
+                        datos_producto["Foto"]
+                    )
+
+                    if (
+                        pd.notna(valor_imagen)
+                        and str(valor_imagen).strip()
+                    ):
+
+                        imagen = str(
+                            valor_imagen
+                        ).strip()
+
+            if imagen:
+
+                try:
+
+                    st.image(
+                        imagen,
+                        width=180
+                    )
+
+                except Exception:
+
+                    st.caption(
+                        "Imagen no disponible"
+                    )
+
+            else:
+
+                st.caption(
+                    "Imagen no disponible"
+                )
+
+            # =================================================
+            # PRECIO
+            # =================================================
+
+            precio_disponible = False
+            precio_numerico = None
+
+            if datos_producto is not None:
+
+                if (
+                    "Precio público"
+                    in Base_Productos.columns
+                ):
+
+                    precio = (
+                        datos_producto[
+                            "Precio público"
+                        ]
+                    )
+
+                    if (
+                        pd.notna(precio)
+                        and str(precio).strip()
+                        and str(precio).strip()
+                        .lower() != "nan"
+                    ):
+
+                        try:
+
+                            texto_precio = (
+                                str(precio)
+                                .replace("$", "")
+                                .replace(" ", "")
+                                .strip()
+                            )
+
+                            if (
+                                ","
+                                in texto_precio
+                                and "."
+                                in texto_precio
+                            ):
+
+                                texto_precio = (
+                                    texto_precio
+                                    .replace(
+                                        ".",
+                                        ""
+                                    )
+                                    .replace(
+                                        ",",
+                                        "."
+                                    )
+                                )
+
+                            elif "," in texto_precio:
+
+                                texto_precio = (
+                                    texto_precio
+                                    .replace(
+                                        ",",
+                                        "."
+                                    )
+                                )
+
+                            elif (
+                                "."
+                                in texto_precio
+                                and len(
+                                    texto_precio
+                                    .split(".")[-1]
+                                ) == 3
+                            ):
+
+                                texto_precio = (
+                                    texto_precio
+                                    .replace(
+                                        ".",
+                                        ""
+                                    )
+                                )
+
+                            precio_numerico = float(
+                                texto_precio
+                            )
+
+                            precio_disponible = True
+
+                        except (
+                            ValueError,
+                            TypeError
+                        ):
+
+                            precio_disponible = False
+
+            if precio_disponible:
+
+                st.markdown(
+                    f"**Precio: "
+                    f"${precio_numerico:,.0f}**"
+                )
+
+            else:
+
+                st.warning(
+                    "Precio no disponible"
+                )
+
+            # =================================================
+            # MODO DE ACCIÓN
+            # =================================================
+
+            st.markdown(
+                "**Modo de acción / motivo técnico:**"
+            )
+
+            if motivos_producto:
+
+                for motivo in motivos_producto:
+
+                    st.write(
+                        motivo
+                    )
+
+            else:
+
+                st.caption(
+                    "Información de acción "
+                    "no disponible."
+                )
+
+            # =================================================
+            # REGLAS QUE ORIGINARON EL PRODUCTO
+            # =================================================
+
+            st.caption(
+                "Regla(s) activada(s): "
+                + ", ".join(
+                    reglas_producto
+                )
+            )
+
+    # ========================================================
+    # PRODUCTOS PRINCIPALES
+    # ========================================================
+
+    if productos_principales_631:
+
+        st.markdown(
+            "### Productos principales"
+        )
+
+        columnas = st.columns(3)
+
+        for indice, (
+            nombre_producto,
+            informacion_producto
+        ) in enumerate(
+            productos_principales_631.items()
+        ):
+
+            with columnas[
+                indice % 3
+            ]:
+
+                datos_producto = (
+                    buscar_producto_base_631(
+                        nombre_producto
+                    )
+                )
+
+                mostrar_tarjeta_producto_631(
+                    datos_producto,
+                    informacion_producto
+                )
+
+    # ========================================================
+    # COADYUVANTES
+    # ========================================================
+
+    if productos_coadyuvantes_631:
+
+        st.divider()
+
+        st.markdown(
+            "### Coadyuvantes sugeridos"
+        )
+
+        columnas = st.columns(3)
+
+        for indice, (
+            nombre_producto,
+            informacion_producto
+        ) in enumerate(
+            productos_coadyuvantes_631.items()
+        ):
+
+            with columnas[
+                indice % 3
+            ]:
+
+                datos_producto = (
+                    buscar_producto_base_631(
+                        nombre_producto
+                    )
+                )
+
+                mostrar_tarjeta_producto_631(
+                    datos_producto,
+                    informacion_producto
+                )
