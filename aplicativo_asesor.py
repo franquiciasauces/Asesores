@@ -7525,7 +7525,8 @@ if (
 
                         )
     # ========================================================
-# 7.6 BANCO GENERAL — VALIDACIÓN DE PREGUNTAS
+# ========================================================
+# 7.6 BANCO GENERAL — VALIDACIÓN
 # RESTRICCIONES
 # SOLO ADMINISTRADOR
 # ========================================================
@@ -7544,10 +7545,6 @@ if (
         BASE_DIR
         / "BANCO_PREGUNTAS_GENERALES.xlsx"
     )
-
-    # ====================================================
-    # CARGAR BANCO
-    # ====================================================
 
     if not RUTA_BANCO_GENERAL_76.exists():
 
@@ -7580,9 +7577,9 @@ if (
 
         if banco_validacion_76 is not None:
 
-            # ================================================
+            # ====================================================
             # ASEGURAR COLUMNAS
-            # ================================================
+            # ====================================================
 
             columnas_validacion_76 = [
 
@@ -7607,9 +7604,7 @@ if (
 
             for columna_76 in columnas_validacion_76:
 
-                if (
-                    columna_76
-                    not in
+                if columna_76 not in (
                     banco_validacion_76.columns
                 ):
 
@@ -7626,50 +7621,49 @@ if (
             )
 
 
-            # =================================================
+            # ====================================================
             # SOLO RESTRICCIONES PENDIENTES
-            # =================================================
+            # ====================================================
+
+            pendientes_76 = banco_validacion_76[
+                (
+                    banco_validacion_76[
+                        "Modulo"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                    ==
+                    "restricciones"
+                )
+                &
+                (
+                    banco_validacion_76[
+                        "Estado"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .str.upper()
+                    ==
+                    "PENDIENTE"
+                )
+            ].copy()
+
+
+            # ====================================================
+            # MÁXIMO 5 PREGUNTAS
+            # ====================================================
 
             pendientes_76 = (
-
-                banco_validacion_76[
-                    (
-                        banco_validacion_76[
-                            "Modulo"
-                        ]
-                        .astype(str)
-                        .str.strip()
-                        .str.lower()
-                        ==
-                        "restricciones"
-                    )
-                    &
-                    (
-                        banco_validacion_76[
-                            "Estado"
-                        ]
-                        .astype(str)
-                        .str.strip()
-                        .str.upper()
-                        ==
-                        "PENDIENTE"
-                    )
-                ]
+                pendientes_76
+                .head(5)
                 .copy()
-
-            )
-
-
-            st.write(
-                f"Preguntas de Restricciones "
-                f"pendientes de validación: "
-                f"**{len(pendientes_76)}**"
             )
 
 
             if pendientes_76.empty:
 
-                st.success(
+                st.info(
                     "No hay preguntas de Restricciones "
                     "pendientes de validación."
                 )
@@ -7677,841 +7671,235 @@ if (
 
             else:
 
+                st.write(
+                    "Preguntas para validar: "
+                    f"**{len(pendientes_76)}**"
+                )
+
+
                 # =================================================
-                # CANTIDAD POR BLOQUE
+                # DECISIÓN PARA TODO EL BLOQUE
                 # =================================================
 
-                cantidad_bloque_76 = st.number_input(
+                decision_bloque_76 = st.radio(
 
-                    "Cantidad de preguntas por bloque",
+                    "Decisión para todo el bloque",
 
-                    min_value=1,
+                    [
+                        "Mantener pendientes",
+                        "Aprobar todo",
+                        "Rechazar todo"
+                    ],
 
-                    max_value=min(
-                        100,
-                        len(pendientes_76)
-                    ),
+                    index=0,
 
-                    value=min(
-                        20,
-                        len(pendientes_76)
-                    ),
-
-                    step=1,
+                    horizontal=True,
 
                     key=(
-                        "cantidad_bloque_"
-                        "validacion_restricciones_76"
-                    )
-
-                )
-
-
-                # =================================================
-                # SELECCIONAR BLOQUE
-                # =================================================
-
-                pendientes_76 = pendientes_76.reset_index(
-                    drop=False
-                )
-
-
-                cantidad_bloque_76 = int(
-                    cantidad_bloque_76
-                )
-
-
-                total_bloques_76 = (
-
-                    (
-                        len(pendientes_76)
-                        +
-                        cantidad_bloque_76
-                        -
-                        1
-                    )
-                    //
-                    cantidad_bloque_76
-
-                )
-
-
-                bloque_actual_76 = st.number_input(
-
-                    "Bloque a revisar",
-
-                    min_value=1,
-
-                    max_value=max(
-                        1,
-                        total_bloques_76
-                    ),
-
-                    value=1,
-
-                    step=1,
-
-                    key=(
-                        "bloque_actual_"
+                        "decision_bloque_"
                         "restricciones_76"
                     )
 
                 )
 
 
-                inicio_76 = (
-
-                    (
-                        int(
-                            bloque_actual_76
-                        )
-                        -
-                        1
-                    )
-                    *
-                    cantidad_bloque_76
-
-                )
-
-
-                fin_76 = (
-
-                    inicio_76
-                    +
-                    cantidad_bloque_76
-
-                )
-
-
-                bloque_76 = (
-                    pendientes_76
-                    .iloc[
-                        inicio_76:fin_76
-                    ]
-                    .copy()
-                )
-
-
-                st.info(
-
-                    f"Mostrando bloque "
-                    f"{int(bloque_actual_76)} "
-                    f"de {total_bloques_76} — "
-                    f"{len(bloque_76)} preguntas."
-
-                )
+                decisiones_76 = {}
 
 
                 # =================================================
-                # FORMULARIO DE VALIDACIÓN
+                # MOSTRAR PREGUNTAS
                 # =================================================
 
-                cambios_76 = {}
+                for numero_76, (
+                    indice_76,
+                    fila_76
+                ) in enumerate(
 
+                    pendientes_76.iterrows(),
 
-                with st.form(
-                    key=(
-                        "form_validacion_"
-                        "restricciones_76_"
-                        f"{int(bloque_actual_76)}"
-                    )
+                    start=1
+
                 ):
 
-                    for numero_76, (
-                        indice_original_76,
-                        fila_76
-                    ) in enumerate(
-
-                        bloque_76.iterrows(),
-
-                        start=1
-
-                    ):
-
-                        pregunta_id_76 = str(
-                            fila_76[
-                                "Pregunta_ID"
-                            ]
-                        )
-
-
-                        st.markdown(
-                            "---"
-                        )
-
-
-                        st.markdown(
-                            f"### Pregunta {numero_76} "
-                            f"— {pregunta_id_76}"
-                        )
-
-
-                        st.caption(
-
-                            f"Nivel: "
-                            f"{fila_76['Nivel']}  |  "
-                            f"Relación: "
-                            f"{fila_76['Tipo_Relacion']}  |  "
-                            f"Producto: "
-                            f"{fila_76['Tema']}"
-
-                        )
-
-
-                        # =========================================
-                        # ENUNCIADO
-                        # =========================================
-
-                        pregunta_editada_76 = st.text_area(
-
-                            "Pregunta",
-
-                            value=str(
-                                fila_76[
-                                    "Pregunta"
-                                ]
-                            ),
-
-                            key=(
-                                "pregunta_76_"
-                                f"{pregunta_id_76}"
-                            ),
-
-                            height=90
-
-                        )
-
-
-                        # =========================================
-                        # RESPUESTAS
-                        # =========================================
-
-                        respuesta_1_76 = st.text_input(
-
-                            "Respuesta 1",
-
-                            value=str(
-                                fila_76[
-                                    "Respuesta_1"
-                                ]
-                            ),
-
-                            key=(
-                                "r1_76_"
-                                f"{pregunta_id_76}"
-                            )
-
-                        )
-
-
-                        respuesta_2_76 = st.text_input(
-
-                            "Respuesta 2",
-
-                            value=str(
-                                fila_76[
-                                    "Respuesta_2"
-                                ]
-                            ),
-
-                            key=(
-                                "r2_76_"
-                                f"{pregunta_id_76}"
-                            )
-
-                        )
-
-
-                        respuesta_3_76 = st.text_input(
-
-                            "Respuesta 3",
-
-                            value=str(
-                                fila_76[
-                                    "Respuesta_3"
-                                ]
-                            ),
-
-                            key=(
-                                "r3_76_"
-                                f"{pregunta_id_76}"
-                            )
-
-                        )
-
-
-                        respuesta_4_76 = st.text_input(
-
-                            "Respuesta 4",
-
-                            value=str(
-                                fila_76[
-                                    "Respuesta_4"
-                                ]
-                            ),
-
-                            key=(
-                                "r4_76_"
-                                f"{pregunta_id_76}"
-                            )
-
-                        )
-
-
-                        # =========================================
-                        # RESPUESTA CORRECTA
-                        # =========================================
-
-                        nivel_76 = str(
-                            fila_76[
-                                "Nivel"
-                            ]
-                        ).strip()
-
-
-                        respuesta_original_76 = str(
-                            fila_76[
-                                "Respuesta_Correcta"
-                            ]
-                        ).strip()
-
-
-                        if nivel_76 == "Nivel 2":
-
-                            posiciones_correctas_76 = [
-
-                                posicion
-
-                                for posicion
-                                in [
-                                    "1",
-                                    "2",
-                                    "3",
-                                    "4"
-                                ]
-
-                                if posicion
-                                in
-                                respuesta_original_76.split(",")
-
-                            ]
-
-
-                            respuestas_correctas_76 = st.multiselect(
-
-                                "Seleccione las DOS respuestas correctas",
-
-                                options=[
-                                    "1",
-                                    "2",
-                                    "3",
-                                    "4"
-                                ],
-
-                                default=(
-                                    posiciones_correctas_76
-                                    if len(
-                                        posiciones_correctas_76
-                                    ) == 2
-                                    else []
-                                ),
-
-                                max_selections=2,
-
-                                key=(
-                                    "correctas_76_"
-                                    f"{pregunta_id_76}"
-                                )
-
-                            )
-
-
-                            respuesta_correcta_editada_76 = (
-
-                                ",".join(
-                                    sorted(
-                                        respuestas_correctas_76,
-                                        key=int
-                                    )
-                                )
-
-                            )
-
-                        else:
-
-                            respuesta_correcta_editada_76 = st.selectbox(
-
-                                "Respuesta correcta",
-
-                                options=[
-                                    "1",
-                                    "2",
-                                    "3",
-                                    "4"
-                                ],
-
-                                index=(
-
-                                    int(
-                                        respuesta_original_76
-                                    )
-                                    - 1
-
-                                    if respuesta_original_76
-                                    in [
-                                        "1",
-                                        "2",
-                                        "3",
-                                        "4"
-                                    ]
-
-                                    else 0
-
-                                ),
-
-                                key=(
-                                    "correcta_76_"
-                                    f"{pregunta_id_76}"
-                                )
-
-                            )
-
-
-                        # =========================================
-                        # OBSERVACIÓN
-                        # =========================================
-
-                        observacion_76 = st.text_area(
-
-                            "Observación del administrador",
-
-                            value=str(
-                                fila_76[
-                                    "Observacion_Administrador"
-                                ]
-                            ),
-
-                            key=(
-                                "observacion_76_"
-                                f"{pregunta_id_76}"
-                            ),
-
-                            height=60
-
-                        )
-
-
-                        cambios_76[
-                            pregunta_id_76
-                        ] = {
-
-                            "indice":
-                                indice_original_76,
-
-                            "Pregunta":
-                                pregunta_editada_76,
-
-                            "Respuesta_1":
-                                respuesta_1_76,
-
-                            "Respuesta_2":
-                                respuesta_2_76,
-
-                            "Respuesta_3":
-                                respuesta_3_76,
-
-                            "Respuesta_4":
-                                respuesta_4_76,
-
-                            "Respuesta_Correcta":
-                                respuesta_correcta_editada_76,
-
-                            "Observacion":
-                                observacion_76
-
-                        }
-
-
-                    # =================================================
-                    # VALIDACIÓN DEL BLOQUE
-                    # =================================================
-
-                    st.markdown(
-                        "---"
+                    pregunta_id_76 = str(
+                        fila_76[
+                            "Pregunta_ID"
+                        ]
                     )
 
-                    decision_bloque_76 = st.radio(
 
-                        "Decisión para este bloque",
+                    st.markdown(
+                        f"### Pregunta {numero_76}"
+                    )
+
+
+                    st.caption(
+                        f"ID: {pregunta_id_76}"
+                    )
+
+
+                    st.write(
+                        f"**Producto:** "
+                        f"{fila_76['Fuente_ID']}"
+                    )
+
+
+                    st.write(
+                        f"**Pregunta:** "
+                        f"{fila_76['Pregunta']}"
+                    )
+
+
+                    st.write(
+                        f"1. {fila_76['Respuesta_1']}"
+                    )
+
+
+                    st.write(
+                        f"2. {fila_76['Respuesta_2']}"
+                    )
+
+
+                    st.write(
+                        f"3. {fila_76['Respuesta_3']}"
+                    )
+
+
+                    st.write(
+                        f"4. {fila_76['Respuesta_4']}"
+                    )
+
+
+                    st.write(
+                        f"**Respuesta correcta:** "
+                        f"{fila_76['Respuesta_Correcta']}"
+                    )
+
+
+                    # =============================================
+                    # ESTADO INDIVIDUAL
+                    # =============================================
+
+                    decision_individual_76 = st.radio(
+
+                        "Estado",
 
                         [
-
-                            "Mantener pendientes",
-
-                            "Aprobar todo el bloque",
-
-                            "Rechazar todo el bloque"
-
+                            "PENDIENTE",
+                            "APROBADA",
+                            "RECHAZADA"
                         ],
+
+                        index=0,
 
                         horizontal=True,
 
                         key=(
-                            "decision_bloque_"
-                            "restricciones_76"
+                            "estado_restriccion_76_"
+                            f"{pregunta_id_76}"
                         )
 
                     )
 
 
-                    guardar_bloque_76 = st.form_submit_button(
+                    decisiones_76[
+                        indice_76
+                    ] = decision_individual_76
 
-                        "GUARDAR BLOQUE",
 
-                        type="primary"
-
-                    )
+                    st.divider()
 
 
                 # =================================================
                 # GUARDAR
                 # =================================================
 
-                if guardar_bloque_76:
+                if st.button(
 
-                    errores_76 = []
+                    "GUARDAR VALIDACIÓN",
 
+                    type="primary",
 
-                    # =============================================
-                    # VALIDAR PREGUNTAS
-                    # =============================================
+                    key="guardar_restricciones_76"
 
-                    for pregunta_id_76, datos_76 in (
-                        cambios_76.items()
+                ):
+
+                    for indice_76, decision_76 in (
+                        decisiones_76.items()
                     ):
 
-                        pregunta_texto_76 = str(
-                            datos_76[
-                                "Pregunta"
-                            ]
-                        ).strip()
-
-
-                        respuestas_76 = [
-
-                            str(
-                                datos_76[
-                                    "Respuesta_1"
-                                ]
-                            ).strip(),
-
-                            str(
-                                datos_76[
-                                    "Respuesta_2"
-                                ]
-                            ).strip(),
-
-                            str(
-                                datos_76[
-                                    "Respuesta_3"
-                                ]
-                            ).strip(),
-
-                            str(
-                                datos_76[
-                                    "Respuesta_4"
-                                ]
-                            ).strip()
-
-                        ]
-
-
-                        correcta_76 = str(
-                            datos_76[
-                                "Respuesta_Correcta"
-                            ]
-                        ).strip()
-
-
-                        if not pregunta_texto_76:
-
-                            errores_76.append(
-                                f"{pregunta_id_76}: "
-                                "el enunciado está vacío."
-                            )
-
-
-                        if any(
-                            not respuesta
-                            for respuesta
-                            in respuestas_76
-                        ):
-
-                            errores_76.append(
-                                f"{pregunta_id_76}: "
-                                "hay respuestas vacías."
-                            )
-
+                        # -----------------------------------------
+                        # DECISIÓN DEL BLOQUE
+                        # -----------------------------------------
 
                         if (
-                            len(
-                                set(
-                                    respuestas_76
-                                )
-                            )
-                            <
-                            4
+                            decision_bloque_76
+                            ==
+                            "Aprobar todo"
                         ):
 
-                            errores_76.append(
-                                f"{pregunta_id_76}: "
-                                "las cuatro respuestas "
-                                "deben ser diferentes."
-                            )
+                            banco_validacion_76.loc[
+                                indice_76,
+                                "Estado"
+                            ] = "APROBADA"
 
 
-                        nivel_fila_76 = str(
+                        elif (
+                            decision_bloque_76
+                            ==
+                            "Rechazar todo"
+                        ):
 
                             banco_validacion_76.loc[
-                                datos_76["indice"],
-                                "Nivel"
-                            ]
+                                indice_76,
+                                "Estado"
+                            ] = "RECHAZADA"
 
-                        ).strip()
-
-
-                        if nivel_fila_76 == "Nivel 1":
-
-                            if correcta_76 not in [
-                                "1",
-                                "2",
-                                "3",
-                                "4"
-                            ]:
-
-                                errores_76.append(
-                                    f"{pregunta_id_76}: "
-                                    "Nivel 1 debe tener "
-                                    "una sola respuesta "
-                                    "correcta."
-                                )
 
                         else:
 
-                            posiciones_76 = [
-
-                                x.strip()
-
-                                for x
-                                in correcta_76.split(",")
-
-                                if x.strip()
-
-                            ]
+                            banco_validacion_76.loc[
+                                indice_76,
+                                "Estado"
+                            ] = decision_76
 
 
-                            if (
-                                len(
-                                    posiciones_76
-                                ) != 2
-                            ):
+                    # =================================================
+                    # GUARDAR EN EXCEL
+                    # =================================================
 
-                                errores_76.append(
-                                    f"{pregunta_id_76}: "
-                                    "Nivel 2 debe tener "
-                                    "exactamente dos "
-                                    "respuestas correctas."
-                                )
+                    try:
 
+                        banco_validacion_76.to_excel(
 
-                    if errores_76:
+                            RUTA_BANCO_GENERAL_76,
 
-                        st.error(
-                            "No se guardó el bloque "
-                            "porque hay errores."
+                            index=False,
+
+                            sheet_name="Banco_General"
+
                         )
 
 
-                        for error_76 in errores_76:
-
-                            st.warning(
-                                error_76
-                            )
-
-
-                    else:
-
-                        # =========================================
-                        # ACTUALIZAR DATOS
-                        # =========================================
-
-                        for (
-                            pregunta_id_76,
-                            datos_76
-                        ) in cambios_76.items():
-
-                            indice_76 = (
-                                datos_76[
-                                    "indice"
-                                ]
-                            )
+                        st.success(
+                            "✓ Validación guardada "
+                            "correctamente."
+                        )
 
 
-                            banco_validacion_76.loc[
-                                indice_76,
-                                "Pregunta"
-                            ] = datos_76[
-                                "Pregunta"
-                            ]
+                        st.rerun()
 
 
-                            banco_validacion_76.loc[
-                                indice_76,
-                                "Respuesta_1"
-                            ] = datos_76[
-                                "Respuesta_1"
-                            ]
+                    except Exception as error_guardado_76:
 
+                        st.error(
+                            "No fue posible guardar "
+                            "la validación."
+                        )
 
-                            banco_validacion_76.loc[
-                                indice_76,
-                                "Respuesta_2"
-                            ] = datos_76[
-                                "Respuesta_2"
-                            ]
-
-
-                            banco_validacion_76.loc[
-                                indice_76,
-                                "Respuesta_3"
-                            ] = datos_76[
-                                "Respuesta_3"
-                            ]
-
-
-                            banco_validacion_76.loc[
-                                indice_76,
-                                "Respuesta_4"
-                            ] = datos_76[
-                                "Respuesta_4"
-                            ]
-
-
-                            banco_validacion_76.loc[
-                                indice_76,
-                                "Respuesta_Correcta"
-                            ] = datos_76[
-                                "Respuesta_Correcta"
-                            ]
-
-
-                            banco_validacion_76.loc[
-                                indice_76,
-                                "Observacion_Administrador"
-                            ] = datos_76[
-                                "Observacion"
-                            ]
-
-
-                            # =====================================
-                            # ESTADO DEL BLOQUE
-                            # =====================================
-
-                            if (
-                                decision_bloque_76
-                                ==
-                                "Aprobar todo el bloque"
-                            ):
-
-                                banco_validacion_76.loc[
-                                    indice_76,
-                                    "Estado"
-                                ] = "APROBADA"
-
-
-                            elif (
-                                decision_bloque_76
-                                ==
-                                "Rechazar todo el bloque"
-                            ):
-
-                                banco_validacion_76.loc[
-                                    indice_76,
-                                    "Estado"
-                                ] = "RECHAZADA"
-
-
-                            else:
-
-                                banco_validacion_76.loc[
-                                    indice_76,
-                                    "Estado"
-                                ] = "PENDIENTE"
-
-
-                        # =========================================
-                        # GUARDAR EXCEL
-                        # =========================================
-
-                        try:
-
-                            banco_validacion_76.to_excel(
-
-                                RUTA_BANCO_GENERAL_76,
-
-                                index=False,
-
-                                sheet_name="Banco_General"
-
-                            )
-
-
-                            st.success(
-
-                                "✓ Bloque guardado "
-                                "correctamente en el Excel."
-
-                            )
-
-
-                            if (
-                                decision_bloque_76
-                                ==
-                                "Aprobar todo el bloque"
-                            ):
-
-                                st.success(
-                                    "✓ Todas las preguntas "
-                                    "del bloque quedaron "
-                                    "APROBADAS."
-                                )
-
-
-                            elif (
-                                decision_bloque_76
-                                ==
-                                "Rechazar todo el bloque"
-                            ):
-
-                                st.warning(
-                                    "Las preguntas del bloque "
-                                    "quedaron RECHAZADAS."
-                                )
-
-
-                            st.rerun()
-
-
-                        except Exception as error_guardado_76:
-
-                            st.error(
-                                "No fue posible guardar "
-                                "los cambios en el Excel."
-                            )
-
-                            st.code(
-                                str(error_guardado_76)
-                            )
+                        st.code(
+                            str(error_guardado_76)
+                        )
 # ========================================================
 # 7.7 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL
