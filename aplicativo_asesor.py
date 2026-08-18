@@ -959,12 +959,18 @@ if ROL_ACTUAL == "ADMINISTRADOR":
 
         st.stop()
         # ============================================================
+
+# ============================================================
 # CONTROL DE VISIBILIDAD DEL DIAGNÓSTICO
 # ============================================================
 
 MOSTRAR_DIAGNOSTICO = (
     ROL_ACTUAL == "ADMINISTRADOR"
 )
+
+if ROL_ACTUAL != "ADMINISTRADOR":
+    MOSTRAR_DIAGNOSTICO = False
+    
 # ============================================================
 # 4. ENCABEZADO
 # ============================================================
