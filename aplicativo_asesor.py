@@ -9818,6 +9818,796 @@ if (
                 )
 
                 st.rerun()
+
+# ========================================================
+# 7.11 PRODUCTOS — GENERADOR
+# PRODUCTO → ACCIÓN GENERAL
+# NIVEL 1
+# MÁXIMO 5 PREGUNTAS
+# ========================================================
+
+if (
+    ROL_ACTUAL == "ADMINISTRADOR"
+    and
+    opcion_evaluacion == "Banco general de preguntas"
+):
+
+    st.subheader(
+        "Generador — Producto → Acción"
+    )
+
+    st.write(
+        "Nivel 1: relaciona una acción general "
+        "con el producto correspondiente."
+    )
+
+    RUTA_BANCO_711 = (
+        BASE_DIR
+        / "BANCO_PREGUNTAS_GENERALES.xlsx"
+    )
+
+    # ====================================================
+    # VERIFICAR BASE DE PRODUCTOS
+    # ====================================================
+
+    if "Base_Productos" not in globals():
+
+        st.error(
+            "No se encontró la base de productos."
+        )
+
+    else:
+
+        productos_711 = (
+            Base_Productos
+            .copy()
+            .fillna("")
+        )
+
+        # =================================================
+        # VERIFICAR COLUMNAS
+        # =================================================
+
+        columnas_requeridas_711 = [
+
+            "Producto",
+            "Acciones generales"
+
+        ]
+
+
+        faltantes_711 = [
+
+            columna_711
+
+            for columna_711
+            in columnas_requeridas_711
+
+            if columna_711
+            not in productos_711.columns
+
+        ]
+
+
+        if faltantes_711:
+
+            st.error(
+                "Faltan columnas en Base_Productos:"
+            )
+
+            st.write(
+                faltantes_711
+            )
+
+        else:
+
+            # =============================================
+            # LIMPIAR
+            # =============================================
+
+            productos_711["Producto"] = (
+                productos_711["Producto"]
+                .astype(str)
+                .str.strip()
+            )
+
+
+            productos_711["Acciones generales"] = (
+                productos_711["Acciones generales"]
+                .astype(str)
+                .str.strip()
+            )
+
+
+            # =============================================
+            # SOLO PRODUCTOS CON ACCIONES
+            # =============================================
+
+            productos_validos_711 = (
+                productos_711[
+                    (
+                        productos_711["Producto"]
+                        != ""
+                    )
+                    &
+                    (
+                        productos_711[
+                            "Acciones generales"
+                        ]
+                        != ""
+                    )
+                ]
+                .copy()
+            )
+
+
+            st.write(
+                "Productos disponibles: "
+                f"**{len(productos_validos_711)}**"
+            )
+
+
+            # =================================================
+            # CANTIDAD
+            # =================================================
+
+            cantidad_711 = st.number_input(
+
+                "¿Cuántas preguntas desea generar?",
+
+                min_value=1,
+
+                max_value=5,
+
+                value=5,
+
+                step=1,
+
+                key=(
+                    "cantidad_producto_accion_711"
+                )
+
+            )
+
+
+            # =================================================
+            # GENERAR
+            # =================================================
+
+            if st.button(
+
+                "GENERAR PREGUNTAS",
+
+                key="generar_producto_accion_711"
+
+            ):
+
+                # =============================================
+                # CARGAR BANCO
+                # =============================================
+
+                if RUTA_BANCO_711.exists():
+
+                    banco_711 = pd.read_excel(
+
+                        RUTA_BANCO_711,
+
+                        dtype=str
+
+                    ).fillna("")
+
+                else:
+
+                    banco_711 = pd.DataFrame()
+
+
+                columnas_banco_711 = [
+
+                    "Pregunta_ID",
+                    "Modulo",
+                    "Tema",
+                    "Nivel",
+                    "Tipo_Relacion",
+                    "Pregunta",
+                    "Respuesta_1",
+                    "Respuesta_2",
+                    "Respuesta_3",
+                    "Respuesta_4",
+                    "Respuesta_Correcta",
+                    "Estado",
+                    "Observacion_Administrador",
+                    "Fecha_Generacion",
+                    "Fuente_ID"
+
+                ]
+
+
+                # =============================================
+                # ASEGURAR COLUMNAS
+                # =============================================
+
+                for columna_711 in (
+                    columnas_banco_711
+                ):
+
+                    if (
+                        columna_711
+                        not in banco_711.columns
+                    ):
+
+                        banco_711[
+                            columna_711
+                        ] = ""
+
+
+                banco_711 = banco_711[
+                    columnas_banco_711
+                ].copy()
+
+
+                # =============================================
+                # PRODUCTOS YA GENERADOS
+                # =============================================
+
+                filtro_711 = (
+
+                    banco_711[
+                        "Tipo_Relacion"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                    ==
+                    "producto_accion"
+
+                )
+
+
+                productos_ya_generados_711 = set(
+
+                    banco_711.loc[
+                        filtro_711,
+                        "Fuente_ID"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .tolist()
+
+                )
+
+
+                disponibles_711 = (
+                    productos_validos_711[
+                        ~productos_validos_711[
+                            "Producto"
+                        ].isin(
+                            productos_ya_generados_711
+                        )
+                    ]
+                    .copy()
+                )
+
+
+                if disponibles_711.empty:
+
+                    st.warning(
+                        "No hay productos nuevos "
+                        "disponibles para generar."
+                    )
+
+                else:
+
+                    # =========================================
+                    # CONSTRUIR RELACIÓN PRODUCTO → ACCIONES
+                    # =========================================
+
+                    acciones_por_producto_711 = {}
+
+
+                    for (
+                        indice_accion_711,
+                        fila_accion_711
+                    ) in productos_711.iterrows():
+
+                        producto_accion_711 = str(
+                            fila_accion_711[
+                                "Producto"
+                            ]
+                        ).strip()
+
+
+                        acciones_texto_711 = str(
+                            fila_accion_711[
+                                "Acciones generales"
+                            ]
+                        ).strip()
+
+
+                        if not producto_accion_711:
+
+                            continue
+
+
+                        acciones_lista_711 = []
+
+
+                        for accion_711 in (
+                            acciones_texto_711.split(";")
+                        ):
+
+                            accion_711 = (
+                                accion_711.strip()
+                            )
+
+
+                            if (
+                                accion_711
+                                and
+                                accion_711
+                                not in
+                                acciones_lista_711
+                            ):
+
+                                acciones_lista_711.append(
+                                    accion_711
+                                )
+
+
+                        if acciones_lista_711:
+
+                            acciones_por_producto_711[
+                                producto_accion_711
+                            ] = (
+                                acciones_lista_711
+                            )
+
+
+                    # =========================================
+                    # TODAS LAS ACCIONES REALES
+                    # =========================================
+
+                    todas_acciones_711 = []
+
+
+                    for acciones_711 in (
+                        acciones_por_producto_711.values()
+                    ):
+
+                        for accion_711 in acciones_711:
+
+                            if (
+                                accion_711
+                                not in
+                                todas_acciones_711
+                            ):
+
+                                todas_acciones_711.append(
+                                    accion_711
+                                )
+
+
+                    # =========================================
+                    # IDS
+                    # =========================================
+
+                    numeros_711 = []
+
+
+                    for valor_id_711 in (
+                        banco_711["Pregunta_ID"]
+                    ):
+
+                        texto_id_711 = str(
+                            valor_id_711
+                        ).strip()
+
+
+                        if texto_id_711.startswith(
+                            "PRODACC_"
+                        ):
+
+                            try:
+
+                                numeros_711.append(
+                                    int(
+                                        texto_id_711[
+                                            8:
+                                        ]
+                                    )
+                                )
+
+                            except Exception:
+
+                                pass
+
+
+                    if numeros_711:
+
+                        siguiente_711 = (
+                            max(
+                                numeros_711
+                            )
+                            + 1
+                        )
+
+                    else:
+
+                        siguiente_711 = 1
+
+
+                    # =========================================
+                    # MEZCLAR PRODUCTOS
+                    # =========================================
+
+                    indices_711 = list(
+                        disponibles_711.index
+                    )
+
+
+                    np.random.shuffle(
+                        indices_711
+                    )
+
+
+                    nuevas_711 = []
+
+
+                    # =================================================
+                    # GENERAR
+                    # =================================================
+
+                    for indice_711 in indices_711:
+
+                        if (
+                            len(nuevas_711)
+                            >=
+                            int(cantidad_711)
+                        ):
+
+                            break
+
+
+                        fila_711 = (
+                            productos_711.loc[
+                                indice_711
+                            ]
+                        )
+
+
+                        producto_711 = str(
+                            fila_711[
+                                "Producto"
+                            ]
+                        ).strip()
+
+
+                        acciones_producto_711 = (
+                            acciones_por_producto_711.get(
+                                producto_711,
+                                []
+                            )
+                        )
+
+
+                        if not acciones_producto_711:
+
+                            continue
+
+
+                        # =========================================
+                        # ELEGIR ACCIÓN CORRECTA
+                        # =========================================
+
+                        accion_correcta_711 = (
+                            np.random.choice(
+                                acciones_producto_711
+                            )
+                        )
+
+
+                        # =========================================
+                        # BUSCAR PRODUCTOS DISTRACTORES
+                        #
+                        # Deben tener acciones diferentes
+                        # a las del producto evaluado.
+                        # =========================================
+
+                        candidatos_711 = []
+
+
+                        acciones_producto_minusculas_711 = {
+
+                            accion.lower().strip()
+
+                            for accion
+                            in acciones_producto_711
+
+                        }
+
+
+                        for (
+                            producto_distractor_711,
+                            acciones_distractor_711
+                        ) in (
+                            acciones_por_producto_711.items()
+                        ):
+
+                            if (
+                                producto_distractor_711
+                                ==
+                                producto_711
+                            ):
+
+                                continue
+
+
+                            acciones_distractor_minusculas_711 = {
+
+                                accion.lower().strip()
+
+                                for accion
+                                in acciones_distractor_711
+
+                            }
+
+
+                            # El distractor debe tener
+                            # al menos una acción que NO
+                            # corresponda al producto evaluado.
+
+                            acciones_validas_distractor_711 = [
+
+                                accion
+
+                                for accion
+                                in acciones_distractor_711
+
+                                if (
+                                    accion.lower().strip()
+                                    not in
+                                    acciones_producto_minusculas_711
+                                )
+
+                            ]
+
+
+                            if acciones_validas_distractor_711:
+
+                                candidatos_711.append(
+                                    (
+                                        producto_distractor_711,
+                                        acciones_validas_distractor_711
+                                    )
+                                )
+
+
+                        if len(candidatos_711) < 3:
+
+                            continue
+
+
+                        # =========================================
+                        # ELEGIR 3 PRODUCTOS DISTRACTORES
+                        # =========================================
+
+                        np.random.shuffle(
+                            candidatos_711
+                        )
+
+
+                        distractores_711 = []
+
+
+                        for (
+                            producto_distractor_711,
+                            acciones_validas_711
+                        ) in candidatos_711:
+
+                            if (
+                                len(
+                                    distractores_711
+                                )
+                                >=
+                                3
+                            ):
+
+                                break
+
+
+                            accion_distractor_711 = (
+                                np.random.choice(
+                                    acciones_validas_711
+                                )
+                            )
+
+
+                            distractores_711.append(
+                                (
+                                    producto_distractor_711,
+                                    accion_distractor_711
+                                )
+                            )
+
+
+                        if len(distractores_711) < 3:
+
+                            continue
+
+
+                        # =========================================
+                        # OPCIONES
+                        # =========================================
+
+                        opciones_711 = [
+
+                            producto_711,
+                            distractores_711[0][0],
+                            distractores_711[1][0],
+                            distractores_711[2][0]
+
+                        ]
+
+
+                        np.random.shuffle(
+                            opciones_711
+                        )
+
+
+                        # =========================================
+                        # POSICIÓN CORRECTA
+                        # =========================================
+
+                        posicion_correcta_711 = (
+
+                            opciones_711.index(
+                                producto_711
+                            )
+                            + 1
+
+                        )
+
+
+                        # =========================================
+                        # ENUNCIADO
+                        # =========================================
+
+                        pregunta_711 = (
+
+                            f"¿A cuál de los siguientes "
+                            f"productos corresponde la "
+                            f"siguiente acción general: "
+                            f"{accion_correcta_711}?"
+
+                        )
+
+
+                        # =========================================
+                        # GUARDAR REGISTRO
+                        # =========================================
+
+                        nuevas_711.append({
+
+                            "Pregunta_ID":
+                                (
+                                    "PRODACC_"
+                                    f"{siguiente_711:05d}"
+                                ),
+
+                            "Modulo":
+                                "Productos",
+
+                            "Tema":
+                                "Acción general",
+
+                            "Nivel":
+                                "Nivel 1",
+
+                            "Tipo_Relacion":
+                                "Producto_Accion",
+
+                            "Pregunta":
+                                pregunta_711,
+
+                            "Respuesta_1":
+                                opciones_711[0],
+
+                            "Respuesta_2":
+                                opciones_711[1],
+
+                            "Respuesta_3":
+                                opciones_711[2],
+
+                            "Respuesta_4":
+                                opciones_711[3],
+
+                            "Respuesta_Correcta":
+                                str(
+                                    posicion_correcta_711
+                                ),
+
+                            "Estado":
+                                "PENDIENTE",
+
+                            "Observacion_Administrador":
+                                "",
+
+                            "Fecha_Generacion":
+                                pd.Timestamp.now().strftime(
+                                    "%Y-%m-%d %H:%M:%S"
+                                ),
+
+                            "Fuente_ID":
+                                producto_711
+
+                        })
+
+
+                        siguiente_711 += 1
+
+
+                    # =================================================
+                    # GUARDAR EN EXCEL
+                    # =================================================
+
+                    if nuevas_711:
+
+                        nuevas_df_711 = pd.DataFrame(
+                            nuevas_711
+                        )
+
+
+                        banco_711 = pd.concat(
+                            [
+                                banco_711,
+                                nuevas_df_711
+                            ],
+                            ignore_index=True
+                        )
+
+
+                        banco_711 = banco_711[
+                            columnas_banco_711
+                        ]
+
+
+                        banco_711.to_excel(
+
+                            RUTA_BANCO_711,
+
+                            index=False,
+
+                            sheet_name="Banco_General"
+
+                        )
+
+
+                        st.success(
+
+                            f"✓ Se generaron y guardaron "
+                            f"{len(nuevas_df_711)} "
+                            f"preguntas."
+
+                        )
+
+
+                        st.dataframe(
+
+                            nuevas_df_711,
+
+                            use_container_width=True
+
+                        )
+
+
+                    else:
+
+                        st.warning(
+
+                            "No fue posible generar "
+                            "preguntas válidas con "
+                            "los datos disponibles."
+
+                        )
 # ============================================================
 # 8. PIE DE APLICACIÓN
 # ============================================================
