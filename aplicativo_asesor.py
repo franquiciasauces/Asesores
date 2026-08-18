@@ -2,23 +2,12 @@
 # PAQUETE 1 - DIAGNÓSTICO Y CARGA DE ARCHIVOS
 
 from pathlib import Path
-
-import subprocess
-import sys
-
-subprocess.check_call([
-    sys.executable,
-    "-m",
-    "pip",
-    "install",
-    "Unidecode>=1.3,<2"
-])
-
 from unidecode import unidecode
 from rapidfuzz import fuzz
 import streamlit as st
 import pandas as pd
 import numpy as np
+
 # ============================================================
 # 1.1 CONFIGURACIÓN
 # ============================================================
