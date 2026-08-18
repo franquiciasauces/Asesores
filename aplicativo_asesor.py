@@ -1719,7 +1719,13 @@ else:
         "Debemos corregirlos antes de continuar."
     )
 
+# ============================================================
+# FIN DEL DIAGNÓSTICO
+# ============================================================
 
+if ROL_ACTUAL != "ADMINISTRADOR":
+
+    st.stop()
 # ============================================================
 # FITOASISTE
 # BLOQUE 1.2 — CONFIGURACIÓN GENERAL Y NAVEGACIÓN
