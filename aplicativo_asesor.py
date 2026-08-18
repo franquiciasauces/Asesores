@@ -1932,6 +1932,7 @@ elif opcion_principal == "ASESORÍA":
     )
 
 # ============================================================
+# ============================================================
 # 7. SECCIÓN EVALUACIÓN
 # ============================================================
 
@@ -1944,37 +1945,31 @@ elif opcion_principal == "EVALUACIÓN":
         "y el seguimiento de resultados."
     )
 
-    opcion_evaluacion = st.selectbox(
-        "Seleccione una opción:",
-        [
+    if ROL_ACTUAL == "ADMINISTRADOR":
+
+        opciones_evaluacion = [
             "Seleccione una opción",
-            "Autoevaluación",
+            "Banco general de preguntas",
+            "Banco de preguntas especiales",
+            "Evaluaciones generales",
             "Evaluación controlada",
             "Historial de evaluaciones"
         ]
+
+    else:
+
+        opciones_evaluacion = [
+            "Seleccione una opción",
+            "Evaluaciones generales",
+            "Evaluación controlada",
+            "Historial de evaluaciones"
+        ]
+
+    opcion_evaluacion = st.selectbox(
+        "Seleccione una opción:",
+        opciones_evaluacion,
+        key="menu_evaluacion"
     )
-
-    if opcion_evaluacion == "Autoevaluación":
-
-        st.info(
-            "Módulo de autoevaluación. "
-            "Se incorporará posteriormente."
-        )
-
-    elif opcion_evaluacion == "Evaluación controlada":
-
-        st.info(
-            "Módulo de evaluación controlada. "
-            "Se incorporará posteriormente."
-        )
-
-    elif opcion_evaluacion == "Historial de evaluaciones":
-
-        st.info(
-            "Módulo de historial de evaluaciones. "
-            "Se incorporará posteriormente."
-        )
-
 
 # ============================================================
 # 8. PIE DE APLICACIÓN
