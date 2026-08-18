@@ -3682,7 +3682,470 @@ elif opcion_principal == "EVALUACIÓN":
                                 "la información disponible no permita "
                                 "construir preguntas válidas."
                             )
-    
+# ========================================================
+# 7.4.9 REVISIÓN Y ESTADO DE PREGUNTAS
+# SOLO ADMINISTRADOR
+# ========================================================
+
+if (
+    ROL_ACTUAL == "ADMINISTRADOR"
+    and
+    opcion_evaluacion
+    == "Banco general de preguntas"
+):
+
+    st.subheader(
+        "Revisión de Preguntas"
+    )
+
+    st.write(
+        "Revise las preguntas generadas y establezca "
+        "su estado antes de que puedan utilizarse "
+        "en una evaluación."
+    )
+
+    # ====================================================
+    # CARGAR BANCO ACTUALIZADO
+    # ====================================================
+
+    try:
+
+        banco_revision = pd.read_excel(
+            RUTA_BANCO_GENERAL,
+            dtype=str
+        )
+
+        banco_revision = (
+            banco_revision.fillna("")
+        )
+
+    except Exception as error_revision:
+
+        st.error(
+            "No fue posible cargar el Banco General "
+            "para revisión."
+        )
+
+        st.code(
+            str(error_revision)
+        )
+
+        banco_revision = pd.DataFrame()
+
+    # ====================================================
+    # MOSTRAR SOLO PREGUNTAS PENDIENTES
+    # ====================================================
+
+    if not banco_revision.empty:
+
+        pendientes = (
+            banco_revision[
+                banco_revision["Estado"]
+                .astype(str)
+                .str.strip()
+                .str.upper()
+                ==
+                "PENDIENTE"
+            ]
+            .copy()
+        )
+
+        st.info(
+            f"Preguntas pendientes de revisión: "
+            f"{len(pendientes)}"
+        )
+
+        if pendientes.empty:
+
+            st.success(
+                "No hay preguntas pendientes de revisión."
+            )
+
+        else:
+
+            # =============================================
+            # RECORRER PREGUNTAS
+            # =============================================
+
+            for indice, fila in (
+                pendientes.iterrows()
+            ):
+
+                pregunta_id = (
+                    str(
+                        fila["Pregunta_ID"]
+                    ).strip()
+                )
+
+                st.divider()
+
+                st.markdown(
+                    f"### {pregunta_id}"
+                )
+
+                col1, col2, col3 = st.columns(3)
+
+                with col1:
+
+                    st.write(
+                        f"**Módulo:** "
+                        f"{fila['Modulo']}"
+                    )
+
+                with col2:
+
+                    st.write(
+                        f"**Tema:** "
+                        f"{fila['Tema']}"
+                    )
+
+                with col3:
+
+                    st.write(
+                        f"**Nivel:** "
+                        f"{fila['Nivel']}"
+                    )
+
+                st.write(
+                    f"**Tipo de relación:** "
+                    f"{fila['Tipo_Relacion']}"
+                )
+
+                st.markdown(
+                    f"**Pregunta:** "
+                    f"{fila['Pregunta']}"
+                )
+
+                # =========================================
+                # RESPUESTAS
+                # =========================================
+
+                st.write(
+                    f"**1.** {fila['Respuesta_1']}"
+                )
+
+                st.write(
+                    f"**2.** {fila['Respuesta_2']}"
+                )
+
+                st.write(
+                    f"**3.** {fila['Respuesta_3']}"
+                )
+
+                st.write(
+                    f"**4.** {fila['Respuesta_4']}"
+                )
+
+                # =========================================
+                # RESPUESTAS CORRECTAS
+                # =========================================
+
+                st.info(
+                    "Respuesta(s) correcta(s) registrada(s): "
+                    f"{fila['Respuesta_Correcta']}"
+                )
+
+                # =========================================
+                # CONCEPTO DEL ADMINISTRADOR
+                # =========================================
+
+                estado_nuevo = st.radio(
+                    "Concepto del administrador:",
+                    [
+                        "PENDIENTE",
+                        "APROBADA",
+                        "RECHAZADA"
+                    ],
+                    horizontal=True,
+                    key=(
+                        f"estado_{pregunta_id}"
+                    )
+                )
+
+                observacion = st.text_area(
+                    "Observación del administrador:",
+                    value=(
+                        fila[
+                            "Observacion_Administrador"
+                        ]
+                    ),
+                    key=(
+                        f"observacion_{pregunta_id}"
+                    ),
+                    height=80
+                )
+
+                # =========================================
+                # GUARDAR CONCEPTO
+                # =========================================
+
+                if st.button(
+                    "GUARDAR CONCEPTO",
+                    key=(
+                        f"guardar_estado_{pregunta_id}"
+                    )
+                ):
+
+                    try:
+
+                        # ---------------------------------
+                        # RECARGAR EL ARCHIVO REAL
+                        # ---------------------------------
+
+                        banco_actualizado = (
+                            pd.read_excel(
+                                RUTA_BANCO_GENERAL,
+                                dtype=str
+                            )
+                            .fillna("")
+                        )
+
+                        # ---------------------------------
+                        # LOCALIZAR PREGUNTA
+                        # ---------------------------------
+
+                        posicion = (
+                            banco_actualizado[
+                                "Pregunta_ID"
+                            ]
+                            .astype(str)
+                            .str.strip()
+                            ==
+                            pregunta_id
+                        )
+
+                        if not posicion.any():
+
+                            st.error(
+                                "No se encontró la pregunta "
+                                "en el Banco General."
+                            )
+
+                        else:
+
+                            # -----------------------------
+                            # ACTUALIZAR ESTADO
+                            # -----------------------------
+
+                            banco_actualizado.loc[
+                                posicion,
+                                "Estado"
+                            ] = estado_nuevo
+
+                            banco_actualizado.loc[
+                                posicion,
+                                "Observacion_Administrador"
+                            ] = observacion
+
+                            # -----------------------------
+                            # GUARDAR EXCEL
+                            # -----------------------------
+
+                            banco_actualizado.to_excel(
+                                RUTA_BANCO_GENERAL,
+                                index=False,
+                                sheet_name="Banco_General"
+                            )
+
+                            # -----------------------------
+                            # SINCRONIZAR GITHUB
+                            # -----------------------------
+
+                            try:
+
+                                ruta_github_banco = (
+                                    "BANCO_PREGUNTAS_GENERALES.xlsx"
+                                )
+
+                                url_github_banco = (
+                                    f"https://api.github.com/repos/"
+                                    f"{GITHUB_USUARIO}/"
+                                    f"{GITHUB_REPOSITORIO}/"
+                                    f"contents/"
+                                    f"{ruta_github_banco}"
+                                )
+
+                                headers_github_banco = {
+
+                                    "Authorization":
+                                        f"Bearer {GITHUB_TOKEN}",
+
+                                    "Accept":
+                                        "application/vnd.github+json",
+
+                                    "X-GitHub-Api-Version":
+                                        "2022-11-28"
+
+                                }
+
+                                # -------------------------
+                                # LEER ARCHIVO LOCAL
+                                # -------------------------
+
+                                with open(
+                                    RUTA_BANCO_GENERAL,
+                                    "rb"
+                                ) as archivo:
+
+                                    contenido_banco = (
+                                        archivo.read()
+                                    )
+
+                                contenido_base64 = (
+                                    base64.b64encode(
+                                        contenido_banco
+                                    ).decode(
+                                        "utf-8"
+                                    )
+                                )
+
+                                # -------------------------
+                                # OBTENER SHA
+                                # -------------------------
+
+                                solicitud_get = (
+                                    urllib.request.Request(
+                                        url_github_banco,
+                                        headers=(
+                                            headers_github_banco
+                                        ),
+                                        method="GET"
+                                    )
+                                )
+
+                                sha_actual = None
+
+                                try:
+
+                                    with urllib.request.urlopen(
+                                        solicitud_get
+                                    ) as respuesta:
+
+                                        informacion_github = (
+                                            json.loads(
+                                                respuesta.read()
+                                                .decode(
+                                                    "utf-8"
+                                                )
+                                            )
+                                        )
+
+                                    sha_actual = (
+                                        informacion_github[
+                                            "sha"
+                                        ]
+                                    )
+
+                                except urllib.error.HTTPError as error:
+
+                                    if error.code != 404:
+
+                                        raise
+
+                                # -------------------------
+                                # PREPARAR ACTUALIZACIÓN
+                                # -------------------------
+
+                                datos_banco = {
+
+                                    "message":
+                                        "Actualizar estado "
+                                        "Banco General",
+
+                                    "content":
+                                        contenido_base64
+
+                                }
+
+                                if sha_actual:
+
+                                    datos_banco[
+                                        "sha"
+                                    ] = sha_actual
+
+                                datos_json = (
+                                    json.dumps(
+                                        datos_banco
+                                    ).encode(
+                                        "utf-8"
+                                    )
+                                )
+
+                                # -------------------------
+                                # ACTUALIZAR GITHUB
+                                # -------------------------
+
+                                solicitud_put = (
+                                    urllib.request.Request(
+                                        url_github_banco,
+                                        data=datos_json,
+                                        headers={
+                                            **headers_github_banco,
+                                            "Content-Type":
+                                                "application/json"
+                                        },
+                                        method="PUT"
+                                    )
+                                )
+
+                                with urllib.request.urlopen(
+                                    solicitud_put
+                                ) as respuesta:
+
+                                    resultado_github = (
+                                        json.loads(
+                                            respuesta.read()
+                                            .decode(
+                                                "utf-8"
+                                            )
+                                        )
+                                    )
+
+                                if resultado_github.get(
+                                    "content"
+                                ):
+
+                                    st.success(
+                                        f"{pregunta_id} "
+                                        f"guardada como "
+                                        f"{estado_nuevo} "
+                                        "y sincronizada con GitHub."
+                                    )
+
+                                else:
+
+                                    st.warning(
+                                        f"{pregunta_id} "
+                                        "se guardó en Excel, "
+                                        "pero GitHub no confirmó "
+                                        "la actualización."
+                                    )
+
+                            except Exception as error_github:
+
+                                st.warning(
+                                    f"{pregunta_id} se guardó "
+                                    "en el Excel local, pero "
+                                    "no fue posible sincronizar "
+                                    "con GitHub."
+                                )
+
+                                st.code(
+                                    str(error_github)
+                                )
+
+                            st.rerun()
+                            
+                    except Exception as error_guardado:
+
+                        st.error(
+                            "No fue posible guardar "
+                            "el concepto."
+                        )
+
+                        st.code(
+                            str(error_guardado)
+                        ) 
 # ============================================================
 # 8. PIE DE APLICACIÓN
 # ============================================================
