@@ -1998,6 +1998,139 @@ elif opcion_principal == "EVALUACIÓN":
             "por el Administrador antes de poder "
             "utilizarse en una evaluación."
         )
+
+    # ========================================================
+    # 7.2 BANCO GENERAL — CARGA Y CREACIÓN DEL ARCHIVO
+    # SOLO ADMINISTRADOR
+    # ========================================================
+
+    if (
+        ROL_ACTUAL == "ADMINISTRADOR"
+        and
+        opcion_evaluacion
+        == "Banco general de preguntas"
+    ):
+
+        st.subheader(
+            "Banco General de Preguntas"
+        )
+
+        st.write(
+            "Archivo permanente de preguntas generales "
+            "del aplicativo."
+        )
+
+        RUTA_BANCO_GENERAL = (
+            BASE_DIR
+            / "BANCO_PREGUNTAS_GENERALES.xlsx"
+        )
+
+        COLUMNAS_BANCO_GENERAL = [
+
+            "Pregunta_ID",
+            "Modulo",
+            "Tema",
+            "Nivel",
+            "Tipo_Relacion",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Estado",
+            "Observacion_Administrador",
+            "Fecha_Generacion",
+            "Fuente_ID"
+
+        ]
+
+        # ----------------------------------------------------
+        # CARGAR BANCO SI YA EXISTE
+        # ----------------------------------------------------
+
+        if RUTA_BANCO_GENERAL.exists():
+
+            try:
+
+                banco_general = pd.read_excel(
+                    RUTA_BANCO_GENERAL,
+                    dtype=str
+                )
+
+                banco_general = (
+                    banco_general.fillna("")
+                )
+
+                for columna in (
+                    COLUMNAS_BANCO_GENERAL
+                ):
+
+                    if columna not in banco_general.columns:
+
+                        banco_general[columna] = ""
+
+                banco_general = banco_general[
+                    COLUMNAS_BANCO_GENERAL
+                ]
+
+                st.success(
+                    "Banco General cargado correctamente."
+                )
+
+                st.write(
+                    f"Preguntas almacenadas: "
+                    f"**{len(banco_general):,}**"
+                )
+
+            except Exception as error_banco:
+
+                st.error(
+                    "Error cargando el Banco General."
+                )
+
+                st.code(
+                    str(error_banco)
+                )
+
+        # ----------------------------------------------------
+        # CREAR BANCO SI NO EXISTE
+        # ----------------------------------------------------
+
+        else:
+
+            banco_general = pd.DataFrame(
+                columns=COLUMNAS_BANCO_GENERAL
+            )
+
+            try:
+
+                banco_general.to_excel(
+                    RUTA_BANCO_GENERAL,
+                    index=False,
+                    sheet_name="Banco_General"
+                )
+
+                st.success(
+                    "Banco General creado correctamente."
+                )
+
+                st.write(
+                    "El archivo fue creado con la "
+                    "estructura inicial y está listo "
+                    "para recibir preguntas."
+                )
+
+            except Exception as error_creacion:
+
+                st.error(
+                    "No fue posible crear el "
+                    "Banco General."
+                )
+
+                st.code(
+                    str(error_creacion)
+                )
 # ============================================================
 # 8. PIE DE APLICACIÓN
 # ============================================================
