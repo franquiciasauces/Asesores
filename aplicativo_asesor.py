@@ -2360,24 +2360,10 @@ elif opcion_principal == "EVALUACIÓN":
                         str(error)
                     )
 
-    # ========================================================
-    # 7.4 BANCO GENERAL — PREGUNTAS DE PATOLOGÍAS
-    # ========================================================
+       # ========================================================
+    # 7.4 BANCO GENERAL — GENERACIÓN DE PREGUNTAS
+    # MÓDULO: PATOLOGÍAS
     # SOLO ADMINISTRADOR
-    #
-    # Genera preguntas generales a partir de:
-    # - Nombre de la patología
-    # - Descripción
-    # - Síntomas / señales
-    # - Causas
-    #
-    # No utiliza:
-    # - Objetivo del paquete
-    # - Notas para asesor
-    # - Códigos como contenido visible
-    #
-    # Las preguntas nuevas quedan PENDIENTES.
-    # Las preguntas existentes no se eliminan.
     # ========================================================
 
     if (
@@ -2388,1522 +2374,1314 @@ elif opcion_principal == "EVALUACIÓN":
     ):
 
         st.subheader(
-            "7.4 — Generación de preguntas de Patologías"
+            "Generación de Preguntas — Patologías"
         )
 
         st.write(
-            "Generación de preguntas generales a partir "
-            "de la información disponible en la hoja "
-            "Patologias."
+            "Las preguntas nuevas se generan a partir "
+            "de la información completa registrada "
+            "en la matriz de Patologías."
         )
 
-        if Patologias is None:
+        # ====================================================
+        # 7.4.1 — VALIDAR ARCHIVO DEL BANCO
+        # ====================================================
 
-            st.warning(
-                "La hoja Patologias no está disponible."
+        if not RUTA_BANCO_GENERAL.exists():
+
+            st.error(
+                "No existe el Banco General de Preguntas."
             )
 
         else:
-
-            # ------------------------------------------------
-            # COLUMNAS REQUERIDAS
-            # ------------------------------------------------
-
-            columnas_patologias = [
-                "Patologia_ID",
-                "Patología",
-                "Descripción breve (para cliente)",
-                "Causas frecuentes (resumen)",
-                "Síntomas/Señales clave (checklist)"
-            ]
-
-            columnas_faltantes = [
-                columna
-                for columna in columnas_patologias
-                if columna not in Patologias.columns
-            ]
-
-            if columnas_faltantes:
-
-                st.error(
-                    "Faltan columnas necesarias en "
-                    "la hoja Patologias:"
-                )
-
-                for columna in columnas_faltantes:
-
-                    st.write(
-                        f"• {columna}"
-                    )
-
-            else:
-
-                # --------------------------------------------
-                # COPIA DE TRABAJO
-                # --------------------------------------------
-
-                patologias_trabajo = (
-                    Patologias[
-                        columnas_patologias
-                    ]
-                    .copy()
-                    .fillna("")
-                )
-
-                # --------------------------------------------
-                # LIMPIAR ESPACIOS
-                # --------------------------------------------
-
-                for columna in columnas_patologias:
-
-                    patologias_trabajo[
-                        columna
-                    ] = (
-                        patologias_trabajo[
-                            columna
-                        ]
-                        .astype(str)
-                        .str.strip()
-                    )
-
-                # --------------------------------------------
-                # VALIDAR REGISTROS
-                # --------------------------------------------
-
-                patologias_validas = (
-                    patologias_trabajo[
-                        patologias_trabajo[
-                            "Patología"
-                        ] != ""
-                    ]
-                    .copy()
-                )
-
-                st.write(
-                    f"Patologías con nombre disponible: "
-                    f"**{len(patologias_validas):,}**"
-                )
-
-                # --------------------------------------------
-                # PREPARAR BANCO
-                # --------------------------------------------
-
-                if "banco_general" not in locals():
-
-                    if RUTA_BANCO_GENERAL.exists():
-
-                        try:
-
-                            banco_general = pd.read_excel(
-                                RUTA_BANCO_GENERAL,
-                                dtype=str
-                            )
-
-                            banco_general = (
-                                banco_general.fillna("")
-                            )
-
-                        except Exception as error_banco:
-
-                            st.error(
-                                "No fue posible leer "
-                                "el Banco General."
-                            )
-
-                            st.code(
-                                str(error_banco)
-                            )
-
-                            banco_general = pd.DataFrame()
-
-                    else:
-
-                        banco_general = pd.DataFrame()
-
-
-                # --------------------------------------------
-                # ASEGURAR COLUMNAS DEL BANCO
-                # --------------------------------------------
-
-                for columna in (
-                    COLUMNAS_BANCO_GENERAL
-                ):
-
-                    if columna not in banco_general.columns:
-
-                        banco_general[columna] = ""
-
-                banco_general = banco_general[
-                    COLUMNAS_BANCO_GENERAL
-                ]
-
-                # --------------------------------------------
-                # BOTÓN DE GENERACIÓN
-                # --------------------------------------------
-
-                if st.button(
-                    "Generar preguntas de Patologías",
-                    key="generar_preguntas_patologias"
-                ):
-
-                    nuevas_preguntas = []
-
-                    # ----------------------------------------
-                    # FUNCIÓN PARA EVITAR DUPLICADOS
-                    # ----------------------------------------
-
-                    preguntas_existentes = set(
-                        banco_general[
-                            "Pregunta"
-                        ]
-                        .astype(str)
-                        .str.strip()
-                        .str.lower()
-                    )
-
-                    contador = (
-                        len(banco_general) + 1
-                    )
-
-                    # ----------------------------------------
-                    # RECORRER PATOLOGÍAS
-                    # ----------------------------------------
-
-                    for _, fila in (
-                        patologias_validas.iterrows()
-                    ):
-
-                        patologia_id = (
-                            fila["Patologia_ID"]
-                        )
-
-                        patologia = (
-                            fila["Patología"]
-                        )
-
-                        descripcion = (
-                            fila[
-                                "Descripción breve "
-                                "(para cliente)"
-                            ]
-                        )
-
-                        causas = (
-                            fila[
-                                "Causas frecuentes "
-                                "(resumen)"
-                            ]
-                        )
-
-                        sintomas = (
-                            fila[
-                                "Síntomas/Señales clave "
-                                "(checklist)"
-                            ]
-                        )
-
-                        # ------------------------------------
-                        # PREGUNTA:
-                        # PATOLOGÍA → DESCRIPCIÓN
-                        # ------------------------------------
-
-                        if descripcion:
-
-                            pregunta = (
-                                "¿Cuál de las siguientes "
-                                "descripciones corresponde "
-                                f"a {patologia}?"
-                            )
-
-                            clave = (
-                                pregunta
-                                .strip()
-                                .lower()
-                            )
-
-                            if clave not in (
-                                preguntas_existentes
-                            ):
-
-                                nuevas_preguntas.append({
-
-                                    "Pregunta_ID":
-                                        f"PAT_{contador:05d}",
-
-                                    "Modulo":
-                                        "Patologias",
-
-                                    "Tema":
-                                        "Patologia_Descripcion",
-
-                                    "Nivel":
-                                        "Nivel 1",
-
-                                    "Tipo_Relacion":
-                                        "Patologia_Descripcion",
-
-                                    "Pregunta":
-                                        pregunta,
-
-                                    "Respuesta_1":
-                                        descripcion,
-
-                                    "Respuesta_2":
-                                        "",
-
-                                    "Respuesta_3":
-                                        "",
-
-                                    "Respuesta_4":
-                                        "",
-
-                                    "Respuesta_Correcta":
-                                        "1",
-
-                                    "Estado":
-                                        "PENDIENTE",
-
-                                    "Observacion_Administrador":
-                                        "",
-
-                                    "Fecha_Generacion":
-                                        pd.Timestamp.now()
-                                        .strftime(
-                                            "%Y-%m-%d %H:%M:%S"
-                                        ),
-
-                                    "Fuente_ID":
-                                        patologia_id
-
-                                })
-
-                                preguntas_existentes.add(
-                                    clave
-                                )
-
-                                contador += 1
-
-                        # ------------------------------------
-                        # PREGUNTA:
-                        # DESCRIPCIÓN → PATOLOGÍA
-                        # ------------------------------------
-
-                        if descripcion:
-
-                            pregunta = (
-                                "¿A qué patología corresponde "
-                                "la siguiente descripción?"
-                            )
-
-                            clave = (
-                                pregunta
-                                + " | "
-                                + descripcion
-                            ).strip().lower()
-
-                            if clave not in (
-                                preguntas_existentes
-                            ):
-
-                                nuevas_preguntas.append({
-
-                                    "Pregunta_ID":
-                                        f"PAT_{contador:05d}",
-
-                                    "Modulo":
-                                        "Patologias",
-
-                                    "Tema":
-                                        "Descripcion_Patologia",
-
-                                    "Nivel":
-                                        "Nivel 1",
-
-                                    "Tipo_Relacion":
-                                        "Descripcion_Patologia",
-
-                                    "Pregunta":
-                                        pregunta,
-
-                                    "Respuesta_1":
-                                        patologia,
-
-                                    "Respuesta_2":
-                                        "",
-
-                                    "Respuesta_3":
-                                        "",
-
-                                    "Respuesta_4":
-                                        "",
-
-                                    "Respuesta_Correcta":
-                                        "1",
-
-                                    "Estado":
-                                        "PENDIENTE",
-
-                                    "Observacion_Administrador":
-                                        "",
-
-                                    "Fecha_Generacion":
-                                        pd.Timestamp.now()
-                                        .strftime(
-                                            "%Y-%m-%d %H:%M:%S"
-                                        ),
-
-                                    "Fuente_ID":
-                                        patologia_id
-
-                                })
-
-                                preguntas_existentes.add(
-                                    clave
-                                )
-
-                                contador += 1
-
-                        # ------------------------------------
-                        # PREGUNTA:
-                        # SÍNTOMAS → PATOLOGÍA
-                        # ------------------------------------
-
-                        if sintomas:
-
-                            pregunta = (
-                                "¿Con cuál de las siguientes "
-                                "patologías se relacionan "
-                                "las señales descritas?"
-                            )
-
-                            clave = (
-                                pregunta
-                                + " | "
-                                + sintomas
-                            ).strip().lower()
-
-                            if clave not in (
-                                preguntas_existentes
-                            ):
-
-                                nuevas_preguntas.append({
-
-                                    "Pregunta_ID":
-                                        f"PAT_{contador:05d}",
-
-                                    "Modulo":
-                                        "Patologias",
-
-                                    "Tema":
-                                        "Sintoma_Patologia",
-
-                                    "Nivel":
-                                        "Nivel 2",
-
-                                    "Tipo_Relacion":
-                                        "Sintoma_Patologia",
-
-                                    "Pregunta":
-                                        pregunta,
-
-                                    "Respuesta_1":
-                                        patologia,
-
-                                    "Respuesta_2":
-                                        "",
-
-                                    "Respuesta_3":
-                                        "",
-
-                                    "Respuesta_4":
-                                        "",
-
-                                    "Respuesta_Correcta":
-                                        "1",
-
-                                    "Estado":
-                                        "PENDIENTE",
-
-                                    "Observacion_Administrador":
-                                        "",
-
-                                    "Fecha_Generacion":
-                                        pd.Timestamp.now()
-                                        .strftime(
-                                            "%Y-%m-%d %H:%M:%S"
-                                        ),
-
-                                    "Fuente_ID":
-                                        patologia_id
-
-                                })
-
-                                preguntas_existentes.add(
-                                    clave
-                                )
-
-                                contador += 1
-
-                        # ------------------------------------
-                        # PREGUNTA:
-                        # CAUSA → PATOLOGÍA
-                        # ------------------------------------
-
-                        if causas:
-
-                            pregunta = (
-                                "¿Con cuál de las siguientes "
-                                "patologías se relacionan "
-                                "las causas descritas?"
-                            )
-
-                            clave = (
-                                pregunta
-                                + " | "
-                                + causas
-                            ).strip().lower()
-
-                            if clave not in (
-                                preguntas_existentes
-                            ):
-
-                                nuevas_preguntas.append({
-
-                                    "Pregunta_ID":
-                                        f"PAT_{contador:05d}",
-
-                                    "Modulo":
-                                        "Patologias",
-
-                                    "Tema":
-                                        "Causa_Patologia",
-
-                                    "Nivel":
-                                        "Nivel 2",
-
-                                    "Tipo_Relacion":
-                                        "Causa_Patologia",
-
-                                    "Pregunta":
-                                        pregunta,
-
-                                    "Respuesta_1":
-                                        patologia,
-
-                                    "Respuesta_2":
-                                        "",
-
-                                    "Respuesta_3":
-                                        "",
-
-                                    "Respuesta_4":
-                                        "",
-
-                                    "Respuesta_Correcta":
-                                        "1",
-
-                                    "Estado":
-                                        "PENDIENTE",
-
-                                    "Observacion_Administrador":
-                                        "",
-
-                                    "Fecha_Generacion":
-                                        pd.Timestamp.now()
-                                        .strftime(
-                                            "%Y-%m-%d %H:%M:%S"
-                                        ),
-
-                                    "Fuente_ID":
-                                        patologia_id
-
-                                })
-
-                                preguntas_existentes.add(
-                                    clave
-                                )
-
-                                contador += 1
-
-                    # ----------------------------------------
-                    # GUARDAR NUEVAS PREGUNTAS
-                    # ----------------------------------------
-
-                    if nuevas_preguntas:
-
-                        nuevas_df = pd.DataFrame(
-                            nuevas_preguntas
-                        )
-
-                        banco_general = pd.concat(
-                            [
-                                banco_general,
-                                nuevas_df
-                            ],
-                            ignore_index=True
-                        )
-
-                        banco_general.to_excel(
-                            RUTA_BANCO_GENERAL,
-                            index=False,
-                            sheet_name="Banco_General"
-                        )
-
-                        st.success(
-                            f"Se generaron "
-                            f"**{len(nuevas_preguntas)}** "
-                            "preguntas nuevas."
-                        )
-
-                        st.warning(
-                            "Las preguntas quedaron en "
-                            "estado PENDIENTE y todavía "
-                            "NO pueden utilizarse en "
-                            "evaluaciones."
-                        )
-
-                        st.dataframe(
-                            nuevas_df,
-                            use_container_width=True,
-                            hide_index=True
-                        )
-
-                    else:
-
-                        st.info(
-                            "No se generaron preguntas nuevas. "
-                            "No se encontraron registros nuevos "
-                            "con información suficiente."
-                        )
-# ============================================================
-# 7.4 — BANCO GENERAL DE PREGUNTAS
-# MÓDULO: PATOLOGÍAS
-# ============================================================
-
-if (
-    ROL_ACTUAL == "ADMINISTRADOR"
-    and opcion_evaluacion == "Banco general de preguntas"
-):
-
-    st.subheader("Banco General — Patologías")
-
-    st.write(
-        "Generación y revisión de preguntas generales "
-        "del módulo de Patologías."
-    )
-
-    # ========================================================
-    # 7.4.1 — VALIDAR INFORMACIÓN DE PATOLOGÍAS
-    # ========================================================
-
-    columnas_patologias = [
-        "Patologia_ID",
-        "Patología",
-        "Descripción breve (para cliente)",
-        "Causas frecuentes (resumen)",
-        "Síntomas/Señales clave (checklist)"
-    ]
-
-    columnas_faltantes = [
-        columna
-        for columna in columnas_patologias
-        if columna not in Patologias.columns
-    ]
-
-    if columnas_faltantes:
-
-        st.error(
-            "La hoja Patologias no contiene todas "
-            "las columnas necesarias."
-        )
-
-        st.write(
-            "Faltan:"
-        )
-
-        for columna in columnas_faltantes:
-
-            st.write(
-                f"- {columna}"
-            )
-
-    else:
-
-        # ====================================================
-        # 7.4.2 — LIMPIAR Y VALIDAR FILAS
-        # ====================================================
-
-        patologias_validas = (
-            Patologias[
-                columnas_patologias
-            ]
-            .copy()
-            .fillna("")
-        )
-
-        for columna in columnas_patologias:
-
-            patologias_validas[columna] = (
-                patologias_validas[columna]
-                .astype(str)
-                .str.strip()
-            )
-
-        # ----------------------------------------------------
-        # SOLO SE UTILIZAN FILAS COMPLETAS
-        # ----------------------------------------------------
-
-        patologias_validas = patologias_validas[
-            (
-                patologias_validas["Patologia_ID"] != ""
-            )
-            &
-            (
-                patologias_validas["Patología"] != ""
-            )
-            &
-            (
-                patologias_validas[
-                    "Descripción breve (para cliente)"
-                ] != ""
-            )
-            &
-            (
-                patologias_validas[
-                    "Causas frecuentes (resumen)"
-                ] != ""
-            )
-            &
-            (
-                patologias_validas[
-                    "Síntomas/Señales clave (checklist)"
-                ] != ""
-            )
-        ].copy()
-
-        patologias_validas = (
-            patologias_validas
-            .drop_duplicates(
-                subset=["Patologia_ID"]
-            )
-            .reset_index(drop=True)
-        )
-
-        st.info(
-            f"Filas completas disponibles para generar "
-            f"preguntas: {len(patologias_validas)}"
-        )
-
-        # ====================================================
-        # 7.4.3 — CARGAR BANCO GENERAL EXISTENTE
-        # ====================================================
-
-        if RUTA_BANCO_GENERAL.exists():
 
             try:
 
                 banco_general = pd.read_excel(
                     RUTA_BANCO_GENERAL,
                     dtype=str
-                ).fillna("")
+                )
 
-            except Exception as error:
+                banco_general = (
+                    banco_general.fillna("")
+                )
+
+            except Exception as error_lectura:
 
                 st.error(
-                    "No se pudo leer el Banco General."
+                    "No fue posible cargar el "
+                    "Banco General."
                 )
 
                 st.code(
-                    str(error)
+                    str(error_lectura)
                 )
 
                 banco_general = pd.DataFrame()
 
-        else:
-
-            banco_general = pd.DataFrame()
-
-        # ====================================================
-        # 7.4.4 — ESTRUCTURA DEL BANCO
-        # ====================================================
-
-        columnas_banco = [
-            "Pregunta_ID",
-            "Modulo",
-            "Tema",
-            "Nivel",
-            "Tipo_Relacion",
-            "Pregunta",
-            "Respuesta_1",
-            "Respuesta_2",
-            "Respuesta_3",
-            "Respuesta_4",
-            "Respuesta_Correcta",
-            "Estado",
-            "Observacion_Administrador",
-            "Fecha_Generacion",
-            "Fuente_ID"
-        ]
-
-        for columna in columnas_banco:
-
-            if columna not in banco_general.columns:
-
-                banco_general[columna] = ""
-
-        banco_general = banco_general[
-            columnas_banco
-        ]
-
-        # ====================================================
-        # 7.4.5 — FUNCIONES AUXILIARES
-        # ====================================================
-
-        def limpiar_74(valor):
-
-            if pd.isna(valor):
-
-                return ""
-
-            return (
-                str(valor)
-                .strip()
-                .replace("\n", " ")
-                .replace("  ", " ")
-            )
-
-
-        def obtener_distractores_74(
-            patologia_actual,
-            cantidad=3
-        ):
-
-            candidatos = []
-
-            for _, fila in (
-                patologias_validas.iterrows()
-            ):
-
-                nombre = limpiar_74(
-                    fila["Patología"]
-                )
-
-                if (
-                    nombre
-                    and
-                    nombre.lower()
-                    !=
-                    patologia_actual.lower()
-                ):
-
-                    candidatos.append(
-                        nombre
-                    )
-
-            if len(candidatos) < cantidad:
-
-                return []
-
-            return list(
-                np.random.choice(
-                    candidatos,
-                    size=cantidad,
-                    replace=False
-                )
-            )
-
-
-        def crear_opciones_74(
-            correcta,
-            distractores
-        ):
-
-            opciones = [
-                correcta
-            ]
-
-            opciones.extend(
-                distractores
-            )
-
-            np.random.shuffle(
-                opciones
-            )
-
-            posicion_correcta = (
-                opciones.index(
-                    correcta
-                ) + 1
-            )
-
-            return (
-                opciones,
-                posicion_correcta
-            )
-
-
-        # ====================================================
-        # 7.4.6 — CREAR CLAVES DE PREGUNTAS EXISTENTES
-        # ====================================================
-
-        claves_existentes = set()
-
-        if not banco_general.empty:
-
-            for _, fila in (
-                banco_general.iterrows()
-            ):
-
-                clave = (
-                    limpiar_74(
-                        fila["Fuente_ID"]
-                    )
-                    + "|"
-                    +
-                    limpiar_74(
-                        fila["Tipo_Relacion"]
-                    )
-                    + "|"
-                    +
-                    limpiar_74(
-                        fila["Nivel"]
-                    )
-                )
-
-                if clave != "||":
-
-                    claves_existentes.add(
-                        clave
-                    )
-
-        # ====================================================
-        # 7.4.7 — DETERMINAR PRÓXIMO ID
-        # ====================================================
-
-        numeros_existentes = []
-
-        if not banco_general.empty:
-
-            for valor in (
-                banco_general["Pregunta_ID"]
-            ):
-
-                texto = limpiar_74(
-                    valor
-                )
-
-                if texto.startswith("PAT_"):
-
-                    try:
-
-                        numero = int(
-                            texto.replace(
-                                "PAT_",
-                                ""
-                            )
-                        )
-
-                        numeros_existentes.append(
-                            numero
-                        )
-
-                    except ValueError:
-
-                        pass
-
-        if numeros_existentes:
-
-            siguiente_id = (
-                max(
-                    numeros_existentes
-                ) + 1
-            )
-
-        else:
-
-            siguiente_id = 1
-
-        # ====================================================
-        # 7.4.8 — GENERAR PREGUNTAS
-        # ====================================================
-
-        if st.button(
-            "GENERAR NUEVAS PREGUNTAS",
-            key="generar_patologias_74"
-        ):
-
-            nuevas_preguntas = []
-
-            # ------------------------------------------------
-            # CADA PATOLOGÍA
-            # ------------------------------------------------
-
-            for _, fila in (
-                patologias_validas.iterrows()
-            ):
-
-                patologia_id = limpiar_74(
-                    fila["Patologia_ID"]
-                )
-
-                patologia = limpiar_74(
-                    fila["Patología"]
-                )
-
-                descripcion = limpiar_74(
-                    fila[
-                        "Descripción breve (para cliente)"
-                    ]
-                )
-
-                causas = limpiar_74(
-                    fila[
-                        "Causas frecuentes (resumen)"
-                    ]
-                )
-
-                sintomas = limpiar_74(
-                    fila[
-                        "Síntomas/Señales clave (checklist)"
-                    ]
-                )
-
-                distractores = (
-                    obtener_distractores_74(
-                        patologia
-                    )
-                )
-
-                if len(
-                    distractores
-                ) < 3:
-
-                    continue
-
-                # =================================================
-                # PREGUNTA 1 — DESCRIPCIÓN → PATOLOGÍA
-                # =================================================
-
-                clave = (
-                    patologia_id
-                    + "|"
-                    + "Descripcion_Patologia"
-                    + "|Nivel 1"
-                )
-
-                if clave not in claves_existentes:
-
-                    pregunta = (
-                        "Una persona presenta "
-                        f"{descripcion} "
-                        "¿Cuál de las siguientes "
-                        "patologías corresponde mejor "
-                        "a este cuadro?"
-                    )
-
-                    opciones, correcta = (
-                        crear_opciones_74(
-                            patologia,
-                            distractores
-                        )
-                    )
-
-                    nuevas_preguntas.append({
-
-                        "Pregunta_ID":
-                            f"PAT_{siguiente_id:05d}",
-
-                        "Modulo":
-                            "Patologias",
-
-                        "Tema":
-                            patologia,
-
-                        "Nivel":
-                            "Nivel 1",
-
-                        "Tipo_Relacion":
-                            "Descripcion_Patologia",
-
-                        "Pregunta":
-                            pregunta,
-
-                        "Respuesta_1":
-                            opciones[0],
-
-                        "Respuesta_2":
-                            opciones[1],
-
-                        "Respuesta_3":
-                            opciones[2],
-
-                        "Respuesta_4":
-                            opciones[3],
-
-                        "Respuesta_Correcta":
-                            str(correcta),
-
-                        "Estado":
-                            "PENDIENTE",
-
-                        "Observacion_Administrador":
-                            "",
-
-                        "Fecha_Generacion":
-                            pd.Timestamp.now().strftime(
-                                "%Y-%m-%d %H:%M:%S"
-                            ),
-
-                        "Fuente_ID":
-                            patologia_id
-                    })
-
-                    claves_existentes.add(
-                        clave
-                    )
-
-                    siguiente_id += 1
-
-                # =================================================
-                # PREGUNTA 2 — SÍNTOMAS → PATOLOGÍA
-                # =================================================
-
-                clave = (
-                    patologia_id
-                    + "|"
-                    + "Sintomas_Patologia"
-                    + "|Nivel 1"
-                )
-
-                if clave not in claves_existentes:
-
-                    pregunta = (
-                        "Una persona presenta "
-                        f"los siguientes signos o síntomas: "
-                        f"{sintomas} "
-                        "¿Cuál de las siguientes "
-                        "patologías se relaciona mejor "
-                        "con este conjunto de señales?"
-                    )
-
-                    opciones, correcta = (
-                        crear_opciones_74(
-                            patologia,
-                            distractores
-                        )
-                    )
-
-                    nuevas_preguntas.append({
-
-                        "Pregunta_ID":
-                            f"PAT_{siguiente_id:05d}",
-
-                        "Modulo":
-                            "Patologias",
-
-                        "Tema":
-                            patologia,
-
-                        "Nivel":
-                            "Nivel 1",
-
-                        "Tipo_Relacion":
-                            "Sintomas_Patologia",
-
-                        "Pregunta":
-                            pregunta,
-
-                        "Respuesta_1":
-                            opciones[0],
-
-                        "Respuesta_2":
-                            opciones[1],
-
-                        "Respuesta_3":
-                            opciones[2],
-
-                        "Respuesta_4":
-                            opciones[3],
-
-                        "Respuesta_Correcta":
-                            str(correcta),
-
-                        "Estado":
-                            "PENDIENTE",
-
-                        "Observacion_Administrador":
-                            "",
-
-                        "Fecha_Generacion":
-                            pd.Timestamp.now().strftime(
-                                "%Y-%m-%d %H:%M:%S"
-                            ),
-
-                        "Fuente_ID":
-                            patologia_id
-                    })
-
-                    claves_existentes.add(
-                        clave
-                    )
-
-                    siguiente_id += 1
-
-                # =================================================
-                # PREGUNTA 3 — CAUSAS → PATOLOGÍA
-                # =================================================
-
-                clave = (
-                    patologia_id
-                    + "|"
-                    + "Causas_Patologia"
-                    + "|Nivel 1"
-                )
-
-                if clave not in claves_existentes:
-
-                    pregunta = (
-                        f"Factores como {causas} "
-                        "pueden estar relacionados "
-                        "con cuál de las siguientes "
-                        "patologías?"
-                    )
-
-                    opciones, correcta = (
-                        crear_opciones_74(
-                            patologia,
-                            distractores
-                        )
-                    )
-
-                    nuevas_preguntas.append({
-
-                        "Pregunta_ID":
-                            f"PAT_{siguiente_id:05d}",
-
-                        "Modulo":
-                            "Patologias",
-
-                        "Tema":
-                            patologia,
-
-                        "Nivel":
-                            "Nivel 1",
-
-                        "Tipo_Relacion":
-                            "Causas_Patologia",
-
-                        "Pregunta":
-                            pregunta,
-
-                        "Respuesta_1":
-                            opciones[0],
-
-                        "Respuesta_2":
-                            opciones[1],
-
-                        "Respuesta_3":
-                            opciones[2],
-
-                        "Respuesta_4":
-                            opciones[3],
-
-                        "Respuesta_Correcta":
-                            str(correcta),
-
-                        "Estado":
-                            "PENDIENTE",
-
-                        "Observacion_Administrador":
-                            "",
-
-                        "Fecha_Generacion":
-                            pd.Timestamp.now().strftime(
-                                "%Y-%m-%d %H:%M:%S"
-                            ),
-
-                        "Fuente_ID":
-                            patologia_id
-                    })
-
-                    claves_existentes.add(
-                        clave
-                    )
-
-                    siguiente_id += 1
-
-            # ====================================================
-            # 7.4.9 — GUARDAR EN EL BANCO GENERAL
-            # ====================================================
-
-            if nuevas_preguntas:
-
-                nuevas_df = pd.DataFrame(
-                    nuevas_preguntas
-                )
-
-                banco_general = pd.concat(
-                    [
-                        banco_general,
-                        nuevas_df
-                    ],
-                    ignore_index=True
-                )
-
-                banco_general = banco_general[
-                    columnas_banco
-                ]
-
-                banco_general.to_excel(
-                    RUTA_BANCO_GENERAL,
-                    index=False,
-                    engine="openpyxl"
-                )
-
-                st.success(
-                    f"Se generaron y guardaron "
-                    f"{len(nuevas_df)} preguntas nuevas."
-                )
-
-                st.info(
-                    "Todas quedaron en estado PENDIENTE. "
-                    "Ninguna podrá utilizarse en una "
-                    "evaluación hasta ser APROBADA."
-                )
-
-                st.dataframe(
-                    nuevas_df[
-                        [
-                            "Pregunta_ID",
-                            "Modulo",
-                            "Tema",
-                            "Nivel",
-                            "Tipo_Relacion",
-                            "Pregunta",
-                            "Respuesta_1",
-                            "Respuesta_2",
-                            "Respuesta_3",
-                            "Respuesta_4",
-                            "Respuesta_Correcta",
-                            "Estado"
-                        ]
-                    ],
-                    use_container_width=True
+            # =================================================
+            # 7.4.2 — VALIDAR HOJA DE PATOLOGÍAS
+            # =================================================
+
+            if "Patologias" not in globals():
+
+                st.error(
+                    "No está disponible el dataframe "
+                    "de Patologias."
                 )
 
             else:
 
-                st.info(
-                    "No hay preguntas nuevas para generar. "
-                    "Las preguntas existentes se conservaron."
-                )
+                columnas_patologias = [
 
-        # ====================================================
-        # 7.4.10 — REVISIÓN DEL ADMINISTRADOR
-        # ====================================================
+                    "Patologia_ID",
+                    "Patología",
+                    "Descripción breve (para cliente)",
+                    "Causas frecuentes (resumen)",
+                    "Síntomas/Señales clave (checklist)"
 
-        st.divider()
-
-        st.subheader(
-            "Revisión de preguntas"
-        )
-
-        if RUTA_BANCO_GENERAL.exists():
-
-            banco_revision = pd.read_excel(
-                RUTA_BANCO_GENERAL,
-                dtype=str
-            ).fillna("")
-
-            banco_revision = banco_revision[
-                banco_revision["Modulo"]
-                .astype(str)
-                .str.strip()
-                .str.lower()
-                ==
-                "patologias"
-            ].copy()
-
-            # ------------------------------------------------
-            # RESUMEN
-            # ------------------------------------------------
-
-            pendientes = (
-                banco_revision[
-                    banco_revision["Estado"]
-                    .astype(str)
-                    .str.upper()
-                    .str.strip()
-                    ==
-                    "PENDIENTE"
                 ]
-            )
 
-            aprobadas = (
-                banco_revision[
-                    banco_revision["Estado"]
-                    .astype(str)
-                    .str.upper()
-                    .str.strip()
-                    ==
-                    "APROBADA"
+                columnas_faltantes = [
+
+                    columna
+                    for columna in columnas_patologias
+                    if columna not in Patologias.columns
+
                 ]
-            )
 
-            rechazadas = (
-                banco_revision[
-                    banco_revision["Estado"]
-                    .astype(str)
-                    .str.upper()
-                    .str.strip()
-                    ==
-                    "RECHAZADA"
-                ]
-            )
+                if columnas_faltantes:
 
-            c1, c2, c3 = st.columns(3)
-
-            with c1:
-
-                st.metric(
-                    "PENDIENTES",
-                    len(pendientes)
-                )
-
-            with c2:
-
-                st.metric(
-                    "APROBADAS",
-                    len(aprobadas)
-                )
-
-            with c3:
-
-                st.metric(
-                    "RECHAZADAS",
-                    len(rechazadas)
-                )
-
-            # ------------------------------------------------
-            # MOSTRAR PENDIENTES
-            # ------------------------------------------------
-
-            for indice, fila in (
-                pendientes.iterrows()
-            ):
-
-                st.markdown("---")
-
-                st.markdown(
-                    f"### {fila['Pregunta_ID']}"
-                )
-
-                st.write(
-                    f"**Tema:** {fila['Tema']}"
-                )
-
-                st.write(
-                    f"**Nivel:** {fila['Nivel']}"
-                )
-
-                st.write(
-                    f"**Relación:** "
-                    f"{fila['Tipo_Relacion']}"
-                )
-
-                st.markdown(
-                    f"**Pregunta:** "
-                    f"{fila['Pregunta']}"
-                )
-
-                st.write(
-                    f"1. {fila['Respuesta_1']}"
-                )
-
-                st.write(
-                    f"2. {fila['Respuesta_2']}"
-                )
-
-                st.write(
-                    f"3. {fila['Respuesta_3']}"
-                )
-
-                st.write(
-                    f"4. {fila['Respuesta_4']}"
-                )
-
-                st.caption(
-                    "Respuesta correcta registrada: "
-                    f"{fila['Respuesta_Correcta']}"
-                )
-
-                estado = st.radio(
-                    "Concepto del administrador:",
-                    [
-                        "PENDIENTE",
-                        "APROBADA",
-                        "RECHAZADA"
-                    ],
-                    horizontal=True,
-                    key=(
-                        "concepto_"
-                        + fila["Pregunta_ID"]
+                    st.error(
+                        "Faltan columnas necesarias "
+                        "en la hoja Patologias."
                     )
-                )
 
-                observacion = st.text_input(
-                    "Observación:",
-                    key=(
-                        "obs_"
-                        + fila["Pregunta_ID"]
-                    )
-                )
+                    for columna in (
+                        columnas_faltantes
+                    ):
 
-                if st.button(
-                    "Guardar concepto",
-                    key=(
-                        "guardar_"
-                        + fila["Pregunta_ID"]
-                    )
-                ):
+                        st.write(
+                            f"- {columna}"
+                        )
 
-                    banco_completo = pd.read_excel(
-                        RUTA_BANCO_GENERAL,
-                        dtype=str
-                    ).fillna("")
+                else:
 
-                    posicion = (
-                        banco_completo[
-                            "Pregunta_ID"
+                    # =========================================
+                    # 7.4.3 — PREPARAR PATOLOGÍAS VÁLIDAS
+                    # =========================================
+
+                    patologias_validas = (
+                        Patologias[
+                            columnas_patologias
                         ]
-                        .astype(str)
-                        .str.strip()
-                        ==
-                        fila["Pregunta_ID"]
+                        .copy()
+                        .fillna("")
                     )
 
-                    banco_completo.loc[
-                        posicion,
-                        "Estado"
-                    ] = estado
+                    for columna in (
+                        columnas_patologias
+                    ):
 
-                    banco_completo.loc[
-                        posicion,
-                        "Observacion_Administrador"
-                    ] = observacion
+                        patologias_validas[
+                            columna
+                        ] = (
+                            patologias_validas[
+                                columna
+                            ]
+                            .astype(str)
+                            .str.strip()
+                        )
 
-                    banco_completo.to_excel(
-                        RUTA_BANCO_GENERAL,
-                        index=False,
-                        engine="openpyxl"
+                    # -----------------------------------------
+                    # SOLO FILAS COMPLETAS
+                    # -----------------------------------------
+
+                    patologias_validas = (
+                        patologias_validas[
+                            (
+                                patologias_validas[
+                                    "Patologia_ID"
+                                ] != ""
+                            )
+                            &
+                            (
+                                patologias_validas[
+                                    "Patología"
+                                ] != ""
+                            )
+                            &
+                            (
+                                patologias_validas[
+                                    "Descripción breve (para cliente)"
+                                ] != ""
+                            )
+                            &
+                            (
+                                patologias_validas[
+                                    "Causas frecuentes (resumen)"
+                                ] != ""
+                            )
+                            &
+                            (
+                                patologias_validas[
+                                    "Síntomas/Señales clave (checklist)"
+                                ] != ""
+                            )
+                        ]
+                        .drop_duplicates(
+                            subset=[
+                                "Patologia_ID"
+                            ]
+                        )
+                        .reset_index(
+                            drop=True
+                        )
                     )
 
-                    st.success(
-                        f"{fila['Pregunta_ID']} "
-                        f"guardada como {estado}."
+                    st.info(
+                        "Patologías completas disponibles: "
+                        f"{len(patologias_validas)}"
                     )
 
-                    st.rerun()
+                    # =========================================
+                    # 7.4.4 — FUNCIONES AUXILIARES
+                    # =========================================
+
+                    def limpiar_texto_74(
+                        valor
+                    ):
+
+                        if pd.isna(valor):
+
+                            return ""
+
+                        return (
+                            str(valor)
+                            .strip()
+                            .replace(
+                                "\n",
+                                " "
+                            )
+                            .replace(
+                                "  ",
+                                " "
+                            )
+                        )
+
+
+                    def dividir_elementos_74(
+                        texto
+                    ):
+
+                        texto = limpiar_texto_74(
+                            texto
+                        )
+
+                        if not texto:
+
+                            return []
+
+                        elementos = []
+
+                        partes = texto.split(";")
+
+                        for parte in partes:
+
+                            parte = (
+                                parte.strip()
+                            )
+
+                            if parte:
+
+                                elementos.append(
+                                    parte
+                                )
+
+                        return elementos
+
+
+                    def obtener_id_74(
+                        banco
+                    ):
+
+                        numeros = []
+
+                        if (
+                            not banco.empty
+                            and
+                            "Pregunta_ID"
+                            in banco.columns
+                        ):
+
+                            for valor in (
+                                banco[
+                                    "Pregunta_ID"
+                                ]
+                            ):
+
+                                texto = (
+                                    limpiar_texto_74(
+                                        valor
+                                    )
+                                )
+
+                                if texto.startswith(
+                                    "PAT_"
+                                ):
+
+                                    try:
+
+                                        numero = int(
+                                            texto[
+                                                4:
+                                            ]
+                                        )
+
+                                        numeros.append(
+                                            numero
+                                        )
+
+                                    except ValueError:
+
+                                        pass
+
+                        if numeros:
+
+                            return (
+                                max(
+                                    numeros
+                                ) + 1
+                            )
+
+                        return 1
+
+
+                    def crear_opciones_74(
+                        respuesta_correcta,
+                        distractores
+                    ):
+
+                        opciones = [
+                            respuesta_correcta
+                        ]
+
+                        opciones.extend(
+                            distractores
+                        )
+
+                        np.random.shuffle(
+                            opciones
+                        )
+
+                        posicion = (
+                            opciones.index(
+                                respuesta_correcta
+                            ) + 1
+                        )
+
+                        return (
+                            opciones,
+                            posicion
+                        )
+
+
+                    def crear_opciones_nivel2_74(
+                        correcta_1,
+                        correcta_2,
+                        distractor_1,
+                        distractor_2
+                    ):
+
+                        opciones = [
+
+                            correcta_1,
+                            correcta_2,
+                            distractor_1,
+                            distractor_2
+
+                        ]
+
+                        np.random.shuffle(
+                            opciones
+                        )
+
+                        posiciones_correctas = [
+
+                            indice + 1
+                            for indice, opcion
+                            in enumerate(opciones)
+                            if opcion in [
+                                correcta_1,
+                                correcta_2
+                            ]
+
+                        ]
+
+                        return (
+                            opciones,
+                            sorted(
+                                posiciones_correctas
+                            )
+                        )
+
+
+                    # =========================================
+                    # 7.4.5 — CREAR CLAVES EXISTENTES
+                    # =========================================
+
+                    claves_activas = set()
+
+                    preguntas_existentes = set()
+
+                    if not banco_general.empty:
+
+                        for _, fila in (
+                            banco_general.iterrows()
+                        ):
+
+                            estado = (
+                                limpiar_texto_74(
+                                    fila.get(
+                                        "Estado",
+                                        ""
+                                    )
+                                )
+                                .upper()
+                            )
+
+                            fuente = (
+                                limpiar_texto_74(
+                                    fila.get(
+                                        "Fuente_ID",
+                                        ""
+                                    )
+                                )
+                            )
+
+                            tipo = (
+                                limpiar_texto_74(
+                                    fila.get(
+                                        "Tipo_Relacion",
+                                        ""
+                                    )
+                                )
+                            )
+
+                            nivel = (
+                                limpiar_texto_74(
+                                    fila.get(
+                                        "Nivel",
+                                        ""
+                                    )
+                                )
+                            )
+
+                            pregunta = (
+                                limpiar_texto_74(
+                                    fila.get(
+                                        "Pregunta",
+                                        ""
+                                    )
+                                )
+                            )
+
+                            # ---------------------------------
+                            # SOLO PENDIENTES Y APROBADAS
+                            # BLOQUEAN UNA NUEVA VERSIÓN
+                            # ---------------------------------
+
+                            if estado in [
+                                "PENDIENTE",
+                                "APROBADA"
+                            ]:
+
+                                clave = (
+                                    fuente
+                                    + "|"
+                                    + tipo
+                                    + "|"
+                                    + nivel
+                                )
+
+                                if (
+                                    fuente
+                                    and
+                                    tipo
+                                    and
+                                    nivel
+                                ):
+
+                                    claves_activas.add(
+                                        clave
+                                    )
+
+                            # ---------------------------------
+                            # TODAS LAS PREGUNTAS SE COMPARAN
+                            # PARA EVITAR DUPLICADOS EXACTOS
+                            # ---------------------------------
+
+                            if pregunta:
+
+                                preguntas_existentes.add(
+                                    pregunta.lower()
+                                )
+
+                    siguiente_id = obtener_id_74(
+                        banco_general
+                    )
+
+                    # =========================================
+                    # 7.4.6 — GENERAR
+                    # =========================================
+
+                    st.divider()
+
+                    st.subheader(
+                        "Generar nuevas preguntas"
+                    )
+
+                    nivel_generacion = st.multiselect(
+                        "Seleccione los niveles que desea generar:",
+                        [
+                            "Nivel 1",
+                            "Nivel 2"
+                        ],
+                        default=[
+                            "Nivel 1",
+                            "Nivel 2"
+                        ],
+                        key="niveles_patologias_74"
+                    )
+
+                    if st.button(
+                        "GENERAR Y GUARDAR PREGUNTAS",
+                        key="generar_guardar_patologias_74"
+                    ):
+
+                        nuevas_preguntas = []
+
+                        # -------------------------------------
+                        # LISTA DE PATOLOGÍAS PARA DISTRACTORES
+                        # -------------------------------------
+
+                        nombres_patologias = [
+
+                            limpiar_texto_74(
+                                fila[
+                                    "Patología"
+                                ]
+                            )
+                            for _, fila
+                            in patologias_validas.iterrows()
+
+                        ]
+
+                        # =====================================
+                        # RECORRER PATOLOGÍAS
+                        # =====================================
+
+                        for _, fila in (
+                            patologias_validas.iterrows()
+                        ):
+
+                            patologia_id = (
+                                limpiar_texto_74(
+                                    fila[
+                                        "Patologia_ID"
+                                    ]
+                                )
+                            )
+
+                            patologia = (
+                                limpiar_texto_74(
+                                    fila[
+                                        "Patología"
+                                    ]
+                                )
+                            )
+
+                            descripcion = (
+                                limpiar_texto_74(
+                                    fila[
+                                        "Descripción breve (para cliente)"
+                                    ]
+                                )
+                            )
+
+                            causas = (
+                                dividir_elementos_74(
+                                    fila[
+                                        "Causas frecuentes (resumen)"
+                                    ]
+                                )
+                            )
+
+                            sintomas = (
+                                dividir_elementos_74(
+                                    fila[
+                                        "Síntomas/Señales clave (checklist)"
+                                    ]
+                                )
+                            )
+
+                            # =================================
+                            # DISTRACTORES DE OTRAS PATOLOGÍAS
+                            # =================================
+
+                            distractores = [
+
+                                nombre
+                                for nombre
+                                in nombres_patologias
+                                if (
+                                    nombre.lower()
+                                    !=
+                                    patologia.lower()
+                                )
+
+                            ]
+
+                            if len(
+                                distractores
+                            ) < 3:
+
+                                continue
+
+                            distractores = list(
+                                np.random.choice(
+                                    distractores,
+                                    size=3,
+                                    replace=False
+                                )
+                            )
+
+                            # =================================
+                            # NIVEL 1 — DESCRIPCIÓN
+                            # =================================
+
+                            clave = (
+                                patologia_id
+                                + "|"
+                                + "Descripcion_Patologia"
+                                + "|Nivel 1"
+                            )
+
+                            if (
+                                "Nivel 1"
+                                in nivel_generacion
+                                and
+                                clave
+                                not in claves_activas
+                            ):
+
+                                pregunta = (
+                                    "Una persona presenta "
+                                    f"{descripcion} "
+                                    "¿Cuál de las siguientes "
+                                    "patologías corresponde "
+                                    "mejor a este cuadro?"
+                                )
+
+                                if (
+                                    pregunta.lower()
+                                    not in
+                                    preguntas_existentes
+                                ):
+
+                                    opciones, correcta = (
+                                        crear_opciones_74(
+                                            patologia,
+                                            distractores
+                                        )
+                                    )
+
+                                    nuevas_preguntas.append({
+
+                                        "Pregunta_ID":
+                                            f"PAT_{siguiente_id:05d}",
+
+                                        "Modulo":
+                                            "Patologias",
+
+                                        "Tema":
+                                            patologia,
+
+                                        "Nivel":
+                                            "Nivel 1",
+
+                                        "Tipo_Relacion":
+                                            "Descripcion_Patologia",
+
+                                        "Pregunta":
+                                            pregunta,
+
+                                        "Respuesta_1":
+                                            opciones[0],
+
+                                        "Respuesta_2":
+                                            opciones[1],
+
+                                        "Respuesta_3":
+                                            opciones[2],
+
+                                        "Respuesta_4":
+                                            opciones[3],
+
+                                        "Respuesta_Correcta":
+                                            str(correcta),
+
+                                        "Estado":
+                                            "PENDIENTE",
+
+                                        "Observacion_Administrador":
+                                            "",
+
+                                        "Fecha_Generacion":
+                                            pd.Timestamp.now().strftime(
+                                                "%Y-%m-%d %H:%M:%S"
+                                            ),
+
+                                        "Fuente_ID":
+                                            patologia_id
+
+                                    })
+
+                                    preguntas_existentes.add(
+                                        pregunta.lower()
+                                    )
+
+                                    siguiente_id += 1
+
+                            # =================================
+                            # NIVEL 1 — SÍNTOMAS
+                            # =================================
+
+                            clave = (
+                                patologia_id
+                                + "|"
+                                + "Sintomas_Patologia"
+                                + "|Nivel 1"
+                            )
+
+                            if (
+                                "Nivel 1"
+                                in nivel_generacion
+                                and
+                                len(sintomas) >= 2
+                                and
+                                clave
+                                not in claves_activas
+                            ):
+
+                                sintomas_texto = (
+                                    "; ".join(
+                                        sintomas
+                                    )
+                                )
+
+                                pregunta = (
+                                    "Una persona presenta "
+                                    f"{sintomas_texto}. "
+                                    "¿Cuál de las siguientes "
+                                    "patologías se relaciona "
+                                    "mejor con este conjunto "
+                                    "de señales?"
+                                )
+
+                                if (
+                                    pregunta.lower()
+                                    not in
+                                    preguntas_existentes
+                                ):
+
+                                    opciones, correcta = (
+                                        crear_opciones_74(
+                                            patologia,
+                                            distractores
+                                        )
+                                    )
+
+                                    nuevas_preguntas.append({
+
+                                        "Pregunta_ID":
+                                            f"PAT_{siguiente_id:05d}",
+
+                                        "Modulo":
+                                            "Patologias",
+
+                                        "Tema":
+                                            patologia,
+
+                                        "Nivel":
+                                            "Nivel 1",
+
+                                        "Tipo_Relacion":
+                                            "Sintomas_Patologia",
+
+                                        "Pregunta":
+                                            pregunta,
+
+                                        "Respuesta_1":
+                                            opciones[0],
+
+                                        "Respuesta_2":
+                                            opciones[1],
+
+                                        "Respuesta_3":
+                                            opciones[2],
+
+                                        "Respuesta_4":
+                                            opciones[3],
+
+                                        "Respuesta_Correcta":
+                                            str(correcta),
+
+                                        "Estado":
+                                            "PENDIENTE",
+
+                                        "Observacion_Administrador":
+                                            "",
+
+                                        "Fecha_Generacion":
+                                            pd.Timestamp.now().strftime(
+                                                "%Y-%m-%d %H:%M:%S"
+                                            ),
+
+                                        "Fuente_ID":
+                                            patologia_id
+
+                                    })
+
+                                    preguntas_existentes.add(
+                                        pregunta.lower()
+                                    )
+
+                                    siguiente_id += 1
+
+                            # =================================
+                            # NIVEL 1 — CAUSAS
+                            # =================================
+
+                            clave = (
+                                patologia_id
+                                + "|"
+                                + "Causas_Patologia"
+                                + "|Nivel 1"
+                            )
+
+                            if (
+                                "Nivel 1"
+                                in nivel_generacion
+                                and
+                                len(causas) >= 2
+                                and
+                                clave
+                                not in claves_activas
+                            ):
+
+                                causas_texto = (
+                                    "; ".join(
+                                        causas
+                                    )
+                                )
+
+                                pregunta = (
+                                    "Factores como "
+                                    f"{causas_texto} "
+                                    "pueden estar relacionados "
+                                    "con cuál de las siguientes "
+                                    "patologías?"
+                                )
+
+                                if (
+                                    pregunta.lower()
+                                    not in
+                                    preguntas_existentes
+                                ):
+
+                                    opciones, correcta = (
+                                        crear_opciones_74(
+                                            patologia,
+                                            distractores
+                                        )
+                                    )
+
+                                    nuevas_preguntas.append({
+
+                                        "Pregunta_ID":
+                                            f"PAT_{siguiente_id:05d}",
+
+                                        "Modulo":
+                                            "Patologias",
+
+                                        "Tema":
+                                            patologia,
+
+                                        "Nivel":
+                                            "Nivel 1",
+
+                                        "Tipo_Relacion":
+                                            "Causas_Patologia",
+
+                                        "Pregunta":
+                                            pregunta,
+
+                                        "Respuesta_1":
+                                            opciones[0],
+
+                                        "Respuesta_2":
+                                            opciones[1],
+
+                                        "Respuesta_3":
+                                            opciones[2],
+
+                                        "Respuesta_4":
+                                            opciones[3],
+
+                                        "Respuesta_Correcta":
+                                            str(correcta),
+
+                                        "Estado":
+                                            "PENDIENTE",
+
+                                        "Observacion_Administrador":
+                                            "",
+
+                                        "Fecha_Generacion":
+                                            pd.Timestamp.now().strftime(
+                                                "%Y-%m-%d %H:%M:%S"
+                                            ),
+
+                                        "Fuente_ID":
+                                            patologia_id
+
+                                    })
+
+                                    preguntas_existentes.add(
+                                        pregunta.lower()
+                                    )
+
+                                    siguiente_id += 1
+
+                            # =================================
+                            # NIVEL 2 — DOS RESPUESTAS CORRECTAS
+                            # =================================
+
+                            clave = (
+                                patologia_id
+                                + "|"
+                                + "Sintoma_Causa_Patologia"
+                                + "|Nivel 2"
+                            )
+
+                            if (
+                                "Nivel 2"
+                                in nivel_generacion
+                                and
+                                len(sintomas) >= 1
+                                and
+                                len(causas) >= 1
+                                and
+                                clave
+                                not in claves_activas
+                            ):
+
+                                respuesta_correcta_1 = (
+                                    "Se relaciona con "
+                                    f"{sintomas[0]}"
+                                )
+
+                                respuesta_correcta_2 = (
+                                    "Puede estar asociada a "
+                                    f"{causas[0]}"
+                                )
+
+                                otras_patologias = [
+
+                                    nombre
+                                    for nombre
+                                    in nombres_patologias
+                                    if (
+                                        nombre.lower()
+                                        !=
+                                        patologia.lower()
+                                    )
+
+                                ]
+
+                                if len(
+                                    otras_patologias
+                                ) >= 2:
+
+                                    otras_patologias = list(
+                                        np.random.choice(
+                                            otras_patologias,
+                                            size=2,
+                                            replace=False
+                                        )
+                                    )
+
+                                    distractor_1 = (
+                                        "Se relaciona "
+                                        "principalmente con "
+                                        f"{otras_patologias[0]}"
+                                    )
+
+                                    distractor_2 = (
+                                        "Puede estar asociada "
+                                        "principalmente a "
+                                        f"{otras_patologias[1]}"
+                                    )
+
+                                    pregunta = (
+                                        "Seleccione las DOS "
+                                        "afirmaciones que se "
+                                        "relacionan correctamente "
+                                        f"con {patologia}."
+                                    )
+
+                                    if (
+                                        pregunta.lower()
+                                        not in
+                                        preguntas_existentes
+                                    ):
+
+                                        (
+                                            opciones,
+                                            correctas
+                                        ) = (
+                                            crear_opciones_nivel2_74(
+                                                respuesta_correcta_1,
+                                                respuesta_correcta_2,
+                                                distractor_1,
+                                                distractor_2
+                                            )
+                                        )
+
+                                        nuevas_preguntas.append({
+
+                                            "Pregunta_ID":
+                                                f"PAT_{siguiente_id:05d}",
+
+                                            "Modulo":
+                                                "Patologias",
+
+                                            "Tema":
+                                                patologia,
+
+                                            "Nivel":
+                                                "Nivel 2",
+
+                                            "Tipo_Relacion":
+                                                "Sintoma_Causa_Patologia",
+
+                                            "Pregunta":
+                                                pregunta,
+
+                                            "Respuesta_1":
+                                                opciones[0],
+
+                                            "Respuesta_2":
+                                                opciones[1],
+
+                                            "Respuesta_3":
+                                                opciones[2],
+
+                                            "Respuesta_4":
+                                                opciones[3],
+
+                                            "Respuesta_Correcta":
+                                                ",".join(
+                                                    map(
+                                                        str,
+                                                        correctas
+                                                    )
+                                                ),
+
+                                            "Estado":
+                                                "PENDIENTE",
+
+                                            "Observacion_Administrador":
+                                                "",
+
+                                            "Fecha_Generacion":
+                                                pd.Timestamp.now().strftime(
+                                                    "%Y-%m-%d %H:%M:%S"
+                                                ),
+
+                                            "Fuente_ID":
+                                                patologia_id
+
+                                        })
+
+                                        preguntas_existentes.add(
+                                            pregunta.lower()
+                                        )
+
+                                        siguiente_id += 1
+
+                        # =====================================
+                        # 7.4.7 — GUARDAR LOCALMENTE
+                        # =====================================
+
+                        if nuevas_preguntas:
+
+                            nuevas_df = pd.DataFrame(
+                                nuevas_preguntas
+                            )
+
+                            banco_general = pd.concat(
+                                [
+                                    banco_general,
+                                    nuevas_df
+                                ],
+                                ignore_index=True
+                            )
+
+                            banco_general = banco_general[
+                                COLUMNAS_BANCO_GENERAL
+                            ]
+
+                            banco_general.to_excel(
+                                RUTA_BANCO_GENERAL,
+                                index=False,
+                                sheet_name="Banco_General"
+                            )
+
+                            st.success(
+                                f"Se generaron "
+                                f"{len(nuevas_df)} preguntas nuevas."
+                            )
+
+                            # =================================
+                            # 7.4.8 — SINCRONIZAR AUTOMÁTICAMENTE
+                            # CON GITHUB
+                            # =================================
+
+                            try:
+
+                                ruta_github_banco = (
+                                    "BANCO_PREGUNTAS_GENERALES.xlsx"
+                                )
+
+                                url_github_banco = (
+                                    f"https://api.github.com/repos/"
+                                    f"{GITHUB_USUARIO}/"
+                                    f"{GITHUB_REPOSITORIO}/"
+                                    f"contents/"
+                                    f"{ruta_github_banco}"
+                                )
+
+                                headers_github_banco = {
+
+                                    "Authorization":
+                                        f"Bearer {GITHUB_TOKEN}",
+
+                                    "Accept":
+                                        "application/vnd.github+json",
+
+                                    "X-GitHub-Api-Version":
+                                        "2022-11-28"
+
+                                }
+
+                                with open(
+                                    RUTA_BANCO_GENERAL,
+                                    "rb"
+                                ) as archivo:
+
+                                    contenido_banco = (
+                                        archivo.read()
+                                    )
+
+                                contenido_base64 = (
+                                    base64.b64encode(
+                                        contenido_banco
+                                    ).decode(
+                                        "utf-8"
+                                    )
+                                )
+
+                                solicitud_get = (
+                                    urllib.request.Request(
+                                        url_github_banco,
+                                        headers=(
+                                            headers_github_banco
+                                        ),
+                                        method="GET"
+                                    )
+                                )
+
+                                sha_actual = None
+
+                                try:
+
+                                    with urllib.request.urlopen(
+                                        solicitud_get
+                                    ) as respuesta:
+
+                                        informacion_github = (
+                                            json.loads(
+                                                respuesta.read()
+                                                .decode(
+                                                    "utf-8"
+                                                )
+                                            )
+                                        )
+
+                                    sha_actual = (
+                                        informacion_github[
+                                            "sha"
+                                        ]
+                                    )
+
+                                except urllib.error.HTTPError as error:
+
+                                    if error.code != 404:
+
+                                        raise
+
+                                datos_banco = {
+
+                                    "message":
+                                        "Actualizar Banco General "
+                                        "de Preguntas",
+
+                                    "content":
+                                        contenido_base64
+
+                                }
+
+                                if sha_actual:
+
+                                    datos_banco[
+                                        "sha"
+                                    ] = sha_actual
+
+                                datos_json = (
+                                    json.dumps(
+                                        datos_banco
+                                    ).encode(
+                                        "utf-8"
+                                    )
+                                )
+
+                                solicitud_put = (
+                                    urllib.request.Request(
+                                        url_github_banco,
+                                        data=datos_json,
+                                        headers={
+                                            **headers_github_banco,
+                                            "Content-Type":
+                                                "application/json"
+                                        },
+                                        method="PUT"
+                                    )
+                                )
+
+                                with urllib.request.urlopen(
+                                    solicitud_put
+                                ) as respuesta:
+
+                                    resultado_github = (
+                                        json.loads(
+                                            respuesta.read()
+                                            .decode(
+                                                "utf-8"
+                                            )
+                                        )
+                                    )
+
+                                if resultado_github.get(
+                                    "content"
+                                ):
+
+                                    st.success(
+                                        "✓ Banco General guardado "
+                                        "localmente y sincronizado "
+                                        "con GitHub."
+                                    )
+
+                                else:
+
+                                    st.warning(
+                                        "El archivo se guardó "
+                                        "localmente, pero GitHub "
+                                        "no confirmó la actualización."
+                                    )
+
+                            except urllib.error.HTTPError as error:
+
+                                detalle = (
+                                    error.read().decode(
+                                        "utf-8",
+                                        errors="ignore"
+                                    )
+                                )
+
+                                st.error(
+                                    "El Banco General se guardó "
+                                    "localmente, pero NO fue posible "
+                                    "sincronizarlo con GitHub."
+                                )
+
+                                st.code(
+                                    detalle
+                                )
+
+                            except Exception as error:
+
+                                st.error(
+                                    "El Banco General se guardó "
+                                    "localmente, pero ocurrió un "
+                                    "error durante la sincronización "
+                                    "con GitHub."
+                                )
+
+                                st.code(
+                                    str(error)
+                                )
+
+                            # =================================
+                            # MOSTRAR NUEVAS PREGUNTAS
+                            # =================================
+
+                            st.divider()
+
+                            st.subheader(
+                                "Preguntas generadas"
+                            )
+
+                            st.dataframe(
+                                nuevas_df[
+                                    [
+                                        "Pregunta_ID",
+                                        "Modulo",
+                                        "Tema",
+                                        "Nivel",
+                                        "Tipo_Relacion",
+                                        "Pregunta",
+                                        "Respuesta_1",
+                                        "Respuesta_2",
+                                        "Respuesta_3",
+                                        "Respuesta_4",
+                                        "Respuesta_Correcta",
+                                        "Estado"
+                                    ]
+                                ],
+                                use_container_width=True
+                            )
+
+                        else:
+
+                            st.warning(
+                                "No se generaron preguntas nuevas. "
+                                "Puede que ya existan preguntas "
+                                "activas para esas relaciones o que "
+                                "la información disponible no permita "
+                                "construir preguntas válidas."
+                            )
     
 # ============================================================
 # 8. PIE DE APLICACIÓN
