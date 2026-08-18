@@ -1719,13 +1719,7 @@ else:
         "Debemos corregirlos antes de continuar."
     )
 
-# ============================================================
-# FIN DEL DIAGNÓSTICO
-# ============================================================
 
-if ROL_ACTUAL != "ADMINISTRADOR":
-
-    st.stop()
 # ============================================================
 # FITOASISTE
 # BLOQUE 1.2 — CONFIGURACIÓN GENERAL Y NAVEGACIÓN
@@ -1808,21 +1802,34 @@ st.markdown(
 # 4. MENÚ PRINCIPAL
 # ============================================================
 
+# ============================================================
+# 4. MENÚ PRINCIPAL
+# ============================================================
+
 st.markdown(
     '<div class="seccion-titulo">Menú principal</div>',
     unsafe_allow_html=True
 )
 
-opcion_principal = st.radio(
-    "Seleccione una sección:",
-    [
+if ROL_ACTUAL == "ADMINISTRADOR":
+
+    opciones_menu = [
         "CONSULTA",
         "ASESORÍA",
         "EVALUACIÓN"
-    ],
+    ]
+
+else:
+
+    opciones_menu = [
+        "CONSULTA"
+    ]
+
+opcion_principal = st.radio(
+    "Seleccione una sección:",
+    opciones_menu,
     horizontal=True
 )
-
 
 # ============================================================
 # 5. SECCIÓN CONSULTA
