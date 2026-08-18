@@ -5988,6 +5988,102 @@ if (
                 "No hay preguntas PENDIENTES "
                 "de Restricciones."
             )
+
+# ========================================================
+# TEMPORAL — BORRAR PREGUNTAS DE RESTRICCIONES
+# ========================================================
+
+if (
+    ROL_ACTUAL == "ADMINISTRADOR"
+    and
+    opcion_evaluacion == "Banco general de preguntas"
+):
+
+    st.subheader(
+        "Limpieza temporal — Restricciones"
+    )
+
+    if st.button(
+        "BORRAR TODAS LAS PREGUNTAS DE RESTRICCIONES",
+        key="borrar_todas_restricciones_temporal"
+    ):
+
+        try:
+
+            banco_temporal = pd.read_excel(
+                RUTA_BANCO_GENERAL,
+                dtype=str
+            ).fillna("")
+
+
+            cantidad_antes = len(
+                banco_temporal
+            )
+
+
+            mascara_restricciones = (
+                banco_temporal[
+                    "Modulo"
+                ]
+                .astype(str)
+                .str.strip()
+                .str.lower()
+                ==
+                "restricciones"
+            )
+
+
+            cantidad_eliminada = int(
+                mascara_restricciones.sum()
+            )
+
+
+            banco_temporal = (
+                banco_temporal[
+                    ~mascara_restricciones
+                ]
+                .copy()
+            )
+
+
+            banco_temporal.to_excel(
+                RUTA_BANCO_GENERAL,
+                index=False,
+                sheet_name="Banco_General"
+            )
+
+
+            st.success(
+                f"Listo. Se eliminaron "
+                f"{cantidad_eliminada} preguntas "
+                f"de Restricciones."
+            )
+
+            st.write(
+                f"Registros antes: {cantidad_antes}"
+            )
+
+            st.write(
+                f"Registros después: "
+                f"{len(banco_temporal)}"
+            )
+
+            st.warning(
+                "Este bloque es TEMPORAL. "
+                "Después de ejecutarlo, elimínelo "
+                "del código."
+            )
+
+
+        except Exception as error:
+
+            st.error(
+                "No se pudo limpiar el Excel."
+            )
+
+            st.code(
+                str(error)
+            )
 # ============================================================
 # 8. PIE DE APLICACIÓN
 # ============================================================
