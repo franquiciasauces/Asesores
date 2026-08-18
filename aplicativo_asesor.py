@@ -164,15 +164,207 @@ Usuarios = cargar_usuarios()
 
 def guardar_usuarios(usuarios):
 
+    # ========================================================
+    # 1. ASEGURAR COLUMNAS CORRECTAS
+    # ========================================================
+
     usuarios = usuarios[
         COLUMNAS_USUARIOS
-    ]
+    ].copy()
+
+    # ========================================================
+    # 2. GUARDAR EL DATAFRAME EN USUARIOS.XLSX
+    # ========================================================
 
     usuarios.to_excel(
         RUTA_USUARIOS,
         index=False
     )
 
+    # ========================================================
+    # 3. PREPARAR CONEXIÓN CON GITHUB
+    # ========================================================
+
+    ruta_github = "USUARIOS.xlsx"
+
+    url = (
+        f"https://api.github.com/repos/"
+        f"{GITHUB_USUARIO}/"
+        f"{GITHUB_REPOSITORIO}/"
+        f"contents/{ruta_github}"
+    )
+
+    headers = {
+        "Authorization": (
+            f"Bearer {GITHUB_TOKEN}"
+        ),
+        "Accept": (
+            "application/vnd.github+json"
+        ),
+        "X-GitHub-Api-Version": (
+            "2022-11-28"
+        )
+    }
+
+    # ========================================================
+    # 4. OBTENER SHA DEL ARCHIVO ACTUAL
+    # ========================================================
+
+    solicitud = urllib.request.Request(
+        url,
+        headers=headers,
+        method="GET"
+    )
+
+    try:
+
+        with urllib.request.urlopen(
+            solicitud
+        ) as respuesta:
+
+            informacion = json.loads(
+                respuesta.read().decode(
+                    "utf-8"
+                )
+            )
+
+        sha_actual = informacion["sha"]
+
+    except urllib.error.HTTPError as error:
+
+        detalle = error.read().decode(
+            "utf-8",
+            errors="ignore"
+        )
+
+        st.error(
+            "No se pudo consultar "
+            "USUARIOS.xlsx en GitHub."
+        )
+
+        st.code(detalle)
+
+        return
+
+    except Exception as error:
+
+        st.error(
+            "Error al conectar con GitHub."
+        )
+
+        st.code(str(error))
+
+        return
+
+    # ========================================================
+    # 5. LEER EL EXCEL ACTUALIZADO
+    # ========================================================
+
+    try:
+
+        with open(
+            RUTA_USUARIOS,
+            "rb"
+        ) as archivo:
+
+            contenido = archivo.read()
+
+    except Exception as error:
+
+        st.error(
+            "No se pudo leer "
+            "USUARIOS.xlsx."
+        )
+
+        st.code(str(error))
+
+        return
+
+    # ========================================================
+    # 6. CODIFICAR ARCHIVO PARA GITHUB
+    # ========================================================
+
+    contenido_base64 = (
+        base64.b64encode(
+            contenido
+        ).decode("utf-8")
+    )
+
+    # ========================================================
+    # 7. PREPARAR ACTUALIZACIÓN
+    # ========================================================
+
+    datos = {
+        "message": (
+            "Actualizar USUARIOS.xlsx "
+            "desde FITOASISTE"
+        ),
+        "content": contenido_base64,
+        "sha": sha_actual
+    }
+
+    datos_json = json.dumps(
+        datos
+    ).encode("utf-8")
+
+    # ========================================================
+    # 8. ENVIAR ARCHIVO A GITHUB
+    # ========================================================
+
+    solicitud = urllib.request.Request(
+        url,
+        data=datos_json,
+        headers={
+            **headers,
+            "Content-Type": (
+                "application/json"
+            )
+        },
+        method="PUT"
+    )
+
+    try:
+
+        with urllib.request.urlopen(
+            solicitud
+        ) as respuesta:
+
+            resultado = json.loads(
+                respuesta.read().decode(
+                    "utf-8"
+                )
+            )
+
+        if resultado.get("content"):
+
+            st.success(
+                "Usuarios guardados "
+                "correctamente en GitHub."
+            )
+
+    except urllib.error.HTTPError as error:
+
+        detalle = error.read().decode(
+            "utf-8",
+            errors="ignore"
+        )
+
+        st.error(
+            "El usuario se guardó "
+            "localmente, pero no se pudo "
+            "actualizar GitHub."
+        )
+
+        st.code(detalle)
+
+    except Exception as error:
+
+        st.error(
+            "Error al guardar el archivo "
+            "en GitHub."
+        )
+
+        st.code(str(error))
 
 # ============================================================
 # GENERAR ID AUTOMÁTICO
