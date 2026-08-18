@@ -8,6 +8,8 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
+
 # ============================================================
 # 1.1 CONFIGURACIÓN
 # ============================================================
