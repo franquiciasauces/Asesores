@@ -1846,33 +1846,22 @@ st.markdown(
 # 4. MENÚ PRINCIPAL
 # ============================================================
 
-
-
 st.markdown(
     '<div class="seccion-titulo">Menú principal</div>',
     unsafe_allow_html=True
 )
 
-if ROL_ACTUAL == "ADMINISTRADOR":
-
-    opciones_menu = [
-        "CONSULTA",
-        "ASESORÍA",
-        "EVALUACIÓN"
-    ]
-
-else:
-
-    opciones_menu = [
-        "CONSULTA"
-    ]
+opciones_menu = [
+    "CONSULTA",
+    "ASESORÍA",
+    "EVALUACIÓN"
+]
 
 opcion_principal = st.radio(
     "Seleccione una sección:",
     opciones_menu,
     horizontal=True
 )
-
 # ============================================================
 # 5. SECCIÓN CONSULTA
 # ============================================================
