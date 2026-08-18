@@ -2131,6 +2131,234 @@ elif opcion_principal == "EVALUACIÓN":
                 st.code(
                     str(error_creacion)
                 )
+
+    # ========================================================
+    # 7.3 BANCO GENERAL — SINCRONIZACIÓN CON GITHUB
+    # SOLO ADMINISTRADOR
+    # ========================================================
+
+    if (
+        ROL_ACTUAL == "ADMINISTRADOR"
+        and
+        opcion_evaluacion
+        == "Banco general de preguntas"
+    ):
+
+        st.subheader(
+            "Sincronización del Banco General"
+        )
+
+        ruta_github_banco = (
+            "BANCO_PREGUNTAS_GENERALES.xlsx"
+        )
+
+        url_github_banco = (
+            f"https://api.github.com/repos/"
+            f"{GITHUB_USUARIO}/"
+            f"{GITHUB_REPOSITORIO}/"
+            f"contents/{ruta_github_banco}"
+        )
+
+        headers_github_banco = {
+
+            "Authorization":
+                f"Bearer {GITHUB_TOKEN}",
+
+            "Accept":
+                "application/vnd.github+json",
+
+            "X-GitHub-Api-Version":
+                "2022-11-28"
+
+        }
+
+        if st.button(
+            "Sincronizar Banco General con GitHub",
+            key="sincronizar_banco_general"
+        ):
+
+            if not RUTA_BANCO_GENERAL.exists():
+
+                st.error(
+                    "No existe el archivo local "
+                    "BANCO_PREGUNTAS_GENERALES.xlsx."
+                )
+
+            else:
+
+                try:
+
+                    # ----------------------------------------
+                    # LEER ARCHIVO LOCAL
+                    # ----------------------------------------
+
+                    with open(
+                        RUTA_BANCO_GENERAL,
+                        "rb"
+                    ) as archivo:
+
+                        contenido_banco = (
+                            archivo.read()
+                        )
+
+
+                    contenido_base64 = (
+                        base64.b64encode(
+                            contenido_banco
+                        ).decode("utf-8")
+                    )
+
+
+                    # ----------------------------------------
+                    # CONSULTAR SI YA EXISTE EN GITHUB
+                    # ----------------------------------------
+
+                    solicitud_get = (
+                        urllib.request.Request(
+                            url_github_banco,
+                            headers=headers_github_banco,
+                            method="GET"
+                        )
+                    )
+
+
+                    sha_actual = None
+
+
+                    try:
+
+                        with urllib.request.urlopen(
+                            solicitud_get
+                        ) as respuesta:
+
+                            informacion_github = (
+                                json.loads(
+                                    respuesta.read()
+                                    .decode("utf-8")
+                                )
+                            )
+
+                        sha_actual = (
+                            informacion_github["sha"]
+                        )
+
+
+                    except urllib.error.HTTPError as error:
+
+                        if error.code != 404:
+
+                            raise
+
+
+                    # ----------------------------------------
+                    # PREPARAR GUARDADO
+                    # ----------------------------------------
+
+                    datos_banco = {
+
+                        "message": (
+                            "Actualizar Banco General "
+                            "de Preguntas"
+                        ),
+
+                        "content":
+                            contenido_base64
+
+                    }
+
+
+                    # Si ya existe, GitHub exige SHA.
+                    if sha_actual:
+
+                        datos_banco["sha"] = (
+                            sha_actual
+                        )
+
+
+                    datos_json = (
+                        json.dumps(
+                            datos_banco
+                        ).encode("utf-8")
+                    )
+
+
+                    # ----------------------------------------
+                    # GUARDAR EN GITHUB
+                    # ----------------------------------------
+
+                    solicitud_put = (
+                        urllib.request.Request(
+                            url_github_banco,
+                            data=datos_json,
+                            headers={
+                                **headers_github_banco,
+                                "Content-Type":
+                                    "application/json"
+                            },
+                            method="PUT"
+                        )
+                    )
+
+
+                    with urllib.request.urlopen(
+                        solicitud_put
+                    ) as respuesta:
+
+                        resultado_github = (
+                            json.loads(
+                                respuesta.read()
+                                .decode("utf-8")
+                            )
+                        )
+
+
+                    if resultado_github.get(
+                        "content"
+                    ):
+
+                        st.success(
+                            "✓ Banco General "
+                            "sincronizado correctamente "
+                            "con GitHub."
+                        )
+
+                    else:
+
+                        st.warning(
+                            "GitHub respondió, pero "
+                            "no se confirmó el archivo."
+                        )
+
+
+                except urllib.error.HTTPError as error:
+
+                    detalle = (
+                        error.read().decode(
+                            "utf-8",
+                            errors="ignore"
+                        )
+                    )
+
+                    st.error(
+                        "No fue posible sincronizar "
+                        "el Banco General con GitHub."
+                    )
+
+                    st.code(
+                        detalle
+                    )
+
+
+                except Exception as error:
+
+                    st.error(
+                        "Error durante la sincronización "
+                        "del Banco General."
+                    )
+
+                    st.code(
+                        str(error)
+                    )
 # ============================================================
 # 8. PIE DE APLICACIÓN
 # ============================================================
