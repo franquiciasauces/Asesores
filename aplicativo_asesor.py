@@ -967,10 +967,6 @@ if ROL_ACTUAL == "ADMINISTRADOR":
 MOSTRAR_DIAGNOSTICO = (
     ROL_ACTUAL == "ADMINISTRADOR"
 )
-
-if ROL_ACTUAL != "ADMINISTRADOR":
-    MOSTRAR_DIAGNOSTICO = False
-    
 # ============================================================
 # 4. ENCABEZADO
 # ============================================================
@@ -1020,141 +1016,149 @@ def verificar_archivo(nombre, ruta):
 # 6. VERIFICAR ARCHIVOS
 # ============================================================
 
-st.header("1. Verificación de archivos")
+if ROL_ACTUAL == "ADMINISTRADOR":
 
-matriz_ok = verificar_archivo(
-    "Matriz",
-    ARCHIVO_MATRIZ
-)
+    st.header("1. Verificación de archivos")
 
-semantica_ok = verificar_archivo(
-    "Base semántica",
-    ARCHIVO_SEMANTICA
-)
+    matriz_ok = verificar_archivo(
+        "Matriz",
+        ARCHIVO_MATRIZ
+    )
 
-embeddings_ok = verificar_archivo(
-    "Embeddings",
-    ARCHIVO_EMBEDDINGS
-)
+    semantica_ok = verificar_archivo(
+        "Base semántica",
+        ARCHIVO_SEMANTICA
+    )
 
+    embeddings_ok = verificar_archivo(
+        "Embeddings",
+        ARCHIVO_EMBEDDINGS
+    )
+
+else:
+
+    matriz_ok = ARCHIVO_MATRIZ.exists()
+    semantica_ok = ARCHIVO_SEMANTICA.exists()
+    embeddings_ok = ARCHIVO_EMBEDDINGS.exists()
 
 # ============================================================
 # 7. DIAGNÓSTICO DEL EXCEL
 # ============================================================
 
-st.header("2. Diagnóstico de la matriz Excel")
+if ROL_ACTUAL == "ADMINISTRADOR":
 
-if matriz_ok:
+    st.header("2. Diagnóstico de la matriz Excel")
 
-    try:
+    if matriz_ok:
 
-        libro = pd.ExcelFile(
-            ARCHIVO_MATRIZ
-        )
+        try:
 
-        hojas = libro.sheet_names
-
-        st.success(
-            f"Excel cargado correctamente. "
-            f"Número de hojas: {len(hojas)}"
-        )
-
-        st.write("### Hojas encontradas")
-
-        for numero, nombre_hoja in enumerate(
-            hojas,
-            start=1
-        ):
-
-            st.write(
-                f"**{numero}. {nombre_hoja}**"
+            libro = pd.ExcelFile(
+                ARCHIVO_MATRIZ
             )
 
-            try:
+            hojas = libro.sheet_names
 
-                df = pd.read_excel(
-                    ARCHIVO_MATRIZ,
-                    sheet_name=nombre_hoja
-                )
+            st.success(
+                f"Excel cargado correctamente. "
+                f"Número de hojas: {len(hojas)}"
+            )
 
-                filas = df.shape[0]
-                columnas = df.shape[1]
+            st.write("### Hojas encontradas")
 
-                st.write(
-                    f"Filas: **{filas:,}** | "
-                    f"Columnas: **{columnas}**"
-                )
-
-                # --------------------------------------------
-                # Información de columnas
-                # --------------------------------------------
-
-                informacion = []
-
-                for columna in df.columns:
-
-                    informacion.append({
-                        "Columna": str(columna),
-                        "Tipo de dato": str(
-                            df[columna].dtype
-                        ),
-                        "No nulos": int(
-                            df[columna].notna().sum()
-                        ),
-                        "Nulos": int(
-                            df[columna].isna().sum()
-                        )
-                    })
-
-                tabla_columnas = pd.DataFrame(
-                    informacion
-                )
+            for numero, nombre_hoja in enumerate(
+                hojas,
+                start=1
+            ):
 
                 st.write(
-                    "**Estructura de columnas:**"
+                    f"**{numero}. {nombre_hoja}**"
                 )
 
-                st.dataframe(
-                    tabla_columnas,
-                    use_container_width=True,
-                    hide_index=True
-                )
+                try:
 
-                # --------------------------------------------
-                # Muestra de datos
-                # --------------------------------------------
+                    df = pd.read_excel(
+                        ARCHIVO_MATRIZ,
+                        sheet_name=nombre_hoja
+                    )
 
-                st.write(
-                    "**Primeros 5 registros:**"
-                )
+                    filas = df.shape[0]
+                    columnas = df.shape[1]
 
-                st.dataframe(
-                    df.head(5),
-                    use_container_width=True,
-                    hide_index=True
-                )
+                    st.write(
+                        f"Filas: **{filas:,}** | "
+                        f"Columnas: **{columnas}**"
+                    )
 
-            except Exception as error_hoja:
+                    # --------------------------------------------
+                    # Información de columnas
+                    # --------------------------------------------
 
-                st.error(
-                    f"Error leyendo la hoja "
-                    f"'{nombre_hoja}': {error_hoja}"
-                )
+                    informacion = []
 
-    except Exception as error_excel:
+                    for columna in df.columns:
 
-        st.error(
-            f"Error cargando el archivo Excel: "
-            f"{error_excel}"
+                        informacion.append({
+                            "Columna": str(columna),
+                            "Tipo de dato": str(
+                                df[columna].dtype
+                            ),
+                            "No nulos": int(
+                                df[columna].notna().sum()
+                            ),
+                            "Nulos": int(
+                                df[columna].isna().sum()
+                            )
+                        })
+
+                    tabla_columnas = pd.DataFrame(
+                        informacion
+                    )
+
+                    st.write(
+                        "**Estructura de columnas:**"
+                    )
+
+                    st.dataframe(
+                        tabla_columnas,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                    # --------------------------------------------
+                    # Muestra de datos
+                    # --------------------------------------------
+
+                    st.write(
+                        "**Primeros 5 registros:**"
+                    )
+
+                    st.dataframe(
+                        df.head(5),
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                except Exception as error_hoja:
+
+                    st.error(
+                        f"Error leyendo la hoja "
+                        f"'{nombre_hoja}': {error_hoja}"
+                    )
+
+        except Exception as error_excel:
+
+            st.error(
+                f"Error cargando el archivo Excel: "
+                f"{error_excel}"
+            )
+
+    else:
+
+        st.warning(
+            "No se puede diagnosticar el Excel "
+            "porque el archivo no fue encontrado."
         )
-
-else:
-
-    st.warning(
-        "No se puede diagnosticar el Excel "
-        "porque el archivo no fue encontrado."
-    )
-
 # ============================================================
 # 7.1 CARGA DE HOJAS DE LA MATRIZ
 # ============================================================
@@ -1206,24 +1210,26 @@ if matriz_ok:
             sheet_name="Entrevista"
         )
 
-        st.success(
-            "✓ Hojas de la matriz cargadas "
-            "correctamente para el aplicativo."
-        )
+        if ROL_ACTUAL == "ADMINISTRADOR":
+
+            st.success(
+                "✓ Hojas de la matriz cargadas "
+                "correctamente para el aplicativo."
+            )
 
     except Exception as error_matriz:
 
-        st.error(
-            f"Error cargando las hojas de la matriz: "
-            f"{error_matriz}"
-        )
+        if ROL_ACTUAL == "ADMINISTRADOR":
+
+            st.error(
+                f"Error cargando las hojas de la matriz: "
+                f"{error_matriz}"
+            )
 # ============================================================
 # ============================================================
 # 8. DIAGNÓSTICO DE BASE SEMÁNTICA
 #    Y CARGA DEL MODELO BIOMÉDICO
 # ============================================================
-
-st.header("3. Diagnóstico de la base semántica")
 
 base_semantica = None
 
@@ -1243,73 +1249,82 @@ if semantica_ok:
         filas = base_semantica.shape[0]
         columnas = base_semantica.shape[1]
 
-        st.success(
-            f"Base semántica cargada: "
-            f"{filas:,} registros y "
-            f"{columnas} columnas."
-        )
+        if ROL_ACTUAL == "ADMINISTRADOR":
 
-        informacion = []
+            st.header(
+                "3. Diagnóstico de la base semántica"
+            )
 
-        for columna in base_semantica.columns:
+            st.success(
+                f"Base semántica cargada: "
+                f"{filas:,} registros y "
+                f"{columnas} columnas."
+            )
 
-            informacion.append({
+            informacion = []
 
-                "Columna": str(columna),
+            for columna in base_semantica.columns:
 
-                "Tipo de dato": str(
-                    base_semantica[columna].dtype
-                ),
+                informacion.append({
 
-                "No nulos": int(
-                    base_semantica[columna].notna().sum()
-                ),
+                    "Columna": str(columna),
 
-                "Nulos": int(
-                    base_semantica[columna].isna().sum()
-                )
+                    "Tipo de dato": str(
+                        base_semantica[columna].dtype
+                    ),
 
-            })
+                    "No nulos": int(
+                        base_semantica[columna].notna().sum()
+                    ),
 
-        tabla_semantica = pd.DataFrame(
-            informacion
-        )
+                    "Nulos": int(
+                        base_semantica[columna].isna().sum()
+                    )
 
-        st.write(
-            "**Estructura de la base:**"
-        )
+                })
 
-        st.dataframe(
-            tabla_semantica,
-            use_container_width=True,
-            hide_index=True
-        )
+            tabla_semantica = pd.DataFrame(
+                informacion
+            )
 
-        st.write(
-            "**Primeros 10 registros:**"
-        )
+            st.write(
+                "**Estructura de la base:**"
+            )
 
-        st.dataframe(
-            base_semantica.head(10),
-            use_container_width=True,
-            hide_index=True
-        )
+            st.dataframe(
+                tabla_semantica,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            st.write(
+                "**Primeros 10 registros:**"
+            )
+
+            st.dataframe(
+                base_semantica.head(10),
+                use_container_width=True,
+                hide_index=True
+            )
 
 
     except Exception as error_semantica:
 
-        st.error(
-            f"Error cargando la base semántica: "
-            f"{error_semantica}"
-        )
+        if ROL_ACTUAL == "ADMINISTRADOR":
+
+            st.error(
+                f"Error cargando la base semántica: "
+                f"{error_semantica}"
+            )
 
 else:
 
-    st.warning(
-        "No se puede diagnosticar la base semántica "
-        "porque el archivo no fue encontrado."
-    )
+    if ROL_ACTUAL == "ADMINISTRADOR":
 
+        st.warning(
+            "No se puede diagnosticar la base semántica "
+            "porque el archivo no fue encontrado."
+        )
 
 # ============================================================
 # 8.2 CARGAR EMBEDDINGS PRECALCULADOS
@@ -1327,20 +1342,22 @@ if embeddings_ok:
             allow_pickle=False
         )
 
-        st.success(
-            "Embeddings de síntomas cargados "
-            "correctamente."
-        )
+        if ROL_ACTUAL == "ADMINISTRADOR":
 
-        st.write(
-            f"Cantidad de embeddings: "
-            f"{len(embeddings_sintomas):,}"
-        )
+            st.success(
+                "Embeddings de síntomas cargados "
+                "correctamente."
+            )
 
-        st.write(
-            f"Dimensiones de los embeddings: "
-            f"{embeddings_sintomas.shape}"
-        )
+            st.write(
+                f"Cantidad de embeddings: "
+                f"{len(embeddings_sintomas):,}"
+            )
+
+            st.write(
+                f"Dimensiones de los embeddings: "
+                f"{embeddings_sintomas.shape}"
+            )
 
 
         # ----------------------------------------------------
@@ -1355,38 +1372,44 @@ if embeddings_ok:
             len(base_semantica)
         ):
 
-            st.error(
-                "ERROR: la cantidad de embeddings "
-                "no coincide con la cantidad de registros "
-                "de la base semántica."
-            )
+            if ROL_ACTUAL == "ADMINISTRADOR":
+
+                st.error(
+                    "ERROR: la cantidad de embeddings "
+                    "no coincide con la cantidad de registros "
+                    "de la base semántica."
+                )
 
             embeddings_sintomas = None
 
         elif base_semantica is not None:
 
-            st.success(
-                "Validación correcta: cada embedding "
-                "corresponde a un registro de la "
-                "base semántica."
-            )
+            if ROL_ACTUAL == "ADMINISTRADOR":
+
+                st.success(
+                    "Validación correcta: cada embedding "
+                    "corresponde a un registro de la "
+                    "base semántica."
+                )
 
 
     except Exception as error_embeddings:
 
-        st.error(
-            f"Error cargando los embeddings: "
-            f"{error_embeddings}"
-        )
+        if ROL_ACTUAL == "ADMINISTRADOR":
+
+            st.error(
+                f"Error cargando los embeddings: "
+                f"{error_embeddings}"
+            )
 
 else:
 
-    st.warning(
-        "No se puede cargar embeddings_sintomas.npy "
-        "porque el archivo no fue encontrado."
-    )
+    if ROL_ACTUAL == "ADMINISTRADOR":
 
-
+        st.warning(
+            "No se puede cargar embeddings_sintomas.npy "
+            "porque el archivo no fue encontrado."
+        )
 # ============================================================
 # 8.3 CARGAR MODELO BIOMÉDICO
 # ============================================================
@@ -1414,31 +1437,30 @@ try:
     )
 
 
-    st.success(
-        "Modelo biomédico cargado correctamente."
-    )
+    if ROL_ACTUAL == "ADMINISTRADOR":
+
+        st.success(
+            "Modelo biomédico cargado correctamente."
+        )
 
 
 except Exception as error_modelo:
 
-    st.warning(
-        "El modelo biomédico no pudo cargarse "
-        "en este momento."
-    )
+    if ROL_ACTUAL == "ADMINISTRADOR":
 
-    st.code(
-        str(error_modelo)
-    )
+        st.warning(
+            "El modelo biomédico no pudo cargarse "
+            "en este momento."
+        )
+
+        st.code(
+            str(error_modelo)
+        )
 
 
 # ============================================================
 # 8.4 VALIDACIÓN GENERAL DE LA INFRAESTRUCTURA
 # ============================================================
-
-st.write(
-    "**Estado de la búsqueda semántica:**"
-)
-
 
 estado_base = (
     base_semantica is not None
@@ -1453,73 +1475,77 @@ estado_modelo = (
 )
 
 
-if (
-    estado_base
-    and
-    estado_embeddings
-    and
-    estado_modelo
-):
+if ROL_ACTUAL == "ADMINISTRADOR":
 
-    st.success(
-        "✓ Infraestructura semántica preparada."
+    st.write(
+        "**Estado de la búsqueda semántica:**"
     )
 
-    st.caption(
-        "Base semántica + embeddings precalculados "
-        "+ modelo biomédico disponibles."
-    )
 
-else:
+    if (
+        estado_base
+        and
+        estado_embeddings
+        and
+        estado_modelo
+    ):
 
-    st.warning(
-        "La infraestructura semántica "
-        "todavía no está completamente disponible."
-    )
+        st.success(
+            "✓ Infraestructura semántica preparada."
+        )
 
-    if not estado_base:
-
-        st.write(
-            "• Base semántica: no disponible"
+        st.caption(
+            "Base semántica + embeddings precalculados "
+            "+ modelo biomédico disponibles."
         )
 
     else:
 
-        st.write(
-            "• Base semántica: ✓ disponible"
+        st.warning(
+            "La infraestructura semántica "
+            "todavía no está completamente disponible."
         )
 
+        if not estado_base:
 
-    if not estado_embeddings:
+            st.write(
+                "• Base semántica: no disponible"
+            )
 
-        st.write(
-            "• Embeddings: no disponibles"
-        )
+        else:
 
-    else:
-
-        st.write(
-            "• Embeddings: ✓ disponibles"
-        )
+            st.write(
+                "• Base semántica: ✓ disponible"
+            )
 
 
-    if not estado_modelo:
+        if not estado_embeddings:
 
-        st.write(
-            "• Modelo biomédico: no disponible"
-        )
+            st.write(
+                "• Embeddings: no disponibles"
+            )
 
-    else:
+        else:
 
-        st.write(
-            "• Modelo biomédico: ✓ disponible"
-        )
+            st.write(
+                "• Embeddings: ✓ disponibles"
+            )
 
+
+        if not estado_modelo:
+
+            st.write(
+                "• Modelo biomédico: no disponible"
+            )
+
+        else:
+
+            st.write(
+                "• Modelo biomédico: ✓ disponible"
+            )
 # ============================================================
 # 9. DIAGNÓSTICO DE EMBEDDINGS
 # ============================================================
-
-st.header("4. Diagnóstico de embeddings")
 
 embeddings = None
 
@@ -1532,92 +1558,100 @@ if embeddings_ok:
             allow_pickle=False
         )
 
-        st.success(
-            "Embeddings cargados correctamente."
-        )
+        if ROL_ACTUAL == "ADMINISTRADOR":
 
-        st.write(
-            f"Tipo: `{type(embeddings).__name__}`"
-        )
-
-        st.write(
-            f"Tipo de dato: `{embeddings.dtype}`"
-        )
-
-        st.write(
-            f"Dimensiones: `{embeddings.shape}`"
-        )
-
-        st.write(
-            f"Cantidad total de elementos: "
-            f"`{embeddings.size:,}`"
-        )
-
-        # --------------------------------------------
-        # Comparación con base semántica
-        # --------------------------------------------
-
-        if base_semantica is not None:
-
-            cantidad_base = len(
-                base_semantica
+            st.header(
+                "4. Diagnóstico de embeddings"
             )
 
-            if embeddings.ndim >= 1:
+            st.success(
+                "Embeddings cargados correctamente."
+            )
 
-                cantidad_embeddings = (
-                    embeddings.shape[0]
+            st.write(
+                f"Tipo: `{type(embeddings).__name__}`"
+            )
+
+            st.write(
+                f"Tipo de dato: `{embeddings.dtype}`"
+            )
+
+            st.write(
+                f"Dimensiones: `{embeddings.shape}`"
+            )
+
+            st.write(
+                f"Cantidad total de elementos: "
+                f"`{embeddings.size:,}`"
+            )
+
+            # --------------------------------------------
+            # Comparación con base semántica
+            # --------------------------------------------
+
+            if base_semantica is not None:
+
+                cantidad_base = len(
+                    base_semantica
                 )
 
-                if (
-                    cantidad_embeddings
-                    == cantidad_base
-                ):
+                if embeddings.ndim >= 1:
 
-                    st.success(
-                        "✓ La cantidad de embeddings "
-                        "coincide con la cantidad de "
-                        "registros de la base semántica."
+                    cantidad_embeddings = (
+                        embeddings.shape[0]
                     )
 
-                else:
+                    if (
+                        cantidad_embeddings
+                        == cantidad_base
+                    ):
 
-                    st.warning(
-                        "⚠ La cantidad de embeddings "
-                        "NO coincide con la cantidad "
-                        "de registros semánticos."
-                    )
+                        st.success(
+                            "✓ La cantidad de embeddings "
+                            "coincide con la cantidad de "
+                            "registros de la base semántica."
+                        )
 
-                    st.write(
-                        f"Registros semánticos: "
-                        f"**{cantidad_base:,}**"
-                    )
+                    else:
 
-                    st.write(
-                        f"Embeddings: "
-                        f"**{cantidad_embeddings:,}**"
-                    )
+                        st.warning(
+                            "⚠ La cantidad de embeddings "
+                            "NO coincide con la cantidad "
+                            "de registros semánticos."
+                        )
+
+                        st.write(
+                            f"Registros semánticos: "
+                            f"**{cantidad_base:,}**"
+                        )
+
+                        st.write(
+                            f"Embeddings: "
+                            f"**{cantidad_embeddings:,}**"
+                        )
 
     except Exception as error_embeddings:
 
-        st.error(
-            f"Error cargando embeddings: "
-            f"{error_embeddings}"
-        )
+        if ROL_ACTUAL == "ADMINISTRADOR":
+
+            st.error(
+                f"Error cargando embeddings: "
+                f"{error_embeddings}"
+            )
 
 else:
 
-    st.warning(
-        "No se puede diagnosticar embeddings "
-        "porque el archivo no fue encontrado."
-    )
+    if ROL_ACTUAL == "ADMINISTRADOR":
+
+        st.warning(
+            "No se puede diagnosticar embeddings "
+            "porque el archivo no fue encontrado."
+        )
 
 
 # ============================================================
 # 10. DETECCIÓN DE IMÁGENES
 # ============================================================
-
-st.header("5. Imágenes disponibles")
 
 EXTENSIONES_IMAGEN = {
     ".png",
@@ -1641,90 +1675,94 @@ imagenes.sort(
 )
 
 
-if imagenes:
+if ROL_ACTUAL == "ADMINISTRADOR":
 
-    st.success(
-        f"Se encontraron "
-        f"{len(imagenes)} imágenes."
-    )
+    st.header("5. Imágenes disponibles")
 
-    informacion_imagenes = []
+    if imagenes:
 
-    for imagen in imagenes:
-
-        tamaño_kb = (
-            imagen.stat().st_size / 1024
+        st.success(
+            f"Se encontraron "
+            f"{len(imagenes)} imágenes."
         )
 
-        informacion_imagenes.append({
-            "Nombre": imagen.name,
-            "Extensión": imagen.suffix.lower(),
-            "Tamaño (KB)": round(
-                tamaño_kb,
-                2
+        informacion_imagenes = []
+
+        for imagen in imagenes:
+
+            tamaño_kb = (
+                imagen.stat().st_size / 1024
             )
-        })
 
-    tabla_imagenes = pd.DataFrame(
-        informacion_imagenes
-    )
+            informacion_imagenes.append({
+                "Nombre": imagen.name,
+                "Extensión": imagen.suffix.lower(),
+                "Tamaño (KB)": round(
+                    tamaño_kb,
+                    2
+                )
+            })
 
-    st.dataframe(
-        tabla_imagenes,
-        use_container_width=True,
-        hide_index=True
-    )
+        tabla_imagenes = pd.DataFrame(
+            informacion_imagenes
+        )
 
-else:
+        st.dataframe(
+            tabla_imagenes,
+            use_container_width=True,
+            hide_index=True
+        )
 
-    st.info(
-        "No se encontraron imágenes "
-        "PNG, JPG o JPEG en la carpeta "
-        "principal del proyecto."
-    )
+    else:
 
+        st.info(
+            "No se encontraron imágenes "
+            "PNG, JPG o JPEG en la carpeta "
+            "principal del proyecto."
+        )
 
 # ============================================================
 # 11. RESUMEN
 # ============================================================
 
-st.header("6. Resumen del diagnóstico")
+if ROL_ACTUAL == "ADMINISTRADOR":
 
-archivos_encontrados = sum([
-    matriz_ok,
-    semantica_ok,
-    embeddings_ok
-])
+    st.header("6. Resumen del diagnóstico")
 
-st.write(
-    f"Archivos principales encontrados: "
-    f"**{archivos_encontrados} de 3**"
-)
+    archivos_encontrados = sum([
+        matriz_ok,
+        semantica_ok,
+        embeddings_ok
+    ])
 
-st.write(
-    f"Imágenes encontradas: "
-    f"**{len(imagenes)}**"
-)
-
-
-if (
-    matriz_ok
-    and semantica_ok
-    and embeddings_ok
-):
-
-    st.success(
-        "✓ Los archivos principales están disponibles. "
-        "El diagnóstico inicial terminó correctamente."
+    st.write(
+        f"Archivos principales encontrados: "
+        f"**{archivos_encontrados} de 3**"
     )
 
-else:
-
-    st.warning(
-        "⚠ Faltan archivos principales. "
-        "Debemos corregirlos antes de continuar."
+    st.write(
+        f"Imágenes encontradas: "
+        f"**{len(imagenes)}**"
     )
 
+
+    if (
+        matriz_ok
+        and semantica_ok
+        and embeddings_ok
+    ):
+
+        st.success(
+            "✓ Los archivos principales están disponibles. "
+            "El diagnóstico inicial terminó correctamente."
+        )
+
+    else:
+
+        st.warning(
+            "⚠ Faltan archivos principales. "
+            "Debemos corregirlos antes de continuar."
+        )
 
 # ============================================================
 # FITOASISTE
@@ -1808,9 +1846,7 @@ st.markdown(
 # 4. MENÚ PRINCIPAL
 # ============================================================
 
-# ============================================================
-# 4. MENÚ PRINCIPAL
-# ============================================================
+
 
 st.markdown(
     '<div class="seccion-titulo">Menú principal</div>',
