@@ -5990,7 +5990,9 @@ if (
             )
 
 # ========================================================
-# TEMPORAL — BORRAR PREGUNTAS DE RESTRICCIONES
+# 7.5 BANCO GENERAL — GENERADOR DE PREGUNTAS
+# RESTRICCIONES
+# SOLO ADMINISTRADOR
 # ========================================================
 
 if (
@@ -6000,90 +6002,2516 @@ if (
 ):
 
     st.subheader(
-        "Limpieza temporal — Restricciones"
+        "Generador de preguntas — Restricciones"
     )
 
-    if st.button(
-        "BORRAR TODAS LAS PREGUNTAS DE RESTRICCIONES",
-        key="borrar_todas_restricciones_temporal"
-    ):
+    RUTA_BANCO_GENERAL = (
+        BASE_DIR
+        / "BANCO_PREGUNTAS_GENERALES.xlsx"
+    )
+
+    COLUMNAS_BANCO_GENERAL = [
+
+        "Pregunta_ID",
+        "Modulo",
+        "Tema",
+        "Nivel",
+        "Tipo_Relacion",
+        "Pregunta",
+        "Respuesta_1",
+        "Respuesta_2",
+        "Respuesta_3",
+        "Respuesta_4",
+        "Respuesta_Correcta",
+        "Estado",
+        "Observacion_Administrador",
+        "Fecha_Generacion",
+        "Fuente_ID"
+
+    ]
+
+    # ====================================================
+    # 7.5.1 CARGAR BANCO EXISTENTE
+    # ====================================================
+
+    if RUTA_BANCO_GENERAL.exists():
 
         try:
 
-            banco_temporal = pd.read_excel(
+            banco_general_75 = pd.read_excel(
                 RUTA_BANCO_GENERAL,
                 dtype=str
-            ).fillna("")
-
-
-            cantidad_antes = len(
-                banco_temporal
             )
 
-
-            mascara_restricciones = (
-                banco_temporal[
-                    "Modulo"
-                ]
-                .astype(str)
-                .str.strip()
-                .str.lower()
-                ==
-                "restricciones"
+            banco_general_75 = (
+                banco_general_75.fillna("")
             )
 
+        except Exception as error_banco_75:
 
-            cantidad_eliminada = int(
-                mascara_restricciones.sum()
+            st.error(
+                "No fue posible cargar "
+                "BANCO_PREGUNTAS_GENERALES.xlsx."
             )
 
+            st.code(
+                str(error_banco_75)
+            )
 
-            banco_temporal = (
-                banco_temporal[
-                    ~mascara_restricciones
+            banco_general_75 = pd.DataFrame(
+                columns=COLUMNAS_BANCO_GENERAL
+            )
+
+    else:
+
+        banco_general_75 = pd.DataFrame(
+            columns=COLUMNAS_BANCO_GENERAL
+        )
+
+        banco_general_75.to_excel(
+            RUTA_BANCO_GENERAL,
+            index=False,
+            sheet_name="Banco_General"
+        )
+
+
+    # ====================================================
+    # 7.5.2 ASEGURAR COLUMNAS
+    # ====================================================
+
+    for columna in COLUMNAS_BANCO_GENERAL:
+
+        if columna not in banco_general_75.columns:
+
+            banco_general_75[columna] = ""
+
+
+    banco_general_75 = (
+        banco_general_75[
+            COLUMNAS_BANCO_GENERAL
+        ]
+        .copy()
+    )
+
+
+    # ====================================================
+    # 7.5.3 VERIFICAR HOJA RESTRICCIONES
+    # ====================================================
+
+    if "Restricciones" not in globals():
+
+        st.error(
+            "No se encontró la hoja "
+            "'Restricciones' de la matriz."
+        )
+
+    else:
+
+        restricciones_75 = (
+            Restricciones
+            .copy()
+            .fillna("")
+        )
+
+
+        # =================================================
+        # COLUMNAS NECESARIAS
+        # =================================================
+
+        columnas_restricciones_75 = [
+
+            "Restriccion_ID",
+            "Producto",
+            "Tipo",
+            "Precaución / Contraindicación",
+            "Motivo",
+            "Alternativas seguras"
+
+        ]
+
+
+        faltantes_75 = [
+
+            columna
+
+            for columna
+            in columnas_restricciones_75
+
+            if columna
+            not in restricciones_75.columns
+
+        ]
+
+
+        if faltantes_75:
+
+            st.error(
+                "Faltan columnas en la hoja "
+                "Restricciones:"
+            )
+
+            st.write(
+                faltantes_75
+            )
+
+        else:
+
+            # =============================================
+            # LIMPIAR CAMPOS
+            # =============================================
+
+            for columna in (
+                columnas_restricciones_75
+            ):
+
+                restricciones_75[
+                    columna
+                ] = (
+
+                    restricciones_75[
+                        columna
+                    ]
+                    .astype(str)
+                    .str.strip()
+
+                )
+
+
+            # =============================================
+            # SOLO REGISTROS UTILIZABLES
+            # =============================================
+
+            restricciones_75 = (
+                restricciones_75[
+                    (
+                        restricciones_75[
+                            "Restriccion_ID"
+                        ] != ""
+                    )
+                    &
+                    (
+                        restricciones_75[
+                            "Producto"
+                        ] != ""
+                    )
+                    &
+                    (
+                        restricciones_75[
+                            "Precaución / Contraindicación"
+                        ] != ""
+                    )
                 ]
                 .copy()
             )
 
 
-            banco_temporal.to_excel(
-                RUTA_BANCO_GENERAL,
-                index=False,
-                sheet_name="Banco_General"
-            )
-
-
-            st.success(
-                f"Listo. Se eliminaron "
-                f"{cantidad_eliminada} preguntas "
-                f"de Restricciones."
-            )
-
             st.write(
-                f"Registros antes: {cantidad_antes}"
-            )
-
-            st.write(
-                f"Registros después: "
-                f"{len(banco_temporal)}"
-            )
-
-            st.warning(
-                "Este bloque es TEMPORAL. "
-                "Después de ejecutarlo, elimínelo "
-                "del código."
+                "Registros de Restricciones "
+                f"disponibles: "
+                f"**{len(restricciones_75)}**"
             )
 
 
-        except Exception as error:
+            # =================================================
+            # 7.5.4 CANTIDAD A GENERAR
+            # =================================================
+
+            cantidad_75 = st.number_input(
+
+                "¿Cuántas preguntas desea generar?",
+
+                min_value=1,
+
+                max_value=500,
+
+                value=20,
+
+                step=1,
+
+                key=(
+                    "cantidad_preguntas_"
+                    "restricciones_75"
+                )
+
+            )
+
+
+            niveles_75 = st.multiselect(
+
+                "¿Qué niveles desea generar?",
+
+                [
+                    "Nivel 1",
+                    "Nivel 2"
+                ],
+
+                default=[
+                    "Nivel 1",
+                    "Nivel 2"
+                ],
+
+                key=(
+                    "niveles_preguntas_"
+                    "restricciones_75"
+                )
+
+            )
+
+
+            st.info(
+                "La cantidad indicada corresponde "
+                "al total de preguntas que se "
+                "intentará generar."
+            )
+
+
+            # =================================================
+            # 7.5.5 GENERAR
+            # =================================================
+
+            if st.button(
+
+                "GENERAR PREGUNTAS DE RESTRICCIONES",
+
+                key=(
+                    "generar_preguntas_"
+                    "restricciones_75"
+                )
+
+            ):
+
+                if not niveles_75:
+
+                    st.error(
+                        "Seleccione por lo menos "
+                        "un nivel."
+                    )
+
+                else:
+
+                    nuevas_75 = []
+
+
+                    # =========================================
+                    # SIGUIENTE ID
+                    # =========================================
+
+                    numeros_id_75 = []
+
+
+                    for valor in (
+                        banco_general_75[
+                            "Pregunta_ID"
+                        ]
+                    ):
+
+                        texto_id_75 = str(
+                            valor
+                        ).strip()
+
+
+                        if texto_id_75.startswith(
+                            "RES_"
+                        ):
+
+                            try:
+
+                                numeros_id_75.append(
+
+                                    int(
+                                        texto_id_75[
+                                            4:
+                                        ]
+                                    )
+
+                                )
+
+                            except Exception:
+                                pass
+
+
+                    if numeros_id_75:
+
+                        siguiente_id_75 = (
+                            max(
+                                numeros_id_75
+                            )
+                            + 1
+                        )
+
+                    else:
+
+                        siguiente_id_75 = 1
+
+
+                    # =========================================
+                    # RELACIONES YA UTILIZADAS
+                    # =========================================
+
+                    relaciones_usadas_75 = set()
+
+
+                    for _, fila_75 in (
+                        banco_general_75.iterrows()
+                    ):
+
+                        modulo_75 = str(
+                            fila_75[
+                                "Modulo"
+                            ]
+                        ).strip().lower()
+
+
+                        if modulo_75 != "restricciones":
+
+                            continue
+
+
+                        estado_75 = str(
+                            fila_75[
+                                "Estado"
+                            ]
+                        ).strip().upper()
+
+
+                        if estado_75 not in [
+
+                            "PENDIENTE",
+                            "APROBADA",
+                            "RECHAZADA"
+
+                        ]:
+
+                            continue
+
+
+                        fuente_75 = str(
+                            fila_75[
+                                "Fuente_ID"
+                            ]
+                        ).strip()
+
+
+                        nivel_existente_75 = str(
+                            fila_75[
+                                "Nivel"
+                            ]
+                        ).strip()
+
+
+                        relacion_existente_75 = str(
+                            fila_75[
+                                "Tipo_Relacion"
+                            ]
+                        ).strip()
+
+
+                        relaciones_usadas_75.add(
+
+                            (
+                                fuente_75,
+                                nivel_existente_75,
+                                relacion_existente_75
+                            )
+
+                        )
+
+
+                    # =========================================
+                    # LISTAS REALES
+                    # =========================================
+
+                    lista_restricciones_75 = list(
+                        dict.fromkeys(
+
+                            [
+
+                                str(valor).strip()
+
+                                for valor
+                                in restricciones_75[
+                                    "Precaución / Contraindicación"
+                                ]
+
+                                if str(
+                                    valor
+                                ).strip()
+
+                            ]
+
+                        )
+                    )
+
+
+                    lista_motivos_75 = list(
+                        dict.fromkeys(
+
+                            [
+
+                                str(valor).strip()
+
+                                for valor
+                                in restricciones_75[
+                                    "Motivo"
+                                ]
+
+                                if str(
+                                    valor
+                                ).strip()
+
+                            ]
+
+                        )
+                    )
+
+
+                    lista_alternativas_75 = list(
+                        dict.fromkeys(
+
+                            [
+
+                                str(valor).strip()
+
+                                for valor
+                                in restricciones_75[
+                                    "Alternativas seguras"
+                                ]
+
+                                if str(
+                                    valor
+                                ).strip()
+
+                            ]
+
+                        )
+                    )
+
+
+                    # =========================================
+                    # MEZCLAR REGISTROS
+                    # =========================================
+
+                    indices_75 = list(
+                        restricciones_75.index
+                    )
+
+
+                    np.random.shuffle(
+                        indices_75
+                    )
+
+
+                    # =================================================
+                    # RECORRER REGISTROS
+                    # =================================================
+
+                    for indice_75 in indices_75:
+
+                        if (
+                            len(nuevas_75)
+                            >=
+                            int(cantidad_75)
+                        ):
+
+                            break
+
+
+                        fila_75 = (
+                            restricciones_75
+                            .loc[indice_75]
+                        )
+
+
+                        fuente_id_75 = str(
+                            fila_75[
+                                "Restriccion_ID"
+                            ]
+                        ).strip()
+
+
+                        producto_75 = str(
+                            fila_75[
+                                "Producto"
+                            ]
+                        ).strip()
+
+
+                        restriccion_75 = str(
+                            fila_75[
+                                "Precaución / Contraindicación"
+                            ]
+                        ).strip()
+
+
+                        motivo_75 = str(
+                            fila_75[
+                                "Motivo"
+                            ]
+                        ).strip()
+
+
+                        alternativa_75 = str(
+                            fila_75[
+                                "Alternativas seguras"
+                            ]
+                        ).strip()
+
+
+                        # =========================================
+                        # RELACIONES POSIBLES
+                        # =========================================
+
+                        relaciones_posibles_75 = []
+
+
+                        if (
+                            "Nivel 1"
+                            in
+                            niveles_75
+                        ):
+
+                            if restriccion_75:
+
+                                relaciones_posibles_75.append(
+
+                                    (
+                                        "Nivel 1",
+                                        "Producto_Restriccion"
+                                    )
+
+                                )
+
+
+                            if motivo_75:
+
+                                relaciones_posibles_75.append(
+
+                                    (
+                                        "Nivel 1",
+                                        "Producto_Motivo"
+                                    )
+
+                                )
+
+
+                            if alternativa_75:
+
+                                relaciones_posibles_75.append(
+
+                                    (
+                                        "Nivel 1",
+                                        "Producto_Alternativa"
+                                    )
+
+                                )
+
+
+                        if (
+                            "Nivel 2"
+                            in
+                            niveles_75
+                        ):
+
+                            if (
+                                restriccion_75
+                                and
+                                motivo_75
+                            ):
+
+                                relaciones_posibles_75.append(
+
+                                    (
+                                        "Nivel 2",
+                                        "Restriccion_Motivo"
+                                    )
+
+                                )
+
+
+                            if (
+                                restriccion_75
+                                and
+                                alternativa_75
+                            ):
+
+                                relaciones_posibles_75.append(
+
+                                    (
+                                        "Nivel 2",
+                                        "Restriccion_Alternativa"
+                                    )
+
+                                )
+
+
+                            if (
+                                motivo_75
+                                and
+                                alternativa_75
+                            ):
+
+                                relaciones_posibles_75.append(
+
+                                    (
+                                        "Nivel 2",
+                                        "Motivo_Alternativa"
+                                    )
+
+                                )
+
+
+                        np.random.shuffle(
+                            relaciones_posibles_75
+                        )
+
+
+                        # =================================================
+                        # PROBAR RELACIONES
+                        # =================================================
+
+                        for (
+                            nivel_75,
+                            tipo_relacion_75
+                        ) in relaciones_posibles_75:
+
+
+                            if (
+                                len(nuevas_75)
+                                >=
+                                int(cantidad_75)
+                            ):
+
+                                break
+
+
+                            clave_75 = (
+
+                                fuente_id_75,
+                                nivel_75,
+                                tipo_relacion_75
+
+                            )
+
+
+                            if (
+                                clave_75
+                                in
+                                relaciones_usadas_75
+                            ):
+
+                                continue
+
+
+                            pregunta_75 = ""
+                            opciones_75 = []
+                            respuesta_correcta_75 = ""
+
+
+                            # =================================================
+                            # NIVEL 1
+                            # PRODUCTO → RESTRICCIÓN
+                            # =================================================
+
+                            if (
+                                nivel_75
+                                ==
+                                "Nivel 1"
+                                and
+                                tipo_relacion_75
+                                ==
+                                "Producto_Restriccion"
+                            ):
+
+                                distractores_75 = [
+
+                                    valor
+
+                                    for valor
+                                    in lista_restricciones_75
+
+                                    if valor
+                                    !=
+                                    restriccion_75
+
+                                ]
+
+
+                                distractores_75 = list(
+                                    dict.fromkeys(
+                                        distractores_75
+                                    )
+                                )
+
+
+                                if len(
+                                    distractores_75
+                                ) < 3:
+
+                                    continue
+
+
+                                np.random.shuffle(
+                                    distractores_75
+                                )
+
+
+                                opciones_75 = [
+
+                                    restriccion_75,
+
+                                    distractores_75[0],
+
+                                    distractores_75[1],
+
+                                    distractores_75[2]
+
+                                ]
+
+
+                                np.random.shuffle(
+                                    opciones_75
+                                )
+
+
+                                respuesta_correcta_75 = str(
+
+                                    opciones_75.index(
+                                        restriccion_75
+                                    )
+                                    + 1
+
+                                )
+
+
+                                pregunta_75 = (
+
+                                    f"¿Cuál de las siguientes "
+                                    f"opciones corresponde a una "
+                                    f"precaución o contraindicación "
+                                    f"para {producto_75}?"
+
+                                )
+
+
+                            # =================================================
+                            # NIVEL 1
+                            # PRODUCTO → MOTIVO
+                            # =================================================
+
+                            elif (
+                                nivel_75
+                                ==
+                                "Nivel 1"
+                                and
+                                tipo_relacion_75
+                                ==
+                                "Producto_Motivo"
+                            ):
+
+                                distractores_75 = [
+
+                                    valor
+
+                                    for valor
+                                    in lista_motivos_75
+
+                                    if valor
+                                    !=
+                                    motivo_75
+
+                                ]
+
+
+                                distractores_75 = list(
+                                    dict.fromkeys(
+                                        distractores_75
+                                    )
+                                )
+
+
+                                if len(
+                                    distractores_75
+                                ) < 3:
+
+                                    continue
+
+
+                                np.random.shuffle(
+                                    distractores_75
+                                )
+
+
+                                opciones_75 = [
+
+                                    motivo_75,
+
+                                    distractores_75[0],
+
+                                    distractores_75[1],
+
+                                    distractores_75[2]
+
+                                ]
+
+
+                                np.random.shuffle(
+                                    opciones_75
+                                )
+
+
+                                respuesta_correcta_75 = str(
+
+                                    opciones_75.index(
+                                        motivo_75
+                                    )
+                                    + 1
+
+                                )
+
+
+                                pregunta_75 = (
+
+                                    f"¿Cuál es el motivo de la "
+                                    f"precaución o contraindicación "
+                                    f"asociada con {producto_75}?"
+
+                                )
+
+
+                            # =================================================
+                            # NIVEL 1
+                            # PRODUCTO → ALTERNATIVA
+                            # =================================================
+
+                            elif (
+                                nivel_75
+                                ==
+                                "Nivel 1"
+                                and
+                                tipo_relacion_75
+                                ==
+                                "Producto_Alternativa"
+                            ):
+
+                                distractores_75 = [
+
+                                    valor
+
+                                    for valor
+                                    in lista_alternativas_75
+
+                                    if valor
+                                    !=
+                                    alternativa_75
+
+                                ]
+
+
+                                distractores_75 = list(
+                                    dict.fromkeys(
+                                        distractores_75
+                                    )
+                                )
+
+
+                                if len(
+                                    distractores_75
+                                ) < 3:
+
+                                    continue
+
+
+                                np.random.shuffle(
+                                    distractores_75
+                                )
+
+
+                                opciones_75 = [
+
+                                    alternativa_75,
+
+                                    distractores_75[0],
+
+                                    distractores_75[1],
+
+                                    distractores_75[2]
+
+                                ]
+
+
+                                np.random.shuffle(
+                                    opciones_75
+                                )
+
+
+                                respuesta_correcta_75 = str(
+
+                                    opciones_75.index(
+                                        alternativa_75
+                                    )
+                                    + 1
+
+                                )
+
+
+                                pregunta_75 = (
+
+                                    f"¿Cuál de las siguientes "
+                                    f"alternativas seguras puede "
+                                    f"considerarse para {producto_75} "
+                                    f"cuando se presenta la "
+                                    f"precaución correspondiente?"
+
+                                )
+
+
+                            # =================================================
+                            # NIVEL 2
+                            # RESTRICCIÓN + MOTIVO
+                            # =================================================
+
+                            elif (
+                                nivel_75
+                                ==
+                                "Nivel 2"
+                                and
+                                tipo_relacion_75
+                                ==
+                                "Restriccion_Motivo"
+                            ):
+
+                                distractores_75 = [
+
+                                    valor
+
+                                    for valor
+                                    in (
+                                        lista_restricciones_75
+                                        +
+                                        lista_motivos_75
+                                    )
+
+                                    if valor
+                                    not in [
+                                        restriccion_75,
+                                        motivo_75
+                                    ]
+
+                                ]
+
+
+                                distractores_75 = list(
+                                    dict.fromkeys(
+                                        distractores_75
+                                    )
+                                )
+
+
+                                if len(
+                                    distractores_75
+                                ) < 2:
+
+                                    continue
+
+
+                                np.random.shuffle(
+                                    distractores_75
+                                )
+
+
+                                opciones_75 = [
+
+                                    restriccion_75,
+
+                                    motivo_75,
+
+                                    distractores_75[0],
+
+                                    distractores_75[1]
+
+                                ]
+
+
+                                np.random.shuffle(
+                                    opciones_75
+                                )
+
+
+                                posiciones_75 = [
+
+                                    str(
+                                        i + 1
+                                    )
+
+                                    for i, valor
+                                    in enumerate(
+                                        opciones_75
+                                    )
+
+                                    if valor
+                                    in [
+                                        restriccion_75,
+                                        motivo_75
+                                    ]
+
+                                ]
+
+
+                                respuesta_correcta_75 = (
+                                    ",".join(
+                                        posiciones_75
+                                    )
+                                )
+
+
+                                pregunta_75 = (
+
+                                    f"En relación con "
+                                    f"{producto_75}, seleccione "
+                                    f"las DOS afirmaciones "
+                                    f"correctas."
+
+                                )
+
+
+                            # =================================================
+                            # NIVEL 2
+                            # RESTRICCIÓN + ALTERNATIVA
+                            # =================================================
+
+                            elif (
+                                nivel_75
+                                ==
+                                "Nivel 2"
+                                and
+                                tipo_relacion_75
+                                ==
+                                "Restriccion_Alternativa"
+                            ):
+
+                                distractores_75 = [
+
+                                    valor
+
+                                    for valor
+                                    in (
+                                        lista_restricciones_75
+                                        +
+                                        lista_alternativas_75
+                                    )
+
+                                    if valor
+                                    not in [
+                                        restriccion_75,
+                                        alternativa_75
+                                    ]
+
+                                ]
+
+
+                                distractores_75 = list(
+                                    dict.fromkeys(
+                                        distractores_75
+                                    )
+                                )
+
+
+                                if len(
+                                    distractores_75
+                                ) < 2:
+
+                                    continue
+
+
+                                np.random.shuffle(
+                                    distractores_75
+                                )
+
+
+                                opciones_75 = [
+
+                                    restriccion_75,
+
+                                    alternativa_75,
+
+                                    distractores_75[0],
+
+                                    distractores_75[1]
+
+                                ]
+
+
+                                np.random.shuffle(
+                                    opciones_75
+                                )
+
+
+                                posiciones_75 = [
+
+                                    str(
+                                        i + 1
+                                    )
+
+                                    for i, valor
+                                    in enumerate(
+                                        opciones_75
+                                    )
+
+                                    if valor
+                                    in [
+                                        restriccion_75,
+                                        alternativa_75
+                                    ]
+
+                                ]
+
+
+                                respuesta_correcta_75 = (
+                                    ",".join(
+                                        posiciones_75
+                                    )
+                                )
+
+
+                                pregunta_75 = (
+
+                                    f"Para {producto_75}, "
+                                    f"seleccione las DOS "
+                                    f"afirmaciones correctas "
+                                    f"sobre la precaución y "
+                                    f"la alternativa segura."
+
+                                )
+
+
+                            # =================================================
+                            # NIVEL 2
+                            # MOTIVO + ALTERNATIVA
+                            # =================================================
+
+                            elif (
+                                nivel_75
+                                ==
+                                "Nivel 2"
+                                and
+                                tipo_relacion_75
+                                ==
+                                "Motivo_Alternativa"
+                            ):
+
+                                distractores_75 = [
+
+                                    valor
+
+                                    for valor
+                                    in (
+                                        lista_motivos_75
+                                        +
+                                        lista_alternativas_75
+                                    )
+
+                                    if valor
+                                    not in [
+                                        motivo_75,
+                                        alternativa_75
+                                    ]
+
+                                ]
+
+
+                                distractores_75 = list(
+                                    dict.fromkeys(
+                                        distractores_75
+                                    )
+                                )
+
+
+                                if len(
+                                    distractores_75
+                                ) < 2:
+
+                                    continue
+
+
+                                np.random.shuffle(
+                                    distractores_75
+                                )
+
+
+                                opciones_75 = [
+
+                                    motivo_75,
+
+                                    alternativa_75,
+
+                                    distractores_75[0],
+
+                                    distractores_75[1]
+
+                                ]
+
+
+                                np.random.shuffle(
+                                    opciones_75
+                                )
+
+
+                                posiciones_75 = [
+
+                                    str(
+                                        i + 1
+                                    )
+
+                                    for i, valor
+                                    in enumerate(
+                                        opciones_75
+                                    )
+
+                                    if valor
+                                    in [
+                                        motivo_75,
+                                        alternativa_75
+                                    ]
+
+                                ]
+
+
+                                respuesta_correcta_75 = (
+                                    ",".join(
+                                        posiciones_75
+                                    )
+                                )
+
+
+                                pregunta_75 = (
+
+                                    f"En relación con "
+                                    f"{producto_75}, seleccione "
+                                    f"las DOS afirmaciones "
+                                    f"correctas sobre el motivo "
+                                    f"y la alternativa segura."
+
+                                )
+
+
+                            # =================================================
+                            # VALIDACIÓN FINAL
+                            # =================================================
+
+                            if (
+                                not pregunta_75
+                                or
+                                len(opciones_75) != 4
+                                or
+                                not respuesta_correcta_75
+                            ):
+
+                                continue
+
+
+                            # =============================================
+                            # EVITAR FRASES BASURA
+                            # =============================================
+
+                            texto_validacion_75 = (
+
+                                pregunta_75
+                                + " "
+                                + " ".join(
+                                    opciones_75
+                                )
+
+                            ).lower()
+
+
+                            frases_prohibidas_75 = [
+
+                                "la matriz",
+
+                                "según la matriz",
+
+                                "no corresponde",
+
+                                "no guarda relación",
+
+                                "no constituye",
+
+                                "situación indicada",
+
+                                "motivo señalado",
+
+                                "alternativa indicada",
+
+                                "información de la matriz",
+
+                                "respuesta incorrecta",
+
+                                "respuesta correcta"
+
+                            ]
+
+
+                            contiene_basura_75 = any(
+
+                                frase
+                                in
+                                texto_validacion_75
+
+                                for frase
+                                in frases_prohibidas_75
+
+                            )
+
+
+                            if contiene_basura_75:
+
+                                continue
+
+
+                            # =================================================
+                            # CREAR REGISTRO
+                            # =================================================
+
+                            nuevas_75.append({
+
+                                "Pregunta_ID":
+                                    (
+                                        f"RES_"
+                                        f"{siguiente_id_75:05d}"
+                                    ),
+
+                                "Modulo":
+                                    "Restricciones",
+
+                                "Tema":
+                                    producto_75,
+
+                                "Nivel":
+                                    nivel_75,
+
+                                "Tipo_Relacion":
+                                    tipo_relacion_75,
+
+                                "Pregunta":
+                                    pregunta_75,
+
+                                "Respuesta_1":
+                                    opciones_75[0],
+
+                                "Respuesta_2":
+                                    opciones_75[1],
+
+                                "Respuesta_3":
+                                    opciones_75[2],
+
+                                "Respuesta_4":
+                                    opciones_75[3],
+
+                                "Respuesta_Correcta":
+                                    respuesta_correcta_75,
+
+                                "Estado":
+                                    "PENDIENTE",
+
+                                "Observacion_Administrador":
+                                    "",
+
+                                "Fecha_Generacion":
+                                    pd.Timestamp.now().strftime(
+                                        "%Y-%m-%d %H:%M:%S"
+                                    ),
+
+                                "Fuente_ID":
+                                    fuente_id_75
+
+                            })
+
+
+                            siguiente_id_75 += 1
+
+
+                            relaciones_usadas_75.add(
+                                clave_75
+                            )
+
+
+                            break
+
+
+                    # =================================================
+                    # GUARDAR EN EXCEL
+                    # =================================================
+
+                    if nuevas_75:
+
+                        nuevas_df_75 = pd.DataFrame(
+                            nuevas_75
+                        )
+
+
+                        banco_general_75 = pd.concat(
+
+                            [
+                                banco_general_75,
+                                nuevas_df_75
+                            ],
+
+                            ignore_index=True
+
+                        )
+
+
+                        banco_general_75 = (
+                            banco_general_75[
+                                COLUMNAS_BANCO_GENERAL
+                            ]
+                        )
+
+
+                        banco_general_75.to_excel(
+
+                            RUTA_BANCO_GENERAL,
+
+                            index=False,
+
+                            sheet_name="Banco_General"
+
+                        )
+
+
+                        st.success(
+
+                            f"Se generaron y guardaron "
+                            f"{len(nuevas_df_75)} de "
+                            f"{int(cantidad_75)} "
+                            f"preguntas solicitadas."
+
+                        )
+
+
+                        if (
+                            len(nuevas_df_75)
+                            <
+                            int(cantidad_75)
+                        ):
+
+                            st.warning(
+
+                                "Se generaron menos "
+                                "preguntas de las solicitadas "
+                                "porque no había suficientes "
+                                "combinaciones con cuatro "
+                                "respuestas reales."
+
+                            )
+
+
+                        st.dataframe(
+
+                            nuevas_df_75,
+
+                            use_container_width=True
+
+                        )
+
+
+                    else:
+
+                        st.warning(
+
+                            "No fue posible generar "
+                            "preguntas válidas con "
+                            "los datos disponibles."
+
+                        )
+    # ========================================================
+# 7.6 BANCO GENERAL — VALIDACIÓN DE PREGUNTAS
+# RESTRICCIONES
+# SOLO ADMINISTRADOR
+# ========================================================
+
+if (
+    ROL_ACTUAL == "ADMINISTRADOR"
+    and
+    opcion_evaluacion == "Banco general de preguntas"
+):
+
+    st.subheader(
+        "Validación de preguntas — Restricciones"
+    )
+
+    RUTA_BANCO_GENERAL_76 = (
+        BASE_DIR
+        / "BANCO_PREGUNTAS_GENERALES.xlsx"
+    )
+
+    # ====================================================
+    # CARGAR BANCO
+    # ====================================================
+
+    if not RUTA_BANCO_GENERAL_76.exists():
+
+        st.warning(
+            "No existe el archivo "
+            "BANCO_PREGUNTAS_GENERALES.xlsx."
+        )
+
+    else:
+
+        try:
+
+            banco_validacion_76 = pd.read_excel(
+                RUTA_BANCO_GENERAL_76,
+                dtype=str
+            ).fillna("")
+
+        except Exception as error_lectura_76:
 
             st.error(
-                "No se pudo limpiar el Excel."
+                "No fue posible cargar el Banco General."
             )
 
             st.code(
-                str(error)
+                str(error_lectura_76)
             )
+
+            banco_validacion_76 = None
+
+
+        if banco_validacion_76 is not None:
+
+            # ================================================
+            # ASEGURAR COLUMNAS
+            # ================================================
+
+            columnas_validacion_76 = [
+
+                "Pregunta_ID",
+                "Modulo",
+                "Tema",
+                "Nivel",
+                "Tipo_Relacion",
+                "Pregunta",
+                "Respuesta_1",
+                "Respuesta_2",
+                "Respuesta_3",
+                "Respuesta_4",
+                "Respuesta_Correcta",
+                "Estado",
+                "Observacion_Administrador",
+                "Fecha_Generacion",
+                "Fuente_ID"
+
+            ]
+
+
+            for columna_76 in columnas_validacion_76:
+
+                if (
+                    columna_76
+                    not in
+                    banco_validacion_76.columns
+                ):
+
+                    banco_validacion_76[
+                        columna_76
+                    ] = ""
+
+
+            banco_validacion_76 = (
+                banco_validacion_76[
+                    columnas_validacion_76
+                ]
+                .copy()
+            )
+
+
+            # =================================================
+            # SOLO RESTRICCIONES PENDIENTES
+            # =================================================
+
+            pendientes_76 = (
+
+                banco_validacion_76[
+                    (
+                        banco_validacion_76[
+                            "Modulo"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        .str.lower()
+                        ==
+                        "restricciones"
+                    )
+                    &
+                    (
+                        banco_validacion_76[
+                            "Estado"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        .str.upper()
+                        ==
+                        "PENDIENTE"
+                    )
+                ]
+                .copy()
+
+            )
+
+
+            st.write(
+                f"Preguntas de Restricciones "
+                f"pendientes de validación: "
+                f"**{len(pendientes_76)}**"
+            )
+
+
+            if pendientes_76.empty:
+
+                st.success(
+                    "No hay preguntas de Restricciones "
+                    "pendientes de validación."
+                )
+
+
+            else:
+
+                # =================================================
+                # CANTIDAD POR BLOQUE
+                # =================================================
+
+                cantidad_bloque_76 = st.number_input(
+
+                    "Cantidad de preguntas por bloque",
+
+                    min_value=1,
+
+                    max_value=min(
+                        100,
+                        len(pendientes_76)
+                    ),
+
+                    value=min(
+                        20,
+                        len(pendientes_76)
+                    ),
+
+                    step=1,
+
+                    key=(
+                        "cantidad_bloque_"
+                        "validacion_restricciones_76"
+                    )
+
+                )
+
+
+                # =================================================
+                # SELECCIONAR BLOQUE
+                # =================================================
+
+                pendientes_76 = pendientes_76.reset_index(
+                    drop=False
+                )
+
+
+                cantidad_bloque_76 = int(
+                    cantidad_bloque_76
+                )
+
+
+                total_bloques_76 = (
+
+                    (
+                        len(pendientes_76)
+                        +
+                        cantidad_bloque_76
+                        -
+                        1
+                    )
+                    //
+                    cantidad_bloque_76
+
+                )
+
+
+                bloque_actual_76 = st.number_input(
+
+                    "Bloque a revisar",
+
+                    min_value=1,
+
+                    max_value=max(
+                        1,
+                        total_bloques_76
+                    ),
+
+                    value=1,
+
+                    step=1,
+
+                    key=(
+                        "bloque_actual_"
+                        "restricciones_76"
+                    )
+
+                )
+
+
+                inicio_76 = (
+
+                    (
+                        int(
+                            bloque_actual_76
+                        )
+                        -
+                        1
+                    )
+                    *
+                    cantidad_bloque_76
+
+                )
+
+
+                fin_76 = (
+
+                    inicio_76
+                    +
+                    cantidad_bloque_76
+
+                )
+
+
+                bloque_76 = (
+                    pendientes_76
+                    .iloc[
+                        inicio_76:fin_76
+                    ]
+                    .copy()
+                )
+
+
+                st.info(
+
+                    f"Mostrando bloque "
+                    f"{int(bloque_actual_76)} "
+                    f"de {total_bloques_76} — "
+                    f"{len(bloque_76)} preguntas."
+
+                )
+
+
+                # =================================================
+                # FORMULARIO DE VALIDACIÓN
+                # =================================================
+
+                cambios_76 = {}
+
+
+                with st.form(
+                    key=(
+                        "form_validacion_"
+                        "restricciones_76_"
+                        f"{int(bloque_actual_76)}"
+                    )
+                ):
+
+                    for numero_76, (
+                        indice_original_76,
+                        fila_76
+                    ) in enumerate(
+
+                        bloque_76.iterrows(),
+
+                        start=1
+
+                    ):
+
+                        pregunta_id_76 = str(
+                            fila_76[
+                                "Pregunta_ID"
+                            ]
+                        )
+
+
+                        st.markdown(
+                            "---"
+                        )
+
+
+                        st.markdown(
+                            f"### Pregunta {numero_76} "
+                            f"— {pregunta_id_76}"
+                        )
+
+
+                        st.caption(
+
+                            f"Nivel: "
+                            f"{fila_76['Nivel']}  |  "
+                            f"Relación: "
+                            f"{fila_76['Tipo_Relacion']}  |  "
+                            f"Producto: "
+                            f"{fila_76['Tema']}"
+
+                        )
+
+
+                        # =========================================
+                        # ENUNCIADO
+                        # =========================================
+
+                        pregunta_editada_76 = st.text_area(
+
+                            "Pregunta",
+
+                            value=str(
+                                fila_76[
+                                    "Pregunta"
+                                ]
+                            ),
+
+                            key=(
+                                "pregunta_76_"
+                                f"{pregunta_id_76}"
+                            ),
+
+                            height=90
+
+                        )
+
+
+                        # =========================================
+                        # RESPUESTAS
+                        # =========================================
+
+                        respuesta_1_76 = st.text_input(
+
+                            "Respuesta 1",
+
+                            value=str(
+                                fila_76[
+                                    "Respuesta_1"
+                                ]
+                            ),
+
+                            key=(
+                                "r1_76_"
+                                f"{pregunta_id_76}"
+                            )
+
+                        )
+
+
+                        respuesta_2_76 = st.text_input(
+
+                            "Respuesta 2",
+
+                            value=str(
+                                fila_76[
+                                    "Respuesta_2"
+                                ]
+                            ),
+
+                            key=(
+                                "r2_76_"
+                                f"{pregunta_id_76}"
+                            )
+
+                        )
+
+
+                        respuesta_3_76 = st.text_input(
+
+                            "Respuesta 3",
+
+                            value=str(
+                                fila_76[
+                                    "Respuesta_3"
+                                ]
+                            ),
+
+                            key=(
+                                "r3_76_"
+                                f"{pregunta_id_76}"
+                            )
+
+                        )
+
+
+                        respuesta_4_76 = st.text_input(
+
+                            "Respuesta 4",
+
+                            value=str(
+                                fila_76[
+                                    "Respuesta_4"
+                                ]
+                            ),
+
+                            key=(
+                                "r4_76_"
+                                f"{pregunta_id_76}"
+                            )
+
+                        )
+
+
+                        # =========================================
+                        # RESPUESTA CORRECTA
+                        # =========================================
+
+                        nivel_76 = str(
+                            fila_76[
+                                "Nivel"
+                            ]
+                        ).strip()
+
+
+                        respuesta_original_76 = str(
+                            fila_76[
+                                "Respuesta_Correcta"
+                            ]
+                        ).strip()
+
+
+                        if nivel_76 == "Nivel 2":
+
+                            posiciones_correctas_76 = [
+
+                                posicion
+
+                                for posicion
+                                in [
+                                    "1",
+                                    "2",
+                                    "3",
+                                    "4"
+                                ]
+
+                                if posicion
+                                in
+                                respuesta_original_76.split(",")
+
+                            ]
+
+
+                            respuestas_correctas_76 = st.multiselect(
+
+                                "Seleccione las DOS respuestas correctas",
+
+                                options=[
+                                    "1",
+                                    "2",
+                                    "3",
+                                    "4"
+                                ],
+
+                                default=(
+                                    posiciones_correctas_76
+                                    if len(
+                                        posiciones_correctas_76
+                                    ) == 2
+                                    else []
+                                ),
+
+                                max_selections=2,
+
+                                key=(
+                                    "correctas_76_"
+                                    f"{pregunta_id_76}"
+                                )
+
+                            )
+
+
+                            respuesta_correcta_editada_76 = (
+
+                                ",".join(
+                                    sorted(
+                                        respuestas_correctas_76,
+                                        key=int
+                                    )
+                                )
+
+                            )
+
+                        else:
+
+                            respuesta_correcta_editada_76 = st.selectbox(
+
+                                "Respuesta correcta",
+
+                                options=[
+                                    "1",
+                                    "2",
+                                    "3",
+                                    "4"
+                                ],
+
+                                index=(
+
+                                    int(
+                                        respuesta_original_76
+                                    )
+                                    - 1
+
+                                    if respuesta_original_76
+                                    in [
+                                        "1",
+                                        "2",
+                                        "3",
+                                        "4"
+                                    ]
+
+                                    else 0
+
+                                ),
+
+                                key=(
+                                    "correcta_76_"
+                                    f"{pregunta_id_76}"
+                                )
+
+                            )
+
+
+                        # =========================================
+                        # OBSERVACIÓN
+                        # =========================================
+
+                        observacion_76 = st.text_area(
+
+                            "Observación del administrador",
+
+                            value=str(
+                                fila_76[
+                                    "Observacion_Administrador"
+                                ]
+                            ),
+
+                            key=(
+                                "observacion_76_"
+                                f"{pregunta_id_76}"
+                            ),
+
+                            height=60
+
+                        )
+
+
+                        cambios_76[
+                            pregunta_id_76
+                        ] = {
+
+                            "indice":
+                                indice_original_76,
+
+                            "Pregunta":
+                                pregunta_editada_76,
+
+                            "Respuesta_1":
+                                respuesta_1_76,
+
+                            "Respuesta_2":
+                                respuesta_2_76,
+
+                            "Respuesta_3":
+                                respuesta_3_76,
+
+                            "Respuesta_4":
+                                respuesta_4_76,
+
+                            "Respuesta_Correcta":
+                                respuesta_correcta_editada_76,
+
+                            "Observacion":
+                                observacion_76
+
+                        }
+
+
+                    # =================================================
+                    # VALIDACIÓN DEL BLOQUE
+                    # =================================================
+
+                    st.markdown(
+                        "---"
+                    )
+
+                    decision_bloque_76 = st.radio(
+
+                        "Decisión para este bloque",
+
+                        [
+
+                            "Mantener pendientes",
+
+                            "Aprobar todo el bloque",
+
+                            "Rechazar todo el bloque"
+
+                        ],
+
+                        horizontal=True,
+
+                        key=(
+                            "decision_bloque_"
+                            "restricciones_76"
+                        )
+
+                    )
+
+
+                    guardar_bloque_76 = st.form_submit_button(
+
+                        "GUARDAR BLOQUE",
+
+                        type="primary"
+
+                    )
+
+
+                # =================================================
+                # GUARDAR
+                # =================================================
+
+                if guardar_bloque_76:
+
+                    errores_76 = []
+
+
+                    # =============================================
+                    # VALIDAR PREGUNTAS
+                    # =============================================
+
+                    for pregunta_id_76, datos_76 in (
+                        cambios_76.items()
+                    ):
+
+                        pregunta_texto_76 = str(
+                            datos_76[
+                                "Pregunta"
+                            ]
+                        ).strip()
+
+
+                        respuestas_76 = [
+
+                            str(
+                                datos_76[
+                                    "Respuesta_1"
+                                ]
+                            ).strip(),
+
+                            str(
+                                datos_76[
+                                    "Respuesta_2"
+                                ]
+                            ).strip(),
+
+                            str(
+                                datos_76[
+                                    "Respuesta_3"
+                                ]
+                            ).strip(),
+
+                            str(
+                                datos_76[
+                                    "Respuesta_4"
+                                ]
+                            ).strip()
+
+                        ]
+
+
+                        correcta_76 = str(
+                            datos_76[
+                                "Respuesta_Correcta"
+                            ]
+                        ).strip()
+
+
+                        if not pregunta_texto_76:
+
+                            errores_76.append(
+                                f"{pregunta_id_76}: "
+                                "el enunciado está vacío."
+                            )
+
+
+                        if any(
+                            not respuesta
+                            for respuesta
+                            in respuestas_76
+                        ):
+
+                            errores_76.append(
+                                f"{pregunta_id_76}: "
+                                "hay respuestas vacías."
+                            )
+
+
+                        if (
+                            len(
+                                set(
+                                    respuestas_76
+                                )
+                            )
+                            <
+                            4
+                        ):
+
+                            errores_76.append(
+                                f"{pregunta_id_76}: "
+                                "las cuatro respuestas "
+                                "deben ser diferentes."
+                            )
+
+
+                        nivel_fila_76 = str(
+
+                            banco_validacion_76.loc[
+                                datos_76["indice"],
+                                "Nivel"
+                            ]
+
+                        ).strip()
+
+
+                        if nivel_fila_76 == "Nivel 1":
+
+                            if correcta_76 not in [
+                                "1",
+                                "2",
+                                "3",
+                                "4"
+                            ]:
+
+                                errores_76.append(
+                                    f"{pregunta_id_76}: "
+                                    "Nivel 1 debe tener "
+                                    "una sola respuesta "
+                                    "correcta."
+                                )
+
+                        else:
+
+                            posiciones_76 = [
+
+                                x.strip()
+
+                                for x
+                                in correcta_76.split(",")
+
+                                if x.strip()
+
+                            ]
+
+
+                            if (
+                                len(
+                                    posiciones_76
+                                ) != 2
+                            ):
+
+                                errores_76.append(
+                                    f"{pregunta_id_76}: "
+                                    "Nivel 2 debe tener "
+                                    "exactamente dos "
+                                    "respuestas correctas."
+                                )
+
+
+                    if errores_76:
+
+                        st.error(
+                            "No se guardó el bloque "
+                            "porque hay errores."
+                        )
+
+
+                        for error_76 in errores_76:
+
+                            st.warning(
+                                error_76
+                            )
+
+
+                    else:
+
+                        # =========================================
+                        # ACTUALIZAR DATOS
+                        # =========================================
+
+                        for (
+                            pregunta_id_76,
+                            datos_76
+                        ) in cambios_76.items():
+
+                            indice_76 = (
+                                datos_76[
+                                    "indice"
+                                ]
+                            )
+
+
+                            banco_validacion_76.loc[
+                                indice_76,
+                                "Pregunta"
+                            ] = datos_76[
+                                "Pregunta"
+                            ]
+
+
+                            banco_validacion_76.loc[
+                                indice_76,
+                                "Respuesta_1"
+                            ] = datos_76[
+                                "Respuesta_1"
+                            ]
+
+
+                            banco_validacion_76.loc[
+                                indice_76,
+                                "Respuesta_2"
+                            ] = datos_76[
+                                "Respuesta_2"
+                            ]
+
+
+                            banco_validacion_76.loc[
+                                indice_76,
+                                "Respuesta_3"
+                            ] = datos_76[
+                                "Respuesta_3"
+                            ]
+
+
+                            banco_validacion_76.loc[
+                                indice_76,
+                                "Respuesta_4"
+                            ] = datos_76[
+                                "Respuesta_4"
+                            ]
+
+
+                            banco_validacion_76.loc[
+                                indice_76,
+                                "Respuesta_Correcta"
+                            ] = datos_76[
+                                "Respuesta_Correcta"
+                            ]
+
+
+                            banco_validacion_76.loc[
+                                indice_76,
+                                "Observacion_Administrador"
+                            ] = datos_76[
+                                "Observacion"
+                            ]
+
+
+                            # =====================================
+                            # ESTADO DEL BLOQUE
+                            # =====================================
+
+                            if (
+                                decision_bloque_76
+                                ==
+                                "Aprobar todo el bloque"
+                            ):
+
+                                banco_validacion_76.loc[
+                                    indice_76,
+                                    "Estado"
+                                ] = "APROBADA"
+
+
+                            elif (
+                                decision_bloque_76
+                                ==
+                                "Rechazar todo el bloque"
+                            ):
+
+                                banco_validacion_76.loc[
+                                    indice_76,
+                                    "Estado"
+                                ] = "RECHAZADA"
+
+
+                            else:
+
+                                banco_validacion_76.loc[
+                                    indice_76,
+                                    "Estado"
+                                ] = "PENDIENTE"
+
+
+                        # =========================================
+                        # GUARDAR EXCEL
+                        # =========================================
+
+                        try:
+
+                            banco_validacion_76.to_excel(
+
+                                RUTA_BANCO_GENERAL_76,
+
+                                index=False,
+
+                                sheet_name="Banco_General"
+
+                            )
+
+
+                            st.success(
+
+                                "✓ Bloque guardado "
+                                "correctamente en el Excel."
+
+                            )
+
+
+                            if (
+                                decision_bloque_76
+                                ==
+                                "Aprobar todo el bloque"
+                            ):
+
+                                st.success(
+                                    "✓ Todas las preguntas "
+                                    "del bloque quedaron "
+                                    "APROBADAS."
+                                )
+
+
+                            elif (
+                                decision_bloque_76
+                                ==
+                                "Rechazar todo el bloque"
+                            ):
+
+                                st.warning(
+                                    "Las preguntas del bloque "
+                                    "quedaron RECHAZADAS."
+                                )
+
+
+                            st.rerun()
+
+
+                        except Exception as error_guardado_76:
+
+                            st.error(
+                                "No fue posible guardar "
+                                "los cambios en el Excel."
+                            )
+
+                            st.code(
+                                str(error_guardado_76)
+                            )
 # ============================================================
 # 8. PIE DE APLICACIÓN
 # ============================================================
