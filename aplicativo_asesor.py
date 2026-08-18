@@ -1970,7 +1970,34 @@ elif opcion_principal == "EVALUACIÓN":
         opciones_evaluacion,
         key="menu_evaluacion"
     )
+    # ========================================================
+    # 7.1 BANCO GENERAL DE PREGUNTAS
+    # SOLO ADMINISTRADOR
+    # ========================================================
 
+    if (
+        ROL_ACTUAL == "ADMINISTRADOR"
+        and
+        opcion_evaluacion
+        == "Banco general de preguntas"
+    ):
+
+        st.subheader(
+            "Banco general de preguntas"
+        )
+
+        st.write(
+            "Administración del banco permanente "
+            "de preguntas generales."
+        )
+
+        st.info(
+            "El banco general será alimentado "
+            "automáticamente a partir de la matriz "
+            "y las preguntas deberán ser revisadas "
+            "por el Administrador antes de poder "
+            "utilizarse en una evaluación."
+        )
 # ============================================================
 # 8. PIE DE APLICACIÓN
 # ============================================================
