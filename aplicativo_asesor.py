@@ -9248,6 +9248,736 @@ if (
                                 "los productos disponibles."
 
                             )
+
+# ========================================================
+# 7.8 PRODUCTOS — VALIDADOR
+# PRODUCTO → CATEGORÍA PRINCIPAL
+# NIVEL 1
+# SOLO ADMINISTRADOR
+# ========================================================
+
+if (
+    ROL_ACTUAL == "ADMINISTRADOR"
+    and
+    opcion_evaluacion == "Banco general de preguntas"
+):
+
+    st.subheader(
+        "Validación — Producto → Categoría principal"
+    )
+
+    RUTA_BANCO_78 = (
+        BASE_DIR
+        / "BANCO_PREGUNTAS_GENERALES.xlsx"
+    )
+
+
+    # ====================================================
+    # CARGAR BANCO
+    # ====================================================
+
+    if not RUTA_BANCO_78.exists():
+
+        st.warning(
+            "No existe el archivo "
+            "BANCO_PREGUNTAS_GENERALES.xlsx."
+        )
+
+    else:
+
+        try:
+
+            banco_78 = pd.read_excel(
+                RUTA_BANCO_78,
+                dtype=str
+            ).fillna("")
+
+        except Exception as error_78:
+
+            st.error(
+                "No fue posible cargar "
+                "el Banco General."
+            )
+
+            st.code(
+                str(error_78)
+            )
+
+            banco_78 = None
+
+
+        if banco_78 is not None:
+
+            # =============================================
+            # ASEGURAR COLUMNAS
+            # =============================================
+
+            columnas_78 = [
+
+                "Pregunta_ID",
+                "Modulo",
+                "Tema",
+                "Nivel",
+                "Tipo_Relacion",
+                "Pregunta",
+                "Respuesta_1",
+                "Respuesta_2",
+                "Respuesta_3",
+                "Respuesta_4",
+                "Respuesta_Correcta",
+                "Estado",
+                "Observacion_Administrador",
+                "Fecha_Generacion",
+                "Fuente_ID"
+
+            ]
+
+
+            for columna_78 in columnas_78:
+
+                if (
+                    columna_78
+                    not in banco_78.columns
+                ):
+
+                    banco_78[
+                        columna_78
+                    ] = ""
+
+
+            banco_78 = banco_78[
+                columnas_78
+            ].copy()
+
+
+            # =============================================
+            # FILTRAR SOLO ESTE TIPO
+            # =============================================
+
+            pendientes_78 = (
+
+                banco_78[
+                    (
+                        banco_78[
+                            "Modulo"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        .str.lower()
+                        ==
+                        "productos"
+                    )
+                    &
+                    (
+                        banco_78[
+                            "Nivel"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        ==
+                        "Nivel 1"
+                    )
+                    &
+                    (
+                        banco_78[
+                            "Tipo_Relacion"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        ==
+                        "Producto_Categoria_Principal"
+                    )
+                    &
+                    (
+                        banco_78[
+                            "Estado"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        .str.upper()
+                        ==
+                        "PENDIENTE"
+                    )
+                ]
+                .copy()
+
+            )
+
+
+            st.write(
+
+                "Preguntas pendientes de este tipo: "
+                f"**{len(pendientes_78)}**"
+
+            )
+
+
+            if pendientes_78.empty:
+
+                st.success(
+
+                    "No hay preguntas pendientes "
+                    "para validar."
+
+                )
+
+            else:
+
+                # =========================================
+                # MÁXIMO 5 POR BLOQUE
+                # =========================================
+
+                cantidad_78 = min(
+                    5,
+                    len(pendientes_78)
+                )
+
+
+                pendientes_78 = (
+                    pendientes_78
+                    .head(cantidad_78)
+                    .copy()
+                )
+
+
+                st.info(
+
+                    f"Se muestran "
+                    f"**{cantidad_78}** "
+                    f"preguntas para validar."
+
+                )
+
+
+                cambios_78 = {}
+
+
+                # =================================================
+                # FORMULARIO
+                # =================================================
+
+                with st.form(
+                    key="form_validacion_producto_categoria_78"
+                ):
+
+                    for numero_78, (
+                        indice_78,
+                        fila_78
+                    ) in enumerate(
+
+                        pendientes_78.iterrows(),
+
+                        start=1
+
+                    ):
+
+                        pregunta_id_78 = str(
+                            fila_78[
+                                "Pregunta_ID"
+                            ]
+                        )
+
+
+                        producto_78 = str(
+                            fila_78[
+                                "Fuente_ID"
+                            ]
+                        )
+
+
+                        st.markdown(
+                            "---"
+                        )
+
+
+                        st.markdown(
+
+                            f"### Pregunta {numero_78} "
+                            f"— {pregunta_id_78}"
+
+                        )
+
+
+                        st.caption(
+
+                            f"Producto: "
+                            f"**{producto_78}**"
+
+                        )
+
+
+                        # =====================================
+                        # PREGUNTA
+                        # =====================================
+
+                        pregunta_78 = st.text_area(
+
+                            "Enunciado",
+
+                            value=str(
+                                fila_78[
+                                    "Pregunta"
+                                ]
+                            ),
+
+                            key=(
+                                "producto_pregunta_78_"
+                                f"{pregunta_id_78}"
+                            ),
+
+                            height=80
+
+                        )
+
+
+                        # =====================================
+                        # RESPUESTAS
+                        # =====================================
+
+                        respuesta_1_78 = st.text_input(
+
+                            "Respuesta 1",
+
+                            value=str(
+                                fila_78[
+                                    "Respuesta_1"
+                                ]
+                            ),
+
+                            key=(
+                                "producto_r1_78_"
+                                f"{pregunta_id_78}"
+                            )
+
+                        )
+
+
+                        respuesta_2_78 = st.text_input(
+
+                            "Respuesta 2",
+
+                            value=str(
+                                fila_78[
+                                    "Respuesta_2"
+                                ]
+                            ),
+
+                            key=(
+                                "producto_r2_78_"
+                                f"{pregunta_id_78}"
+                            )
+
+                        )
+
+
+                        respuesta_3_78 = st.text_input(
+
+                            "Respuesta 3",
+
+                            value=str(
+                                fila_78[
+                                    "Respuesta_3"
+                                ]
+                            ),
+
+                            key=(
+                                "producto_r3_78_"
+                                f"{pregunta_id_78}"
+                            )
+
+                        )
+
+
+                        respuesta_4_78 = st.text_input(
+
+                            "Respuesta 4",
+
+                            value=str(
+                                fila_78[
+                                    "Respuesta_4"
+                                ]
+                            ),
+
+                            key=(
+                                "producto_r4_78_"
+                                f"{pregunta_id_78}"
+                            )
+
+                        )
+
+
+                        # =====================================
+                        # RESPUESTA CORRECTA
+                        # =====================================
+
+                        correcta_original_78 = str(
+                            fila_78[
+                                "Respuesta_Correcta"
+                            ]
+                        ).strip()
+
+
+                        if correcta_original_78 in [
+
+                            "1",
+                            "2",
+                            "3",
+                            "4"
+
+                        ]:
+
+                            indice_correcta_78 = (
+
+                                int(
+                                    correcta_original_78
+                                )
+                                -
+                                1
+
+                            )
+
+                        else:
+
+                            indice_correcta_78 = 0
+
+
+                        correcta_78 = st.radio(
+
+                            "Respuesta correcta",
+
+                            options=[
+                                "1",
+                                "2",
+                                "3",
+                                "4"
+                            ],
+
+                            index=indice_correcta_78,
+
+                            horizontal=True,
+
+                            key=(
+                                "producto_correcta_78_"
+                                f"{pregunta_id_78}"
+                            )
+
+                        )
+
+
+                        # =====================================
+                        # OBSERVACIÓN
+                        # =====================================
+
+                        observacion_78 = st.text_area(
+
+                            "Observación",
+
+                            value=str(
+                                fila_78[
+                                    "Observacion_Administrador"
+                                ]
+                            ),
+
+                            key=(
+                                "producto_obs_78_"
+                                f"{pregunta_id_78}"
+                            ),
+
+                            height=60
+
+                        )
+
+
+                        # =====================================
+                        # DECISIÓN INDIVIDUAL
+                        # =====================================
+
+                        decision_78 = st.radio(
+
+                            "Decisión",
+
+                            options=[
+
+                                "Mantener pendiente",
+
+                                "Aprobar",
+
+                                "Rechazar"
+
+                            ],
+
+                            horizontal=True,
+
+                            key=(
+                                "producto_decision_78_"
+                                f"{pregunta_id_78}"
+                            )
+
+                        )
+
+
+                        cambios_78[
+                            pregunta_id_78
+                        ] = {
+
+                            "indice":
+                                indice_78,
+
+                            "Pregunta":
+                                pregunta_78,
+
+                            "Respuesta_1":
+                                respuesta_1_78,
+
+                            "Respuesta_2":
+                                respuesta_2_78,
+
+                            "Respuesta_3":
+                                respuesta_3_78,
+
+                            "Respuesta_4":
+                                respuesta_4_78,
+
+                            "Respuesta_Correcta":
+                                correcta_78,
+
+                            "Observacion":
+                                observacion_78,
+
+                            "Decision":
+                                decision_78
+
+                        }
+
+
+                    # =========================================
+                    # DECISIÓN POR BLOQUE
+                    # =========================================
+
+                    st.markdown(
+                        "---"
+                    )
+
+
+                    decision_bloque_78 = st.radio(
+
+                        "Acción rápida para todo el bloque",
+
+                        options=[
+
+                            "No aplicar",
+
+                            "Aprobar todo",
+
+                            "Rechazar todo"
+
+                        ],
+
+                        horizontal=True,
+
+                        key=(
+                            "producto_bloque_78"
+                        )
+
+                    )
+
+
+                    guardar_78 = st.form_submit_button(
+
+                        "GUARDAR VALIDACIÓN",
+
+                        type="primary"
+
+                    )
+
+
+                # =================================================
+                # PROCESAR GUARDADO
+                # =================================================
+
+                if guardar_78:
+
+                    for (
+                        pregunta_id_78,
+                        datos_78
+                    ) in cambios_78.items():
+
+                        indice_78 = (
+                            datos_78[
+                                "indice"
+                            ]
+                        )
+
+
+                        # =========================================
+                        # GUARDAR CONTENIDO EDITADO
+                        # =========================================
+
+                        banco_78.loc[
+                            indice_78,
+                            "Pregunta"
+                        ] = datos_78[
+                            "Pregunta"
+                        ]
+
+
+                        banco_78.loc[
+                            indice_78,
+                            "Respuesta_1"
+                        ] = datos_78[
+                            "Respuesta_1"
+                        ]
+
+
+                        banco_78.loc[
+                            indice_78,
+                            "Respuesta_2"
+                        ] = datos_78[
+                            "Respuesta_2"
+                        ]
+
+
+                        banco_78.loc[
+                            indice_78,
+                            "Respuesta_3"
+                        ] = datos_78[
+                            "Respuesta_3"
+                        ]
+
+
+                        banco_78.loc[
+                            indice_78,
+                            "Respuesta_4"
+                        ] = datos_78[
+                            "Respuesta_4"
+                        ]
+
+
+                        banco_78.loc[
+                            indice_78,
+                            "Respuesta_Correcta"
+                        ] = datos_78[
+                            "Respuesta_Correcta"
+                        ]
+
+
+                        banco_78.loc[
+                            indice_78,
+                            "Observacion_Administrador"
+                        ] = datos_78[
+                            "Observacion"
+                        ]
+
+
+                        # =========================================
+                        # DECISIÓN
+                        # =========================================
+
+                        if (
+                            decision_bloque_78
+                            ==
+                            "Aprobar todo"
+                        ):
+
+                            banco_78.loc[
+                                indice_78,
+                                "Estado"
+                            ] = "APROBADA"
+
+
+                        elif (
+                            decision_bloque_78
+                            ==
+                            "Rechazar todo"
+                        ):
+
+                            banco_78.loc[
+                                indice_78,
+                                "Estado"
+                            ] = "RECHAZADA"
+
+
+                        else:
+
+                            if (
+                                datos_78[
+                                    "Decision"
+                                ]
+                                ==
+                                "Aprobar"
+                            ):
+
+                                banco_78.loc[
+                                    indice_78,
+                                    "Estado"
+                                ] = "APROBADA"
+
+
+                            elif (
+                                datos_78[
+                                    "Decision"
+                                ]
+                                ==
+                                "Rechazar"
+                            ):
+
+                                banco_78.loc[
+                                    indice_78,
+                                    "Estado"
+                                ] = "RECHAZADA"
+
+
+                            else:
+
+                                banco_78.loc[
+                                    indice_78,
+                                    "Estado"
+                                ] = "PENDIENTE"
+
+
+                    # =================================================
+                    # GUARDAR EXCEL
+                    # =================================================
+
+                    try:
+
+                        banco_78.to_excel(
+
+                            RUTA_BANCO_78,
+
+                            index=False,
+
+                            sheet_name="Banco_General"
+
+                        )
+
+
+                        st.success(
+
+                            "✓ Las preguntas y sus "
+                            "estados fueron guardados "
+                            "correctamente en el Excel."
+
+                        )
+
+
+                        st.rerun()
+
+
+                    except Exception as error_guardado_78:
+
+                        st.error(
+
+                            "No fue posible guardar "
+                            "el Banco General."
+
+                        )
+
+                        st.code(
+                            str(
+                                error_guardado_78
+                            )
+                        )
 # ============================================================
 # 8. PIE DE APLICACIÓN
 # ============================================================
