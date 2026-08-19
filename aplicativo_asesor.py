@@ -6226,7 +6226,6 @@ if (
         f"Relaciones actualmente bloqueadas: "
         f"{len(relaciones_bloqueadas_75)}"
     )
-
 # ========================================================
 # ========================================================
 # 7.5 BANCO GENERAL — PRODUCTO + ACCIÓN GENERAL
@@ -6262,22 +6261,20 @@ if (
 # ========================================================
 
 
-if (
-    ROL_ACTUAL == "ADMINISTRADOR"
-    and opcion_evaluacion == "Banco general de preguntas"
-):
+if ROL_ACTUAL == "ADMINISTRADOR":
 
-    import re
+    if opcion_evaluacion == "Banco general de preguntas":
 
-    st.subheader(
-        "Banco General de Preguntas — Producto + Acción General"
-    )
+        import re
 
-    st.write(
-        "La normalización se realiza una sola vez y "
-        "alimenta los generadores de Nivel 1 y Nivel 2."
-    )
+        st.subheader(
+            "Banco General de Preguntas — Producto + Acción General"
+        )
 
+        st.write(
+            "La normalización se realiza una sola vez y "
+            "alimenta los generadores de Nivel 1 y Nivel 2."
+        )
     # ====================================================
     # 1. VERIFICAR ARCHIVO DEL BANCO
     # ====================================================
