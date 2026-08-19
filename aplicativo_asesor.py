@@ -6168,6 +6168,30 @@ if (
         f"7.5.6 ✓ Nivel seleccionado: "
         f"{modo_generacion_75}"
     )
+
+    # ====================================================
+    # 7.5.7 CANTIDAD MÁXIMA DE PREGUNTAS
+    # ====================================================
+
+    cantidad_maxima_75 = st.number_input(
+        "Cantidad máxima de preguntas a generar",
+        min_value=1,
+        max_value=100,
+        value=10,
+        step=1,
+        key="cantidad_maxima_75"
+    )
+
+    st.caption(
+        "La cantidad es un máximo global para esta generación. "
+        "El sistema no forzará preguntas repetidas ni obligará "
+        "a un producto a generar una cantidad determinada."
+    )
+
+    st.success(
+        f"7.5.7 ✓ Máximo seleccionado: "
+        f"{cantidad_maxima_75} preguntas."
+    )
 # ========================================================
 # 7.9 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL + COMPLEMENTARIAS
