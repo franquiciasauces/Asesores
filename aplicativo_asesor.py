@@ -6602,132 +6602,36 @@ if (
         )
 
 # ====================================================
-# 7.5.5 CREAR DATAFRAME NORMALIZADO ÚNICO
+# 7.5.4 CREAR DATAFRAME NORMALIZADO ÚNICO
 # ====================================================
 
-    columnas_fuente_75 = [
-        "Producto",
-        "Acciones generales"
-    ]
+df_normalizado_75 = pd.DataFrame(
+    registros_normalizados_75
+)
 
-    if "Componentes" in Base_Productos.columns:
+if df_normalizado_75.empty:
 
-        columnas_fuente_75.append(
-            "Componentes"
-        )
+    st.warning(
+        "No se encontraron relaciones normalizadas "
+        "para generar preguntas."
+    )
 
-    faltantes_75 = [
-        columna_75
-        for columna_75 in [
-            "Producto",
-            "Acciones generales"
-        ]
-        if columna_75 not in Base_Productos.columns
-    ]
+else:
 
-    if faltantes_75:
-
-        st.error(
-            "Faltan columnas necesarias en Base_Productos:"
-        )
-
-        for columna_75 in faltantes_75:
-
-            st.write(
-                f"- {columna_75}"
-            )
-
-        st.stop()
-
-    base_trabajo_75 = (
-        Base_Productos[
-            columnas_fuente_75
+    df_normalizado_75 = (
+        df_normalizado_75[
+            [
+                "Producto",
+                "Acciones"
+            ]
         ]
         .copy()
-        .fillna("")
     )
 
-    registros_normalizados_75 = []
-
-    for _, fila_75 in base_trabajo_75.iterrows():
-
-        producto_75 = limpiar_texto_75(
-            fila_75["Producto"]
-        )
-
-        if not producto_75:
-
-            continue
-
-        componentes_75 = []
-
-        if "Componentes" in base_trabajo_75.columns:
-
-            componentes_75 = separar_acciones_75(
-                fila_75["Componentes"]
-            )
-
-        acciones_originales_75 = separar_acciones_75(
-            fila_75["Acciones generales"]
-        )
-
-        acciones_normalizadas_75 = []
-
-        for accion_original_75 in acciones_originales_75:
-
-            accion_normalizada_75 = (
-                normalizar_accion_general_75(
-                    accion_original_75,
-                    componentes_75
-                )
-            )
-
-            if not accion_normalizada_75:
-
-                continue
-
-            for accion_75 in separar_acciones_75(
-                accion_normalizada_75
-            ):
-
-                firma_75 = firma_texto_75(
-                    accion_75
-                )
-
-                if not firma_75:
-
-                    continue
-
-                if any(
-                    firma_75
-                    ==
-                    firma_texto_75(
-                        accion_existente_75
-                    )
-                    for accion_existente_75
-                    in acciones_normalizadas_75
-                ):
-
-                    continue
-
-                acciones_normalizadas_75.append(
-                    accion_75
-                )
-
-        if acciones_normalizadas_75:
-
-            registros_normalizados_75.append({
-
-                "Producto": producto_75,
-
-                "Accion": acciones_normalizadas_75
-
-            })
-
-    df_normalizado_75 = pd.DataFrame(
-        registros_normalizados_75
-    )
-    
+    st.info(
+        "Relaciones normalizadas disponibles: "
+        f"{len(df_normalizado_75)}"
+    )    
 # ========================================================
 # 7.9 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL + COMPLEMENTARIAS
