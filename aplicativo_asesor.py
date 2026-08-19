@@ -6147,13 +6147,27 @@ if (
             "7.5.5A ✓ Muestra de normalización disponible."
         )
 
-        # ====================================================
+       # ====================================================
     # 7.5.8 PREPARAR CANDIDATOS DE GENERACIÓN
     # ====================================================
+
+    modo_actual_75 = st.session_state.get(
+        "modo_generacion_75",
+        "Nivel 1"
+    )
 
     candidatos_75 = []
 
     if not dataframe_normalizado_75.empty:
+
+        acciones_por_producto_75 = (
+            dataframe_normalizado_75
+            .groupby("Producto")[
+                "Accion_General"
+            ]
+            .apply(list)
+            .to_dict()
+        )
 
         for _, fila_75 in (
             dataframe_normalizado_75.iterrows()
@@ -6171,13 +6185,13 @@ if (
                 "Firma"
             ]
 
-            if modo_generacion_75 == "Nivel 1":
+            if modo_actual_75 == "Nivel 1":
 
                 niveles_75 = [
                     "Nivel 1"
                 ]
 
-            elif modo_generacion_75 == "Nivel 2":
+            elif modo_actual_75 == "Nivel 2":
 
                 niveles_75 = [
                     "Nivel 2"
@@ -6192,16 +6206,38 @@ if (
 
             for nivel_75 in niveles_75:
 
-                fuente_75 = (
+                if (
+                    nivel_75 == "Nivel 2"
+                    and
+                    len(
+                        acciones_por_producto_75.get(
+                            producto_75,
+                            []
+                        )
+                    ) < 2
+                ):
+
+                    continue
+
+                prefijo_75 = (
                     "N1||"
                     if nivel_75 == "Nivel 1"
                     else "N2||"
-                ) + firma_75
+                )
 
-                if (
+                fuente_75 = (
+                    prefijo_75
+                    + firma_75
+                )
+
+                relacion_75 = (
                     nivel_75.casefold(),
                     fuente_75.casefold()
-                ) in relaciones_bloqueadas_75:
+                )
+
+                if relacion_75 in (
+                    relaciones_bloqueadas_75
+                ):
 
                     continue
 
@@ -6222,10 +6258,9 @@ if (
                 })
 
     st.success(
-        f"7.5.8 ✓ Candidatos disponibles: "
+        f"7.5.8 ✓ Candidatos válidos preparados: "
         f"{len(candidatos_75)}"
     )
-
     # ====================================================
     # 7.5.6 SELECCIÓN DEL NIVEL DE GENERACIÓN
     # ====================================================
