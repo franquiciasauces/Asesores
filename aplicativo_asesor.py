@@ -5422,172 +5422,6 @@ if (
             )
 
 # ========================================================
-# 7.5 BANCO GENERAL DE PREGUNTAS
-# SECCIÓN 1 — CONFIGURACIÓN Y NORMALIZACIÓN COMÚN
-#
-# NIVEL 1 → PRODUCTO + ACCIÓN GENERAL
-# NIVEL 2 → PRODUCTO + COMPONENTE + ACCIÓN GENERAL
-#
-# SOLO ADMINISTRADOR
-# ========================================================
-
-if (
-    ROL_ACTUAL == "ADMINISTRADOR"
-    and opcion_evaluacion == "Banco general de preguntas"
-):
-
-    st.subheader(
-        "Banco general de preguntas"
-    )
-
-    st.write(
-        "Generación controlada de preguntas "
-        "Nivel 1 y Nivel 2."
-    )
-
-    # ====================================================
-    # 7.5.1 VERIFICACIÓN DEL BANCO GENERAL
-    # ====================================================
-
-    if not RUTA_BANCO_GENERAL.exists():
-
-        st.error(
-            "No existe el archivo "
-            "BANCO_PREGUNTAS_GENERALES.xlsx."
-        )
-
-        st.stop()
-
-    # ====================================================
-    # 7.5.2 CARGAR BANCO GENERAL
-    # ====================================================
-
-    try:
-
-        banco_general_75 = pd.read_excel(
-            RUTA_BANCO_GENERAL,
-            dtype=str
-        ).fillna("")
-
-    except Exception as error_banco_general_75:
-
-        st.error(
-            "No fue posible cargar el Banco General."
-        )
-
-        st.code(
-            str(error_banco_general_75)
-        )
-
-        st.stop()
-
-    # ====================================================
-    # 7.5.3 FUNCIONES COMUNES DE LIMPIEZA
-    # ====================================================
-
-    def limpiar_texto_75(valor):
-
-        if pd.isna(valor):
-
-            return ""
-
-        texto_75 = str(valor)
-
-        texto_75 = (
-            texto_75
-            .replace("\n", " ")
-            .replace("\r", " ")
-            .replace("\t", " ")
-        )
-
-        texto_75 = " ".join(
-            texto_75.split()
-        )
-
-        return texto_75.strip()
-
-
-    def normalizar_texto_75(valor):
-
-        texto_75 = limpiar_texto_75(
-            valor
-        )
-
-        if not texto_75:
-
-            return ""
-
-        return (
-            texto_75
-            .casefold()
-            .strip()
-        )
-
-
-    def lista_texto_75(valor):
-
-        texto_75 = limpiar_texto_75(
-            valor
-        )
-
-        if not texto_75:
-
-            return []
-
-        elementos_75 = []
-
-        for elemento_75 in texto_75.split(";"):
-
-            elemento_limpio_75 = (
-                limpiar_texto_75(
-                    elemento_75
-                )
-            )
-
-            if elemento_limpio_75:
-
-                elementos_75.append(
-                    elemento_limpio_75
-                )
-
-        return elementos_75
-
-
-    def eliminar_duplicados_texto_75(
-        elementos_75
-    ):
-
-        resultado_75 = []
-
-        vistos_75 = set()
-
-        for elemento_75 in elementos_75:
-
-            texto_75 = limpiar_texto_75(
-                elemento_75
-            )
-
-            firma_75 = normalizar_texto_75(
-                texto_75
-            )
-
-            if not firma_75:
-
-                continue
-
-            if firma_75 in vistos_75:
-
-                continue
-
-            vistos_75.add(
-                firma_75
-            )
-
-            resultado_75.append(
-                texto_75
-            )
-
-        return resultado_75
 
 # ========================================================
 # ========================================================
@@ -5650,7 +5484,92 @@ if (
     st.success(
         "7.5.1 ✓ Banco General cargado correctamente."
     )
-    
+    # ====================================================
+    # 7.5.2 FUNCIONES BÁSICAS DE LIMPIEZA Y NORMALIZACIÓN
+    # ====================================================
+
+    def limpiar_texto_75(valor):
+
+        if pd.isna(valor):
+            return ""
+
+        return " ".join(
+            str(valor)
+            .replace("\r", " ")
+            .replace("\n", " ")
+            .replace("\t", " ")
+            .split()
+        ).strip()
+
+
+    def firma_texto_75(valor):
+
+        texto_75 = limpiar_texto_75(
+            valor
+        )
+
+        return texto_75.casefold().strip(
+            " .;,:"
+        )
+
+
+    def separar_lista_75(valor):
+
+        texto_75 = limpiar_texto_75(
+            valor
+        )
+
+        if not texto_75:
+            return []
+
+        resultado_75 = []
+
+        for elemento_75 in texto_75.split(";"):
+
+            elemento_75 = limpiar_texto_75(
+                elemento_75
+            )
+
+            if elemento_75:
+                resultado_75.append(
+                    elemento_75
+                )
+
+        return resultado_75
+
+
+    def quitar_duplicados_75(elementos_75):
+
+        resultado_75 = []
+        vistos_75 = set()
+
+        for elemento_75 in elementos_75:
+
+            firma_75 = firma_texto_75(
+                elemento_75
+            )
+
+            if (
+                firma_75
+                and firma_75 not in vistos_75
+            ):
+
+                vistos_75.add(
+                    firma_75
+                )
+
+                resultado_75.append(
+                    limpiar_texto_75(
+                        elemento_75
+                    )
+                )
+
+        return resultado_75
+
+
+    st.success(
+        "7.5.2 ✓ Funciones de limpieza preparadas."
+    )  
 # ========================================================
 # 7.9 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL + COMPLEMENTARIAS
