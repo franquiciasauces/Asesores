@@ -5571,8 +5571,8 @@ if (
         "7.5.2 ✓ Funciones de limpieza preparadas."
     )  
 
-    # ====================================================
-    # 7.5.3 NORMALIZACIÓN ÚNICA Y DATAFRAME CENTRAL
+       # ====================================================
+    # 7.5.3 NORMALIZACIÓN, ABSTRACCIÓN Y DATAFRAME CENTRAL
     # ====================================================
 
     columnas_75 = [
@@ -5588,7 +5588,10 @@ if (
 
     faltantes_75 = [
         columna_75
-        for columna_75 in columnas_75[:2]
+        for columna_75 in (
+            "Producto",
+            "Acciones generales"
+        )
         if columna_75 not in Base_Productos.columns
     ]
 
@@ -5601,6 +5604,7 @@ if (
 
         st.stop()
 
+
     fuente_75 = (
         Base_Productos[
             columnas_75
@@ -5609,7 +5613,285 @@ if (
         .fillna("")
     )
 
-    registros_75 = []
+
+    # ====================================================
+    # MARCADORES QUE NO FORMAN PARTE DE LA ACCIÓN
+    # ====================================================
+
+    marcadores_fin_75 = [
+        "COMBINACIONES:",
+        "COMBINACIONES",
+        "FRASE DE VENTA:",
+        "FRASE DE VENTA",
+        "NOTA:",
+        "NOTA",
+        "ADVERTENCIAS:",
+        "ADVERTENCIAS",
+        "MENSAJE CLAVE:",
+        "MENSAJE CLAVE",
+        "PATOLOGÍAS CLAVE:",
+        "PATOLOGIAS CLAVE:",
+        "PATOLOGÍAS CLAVE",
+        "PATOLOGIAS CLAVE"
+    ]
+
+
+    # ====================================================
+    # ABSTRACCIÓN DE UNA ACCIÓN
+    # ====================================================
+
+    def abstraer_accion_75(
+        accion_75,
+        componentes_75
+    ):
+
+        texto_75 = limpiar_texto_75(
+            accion_75
+        )
+
+        if not texto_75:
+
+            return []
+
+
+        # ------------------------------------------------
+        # ELIMINAR ENCABEZADO MODO DE ACCIÓN
+        # ------------------------------------------------
+
+        texto_75 = re.sub(
+            r"^\s*MODO\s+DE\s+ACCI[ÓO]N\s*:\s*",
+            "",
+            texto_75,
+            flags=re.IGNORECASE
+        ).strip()
+
+
+        # ------------------------------------------------
+        # CORTAR INFORMACIÓN POSTERIOR
+        # ------------------------------------------------
+
+        texto_mayusculas_75 = (
+            texto_75.upper()
+        )
+
+        posiciones_75 = []
+
+        for marcador_75 in (
+            marcadores_fin_75
+        ):
+
+            posicion_75 = (
+                texto_mayusculas_75.find(
+                    marcador_75
+                )
+            )
+
+            if posicion_75 >= 0:
+
+                posiciones_75.append(
+                    posicion_75
+                )
+
+        if posiciones_75:
+
+            texto_75 = texto_75[
+                :min(posiciones_75)
+            ].strip()
+
+
+        if not texto_75:
+
+            return []
+
+
+        # ------------------------------------------------
+        # SEPARAR ACCIONES INDEPENDIENTES
+        # ------------------------------------------------
+
+        partes_75 = (
+            separar_lista_75(
+                texto_75
+            )
+        )
+
+
+        acciones_75 = []
+
+
+        # ------------------------------------------------
+        # COMPONENTES MÁS LARGOS PRIMERO
+        # ------------------------------------------------
+
+        componentes_limpios_75 = (
+            quitar_duplicados_75(
+                componentes_75
+            )
+        )
+
+        componentes_limpios_75.sort(
+            key=len,
+            reverse=True
+        )
+
+
+        for parte_75 in partes_75:
+
+            texto_parte_75 = (
+                limpiar_texto_75(
+                    parte_75
+                )
+            )
+
+            if not texto_parte_75:
+
+                continue
+
+
+            texto_minusculas_75 = (
+                texto_parte_75.casefold()
+            )
+
+
+            # ------------------------------------------------
+            # ABSTRACCIÓN POR CONECTOR FUNCIONAL
+            #
+            # Ejemplo:
+            # "Eucalipto con efecto descongestionante"
+            #
+            # Resultado:
+            # "efecto descongestionante"
+            # ------------------------------------------------
+
+            conectores_75 = [
+                " que ayuda a ",
+                " que contribuye a ",
+                " que favorece ",
+                " que aporta ",
+                " por su ",
+                " mediante ",
+                " con efecto ",
+                " con ",
+                " como "
+            ]
+
+            candidatos_conector_75 = []
+
+            for conector_75 in (
+                conectores_75
+            ):
+
+                posicion_75 = (
+                    texto_minusculas_75.find(
+                        conector_75
+                    )
+                )
+
+                if posicion_75 > 0:
+
+                    candidatos_conector_75.append(
+                        (
+                            posicion_75,
+                            conector_75
+                        )
+                    )
+
+            if candidatos_conector_75:
+
+                posicion_75, conector_75 = min(
+                    candidatos_conector_75,
+                    key=lambda elemento_75:
+                    elemento_75[0]
+                )
+
+                texto_parte_75 = (
+                    texto_parte_75[
+                        posicion_75
+                        + len(conector_75):
+                    ].strip()
+                )
+
+
+            # ------------------------------------------------
+            # ELIMINAR COMPONENTES CONOCIDOS
+            #
+            # SOLO SI TODAVÍA APARECEN EN EL TEXTO.
+            # ------------------------------------------------
+
+            for componente_75 in (
+                componentes_limpios_75
+            ):
+
+                patron_75 = (
+                    r"(?<!\w)"
+                    + re.escape(
+                        componente_75
+                    )
+                    + r"(?!\w)"
+                )
+
+                texto_parte_75 = re.sub(
+                    patron_75,
+                    "",
+                    texto_parte_75,
+                    flags=re.IGNORECASE
+                )
+
+
+            # ------------------------------------------------
+            # LIMPIEZA FINAL
+            # ------------------------------------------------
+
+            texto_parte_75 = re.sub(
+                r"\s{2,}",
+                " ",
+                texto_parte_75
+            ).strip(
+                " .;,:-"
+            ).strip()
+
+
+            if not texto_parte_75:
+
+                continue
+
+
+            # ------------------------------------------------
+            # DESCARTAR CONECTORES AISLADOS
+            # ------------------------------------------------
+
+            if firma_texto_75(
+                texto_parte_75
+            ) in {
+                "con",
+                "como",
+                "para",
+                "mediante",
+                "y"
+            }:
+
+                continue
+
+
+            acciones_75.append(
+                texto_parte_75
+            )
+
+
+        # ------------------------------------------------
+        # ELIMINAR DUPLICADOS
+        # ------------------------------------------------
+
+        return quitar_duplicados_75(
+            acciones_75
+        )
+
+
+    # ====================================================
+    # CREAR DATAFRAME NORMALIZADO ÚNICO
+    # ====================================================
+
+    registros_normalizados_75 = []
+
 
     for _, fila_75 in fuente_75.iterrows():
 
@@ -5618,22 +5900,65 @@ if (
         )
 
         if not producto_75:
+
             continue
 
-        acciones_75 = separar_lista_75(
-            fila_75["Acciones generales"]
+
+        acciones_originales_75 = (
+            separar_lista_75(
+                fila_75[
+                    "Acciones generales"
+                ]
+            )
         )
 
-        acciones_75 = quitar_duplicados_75(
-            acciones_75
+
+        componentes_75 = []
+
+        if "Componentes" in (
+            fuente_75.columns
+        ):
+
+            componentes_75 = (
+                separar_lista_75(
+                    fila_75[
+                        "Componentes"
+                    ]
+                )
+            )
+
+
+        acciones_abstraidas_75 = []
+
+
+        for accion_original_75 in (
+            acciones_originales_75
+        ):
+
+            acciones_resultado_75 = (
+                abstraer_accion_75(
+                    accion_original_75,
+                    componentes_75
+                )
+            )
+
+            acciones_abstraidas_75.extend(
+                acciones_resultado_75
+            )
+
+
+        acciones_abstraidas_75 = (
+            quitar_duplicados_75(
+                acciones_abstraidas_75
+            )
         )
 
-        if not acciones_75:
-            continue
 
-        for accion_75 in acciones_75:
+        for accion_75 in (
+            acciones_abstraidas_75
+        ):
 
-            registros_75.append({
+            registros_normalizados_75.append({
 
                 "Producto":
                     producto_75,
@@ -5654,14 +5979,20 @@ if (
 
             })
 
+
     dataframe_normalizado_75 = pd.DataFrame(
-        registros_75,
+        registros_normalizados_75,
         columns=[
             "Producto",
             "Accion_General",
             "Firma"
         ]
     )
+
+
+    # ====================================================
+    # ELIMINAR RELACIONES DUPLICADAS
+    # ====================================================
 
     if not dataframe_normalizado_75.empty:
 
@@ -5670,15 +6001,18 @@ if (
             .drop_duplicates(
                 subset=["Firma"]
             )
-            .reset_index(drop=True)
+            .reset_index(
+                drop=True
+            )
         )
 
+
     st.success(
-        "7.5.3 ✓ Normalización única completada. "
-        f"Relaciones disponibles: "
+        "7.5.3 ✓ DataFrame normalizado y abstraído "
+        "creado correctamente. "
+        f"Relaciones: "
         f"{len(dataframe_normalizado_75)}"
     )
-
     # ====================================================
     # 7.5.4 VERIFICACIÓN DEL DATAFRAME NORMALIZADO
     # ====================================================
