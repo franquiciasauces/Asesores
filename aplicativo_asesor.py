@@ -6277,7 +6277,329 @@ if (
             )
         )
 
+# ====================================================
+# 7.5.4 NORMALIZAR Y ABSTRAER ACCIÓN GENERAL
+# ====================================================
 
+    def normalizar_accion_general_75(
+        valor,
+        componentes
+    ):
+
+        texto_75 = limpiar_texto_75(
+            valor
+        )
+
+        if not texto_75:
+
+            return ""
+
+        # =================================================
+        # ELIMINAR ENCABEZADO DE MODO DE ACCIÓN
+        # =================================================
+
+        texto_75 = re.sub(
+            r"^\s*MODO\s+DE\s+ACCI[ÓO]N\s*:\s*",
+            "",
+            texto_75,
+            flags=re.IGNORECASE
+        ).strip()
+
+        if not texto_75:
+
+            return ""
+
+        # =================================================
+        # ELIMINAR INFORMACIÓN QUE NO ES ACCIÓN GENERAL
+        # =================================================
+
+        marcadores_fin_75 = [
+
+            "COMBINACIONES:",
+            "COMBINACIONES",
+            "FRASE DE VENTA:",
+            "FRASE DE VENTA",
+            "NOTA:",
+            "NOTA",
+            "ADVERTENCIAS:",
+            "ADVERTENCIAS",
+            "MENSAJE CLAVE:",
+            "MENSAJE CLAVE",
+            "PATOLOGÍAS CLAVE:",
+            "PATOLOGIAS CLAVE:",
+            "PATOLOGÍAS CLAVE",
+            "PATOLOGIAS CLAVE"
+
+        ]
+
+        texto_mayusculas_75 = (
+            texto_75.upper()
+        )
+
+        posiciones_75 = []
+
+        for marcador_75 in marcadores_fin_75:
+
+            posicion_75 = (
+                texto_mayusculas_75.find(
+                    marcador_75
+                )
+            )
+
+            if posicion_75 >= 0:
+
+                posiciones_75.append(
+                    posicion_75
+                )
+
+        if posiciones_75:
+
+            texto_75 = texto_75[
+                :min(posiciones_75)
+            ].strip()
+
+        if not texto_75:
+
+            return ""
+
+        # =================================================
+        # PREPARAR COMPONENTES DE LA MATRIZ
+        #
+        # SOLO SE UTILIZAN PARA ABSTRAER LA FUNCIÓN.
+        # NO SE GUARDAN EN LA RELACIÓN.
+        # =================================================
+
+        componentes_limpios_75 = []
+
+        for componente_75 in componentes:
+
+            componente_limpio_75 = (
+                limpiar_texto_75(
+                    componente_75
+                )
+            )
+
+            if not componente_limpio_75:
+
+                continue
+
+            firma_componente_75 = (
+                firma_texto_75(
+                    componente_limpio_75
+                )
+            )
+
+            if not firma_componente_75:
+
+                continue
+
+            if any(
+                firma_componente_75
+                ==
+                firma_texto_75(
+                    componente_existente_75
+                )
+                for componente_existente_75
+                in componentes_limpios_75
+            ):
+
+                continue
+
+            componentes_limpios_75.append(
+                componente_limpio_75
+            )
+
+        # Los componentes más largos se procesan primero.
+        componentes_limpios_75.sort(
+            key=len,
+            reverse=True
+        )
+
+        # =================================================
+        # SEPARAR SEGMENTOS DE ACCIÓN
+        # =================================================
+
+        partes_75 = []
+
+        for parte_75 in texto_75.split(";"):
+
+            parte_limpia_75 = (
+                limpiar_texto_75(
+                    parte_75
+                )
+            )
+
+            if parte_limpia_75:
+
+                partes_75.append(
+                    parte_limpia_75
+                )
+
+        acciones_75 = []
+
+        # =================================================
+        # EXTRAER LA FUNCIÓN GENERAL
+        # =================================================
+
+        conectores_75 = [
+
+            " con ",
+            " como ",
+            " mediante ",
+            " por su ",
+            " que aporta ",
+            " que contribuye ",
+            " que favorece ",
+            " que ayuda a "
+
+        ]
+
+        for parte_75 in partes_75:
+
+            parte_trabajo_75 = (
+                parte_75
+            )
+
+            parte_minuscula_75 = (
+                parte_trabajo_75.casefold()
+            )
+
+            posiciones_conectores_75 = []
+
+            for conector_75 in conectores_75:
+
+                posicion_75 = (
+                    parte_minuscula_75.find(
+                        conector_75
+                    )
+                )
+
+                if posicion_75 > 0:
+
+                    posiciones_conectores_75.append(
+                        (
+                            posicion_75,
+                            conector_75
+                        )
+                    )
+
+            # Si existe un componente/nombre antes del
+            # conector, se conserva la función posterior.
+            if posiciones_conectores_75:
+
+                posicion_75, conector_75 = min(
+                    posiciones_conectores_75,
+                    key=lambda elemento_75:
+                    elemento_75[0]
+                )
+
+                posible_accion_75 = (
+                    parte_trabajo_75[
+                        posicion_75
+                        + len(conector_75):
+                    ].strip()
+                )
+
+                if posible_accion_75:
+
+                    parte_trabajo_75 = (
+                        posible_accion_75
+                    )
+
+            # =================================================
+            # ELIMINAR COMPONENTES CONOCIDOS
+            # =================================================
+
+            for componente_75 in componentes_limpios_75:
+
+                patron_75 = (
+                    r"(?<!\w)"
+                    + re.escape(
+                        componente_75
+                    )
+                    + r"(?!\w)"
+                )
+
+                parte_trabajo_75 = re.sub(
+                    patron_75,
+                    "",
+                    parte_trabajo_75,
+                    flags=re.IGNORECASE
+                )
+
+            # =================================================
+            # LIMPIEZA FINAL
+            # =================================================
+
+            parte_trabajo_75 = re.sub(
+                r"\s{2,}",
+                " ",
+                parte_trabajo_75
+            ).strip(
+                " .;,:-"
+            ).strip()
+
+            if not parte_trabajo_75:
+
+                continue
+
+            if firma_texto_75(
+                parte_trabajo_75
+            ) in {
+
+                "con",
+                "como",
+                "para",
+                "mediante",
+                "y"
+
+            }:
+
+                continue
+
+            acciones_75.append(
+                parte_trabajo_75.rstrip(
+                    " ."
+                ).strip()
+            )
+
+        # =================================================
+        # ELIMINAR DUPLICADOS
+        # =================================================
+
+        acciones_finales_75 = []
+
+        firmas_vistas_75 = set()
+
+        for accion_75 in acciones_75:
+
+            firma_75 = firma_texto_75(
+                accion_75
+            )
+
+            if not firma_75:
+
+                continue
+
+            if firma_75 in firmas_vistas_75:
+
+                continue
+
+            firmas_vistas_75.add(
+                firma_75
+            )
+
+            acciones_finales_75.append(
+                accion_75
+            )
+
+        if not acciones_finales_75:
+
+            return ""
+
+        return "; ".join(
+            acciones_finales_75
+        )
     # ====================================================
     # 7.5.9 ELIMINAR FILAS SIN INFORMACIÓN ÚTIL
     # ====================================================
