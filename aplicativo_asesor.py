@@ -8883,9 +8883,7 @@ if (
                                     )
 
 
-                                except Exception as (
-                                    error_guardado_validacion_75
-                                ):
+                                except Exception as error_guardado_validacion_75:
 
                                     st.error(
 
@@ -8969,7 +8967,6 @@ if (
                                 "de Producto Nivel 1 o Nivel 2."
 
                             )
-
 # ========================================================
 # 7.9 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL + COMPLEMENTARIAS
