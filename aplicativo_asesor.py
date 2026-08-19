@@ -3950,1850 +3950,2013 @@ if (
             )
 
 # ========================================================
-# 7.5 BANCO GENERAL — RESTRICCIONES
-# GENERADOR + VALIDACIÓN + GUARDADO + GITHUB
+
+# GENERADOR + VALIDADOR DE PREGUNTAS
+
+# RESTRICCIONES
+
+# GENERAR → VALIDAR → GUARDAR → SINCRONIZAR GITHUB
+
 # SOLO ADMINISTRADOR
+
 # ========================================================
 
 if (
-    ROL_ACTUAL == "ADMINISTRADOR"
-    and opcion_evaluacion == "Banco general de preguntas"
+ROL_ACTUAL == "ADMINISTRADOR"
+and opcion_evaluacion == "Banco general de preguntas"
 ):
 
-    st.subheader(
-        "Preguntas de Restricciones"
+```
+st.subheader("Preguntas de Restricciones")
+
+# ====================================================
+# 1. CARGAR BANCO GENERAL
+# ====================================================
+
+if RUTA_BANCO_GENERAL.exists():
+
+    try:
+
+        banco_restricciones = pd.read_excel(
+            RUTA_BANCO_GENERAL,
+            dtype=str
+        ).fillna("")
+
+    except Exception as error:
+
+        st.error("No fue posible cargar el Banco General.")
+        st.code(str(error))
+        banco_restricciones = pd.DataFrame()
+
+else:
+
+    banco_restricciones = pd.DataFrame(
+        columns=COLUMNAS_BANCO_GENERAL
     )
 
-    # ====================================================
-    # 7.5.1 CARGAR BANCO GENERAL
-    # ====================================================
 
-    if RUTA_BANCO_GENERAL.exists():
+# ====================================================
+# 2. FUNCIONES AUXILIARES
+# ====================================================
+
+def limpiar_r77(valor):
+
+    if pd.isna(valor):
+        return ""
+
+    return str(valor).strip()
+
+
+def lista_r77(valor):
+
+    texto = limpiar_r77(valor)
+
+    if not texto:
+        return []
+
+    partes = []
+
+    for parte in texto.split(";"):
+
+        parte = parte.strip()
+
+        if parte:
+            partes.append(parte)
+
+    return partes
+
+
+def siguiente_id_r77(banco):
+
+    numeros = []
+
+    if not banco.empty and "Pregunta_ID" in banco.columns:
+
+        for valor in banco["Pregunta_ID"]:
+
+            texto = limpiar_r77(valor)
+
+            if texto.startswith("RES_"):
+
+                try:
+                    numeros.append(
+                        int(texto[4:])
+                    )
+
+                except ValueError:
+                    pass
+
+    if numeros:
+        return max(numeros) + 1
+
+    return 1
+
+
+def mezclar_opciones_r77(correctas, distractores):
+
+    opciones = list(correctas) + list(distractores)
+
+    np.random.shuffle(opciones)
+
+    posiciones = []
+
+    for i, opcion in enumerate(opciones):
+
+        if opcion in correctas:
+            posiciones.append(i + 1)
+
+    return opciones, sorted(posiciones)
+
+
+def texto_valido_r77(texto):
+
+    texto = limpiar_r77(texto)
+
+    if not texto:
+        return False
+
+    texto_normalizado = (
+        texto
+        .lower()
+        .strip()
+    )
+
+    # -----------------------------------------------
+    # ESTOS TEXTOS NO PUEDEN SER OPCIONES
+    # -----------------------------------------------
+
+    basura = [
+
+        "mostrar advertencia",
+
+        "interacción",
+
+        "precaución",
+
+        "contraindicación"
+
+    ]
+
+    # IMPORTANTE:
+    # "Precaución" y "Contraindicación" pueden ser
+    # valores del campo TIPO, pero NO son respuestas
+    # cuando aparecen solos como texto.
+
+    if texto_normalizado in basura:
+        return False
+
+    return True
+
+
+def sincronizar_banco_github_r77():
+
+    try:
+
+        ruta_github = (
+            "BANCO_PREGUNTAS_GENERALES.xlsx"
+        )
+
+        url_github = (
+            f"https://api.github.com/repos/"
+            f"{GITHUB_USUARIO}/"
+            f"{GITHUB_REPOSITORIO}/"
+            f"contents/"
+            f"{ruta_github}"
+        )
+
+        headers = {
+
+            "Authorization":
+                f"Bearer {GITHUB_TOKEN}",
+
+            "Accept":
+                "application/vnd.github+json",
+
+            "X-GitHub-Api-Version":
+                "2022-11-28"
+
+        }
+
+        with open(
+            RUTA_BANCO_GENERAL,
+            "rb"
+        ) as archivo:
+
+            contenido = archivo.read()
+
+        contenido_base64 = (
+            base64.b64encode(
+                contenido
+            ).decode("utf-8")
+        )
+
+        # -------------------------------------------
+        # OBTENER SHA ACTUAL
+        # -------------------------------------------
+
+        solicitud_get = urllib.request.Request(
+            url_github,
+            headers=headers,
+            method="GET"
+        )
+
+        sha_actual = None
 
         try:
 
-            banco_restricciones = pd.read_excel(
-                RUTA_BANCO_GENERAL,
-                dtype=str
-            ).fillna("")
+            with urllib.request.urlopen(
+                solicitud_get
+            ) as respuesta:
 
-        except Exception as error_banco_restricciones:
-
-            st.error(
-                "No fue posible cargar el Banco General."
-            )
-
-            st.code(
-                str(error_banco_restricciones)
-            )
-
-            banco_restricciones = pd.DataFrame()
-
-    else:
-
-        banco_restricciones = pd.DataFrame(
-            columns=COLUMNAS_BANCO_GENERAL
-        )
-
-
-    # ====================================================
-    # 7.5.2 FUNCIONES AUXILIARES
-    # ====================================================
-
-    def limpiar_75(valor):
-
-        if pd.isna(valor):
-            return ""
-
-        return str(valor).strip()
-
-
-    def normalizar_75(valor):
-
-        texto = limpiar_75(valor)
-
-        return (
-            texto
-            .lower()
-            .strip()
-        )
-
-
-    def es_contenido_valido_75(valor):
-
-        texto = limpiar_75(valor)
-
-        if not texto:
-            return False
-
-        # ------------------------------------------------
-        # ESTO NO ES INFORMACIÓN DE RESPUESTA
-        # ------------------------------------------------
-
-        valores_excluidos = {
-
-            "mostrar advertencia",
-
-            "mostrar alerta"
-
-        }
-
-        if normalizar_75(texto) in valores_excluidos:
-
-            return False
-
-        return True
-
-
-    def buscar_columna_75(df, posibles):
-
-        columnas_normalizadas = {
-
-            normalizar_75(columna): columna
-
-            for columna in df.columns
-
-        }
-
-        for posible in posibles:
-
-            clave = normalizar_75(posible)
-
-            if clave in columnas_normalizadas:
-
-                return columnas_normalizadas[clave]
-
-        # -----------------------------------------------
-        # BÚSQUEDA PARCIAL
-        # -----------------------------------------------
-
-        for columna in df.columns:
-
-            columna_normalizada = normalizar_75(
-                columna
-            )
-
-            for posible in posibles:
-
-                posible_normalizado = normalizar_75(
-                    posible
+                informacion = json.loads(
+                    respuesta.read()
+                    .decode("utf-8")
                 )
 
-                if (
-                    posible_normalizado
-                    in columna_normalizada
-                ):
+            sha_actual = informacion.get("sha")
 
-                    return columna
+        except urllib.error.HTTPError as error:
 
-        return None
+            if error.code != 404:
+                raise
 
+        # -------------------------------------------
+        # ACTUALIZAR GITHUB
+        # -------------------------------------------
 
-    def siguiente_id_75(banco):
+        datos = {
 
-        numeros = []
+            "message":
+                "Actualizar Banco General de Preguntas",
 
-        if not banco.empty:
+            "content":
+                contenido_base64
 
-            for valor in banco["Pregunta_ID"]:
+        }
 
-                texto = limpiar_75(valor)
+        if sha_actual:
+            datos["sha"] = sha_actual
 
-                if texto.startswith("RES_"):
+        solicitud_put = urllib.request.Request(
 
-                    try:
+            url_github,
 
-                        numeros.append(
-                            int(texto[4:])
-                        )
+            data=json.dumps(
+                datos
+            ).encode("utf-8"),
 
-                    except ValueError:
+            headers={
+                **headers,
+                "Content-Type":
+                    "application/json"
+            },
 
-                        pass
+            method="PUT"
 
-        if numeros:
-
-            return max(numeros) + 1
-
-        return 1
-
-
-    def opciones_nivel1_75(
-        correcta,
-        distractores
-    ):
-
-        opciones = [
-            correcta
-        ] + distractores
-
-        np.random.shuffle(
-            opciones
         )
 
-        posicion_correcta = (
-            opciones.index(
-                correcta
-            ) + 1
-        )
+        with urllib.request.urlopen(
+            solicitud_put
+        ) as respuesta:
 
-        return (
-            opciones,
-            posicion_correcta
-        )
-
-
-    def opciones_nivel2_75(
-        correcta_1,
-        correcta_2,
-        distractores
-    ):
-
-        opciones = [
-
-            correcta_1,
-            correcta_2
-
-        ] + distractores
-
-        if len(opciones) != 4:
-
-            return (
-                [],
-                []
+            resultado = json.loads(
+                respuesta.read()
+                .decode("utf-8")
             )
 
-        np.random.shuffle(
-            opciones
-        )
+        if resultado.get("content"):
 
-        posiciones_correctas = [
+            return True, ""
 
-            indice + 1
+        return False, "GitHub no confirmó la actualización."
 
-            for indice, opcion
-            in enumerate(opciones)
+    except Exception as error:
 
-            if (
-                opcion == correcta_1
-                or
-                opcion == correcta_2
-            )
+        return False, str(error)
 
+
+# ====================================================
+# 3. VALIDAR COLUMNAS DE RESTRICCIONES
+# ====================================================
+
+columnas_restricciones = [
+
+    "Restriccion_ID",
+    "Producto",
+    "Tipo",
+    "Precaución / Contraindicación",
+    "Motivo",
+    "Alternativas seguras"
+
+]
+
+
+faltantes_restricciones = [
+
+    columna
+
+    for columna in columnas_restricciones
+
+    if columna not in Restricciones.columns
+
+]
+
+
+if faltantes_restricciones:
+
+    st.error(
+        "Faltan columnas necesarias en la hoja "
+        "Restricciones:"
+    )
+
+    for columna in faltantes_restricciones:
+        st.write(f"- {columna}")
+
+else:
+
+    restricciones_r77 = (
+        Restricciones[
+            columnas_restricciones
         ]
+        .copy()
+        .fillna("")
+    )
 
-        if len(
-            posiciones_correctas
-        ) != 2:
+    for columna in columnas_restricciones:
 
-            return (
-                [],
-                []
-            )
-
-        return (
-            opciones,
-            sorted(
-                posiciones_correctas
-            )
+        restricciones_r77[columna] = (
+            restricciones_r77[columna]
+            .astype(str)
+            .str.strip()
         )
 
 
-    # ====================================================
-    # 7.5.3 IDENTIFICAR HOJA RESTRICCIONES
-    # ====================================================
+    # =================================================
+    # 4. FILTRAR REGISTROS ÚTILES
+    # =================================================
 
-    if "Restricciones" not in globals():
-
-        st.error(
-            "No está disponible la hoja "
-            "'Restricciones'."
+    restricciones_r77 = restricciones_r77[
+        (
+            restricciones_r77[
+                "Restriccion_ID"
+            ] != ""
         )
-
-    else:
-
-        restricciones = (
-            Restricciones
-            .copy()
-            .fillna("")
-        )
-
-
-        # =================================================
-        # 7.5.4 IDENTIFICAR COLUMNAS
-        # =================================================
-
-        columna_producto_75 = buscar_columna_75(
-
-            restricciones,
-
-            [
-                "Producto",
-                "Nombre Producto",
-                "Producto_Nombre"
-            ]
-
-        )
-
-
-        columna_restriccion_75 = buscar_columna_75(
-
-            restricciones,
-
-            [
-                "Restricción",
-                "Restriccion",
-                "Tipo",
-                "Tipo_Relacion"
-            ]
-
-        )
-
-
-        columna_motivo_75 = buscar_columna_75(
-
-            restricciones,
-
-            [
-                "Motivo",
-                "Justificación",
-                "Justificacion",
-                "Descripción",
-                "Descripcion"
-            ]
-
-        )
-
-
-        columna_tipo_75 = buscar_columna_75(
-
-            restricciones,
-
-            [
-                "Tipo",
-                "Tipo_Relacion",
-                "Clase"
-            ]
-
-        )
-
-
-        columna_id_75 = buscar_columna_75(
-
-            restricciones,
-
-            [
-                "Restriccion_ID",
-                "Restricción_ID",
-                "Restriccion ID",
-                "ID"
-            ]
-
-        )
-
-
-        columnas_faltantes_75 = []
-
-
-        if not columna_producto_75:
-
-            columnas_faltantes_75.append(
+        &
+        (
+            restricciones_r77[
                 "Producto"
+            ] != ""
+        )
+        &
+        (
+            restricciones_r77[
+                "Tipo"
+            ] != ""
+        )
+        &
+        (
+            restricciones_r77[
+                "Precaución / Contraindicación"
+            ] != ""
+        )
+    ].copy()
+
+
+    st.info(
+        f"Registros de restricciones disponibles: "
+        f"{len(restricciones_r77)}"
+    )
+
+
+    # =================================================
+    # 5. CONFIGURACIÓN DE GENERACIÓN
+    # =================================================
+
+    st.markdown("### Generar nuevas preguntas")
+
+    niveles_restricciones = st.multiselect(
+
+        "Niveles:",
+
+        [
+            "Nivel 1",
+            "Nivel 2"
+        ],
+
+        default=[
+            "Nivel 1",
+            "Nivel 2"
+        ],
+
+        key="niveles_restricciones_r77"
+
+    )
+
+
+    cantidad_nivel_1_r77 = st.number_input(
+
+        "Cantidad máxima de preguntas Nivel 1",
+
+        min_value=0,
+        max_value=5,
+        value=5,
+        step=1,
+
+        key="cantidad_nivel1_restricciones_r77"
+
+    )
+
+
+    cantidad_nivel_2_r77 = st.number_input(
+
+        "Cantidad máxima de preguntas Nivel 2",
+
+        min_value=0,
+        max_value=5,
+        value=5,
+        step=1,
+
+        key="cantidad_nivel2_restricciones_r77"
+
+    )
+
+
+    # =================================================
+    # 6. GENERAR
+    # =================================================
+
+    if st.button(
+        "GENERAR PREGUNTAS DE RESTRICCIONES",
+        key="generar_restricciones_r77"
+    ):
+
+        nuevas_restricciones_r77 = []
+
+        siguiente_id_r77_actual = (
+            siguiente_id_r77(
+                banco_restricciones
             )
+        )
 
 
-        if not columna_motivo_75:
+        # =================================================
+        # RELACIONES YA EXISTENTES
+        #
+        # IMPORTANTE:
+        # APROBADAS Y RECHAZADAS NO SE VUELVEN A GENERAR.
+        # =================================================
 
-            columnas_faltantes_75.append(
-                "Motivo"
-            )
-
-
-        if columnas_faltantes_75:
-
-            st.error(
-                "No se encontraron las columnas "
-                "necesarias en la hoja Restricciones:"
-            )
-
-            for columna in columnas_faltantes_75:
-
-                st.write(
-                    f"- {columna}"
-                )
-
-        else:
-
-            # =============================================
-            # NORMALIZAR INFORMACIÓN
-            # =============================================
-
-            for columna in restricciones.columns:
-
-                restricciones[columna] = (
-                    restricciones[columna]
-                    .astype(str)
-                    .str.strip()
-                )
+        relaciones_existentes_r77 = set()
 
 
-            # =================================================
-            # 7.5.5 GENERAR SOLO 5 PREGUNTAS
-            # =================================================
+        if not banco_restricciones.empty:
 
-            cantidad_generar_75 = st.number_input(
-
-                "Cantidad de preguntas a generar",
-
-                min_value=1,
-
-                max_value=5,
-
-                value=5,
-
-                step=1,
-
-                key="cantidad_generar_restricciones_75"
-
-            )
-
-
-            niveles_75 = st.multiselect(
-
-                "Niveles a generar",
-
-                [
-                    "Nivel 1",
-                    "Nivel 2"
-                ],
-
-                default=[
-                    "Nivel 1",
-                    "Nivel 2"
-                ],
-
-                key="niveles_restricciones_75"
-
-            )
-
-
-            # =================================================
-            # 7.5.6 GENERAR
-            # =================================================
-
-            if st.button(
-
-                "GENERAR PREGUNTAS DE RESTRICCIONES",
-
-                key="generar_restricciones_75"
-
+            for _, fila_banco in (
+                banco_restricciones.iterrows()
             ):
 
-                nuevas_75 = []
+                modulo = limpiar_r77(
+                    fila_banco.get(
+                        "Modulo",
+                        ""
+                    )
+                ).lower()
 
-                siguiente_75 = siguiente_id_75(
-                    banco_restricciones
+
+                if modulo != "restricciones":
+                    continue
+
+
+                estado = limpiar_r77(
+                    fila_banco.get(
+                        "Estado",
+                        ""
+                    )
+                ).upper()
+
+
+                if estado not in [
+                    "PENDIENTE",
+                    "APROBADA",
+                    "RECHAZADA"
+                ]:
+                    continue
+
+
+                fuente = limpiar_r77(
+                    fila_banco.get(
+                        "Fuente_ID",
+                        ""
+                    )
                 )
 
 
-                # ---------------------------------------------
-                # RELACIONES YA EXISTENTES
-                # NO REPETIR APROBADAS NI PENDIENTES
-                # ---------------------------------------------
-
-                relaciones_existentes_75 = set()
-
-
-                if not banco_restricciones.empty:
-
-                    for _, fila_banco_75 in (
-                        banco_restricciones.iterrows()
-                    ):
-
-                        estado_75 = normalizar_75(
-                            fila_banco_75.get(
-                                "Estado",
-                                ""
-                            )
-                        ).upper()
+                nivel = limpiar_r77(
+                    fila_banco.get(
+                        "Nivel",
+                        ""
+                    )
+                )
 
 
-                        if estado_75 in [
-
-                            "PENDIENTE",
-                            "APROBADA"
-
-                        ]:
-
-                            relaciones_existentes_75.add(
-
-                                (
-
-                                    limpiar_75(
-                                        fila_banco_75.get(
-                                            "Fuente_ID",
-                                            ""
-                                        )
-                                    ),
-
-                                    limpiar_75(
-                                        fila_banco_75.get(
-                                            "Nivel",
-                                            ""
-                                        )
-                                    ),
-
-                                    limpiar_75(
-                                        fila_banco_75.get(
-                                            "Tipo_Relacion",
-                                            ""
-                                        )
-                                    )
-
-                                )
-
-                            )
+                tipo_relacion = limpiar_r77(
+                    fila_banco.get(
+                        "Tipo_Relacion",
+                        ""
+                    )
+                )
 
 
-                # =================================================
-                # RECORRER RESTRICCIONES
-                # =================================================
+                if fuente and nivel and tipo_relacion:
 
-                registros_validos_75 = []
+                    relaciones_existentes_r77.add(
+                        (
+                            fuente,
+                            nivel,
+                            tipo_relacion
+                        )
+                    )
 
 
-                for indice_75, fila_75 in (
-                    restricciones.iterrows()
+        # =================================================
+        # FUNCIONES PARA VERIFICAR DISPONIBILIDAD
+        # =================================================
+
+        def puede_generar_r77(
+            fuente,
+            nivel,
+            relacion
+        ):
+
+            return (
+                (
+                    fuente,
+                    nivel,
+                    relacion
+                )
+                not in
+                relaciones_existentes_r77
+            )
+
+
+        # =================================================
+        # RECORRER MATRIZ
+        # =================================================
+
+        for _, fila in (
+            restricciones_r77.iterrows()
+        ):
+
+            if (
+                len(nuevas_restricciones_r77)
+                >=
+                (
+                    int(cantidad_nivel_1_r77)
+                    +
+                    int(cantidad_nivel_2_r77)
+                )
+            ):
+
+                break
+
+
+            restriccion_id = limpiar_r77(
+                fila["Restriccion_ID"]
+            )
+
+            producto = limpiar_r77(
+                fila["Producto"]
+            )
+
+            tipo = limpiar_r77(
+                fila["Tipo"]
+            )
+
+            restriccion = limpiar_r77(
+                fila[
+                    "Precaución / Contraindicación"
+                ]
+            )
+
+            motivo = limpiar_r77(
+                fila["Motivo"]
+            )
+
+            alternativas = limpiar_r77(
+                fila["Alternativas seguras"]
+            )
+
+
+            # =================================================
+            # NUNCA USAR "MOSTRAR ADVERTENCIA"
+            # COMO INFORMACIÓN DE PREGUNTA
+            # =================================================
+
+            motivo_util = texto_valido_r77(
+                motivo
+            )
+
+            alternativas_util = texto_valido_r77(
+                alternativas
+            )
+
+
+            # =================================================
+            # DIVIDIR RESTRICCIONES
+            # =================================================
+
+            restricciones_lista = [
+
+                x.strip()
+
+                for x in
+                restriccion.split(";")
+
+                if x.strip()
+
+            ]
+
+
+            # =================================================
+            # DIVIDIR ALTERNATIVAS
+            # =================================================
+
+            alternativas_lista = [
+
+                x.strip()
+
+                for x in
+                alternativas.split(";")
+
+                if (
+                    x.strip()
+                    and
+                    texto_valido_r77(x)
+                )
+
+            ]
+
+
+            # =================================================
+            # NIVEL 1
+            #
+            # PRODUCTO + RESTRICCIÓN
+            # PRODUCTO + MOTIVO
+            # PRODUCTO + ALTERNATIVA
+            # =================================================
+
+            if (
+                "Nivel 1"
+                in niveles_restricciones
+                and
+                (
+                    len(nuevas_restricciones_r77)
+                    <
+                    int(cantidad_nivel_1_r77)
+                )
+            ):
+
+                relaciones_nivel1 = []
+
+
+                if (
+                    len(restricciones_lista)
+                    >= 1
                 ):
 
-                    producto_75 = limpiar_75(
-                        fila_75[
-                            columna_producto_75
-                        ]
+                    relaciones_nivel1.append(
+                        (
+                            "Producto_Restriccion",
+                            "restriccion"
+                        )
                     )
 
 
-                    motivo_75 = limpiar_75(
-                        fila_75[
-                            columna_motivo_75
-                        ]
+                if motivo_util:
+
+                    relaciones_nivel1.append(
+                        (
+                            "Producto_Motivo",
+                            "motivo"
+                        )
                     )
 
 
-                    if not producto_75:
+                if alternativas_util:
 
-                        continue
+                    relaciones_nivel1.append(
+                        (
+                            "Producto_Alternativa",
+                            "alternativa"
+                        )
+                    )
 
 
-                    if not es_contenido_valido_75(
-                        motivo_75
+                np.random.shuffle(
+                    relaciones_nivel1
+                )
+
+
+                for relacion, origen in (
+                    relaciones_nivel1
+                ):
+
+                    if (
+                        len(
+                            nuevas_restricciones_r77
+                        )
+                        >=
+                        int(
+                            cantidad_nivel_1_r77
+                        )
+                    ):
+
+                        break
+
+
+                    if not puede_generar_r77(
+                        restriccion_id,
+                        "Nivel 1",
+                        relacion
                     ):
 
                         continue
 
 
-                    if columna_id_75:
+                    # -----------------------------------------
+                    # PRODUCTO + RESTRICCIÓN
+                    # -----------------------------------------
 
-                        fuente_75 = limpiar_75(
-                            fila_75[
-                                columna_id_75
-                            ]
+                    if origen == "restriccion":
+
+                        correcta = (
+                            restricciones_lista[0]
                         )
+
+                        pregunta = (
+                            f"El producto "
+                            f"{producto} "
+                            f"presenta una "
+                            f"{tipo.lower()} "
+                            f"relacionada con cuál "
+                            f"de las siguientes situaciones?"
+                        )
+
+
+                        # Distractores SOLO de otras
+                        # restricciones reales de la matriz.
+
+                        distractores = []
+
+
+                        for _, otra in (
+                            restricciones_r77.iterrows()
+                        ):
+
+                            otra_id = limpiar_r77(
+                                otra[
+                                    "Restriccion_ID"
+                                ]
+                            )
+
+                            if (
+                                otra_id
+                                ==
+                                restriccion_id
+                            ):
+                                continue
+
+
+                            otra_restriccion = (
+                                limpiar_r77(
+                                    otra[
+                                        "Precaución / Contraindicación"
+                                    ]
+                                )
+                            )
+
+
+                            for item in (
+                                otra_restriccion.split(";")
+                            ):
+
+                                item = item.strip()
+
+                                if (
+                                    item
+                                    and
+                                    texto_valido_r77(
+                                        item
+                                    )
+                                    and
+                                    item.lower()
+                                    !=
+                                    correcta.lower()
+                                ):
+
+                                    distractores.append(
+                                        item
+                                    )
+
+
+                        distractores = list(
+                            dict.fromkeys(
+                                distractores
+                            )
+                        )
+
+
+                    # -----------------------------------------
+                    # PRODUCTO + MOTIVO
+                    # -----------------------------------------
+
+                    elif origen == "motivo":
+
+                        correcta = motivo
+
+                        pregunta = (
+                            f"¿Cuál es el motivo "
+                            f"registrado para la "
+                            f"{tipo.lower()} "
+                            f"del producto "
+                            f"{producto}?"
+                        )
+
+
+                        distractores = []
+
+
+                        for _, otra in (
+                            restricciones_r77.iterrows()
+                        ):
+
+                            otra_id = limpiar_r77(
+                                otra[
+                                    "Restriccion_ID"
+                                ]
+                            )
+
+                            if (
+                                otra_id
+                                ==
+                                restriccion_id
+                            ):
+                                continue
+
+
+                            otro_motivo = limpiar_r77(
+                                otra["Motivo"]
+                            )
+
+
+                            if texto_valido_r77(
+                                otro_motivo
+                            ):
+
+                                distractores.append(
+                                    otro_motivo
+                                )
+
+
+                        distractores = list(
+                            dict.fromkeys(
+                                distractores
+                            )
+                        )
+
+
+                    # -----------------------------------------
+                    # PRODUCTO + ALTERNATIVA
+                    # -----------------------------------------
 
                     else:
 
-                        fuente_75 = (
-                            f"RES_SRC_{indice_75}"
+                        correcta = (
+                            alternativas_lista[0]
+                        )
+
+                        pregunta = (
+                            f"¿Cuál de las siguientes "
+                            f"es una alternativa segura "
+                            f"registrada para "
+                            f"{producto}?"
                         )
 
 
-                    tipo_75 = ""
+                        distractores = []
 
 
-                    if columna_tipo_75:
+                        for _, otra in (
+                            restricciones_r77.iterrows()
+                        ):
 
-                        tipo_75 = limpiar_75(
-                            fila_75[
-                                columna_tipo_75
+                            otra_id = limpiar_r77(
+                                otra[
+                                    "Restriccion_ID"
+                                ]
+                            )
+
+                            if (
+                                otra_id
+                                ==
+                                restriccion_id
+                            ):
+                                continue
+
+
+                            otras_alt = (
+                                limpiar_r77(
+                                    otra[
+                                        "Alternativas seguras"
+                                    ]
+                                )
+                            )
+
+
+                            for item in (
+                                otras_alt.split(";")
+                            ):
+
+                                item = item.strip()
+
+                                if (
+                                    item
+                                    and
+                                    texto_valido_r77(
+                                        item
+                                    )
+                                ):
+
+                                    distractores.append(
+                                        item
+                                    )
+
+
+                    # -----------------------------------------
+                    # NECESITAMOS 3 DISTRACTORES REALES
+                    # -----------------------------------------
+
+                    distractores = list(
+                        dict.fromkeys(
+                            [
+                                x
+                                for x in distractores
+                                if texto_valido_r77(x)
+                                and
+                                x.lower()
+                                !=
+                                correcta.lower()
                             ]
                         )
+                    )
 
 
-                    registros_validos_75.append({
+                    if len(distractores) < 3:
+                        continue
 
-                        "producto":
-                            producto_75,
 
-                        "motivo":
-                            motivo_75,
+                    distractores = list(
+                        np.random.choice(
+                            distractores,
+                            size=3,
+                            replace=False
+                        )
+                    )
 
-                        "fuente":
-                            fuente_75,
 
-                        "tipo":
-                            tipo_75,
+                    opciones, correctas = (
+                        mezclar_opciones_r77(
+                            [correcta],
+                            distractores
+                        )
+                    )
 
-                        "indice":
-                            indice_75
+
+                    nuevas_restricciones_r77.append({
+
+                        "Pregunta_ID":
+                            f"RES_{siguiente_id_r77_actual:05d}",
+
+                        "Modulo":
+                            "Restricciones",
+
+                        "Tema":
+                            producto,
+
+                        "Nivel":
+                            "Nivel 1",
+
+                        "Tipo_Relacion":
+                            relacion,
+
+                        "Pregunta":
+                            pregunta,
+
+                        "Respuesta_1":
+                            opciones[0],
+
+                        "Respuesta_2":
+                            opciones[1],
+
+                        "Respuesta_3":
+                            opciones[2],
+
+                        "Respuesta_4":
+                            opciones[3],
+
+                        "Respuesta_Correcta":
+                            str(correctas[0]),
+
+                        "Estado":
+                            "PENDIENTE",
+
+                        "Observacion_Administrador":
+                            "",
+
+                        "Fecha_Generacion":
+                            pd.Timestamp.now().strftime(
+                                "%Y-%m-%d %H:%M:%S"
+                            ),
+
+                        "Fuente_ID":
+                            restriccion_id
 
                     })
 
 
-                # =================================================
-                # GENERAR PREGUNTAS
-                # =================================================
-
-                for registro_75 in (
-                    registros_validos_75
-                ):
-
-                    if len(
-                        nuevas_75
-                    ) >= int(
-                        cantidad_generar_75
-                    ):
-
-                        break
-
-
-                    producto_75 = registro_75[
-                        "producto"
-                    ]
-
-                    motivo_75 = registro_75[
-                        "motivo"
-                    ]
-
-                    fuente_75 = registro_75[
-                        "fuente"
-                    ]
-
-
-                    # ---------------------------------------------
-                    # OTROS MOTIVOS REALES
-                    # ---------------------------------------------
-
-                    otros_motivos_75 = []
-
-
-                    for otro_75 in (
-                        registros_validos_75
-                    ):
-
-                        if (
-                            otro_75["fuente"]
-                            ==
-                            fuente_75
-                        ):
-
-                            continue
-
-
-                        otro_motivo_75 = otro_75[
-                            "motivo"
-                        ]
-
-
-                        if not es_contenido_valido_75(
-                            otro_motivo_75
-                        ):
-
-                            continue
-
-
-                        if (
-                            normalizar_75(
-                                otro_motivo_75
-                            )
-                            ==
-                            normalizar_75(
-                                motivo_75
-                            )
-                        ):
-
-                            continue
-
-
-                        if (
-                            otro_motivo_75
-                            not in otros_motivos_75
-                        ):
-
-                            otros_motivos_75.append(
-                                otro_motivo_75
-                            )
-
-
-                    # =================================================
-                    # NIVEL 1 — PRODUCTO Y MOTIVO
-                    # =================================================
-
-                    if "Nivel 1" in niveles_75:
-
-                        clave_75 = (
-
-                            fuente_75,
-
+                    relaciones_existentes_r77.add(
+                        (
+                            restriccion_id,
                             "Nivel 1",
-
-                            "Producto_Motivo"
-
+                            relacion
                         )
-
-
-                        if (
-                            clave_75
-                            not in relaciones_existentes_75
-                        ):
-
-                            if len(
-                                otros_motivos_75
-                            ) >= 3:
-
-                                distractores_75 = list(
-
-                                    np.random.choice(
-
-                                        otros_motivos_75,
-
-                                        size=3,
-
-                                        replace=False
-
-                                    )
-
-                                )
-
-
-                                opciones_75, correcta_75 = (
-                                    opciones_nivel1_75(
-
-                                        motivo_75,
-
-                                        distractores_75
-
-                                    )
-                                )
-
-
-                                pregunta_75 = (
-
-                                    f"Para el producto "
-                                    f"{producto_75}, "
-                                    f"¿cuál de las siguientes "
-                                    f"afirmaciones corresponde "
-                                    f"al motivo de la restricción?"
-
-                                )
-
-
-                                nuevas_75.append({
-
-                                    "Pregunta_ID":
-                                        f"RES_{siguiente_75:05d}",
-
-                                    "Modulo":
-                                        "Restricciones",
-
-                                    "Tema":
-                                        producto_75,
-
-                                    "Nivel":
-                                        "Nivel 1",
-
-                                    "Tipo_Relacion":
-                                        "Producto_Motivo",
-
-                                    "Pregunta":
-                                        pregunta_75,
-
-                                    "Respuesta_1":
-                                        opciones_75[0],
-
-                                    "Respuesta_2":
-                                        opciones_75[1],
-
-                                    "Respuesta_3":
-                                        opciones_75[2],
-
-                                    "Respuesta_4":
-                                        opciones_75[3],
-
-                                    "Respuesta_Correcta":
-                                        str(
-                                            correcta_75
-                                        ),
-
-                                    "Estado":
-                                        "PENDIENTE",
-
-                                    "Observacion_Administrador":
-                                        "",
-
-                                    "Fecha_Generacion":
-                                        pd.Timestamp.now()
-                                        .strftime(
-                                            "%Y-%m-%d %H:%M:%S"
-                                        ),
-
-                                    "Fuente_ID":
-                                        fuente_75
-
-                                })
-
-
-                                relaciones_existentes_75.add(
-                                    clave_75
-                                )
-
-                                siguiente_75 += 1
-
-
-                    # =================================================
-                    # NIVEL 2 — PRODUCTO + MOTIVO
-                    # DOS AFIRMACIONES REALES
-                    # =================================================
-
-                    if (
-                        len(nuevas_75)
-                        >= int(
-                            cantidad_generar_75
-                        )
-                    ):
-
-                        break
-
-
-                    if "Nivel 2" in niveles_75:
-
-                        clave_75 = (
-
-                            fuente_75,
-
-                            "Nivel 2",
-
-                            "Producto_Motivo"
-
-                        )
-
-
-                        if (
-                            clave_75
-                            not in relaciones_existentes_75
-                        ):
-
-                            if len(
-                                otros_motivos_75
-                            ) >= 2:
-
-                                distractores_75 = list(
-
-                                    np.random.choice(
-
-                                        otros_motivos_75,
-
-                                        size=2,
-
-                                        replace=False
-
-                                    )
-
-                                )
-
-
-                                correcta_1_75 = (
-
-                                    f"El motivo indicado "
-                                    f"es: {motivo_75}."
-
-                                )
-
-
-                                # Segunda afirmación:
-                                # TAMBIÉN debe salir de la matriz.
-                                segunda_fuente_75 = None
-
-
-                                for otro_75 in (
-                                    registros_validos_75
-                                ):
-
-                                    if (
-                                        otro_75["fuente"]
-                                        !=
-                                        fuente_75
-                                        and
-                                        normalizar_75(
-                                            otro_75["producto"]
-                                        )
-                                        ==
-                                        normalizar_75(
-                                            producto_75
-                                        )
-                                    ):
-
-                                        segunda_fuente_75 = (
-                                            otro_75
-                                        )
-
-                                        break
-
-
-                                if segunda_fuente_75:
-
-                                    correcta_2_75 = (
-
-                                        f"Otro motivo registrado "
-                                        f"para este producto es: "
-                                        f"{segunda_fuente_75['motivo']}."
-
-                                    )
-
-
-                                    distractores_n2_75 = [
-
-                                        (
-                                            "El motivo registrado "
-                                            f"es: {distractores_75[0]}."
-                                        ),
-
-                                        (
-                                            "El motivo registrado "
-                                            f"es: {distractores_75[1]}."
-                                        )
-
-                                    ]
-
-
-                                    opciones_75, correctas_75 = (
-                                        opciones_nivel2_75(
-
-                                            correcta_1_75,
-
-                                            correcta_2_75,
-
-                                            distractores_n2_75
-
-                                        )
-                                    )
-
-
-                                    if len(
-                                        opciones_75
-                                    ) == 4:
-
-                                        pregunta_75 = (
-
-                                            f"Considere el producto "
-                                            f"{producto_75}. "
-                                            f"Seleccione las DOS "
-                                            f"afirmaciones que "
-                                            f"corresponden a información "
-                                            f"registrada para sus "
-                                            f"restricciones."
-
-                                        )
-
-
-                                        nuevas_75.append({
-
-                                            "Pregunta_ID":
-                                                f"RES_{siguiente_75:05d}",
-
-                                            "Modulo":
-                                                "Restricciones",
-
-                                            "Tema":
-                                                producto_75,
-
-                                            "Nivel":
-                                                "Nivel 2",
-
-                                            "Tipo_Relacion":
-                                                "Producto_Motivo",
-
-                                            "Pregunta":
-                                                pregunta_75,
-
-                                            "Respuesta_1":
-                                                opciones_75[0],
-
-                                            "Respuesta_2":
-                                                opciones_75[1],
-
-                                            "Respuesta_3":
-                                                opciones_75[2],
-
-                                            "Respuesta_4":
-                                                opciones_75[3],
-
-                                            "Respuesta_Correcta":
-                                                ",".join(
-                                                    map(
-                                                        str,
-                                                        correctas_75
-                                                    )
-                                                ),
-
-                                            "Estado":
-                                                "PENDIENTE",
-
-                                            "Observacion_Administrador":
-                                                "",
-
-                                            "Fecha_Generacion":
-                                                pd.Timestamp.now()
-                                                .strftime(
-                                                    "%Y-%m-%d %H:%M:%S"
-                                                ),
-
-                                            "Fuente_ID":
-                                                fuente_75
-
-                                        })
-
-
-                                        relaciones_existentes_75.add(
-                                            clave_75
-                                        )
-
-                                        siguiente_75 += 1
-
-
-                # =================================================
-                # GUARDAR GENERACIÓN
-                # =================================================
-
-                if nuevas_75:
-
-                    nuevas_df_75 = pd.DataFrame(
-                        nuevas_75
                     )
 
 
-                    banco_restricciones = pd.concat(
+                    siguiente_id_r77_actual += 1
 
-                        [
-                            banco_restricciones,
-                            nuevas_df_75
-                        ],
 
-                        ignore_index=True
+        # =================================================
+        # NIVEL 2
+        #
+        # PRODUCTO + RESTRICCIÓN + MOTIVO
+        # PRODUCTO + RESTRICCIÓN + ALTERNATIVA
+        # =================================================
 
-                    )
+        for _, fila in (
+            restricciones_r77.iterrows()
+        ):
 
+            if (
+                len(nuevas_restricciones_r77)
+                >=
+                (
+                    int(cantidad_nivel_1_r77)
+                    +
+                    int(cantidad_nivel_2_r77)
+                )
+            ):
 
-                    banco_restricciones = (
-                        banco_restricciones[
-                            COLUMNAS_BANCO_GENERAL
-                        ]
-                    )
+                break
 
 
-                    banco_restricciones.to_excel(
+            if (
+                int(cantidad_nivel_2_r77)
+                <= 0
+            ):
 
-                        RUTA_BANCO_GENERAL,
+                break
 
-                        index=False,
 
-                        sheet_name="Banco_General"
+            restriccion_id = limpiar_r77(
+                fila["Restriccion_ID"]
+            )
 
-                    )
+            producto = limpiar_r77(
+                fila["Producto"]
+            )
 
+            tipo = limpiar_r77(
+                fila["Tipo"]
+            )
 
-                    st.success(
+            restriccion = limpiar_r77(
+                fila[
+                    "Precaución / Contraindicación"
+                ]
+            )
 
-                        f"Se generaron "
-                        f"{len(nuevas_df_75)} preguntas "
-                        f"de Restricciones."
+            motivo = limpiar_r77(
+                fila["Motivo"]
+            )
 
-                    )
-
-
-                    # =================================================
-                    # SINCRONIZAR GENERACIÓN CON GITHUB
-                    # =================================================
-
-                    try:
-
-                        with open(
-                            RUTA_BANCO_GENERAL,
-                            "rb"
-                        ) as archivo:
-
-                            contenido_75 = (
-                                archivo.read()
-                            )
-
-
-                        contenido_base64_75 = (
-                            base64.b64encode(
-                                contenido_75
-                            ).decode(
-                                "utf-8"
-                            )
-                        )
-
-
-                        url_github_75 = (
-
-                            f"https://api.github.com/repos/"
-
-                            f"{GITHUB_USUARIO}/"
-
-                            f"{GITHUB_REPOSITORIO}/"
-
-                            f"contents/"
-                            f"BANCO_PREGUNTAS_GENERALES.xlsx"
-
-                        )
-
-
-                        headers_github_75 = {
-
-                            "Authorization":
-                                f"Bearer {GITHUB_TOKEN}",
-
-                            "Accept":
-                                "application/vnd.github+json",
-
-                            "X-GitHub-Api-Version":
-                                "2022-11-28"
-
-                        }
-
-
-                        solicitud_get_75 = (
-                            urllib.request.Request(
-
-                                url_github_75,
-
-                                headers=headers_github_75,
-
-                                method="GET"
-
-                            )
-                        )
-
-
-                        with urllib.request.urlopen(
-                            solicitud_get_75
-                        ) as respuesta_75:
-
-                            informacion_75 = json.loads(
-
-                                respuesta_75.read()
-                                .decode("utf-8")
-
-                            )
-
-
-                        datos_75 = {
-
-                            "message":
-                                "Generar preguntas "
-                                "de Restricciones",
-
-                            "content":
-                                contenido_base64_75,
-
-                            "sha":
-                                informacion_75["sha"]
-
-                        }
-
-
-                        solicitud_put_75 = (
-                            urllib.request.Request(
-
-                                url_github_75,
-
-                                data=json.dumps(
-                                    datos_75
-                                ).encode("utf-8"),
-
-                                headers={
-                                    **headers_github_75,
-
-                                    "Content-Type":
-                                        "application/json"
-
-                                },
-
-                                method="PUT"
-
-                            )
-                        )
-
-
-                        with urllib.request.urlopen(
-                            solicitud_put_75
-                        ) as respuesta_75:
-
-                            resultado_75 = json.loads(
-
-                                respuesta_75.read()
-                                .decode("utf-8")
-
-                            )
-
-
-                        if resultado_75.get(
-                            "content"
-                        ):
-
-                            st.success(
-                                "✓ Preguntas de Restricciones "
-                                "sincronizadas con GitHub."
-                            )
-
-
-                    except Exception as error_github_75:
-
-                        st.warning(
-
-                            "Las preguntas se guardaron "
-                            "en Excel, pero no fue posible "
-                            "sincronizarlas con GitHub."
-
-                        )
-
-                        st.code(
-                            str(error_github_75)
-                        )
-
-
-                    st.dataframe(
-
-                        nuevas_df_75[
-                            [
-                                "Pregunta_ID",
-                                "Modulo",
-                                "Tema",
-                                "Nivel",
-                                "Tipo_Relacion",
-                                "Pregunta",
-                                "Respuesta_1",
-                                "Respuesta_2",
-                                "Respuesta_3",
-                                "Respuesta_4",
-                                "Respuesta_Correcta",
-                                "Estado"
-                            ]
-                        ],
-
-                        use_container_width=True
-
-                    )
-
-                else:
-
-                    st.warning(
-
-                        "No fue posible generar preguntas "
-                        "con información suficiente y válida "
-                        "en la matriz. No se inventaron "
-                        "afirmaciones para completar las opciones."
-
-                    )
-
-
-            # =================================================
-            # 7.5.7 VALIDACIÓN
-            # =================================================
-
-            st.divider()
-
-            st.subheader(
-                "Validación de Restricciones"
+            alternativas = limpiar_r77(
+                fila["Alternativas seguras"]
             )
 
 
-            banco_validacion_75 = pd.read_excel(
+            restricciones_lista = [
 
-                RUTA_BANCO_GENERAL,
+                x.strip()
 
-                dtype=str
+                for x in
+                restriccion.split(";")
 
-            ).fillna("")
+                if (
+                    x.strip()
+                    and
+                    texto_valido_r77(x)
+                )
+
+            ]
 
 
-            pendientes_75 = (
-                banco_validacion_75[
+            alternativas_lista = [
+
+                x.strip()
+
+                for x in
+                alternativas.split(";")
+
+                if (
+                    x.strip()
+                    and
+                    texto_valido_r77(x)
+                )
+
+            ]
+
+
+            if not restricciones_lista:
+                continue
+
+
+            relaciones_nivel2 = []
+
+
+            if texto_valido_r77(motivo):
+
+                relaciones_nivel2.append(
                     (
-                        banco_validacion_75[
-                            "Modulo"
-                        ]
-                        .astype(str)
-                        .str.strip()
-                        .str.lower()
-                        ==
-                        "restricciones"
+                        "Producto_Restriccion_Motivo",
+                        "motivo"
                     )
-                    &
+                )
+
+
+            if alternativas_lista:
+
+                relaciones_nivel2.append(
                     (
-                        banco_validacion_75[
-                            "Estado"
-                        ]
-                        .astype(str)
-                        .str.strip()
-                        .str.upper()
-                        ==
-                        "PENDIENTE"
+                        "Producto_Restriccion_Alternativa",
+                        "alternativa"
                     )
+                )
+
+
+            np.random.shuffle(
+                relaciones_nivel2
+            )
+
+
+            for relacion, origen in (
+                relaciones_nivel2
+            ):
+
+                if (
+                    len(
+                        [
+                            x
+                            for x in
+                            nuevas_restricciones_r77
+                            if x["Nivel"] == "Nivel 2"
+                        ]
+                    )
+                    >=
+                    int(cantidad_nivel_2_r77)
+                ):
+
+                    break
+
+
+                if not puede_generar_r77(
+                    restriccion_id,
+                    "Nivel 2",
+                    relacion
+                ):
+
+                    continue
+
+
+                # -----------------------------------------
+                # NIVEL 2: MOTIVO
+                # -----------------------------------------
+
+                if origen == "motivo":
+
+                    correcta_1 = (
+                        restricciones_lista[0]
+                    )
+
+                    correcta_2 = motivo
+
+                    pregunta = (
+                        f"Para el producto "
+                        f"{producto}, considere la "
+                        f"{tipo.lower()} "
+                        f"relacionada con "
+                        f"{correcta_1}. "
+                        f"Seleccione las DOS "
+                        f"afirmaciones correctas."
+                    )
+
+
+                    distractor_1 = (
+                        "La situación indicada "
+                        "corresponde a una "
+                        "restricción diferente."
+                    )
+
+                    distractor_2 = (
+                        "El motivo indicado "
+                        "no corresponde a "
+                        "la situación descrita."
+                    )
+
+
+                # -----------------------------------------
+                # NIVEL 2: ALTERNATIVA SEGURA
+                # -----------------------------------------
+
+                else:
+
+                    correcta_1 = (
+                        restricciones_lista[0]
+                    )
+
+                    correcta_2 = (
+                        alternativas_lista[0]
+                    )
+
+                    pregunta = (
+                        f"Para el producto "
+                        f"{producto}, considere la "
+                        f"{tipo.lower()} "
+                        f"relacionada con "
+                        f"{correcta_1}. "
+                        f"Seleccione las DOS "
+                        f"afirmaciones correctas."
+                    )
+
+
+                    # Los distractores no agregan
+                    # información clínica inventada.
+                    # Se toman de otros registros reales.
+
+                    distractor_1 = ""
+                    distractor_2 = ""
+
+
+                    otras_restricciones = []
+
+
+                    for _, otra in (
+                        restricciones_r77.iterrows()
+                    ):
+
+                        otra_id = limpiar_r77(
+                            otra[
+                                "Restriccion_ID"
+                            ]
+                        )
+
+                        if (
+                            otra_id
+                            ==
+                            restriccion_id
+                        ):
+                            continue
+
+
+                        otras_restricciones.append(
+                            limpiar_r77(
+                                otra[
+                                    "Precaución / Contraindicación"
+                                ]
+                            )
+                        )
+
+
+                    otras_restricciones = [
+
+                        x
+                        for x in otras_restricciones
+                        if texto_valido_r77(x)
+
+                    ]
+
+
+                    otras_restricciones = list(
+                        dict.fromkeys(
+                            otras_restricciones
+                        )
+                    )
+
+
+                    otras_alternativas = []
+
+
+                    for _, otra in (
+                        restricciones_r77.iterrows()
+                    ):
+
+                        otra_id = limpiar_r77(
+                            otra[
+                                "Restriccion_ID"
+                            ]
+                        )
+
+                        if (
+                            otra_id
+                            ==
+                            restriccion_id
+                        ):
+                            continue
+
+
+                        for alt in (
+                            limpiar_r77(
+                                otra[
+                                    "Alternativas seguras"
+                                ]
+                            ).split(";")
+                        ):
+
+                            alt = alt.strip()
+
+                            if (
+                                alt
+                                and
+                                texto_valido_r77(
+                                    alt
+                                )
+                            ):
+
+                                otras_alternativas.append(
+                                    alt
+                                )
+
+
+                    otras_alternativas = list(
+                        dict.fromkeys(
+                            otras_alternativas
+                        )
+                    )
+
+
+                    if len(otras_restricciones) < 1:
+                        continue
+
+                    if len(otras_alternativas) < 1:
+                        continue
+
+
+                    distractor_1 = (
+                        f"La restricción indicada es "
+                        f"{otras_restricciones[0]}."
+                    )
+
+                    distractor_2 = (
+                        f"Una alternativa registrada "
+                        f"es {otras_alternativas[0]}."
+                    )
+
+
+                # -----------------------------------------
+                # VALIDAR DISTRACTORES
+                # -----------------------------------------
+
+                if (
+                    not texto_valido_r77(
+                        distractor_1
+                    )
+                    or
+                    not texto_valido_r77(
+                        distractor_2
+                    )
+                ):
+
+                    continue
+
+
+                opciones, correctas = (
+                    mezclar_opciones_r77(
+                        [
+                            correcta_1,
+                            correcta_2
+                        ],
+                        [
+                            distractor_1,
+                            distractor_2
+                        ]
+                    )
+                )
+
+
+                if len(opciones) != 4:
+                    continue
+
+
+                nuevas_restricciones_r77.append({
+
+                    "Pregunta_ID":
+                        f"RES_{siguiente_id_r77_actual:05d}",
+
+                    "Modulo":
+                        "Restricciones",
+
+                    "Tema":
+                        producto,
+
+                    "Nivel":
+                        "Nivel 2",
+
+                    "Tipo_Relacion":
+                        relacion,
+
+                    "Pregunta":
+                        pregunta,
+
+                    "Respuesta_1":
+                        opciones[0],
+
+                    "Respuesta_2":
+                        opciones[1],
+
+                    "Respuesta_3":
+                        opciones[2],
+
+                    "Respuesta_4":
+                        opciones[3],
+
+                    "Respuesta_Correcta":
+                        ",".join(
+                            map(
+                                str,
+                                correctas
+                            )
+                        ),
+
+                    "Estado":
+                        "PENDIENTE",
+
+                    "Observacion_Administrador":
+                        "",
+
+                    "Fecha_Generacion":
+                        pd.Timestamp.now().strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        ),
+
+                    "Fuente_ID":
+                        restriccion_id
+
+                })
+
+
+                relaciones_existentes_r77.add(
+                    (
+                        restriccion_id,
+                        "Nivel 2",
+                        relacion
+                    )
+                )
+
+
+                siguiente_id_r77_actual += 1
+
+
+        # =================================================
+        # GUARDAR NUEVAS PREGUNTAS
+        # =================================================
+
+        if nuevas_restricciones_r77:
+
+            nuevas_df_r77 = pd.DataFrame(
+                nuevas_restricciones_r77
+            )
+
+
+            banco_restricciones = pd.concat(
+                [
+                    banco_restricciones,
+                    nuevas_df_r77
+                ],
+                ignore_index=True
+            )
+
+
+            banco_restricciones = (
+                banco_restricciones[
+                    COLUMNAS_BANCO_GENERAL
                 ]
-                .copy()
+            )
+
+
+            banco_restricciones.to_excel(
+                RUTA_BANCO_GENERAL,
+                index=False,
+                sheet_name="Banco_General"
+            )
+
+
+            st.success(
+                f"Se generaron "
+                f"{len(nuevas_df_r77)} preguntas "
+                f"válidas y se guardaron en Excel."
+            )
+
+
+            # =================================================
+            # MOSTRAR
+            # =================================================
+
+            st.dataframe(
+                nuevas_df_r77[
+                    [
+                        "Pregunta_ID",
+                        "Tema",
+                        "Nivel",
+                        "Tipo_Relacion",
+                        "Pregunta",
+                        "Respuesta_1",
+                        "Respuesta_2",
+                        "Respuesta_3",
+                        "Respuesta_4",
+                        "Respuesta_Correcta",
+                        "Estado"
+                    ]
+                ],
+                use_container_width=True
+            )
+
+
+        else:
+
+            st.warning(
+                "No se generaron preguntas nuevas. "
+                "Esto significa que no existen relaciones "
+                "nuevas y válidas suficientes en la matriz. "
+                "No se crearán preguntas artificiales."
+            )
+
+
+# ====================================================
+# 7. VALIDACIÓN
+# ====================================================
+
+st.divider()
+
+st.subheader(
+    "Validación de preguntas de Restricciones"
+)
+
+
+if RUTA_BANCO_GENERAL.exists():
+
+    banco_validar_r77 = pd.read_excel(
+        RUTA_BANCO_GENERAL,
+        dtype=str
+    ).fillna("")
+
+
+    pendientes_r77 = (
+        banco_validar_r77[
+            (
+                banco_validar_r77[
+                    "Modulo"
+                ]
+                .astype(str)
+                .str.strip()
+                .str.lower()
+                ==
+                "restricciones"
+            )
+            &
+            (
+                banco_validar_r77[
+                    "Estado"
+                ]
+                .astype(str)
+                .str.strip()
+                .str.upper()
+                ==
+                "PENDIENTE"
+            )
+        ]
+        .copy()
+    )
+
+
+    st.write(
+        f"Preguntas de Restricciones pendientes: "
+        f"**{len(pendientes_r77)}**"
+    )
+
+
+    if not pendientes_r77.empty:
+
+        cantidad_bloque_r77 = st.number_input(
+
+            "Cantidad de preguntas por bloque",
+
+            min_value=1,
+
+            max_value=min(
+                50,
+                len(pendientes_r77)
+            ),
+
+            value=min(
+                5,
+                len(pendientes_r77)
+            ),
+
+            step=1,
+
+            key="cantidad_bloque_restricciones_r77"
+
+        )
+
+
+        pendientes_r77 = (
+            pendientes_r77
+            .reset_index()
+        )
+
+
+        cantidad_bloque_r77 = int(
+            cantidad_bloque_r77
+        )
+
+
+        total_bloques_r77 = (
+            len(pendientes_r77)
+            +
+            cantidad_bloque_r77
+            -
+            1
+        ) // cantidad_bloque_r77
+
+
+        bloque_actual_r77 = st.number_input(
+
+            "Bloque",
+
+            min_value=1,
+
+            max_value=max(
+                1,
+                total_bloques_r77
+            ),
+
+            value=1,
+
+            step=1,
+
+            key="bloque_actual_restricciones_r77"
+
+        )
+
+
+        inicio_r77 = (
+            (
+                int(
+                    bloque_actual_r77
+                )
+                -
+                1
+            )
+            *
+            cantidad_bloque_r77
+        )
+
+
+        fin_r77 = (
+            inicio_r77
+            +
+            cantidad_bloque_r77
+        )
+
+
+        bloque_r77 = (
+            pendientes_r77
+            .iloc[
+                inicio_r77:fin_r77
+            ]
+            .copy()
+        )
+
+
+        st.info(
+            f"Bloque "
+            f"{int(bloque_actual_r77)} "
+            f"de {total_bloques_r77} — "
+            f"{len(bloque_r77)} preguntas."
+        )
+
+
+        # =================================================
+        # DECISIÓN GENERAL
+        # =================================================
+
+        decision_r77 = st.radio(
+
+            "Acción para el bloque:",
+
+            [
+                "Mantener pendientes",
+                "Aprobar todas",
+                "Rechazar todas"
+            ],
+
+            horizontal=True,
+
+            key="decision_restricciones_r77"
+
+        )
+
+
+        cambios_r77 = {}
+
+
+        # =================================================
+        # MOSTRAR
+        # =================================================
+
+        for numero_r77, (
+            indice_real_r77,
+            fila_r77
+        ) in enumerate(
+
+            bloque_r77.iterrows(),
+            start=1
+
+        ):
+
+            pregunta_id_r77 = limpiar_r77(
+                fila_r77[
+                    "Pregunta_ID"
+                ]
+            )
+
+
+            st.markdown(
+                f"### {numero_r77}. "
+                f"{pregunta_id_r77}"
+            )
+
+
+            st.caption(
+                f"Producto: "
+                f"{fila_r77['Tema']} | "
+                f"Nivel: "
+                f"{fila_r77['Nivel']} | "
+                f"Relación: "
+                f"{fila_r77['Tipo_Relacion']}"
             )
 
 
             st.write(
-                f"Preguntas de Restricciones pendientes: "
-                f"**{len(pendientes_75)}**"
+                f"**Pregunta:** "
+                f"{fila_r77['Pregunta']}"
             )
 
 
-            if not pendientes_75.empty:
+            st.write(
+                f"1. {fila_r77['Respuesta_1']}"
+            )
 
-                cantidad_bloque_75 = st.number_input(
+            st.write(
+                f"2. {fila_r77['Respuesta_2']}"
+            )
 
-                    "Cantidad de preguntas por bloque",
+            st.write(
+                f"3. {fila_r77['Respuesta_3']}"
+            )
 
-                    min_value=1,
-
-                    max_value=min(
-                        50,
-                        len(pendientes_75)
-                    ),
-
-                    value=min(
-                        5,
-                        len(pendientes_75)
-                    ),
-
-                    step=1,
-
-                    key="cantidad_bloque_validacion_75"
-
-                )
+            st.write(
+                f"4. {fila_r77['Respuesta_4']}"
+            )
 
 
-                pendientes_75 = (
-                    pendientes_75
-                    .reset_index(
-                        drop=True
-                    )
-                )
+            st.info(
+                "Respuesta correcta registrada: "
+                f"{fila_r77['Respuesta_Correcta']}"
+            )
 
 
-                total_bloques_75 = (
+            if decision_r77 == "Aprobar todas":
 
-                    (
-                        len(pendientes_75)
-                        +
-                        int(
-                            cantidad_bloque_75
-                        )
-                        -
-                        1
-                    )
-                    //
-                    int(
-                        cantidad_bloque_75
-                    )
+                estado_r77 = "APROBADA"
 
-                )
+            elif decision_r77 == "Rechazar todas":
 
+                estado_r77 = "RECHAZADA"
 
-                bloque_actual_75 = st.number_input(
+            else:
 
-                    "Bloque",
+                estado_r77 = st.selectbox(
 
-                    min_value=1,
+                    "Estado",
 
-                    max_value=max(
-                        1,
-                        total_bloques_75
-                    ),
+                    [
+                        "PENDIENTE",
+                        "APROBADA",
+                        "RECHAZADA"
+                    ],
 
-                    value=1,
+                    index=0,
 
-                    step=1,
-
-                    key="bloque_restricciones_75"
-
-                )
-
-
-                inicio_75 = (
-
-                    (
-                        int(
-                            bloque_actual_75
-                        )
-                        - 1
-                    )
-                    *
-                    int(
-                        cantidad_bloque_75
+                    key=(
+                        f"estado_res_r77_"
+                        f"{pregunta_id_r77}"
                     )
 
                 )
 
 
-                fin_75 = (
+            observacion_r77 = st.text_area(
 
-                    inicio_75
-                    +
-                    int(
-                        cantidad_bloque_75
-                    )
+                "Observación",
 
-                )
-
-
-                bloque_75 = (
-                    pendientes_75
-                    .iloc[
-                        inicio_75:fin_75
+                value=limpiar_r77(
+                    fila_r77[
+                        "Observacion_Administrador"
                     ]
-                    .copy()
-                )
+                ),
+
+                key=(
+                    f"obs_res_r77_"
+                    f"{pregunta_id_r77}"
+                ),
+
+                height=60
+
+            )
 
 
-                st.info(
+            cambios_r77[
+                pregunta_id_r77
+            ] = {
 
-                    f"Bloque "
-                    f"{int(bloque_actual_75)} "
-                    f"de {total_bloques_75} — "
-                    f"{len(bloque_75)} preguntas."
+                "indice":
+                    indice_real_r77,
 
-                )
+                "Estado":
+                    estado_r77,
+
+                "Observacion":
+                    observacion_r77
+
+            }
 
 
-                cambios_75 = {}
+            st.divider()
 
 
-                for indice_75, fila_75 in (
-                    bloque_75.iterrows()
-                ):
+        # =================================================
+        # GUARDAR Y SINCRONIZAR
+        # =================================================
 
-                    pregunta_id_75 = limpiar_75(
-                        fila_75[
+        if st.button(
+            "GUARDAR Y SINCRONIZAR",
+            type="primary",
+            key="guardar_sincronizar_restricciones_r77"
+        ):
+
+            try:
+
+                banco_guardar_r77 = pd.read_excel(
+                    RUTA_BANCO_GENERAL,
+                    dtype=str
+                ).fillna("")
+
+
+                # -----------------------------------------
+                # ACTUALIZAR ESTADOS
+                # -----------------------------------------
+
+                for (
+                    pregunta_id_r77,
+                    cambios_r77_individual
+                ) in cambios_r77.items():
+
+                    mascara_r77 = (
+
+                        banco_guardar_r77[
                             "Pregunta_ID"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        ==
+                        pregunta_id_r77
+
+                    )
+
+
+                    banco_guardar_r77.loc[
+                        mascara_r77,
+                        "Estado"
+                    ] = cambios_r77_individual[
+                        "Estado"
+                    ]
+
+
+                    banco_guardar_r77.loc[
+                        mascara_r77,
+                        "Observacion_Administrador"
+                    ] = (
+                        cambios_r77_individual[
+                            "Observacion"
                         ]
                     )
 
 
-                    st.markdown(
-                        f"### {pregunta_id_75}"
-                    )
+                # -----------------------------------------
+                # GUARDAR EXCEL
+                # -----------------------------------------
 
+                banco_guardar_r77.to_excel(
 
-                    st.write(
-                        f"**Nivel:** "
-                        f"{fila_75['Nivel']}"
-                    )
+                    RUTA_BANCO_GENERAL,
 
+                    index=False,
 
-                    st.write(
-                        f"**Tipo:** "
-                        f"{fila_75['Tipo_Relacion']}"
-                    )
-
-
-                    st.write(
-                        f"**Producto:** "
-                        f"{fila_75['Tema']}"
-                    )
-
-
-                    st.write(
-                        f"**Pregunta:** "
-                        f"{fila_75['Pregunta']}"
-                    )
-
-
-                    st.write(
-                        f"1. {fila_75['Respuesta_1']}"
-                    )
-
-                    st.write(
-                        f"2. {fila_75['Respuesta_2']}"
-                    )
-
-                    st.write(
-                        f"3. {fila_75['Respuesta_3']}"
-                    )
-
-                    st.write(
-                        f"4. {fila_75['Respuesta_4']}"
-                    )
-
-
-                    st.info(
-                        "Respuesta(s) correcta(s): "
-                        f"{fila_75['Respuesta_Correcta']}"
-                    )
-
-
-                    estado_75 = st.selectbox(
-
-                        "Estado",
-
-                        [
-                            "PENDIENTE",
-                            "APROBADA",
-                            "RECHAZADA"
-                        ],
-
-                        index=0,
-
-                        key=(
-                            f"estado_res_75_"
-                            f"{pregunta_id_75}"
-                        )
-
-                    )
-
-
-                    observacion_75 = st.text_area(
-
-                        "Observación",
-
-                        value=limpiar_75(
-                            fila_75[
-                                "Observacion_Administrador"
-                            ]
-                        ),
-
-                        key=(
-                            f"obs_res_75_"
-                            f"{pregunta_id_75}"
-                        ),
-
-                        height=60
-
-                    )
-
-
-                    cambios_75[
-                        pregunta_id_75
-                    ] = {
-
-                        "Estado":
-                            estado_75,
-
-                        "Observacion":
-                            observacion_75
-
-                    }
-
-
-                    st.divider()
-
-
-                # =================================================
-                # ACCIÓN POR BLOQUE
-                # =================================================
-
-                accion_bloque_75 = st.radio(
-
-                    "Acción para todo el bloque",
-
-                    [
-                        "Mantener estado individual",
-                        "Aprobar todas",
-                        "Rechazar todas"
-                    ],
-
-                    horizontal=True,
-
-                    key="accion_bloque_restricciones_75"
+                    sheet_name="Banco_General"
 
                 )
 
-
-                if st.button(
-
-                    "GUARDAR BLOQUE",
-
-                    key="guardar_bloque_restricciones_75",
-
-                    type="primary"
-
-                ):
-
-                    try:
-
-                        banco_guardar_75 = pd.read_excel(
-
-                            RUTA_BANCO_GENERAL,
-
-                            dtype=str
-
-                        ).fillna("")
-
-
-                        for (
-                            pregunta_id_75,
-                            cambios_75_fila
-                        ) in cambios_75.items():
-
-                            posicion_75 = (
-
-                                banco_guardar_75[
-                                    "Pregunta_ID"
-                                ]
-                                .astype(str)
-                                .str.strip()
-                                ==
-                                pregunta_id_75
-
-                            )
-
-
-                            if (
-                                accion_bloque_75
-                                ==
-                                "Aprobar todas"
-                            ):
-
-                                estado_final_75 = (
-                                    "APROBADA"
-                                )
-
-                            elif (
-                                accion_bloque_75
-                                ==
-                                "Rechazar todas"
-                            ):
-
-                                estado_final_75 = (
-                                    "RECHAZADA"
-                                )
-
-                            else:
-
-                                estado_final_75 = (
-                                    cambios_75_fila[
-                                        "Estado"
-                                    ]
-                                )
-
-
-                            banco_guardar_75.loc[
-                                posicion_75,
-                                "Estado"
-                            ] = estado_final_75
-
-
-                            banco_guardar_75.loc[
-                                posicion_75,
-                                "Observacion_Administrador"
-                            ] = (
-                                cambios_75_fila[
-                                    "Observacion"
-                                ]
-                            )
-
-
-                        banco_guardar_75.to_excel(
-
-                            RUTA_BANCO_GENERAL,
-
-                            index=False,
-
-                            sheet_name="Banco_General"
-
-                        )
-
-
-                        st.success(
-                            "✓ Bloque guardado en Excel."
-                        )
-
-
-                        # =================================================
-                        # SINCRONIZAR CON GITHUB
-                        # =================================================
-
-                        try:
-
-                            with open(
-                                RUTA_BANCO_GENERAL,
-                                "rb"
-                            ) as archivo_75:
-
-                                contenido_guardado_75 = (
-                                    archivo_75.read()
-                                )
-
-
-                            contenido_base64_guardado_75 = (
-                                base64.b64encode(
-                                    contenido_guardado_75
-                                ).decode(
-                                    "utf-8"
-                                )
-                            )
-
-
-                            url_github_guardado_75 = (
-
-                                f"https://api.github.com/repos/"
-
-                                f"{GITHUB_USUARIO}/"
-
-                                f"{GITHUB_REPOSITORIO}/"
-
-                                f"contents/"
-                                f"BANCO_PREGUNTAS_GENERALES.xlsx"
-
-                            )
-
-
-                            headers_github_guardado_75 = {
-
-                                "Authorization":
-                                    f"Bearer {GITHUB_TOKEN}",
-
-                                "Accept":
-                                    "application/vnd.github+json",
-
-                                "X-GitHub-Api-Version":
-                                    "2022-11-28"
-
-                            }
-
-
-                            solicitud_get_guardado_75 = (
-                                urllib.request.Request(
-
-                                    url_github_guardado_75,
-
-                                    headers=(
-                                        headers_github_guardado_75
-                                    ),
-
-                                    method="GET"
-
-                                )
-                            )
-
-
-                            with urllib.request.urlopen(
-                                solicitud_get_guardado_75
-                            ) as respuesta_guardado_75:
-
-                                informacion_guardado_75 = (
-                                    json.loads(
-                                        respuesta_guardado_75
-                                        .read()
-                                        .decode("utf-8")
-                                    )
-                                )
-
-
-                            datos_guardado_75 = {
-
-                                "message":
-                                    "Actualizar estados "
-                                    "Restricciones",
-
-                                "content":
-                                    contenido_base64_guardado_75,
-
-                                "sha":
-                                    informacion_guardado_75[
-                                        "sha"
-                                    ]
-
-                            }
-
-
-                            solicitud_put_guardado_75 = (
-                                urllib.request.Request(
-
-                                    url_github_guardado_75,
-
-                                    data=json.dumps(
-                                        datos_guardado_75
-                                    ).encode("utf-8"),
-
-                                    headers={
-                                        **headers_github_guardado_75,
-
-                                        "Content-Type":
-                                            "application/json"
-                                    },
-
-                                    method="PUT"
-
-                                )
-                            )
-
-
-                            with urllib.request.urlopen(
-                                solicitud_put_guardado_75
-                            ) as respuesta_guardado_75:
-
-                                resultado_guardado_75 = (
-                                    json.loads(
-                                        respuesta_guardado_75
-                                        .read()
-                                        .decode("utf-8")
-                                    )
-                                )
-
-
-                            if resultado_guardado_75.get(
-                                "content"
-                            ):
-
-                                st.success(
-                                    "✓ Bloque sincronizado "
-                                    "correctamente con GitHub."
-                                )
-
-
-                        except Exception as error_github_guardado_75:
-
-                            st.warning(
-
-                                "El bloque se guardó en Excel, "
-                                "pero no fue posible sincronizar "
-                                "con GitHub."
-
-                            )
-
-                            st.code(
-                                str(
-                                    error_github_guardado_75
-                                )
-                            )
-
-
-                        st.rerun()
-
-
-                    except Exception as error_guardado_75:
-
-                        st.error(
-                            "No fue posible guardar "
-                            "el bloque."
-                        )
-
-                        st.code(
-                            str(error_guardado_75)
-                        )
-
-
-            else:
 
                 st.success(
-                    "No hay preguntas de Restricciones "
-                    "pendientes de validación."
+                    f"✓ Se guardaron "
+                    f"{len(cambios_r77)} "
+                    f"preguntas en Excel."
                 )
+
+
+                # -----------------------------------------
+                # SINCRONIZAR GITHUB
+                # -----------------------------------------
+
+                exito_github_r77, error_github_r77 = (
+                    sincronizar_banco_github_r77()
+                )
+
+
+                if exito_github_r77:
+
+                    st.success(
+                        "✓ Banco actualizado "
+                        "y sincronizado correctamente "
+                        "con GitHub."
+                    )
+
+                else:
+
+                    st.error(
+                        "El Excel se guardó, pero "
+                        "NO se pudo sincronizar con GitHub."
+                    )
+
+                    st.code(
+                        error_github_r77
+                    )
+
+
+                st.rerun()
+
+
+            except Exception as error_guardado_r77:
+
+                st.error(
+                    "No fue posible guardar "
+                    "el bloque."
+                )
+
+                st.code(
+                    str(error_guardado_r77)
+                )
+
+
+    else:
+
+        st.success(
+            "No hay preguntas de Restricciones "
+            "pendientes de validación."
+        )
+
+
 # ========================================================
 # 7.7 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL
