@@ -10608,6 +10608,393 @@ if (
                             "los datos disponibles."
 
                         )
+
+# ========================================================
+# 7.12 PRODUCTOS — VALIDACIÓN
+# PRODUCTO → ACCIÓN GENERAL
+# NIVEL 1
+# SOLO ADMINISTRADOR
+# ========================================================
+
+if (
+    ROL_ACTUAL == "ADMINISTRADOR"
+    and
+    opcion_evaluacion == "Banco general de preguntas"
+):
+
+    st.subheader(
+        "Validación de preguntas — Producto → Acción"
+    )
+
+    RUTA_BANCO_GENERAL_712 = (
+        BASE_DIR
+        / "BANCO_PREGUNTAS_GENERALES.xlsx"
+    )
+
+    # ====================================================
+    # CARGAR BANCO
+    # ====================================================
+
+    if not RUTA_BANCO_GENERAL_712.exists():
+
+        st.warning(
+            "No existe el archivo "
+            "BANCO_PREGUNTAS_GENERALES.xlsx."
+        )
+
+    else:
+
+        try:
+
+            banco_validacion_712 = pd.read_excel(
+                RUTA_BANCO_GENERAL_712,
+                dtype=str
+            ).fillna("")
+
+        except Exception as error_lectura_712:
+
+            st.error(
+                "No fue posible cargar el Banco General."
+            )
+
+            st.code(
+                str(error_lectura_712)
+            )
+
+            banco_validacion_712 = None
+
+
+        if banco_validacion_712 is not None:
+
+            # =================================================
+            # ASEGURAR COLUMNAS
+            # =================================================
+
+            columnas_validacion_712 = [
+
+                "Pregunta_ID",
+                "Modulo",
+                "Tema",
+                "Nivel",
+                "Tipo_Relacion",
+                "Pregunta",
+                "Respuesta_1",
+                "Respuesta_2",
+                "Respuesta_3",
+                "Respuesta_4",
+                "Respuesta_Correcta",
+                "Estado",
+                "Observacion_Administrador",
+                "Fecha_Generacion",
+                "Fuente_ID"
+
+            ]
+
+
+            for columna_712 in columnas_validacion_712:
+
+                if (
+                    columna_712
+                    not in
+                    banco_validacion_712.columns
+                ):
+
+                    banco_validacion_712[
+                        columna_712
+                    ] = ""
+
+
+            banco_validacion_712 = (
+                banco_validacion_712[
+                    columnas_validacion_712
+                ]
+                .copy()
+            )
+
+
+            # =================================================
+            # SOLO PRODUCTO → ACCIÓN PENDIENTES
+            # =================================================
+
+            pendientes_712 = banco_validacion_712[
+                (
+                    banco_validacion_712[
+                        "Tipo_Relacion"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .str.lower()
+                    ==
+                    "producto_accion"
+                )
+                &
+                (
+                    banco_validacion_712[
+                        "Estado"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .str.upper()
+                    ==
+                    "PENDIENTE"
+                )
+            ].copy()
+
+
+            # =================================================
+            # MÁXIMO 5
+            # =================================================
+
+            pendientes_712 = (
+                pendientes_712
+                .head(5)
+                .copy()
+            )
+
+
+            # =================================================
+            # MOSTRAR CANTIDAD
+            # =================================================
+
+            if pendientes_712.empty:
+
+                st.info(
+                    "No hay preguntas de Producto → Acción "
+                    "pendientes de validación."
+                )
+
+
+            else:
+
+                st.write(
+                    "Preguntas para validar: "
+                    f"**{len(pendientes_712)}**"
+                )
+
+
+                # =================================================
+                # DECISIÓN PARA TODO EL BLOQUE
+                # =================================================
+
+                decision_bloque_712 = st.radio(
+
+                    "Decisión para todo el bloque",
+
+                    [
+                        "Mantener pendientes",
+                        "Aprobar todo",
+                        "Rechazar todo"
+                    ],
+
+                    index=0,
+
+                    horizontal=True,
+
+                    key=(
+                        "decision_bloque_"
+                        "producto_accion_712"
+                    )
+
+                )
+
+
+                decisiones_712 = {}
+
+
+                # =================================================
+                # MOSTRAR PREGUNTAS
+                # =================================================
+
+                for numero_712, (
+                    indice_712,
+                    fila_712
+                ) in enumerate(
+
+                    pendientes_712.iterrows(),
+
+                    start=1
+
+                ):
+
+                    pregunta_id_712 = str(
+                        fila_712[
+                            "Pregunta_ID"
+                        ]
+                    )
+
+
+                    st.markdown(
+                        f"### Pregunta {numero_712}"
+                    )
+
+
+                    st.caption(
+                        f"ID: {pregunta_id_712}"
+                    )
+
+
+                    st.write(
+                        f"**Producto:** "
+                        f"{fila_712['Fuente_ID']}"
+                    )
+
+
+                    st.write(
+                        f"**Pregunta:** "
+                        f"{fila_712['Pregunta']}"
+                    )
+
+
+                    st.write(
+                        f"1. {fila_712['Respuesta_1']}"
+                    )
+
+
+                    st.write(
+                        f"2. {fila_712['Respuesta_2']}"
+                    )
+
+
+                    st.write(
+                        f"3. {fila_712['Respuesta_3']}"
+                    )
+
+
+                    st.write(
+                        f"4. {fila_712['Respuesta_4']}"
+                    )
+
+
+                    st.write(
+                        f"**Respuesta correcta:** "
+                        f"{fila_712['Respuesta_Correcta']}"
+                    )
+
+
+                    # =============================================
+                    # ESTADO INDIVIDUAL
+                    # =============================================
+
+                    decision_individual_712 = st.radio(
+
+                        "Estado",
+
+                        [
+                            "PENDIENTE",
+                            "APROBADA",
+                            "RECHAZADA"
+                        ],
+
+                        index=0,
+
+                        horizontal=True,
+
+                        key=(
+                            "estado_producto_accion_712_"
+                            f"{pregunta_id_712}"
+                        )
+
+                    )
+
+
+                    decisiones_712[
+                        indice_712
+                    ] = decision_individual_712
+
+
+                    st.divider()
+
+
+                # =================================================
+                # GUARDAR
+                # =================================================
+
+                if st.button(
+
+                    "GUARDAR VALIDACIÓN",
+
+                    type="primary",
+
+                    key="guardar_producto_accion_712"
+
+                ):
+
+                    for indice_712, decision_712 in (
+                        decisiones_712.items()
+                    ):
+
+                        # -----------------------------------------
+                        # DECISIÓN DEL BLOQUE
+                        # -----------------------------------------
+
+                        if (
+                            decision_bloque_712
+                            ==
+                            "Aprobar todo"
+                        ):
+
+                            banco_validacion_712.loc[
+                                indice_712,
+                                "Estado"
+                            ] = "APROBADA"
+
+
+                        elif (
+                            decision_bloque_712
+                            ==
+                            "Rechazar todo"
+                        ):
+
+                            banco_validacion_712.loc[
+                                indice_712,
+                                "Estado"
+                            ] = "RECHAZADA"
+
+
+                        else:
+
+                            banco_validacion_712.loc[
+                                indice_712,
+                                "Estado"
+                            ] = decision_712
+
+
+                    # =================================================
+                    # GUARDAR EXCEL
+                    # =================================================
+
+                    try:
+
+                        banco_validacion_712.to_excel(
+
+                            RUTA_BANCO_GENERAL_712,
+
+                            index=False,
+
+                            sheet_name="Banco_General"
+
+                        )
+
+
+                        st.success(
+                            "✓ Validación guardada "
+                            "correctamente."
+                        )
+
+
+                        st.rerun()
+
+
+                    except Exception as error_guardado_712:
+
+                        st.error(
+                            "No fue posible guardar "
+                            "la validación."
+                        )
+
+                        st.code(
+                            str(error_guardado_712)
+                        )
 # ============================================================
 # 8. PIE DE APLICACIÓN
 # ============================================================
