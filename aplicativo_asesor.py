@@ -5570,6 +5570,114 @@ if (
     st.success(
         "7.5.2 ✓ Funciones de limpieza preparadas."
     )  
+
+    # ====================================================
+    # 7.5.3 NORMALIZACIÓN ÚNICA Y DATAFRAME CENTRAL
+    # ====================================================
+
+    columnas_75 = [
+        "Producto",
+        "Acciones generales"
+    ]
+
+    if "Componentes" in Base_Productos.columns:
+
+        columnas_75.append(
+            "Componentes"
+        )
+
+    faltantes_75 = [
+        columna_75
+        for columna_75 in columnas_75[:2]
+        if columna_75 not in Base_Productos.columns
+    ]
+
+    if faltantes_75:
+
+        st.error(
+            "Faltan columnas necesarias en Base_Productos: "
+            + ", ".join(faltantes_75)
+        )
+
+        st.stop()
+
+    fuente_75 = (
+        Base_Productos[
+            columnas_75
+        ]
+        .copy()
+        .fillna("")
+    )
+
+    registros_75 = []
+
+    for _, fila_75 in fuente_75.iterrows():
+
+        producto_75 = limpiar_texto_75(
+            fila_75["Producto"]
+        )
+
+        if not producto_75:
+            continue
+
+        acciones_75 = separar_lista_75(
+            fila_75["Acciones generales"]
+        )
+
+        acciones_75 = quitar_duplicados_75(
+            acciones_75
+        )
+
+        if not acciones_75:
+            continue
+
+        for accion_75 in acciones_75:
+
+            registros_75.append({
+
+                "Producto":
+                    producto_75,
+
+                "Accion_General":
+                    accion_75,
+
+                "Firma":
+                    (
+                        firma_texto_75(
+                            producto_75
+                        )
+                        + "||"
+                        + firma_texto_75(
+                            accion_75
+                        )
+                    )
+
+            })
+
+    dataframe_normalizado_75 = pd.DataFrame(
+        registros_75,
+        columns=[
+            "Producto",
+            "Accion_General",
+            "Firma"
+        ]
+    )
+
+    if not dataframe_normalizado_75.empty:
+
+        dataframe_normalizado_75 = (
+            dataframe_normalizado_75
+            .drop_duplicates(
+                subset=["Firma"]
+            )
+            .reset_index(drop=True)
+        )
+
+    st.success(
+        "7.5.3 ✓ Normalización única completada. "
+        f"Relaciones disponibles: "
+        f"{len(dataframe_normalizado_75)}"
+    )
 # ========================================================
 # 7.9 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL + COMPLEMENTARIAS
