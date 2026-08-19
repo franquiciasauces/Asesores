@@ -5430,7 +5430,6 @@ if (
     ROL_ACTUAL == "ADMINISTRADOR"
     and opcion_evaluacion == "Banco general de preguntas"
 ):
-
     st.subheader(
         "Generador de preguntas — Producto + Acción general"
     )
