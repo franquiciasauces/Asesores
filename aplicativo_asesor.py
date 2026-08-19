@@ -5419,147 +5419,241 @@ if (
             st.success(
                 "No hay preguntas de Restricciones "
                 "pendientes de validación."
-            )
 # ========================================================
-# 7.7 PRODUCTOS — GENERADOR
-# PRODUCTO → CATEGORÍA PRINCIPAL
+# 7.5 BANCO GENERAL — PRODUCTO + ACCIÓN GENERAL
 # NIVEL 1
-# GENERACIÓN CONTROLADA DE 5 PREGUNTAS
+# GENERAR → VALIDAR → GUARDAR → SINCRONIZAR GITHUB
 # SOLO ADMINISTRADOR
 # ========================================================
 
 if (
     ROL_ACTUAL == "ADMINISTRADOR"
-    and
-    opcion_evaluacion == "Banco general de preguntas"
+    and opcion_evaluacion == "Banco general de preguntas"
 ):
 
     st.subheader(
-        "Generador — Producto → Categoría principal"
+        "Generador de preguntas — Producto + Acción general"
     )
-
-    st.write(
-        "Genera preguntas Nivel 1 relacionando "
-        "cada producto con su categoría principal."
-    )
-
-    RUTA_BANCO_77 = (
-        BASE_DIR
-        / "BANCO_PREGUNTAS_GENERALES.xlsx"
-    )
-
 
     # ====================================================
-    # CARGAR BASE DE PRODUCTOS
+    # RUTA DEL BANCO
     # ====================================================
 
-    if "Base_Productos" not in globals():
+    if not RUTA_BANCO_GENERAL.exists():
 
         st.error(
-            "No se encontró la hoja "
-            "'Base_Productos'."
+            "No existe el archivo "
+            "BANCO_PREGUNTAS_GENERALES.xlsx."
         )
 
     else:
 
-        productos_77 = (
-            Base_Productos
-            .copy()
-            .fillna("")
-        )
+        # =================================================
+        # CARGAR BANCO
+        # =================================================
+
+        try:
+
+            banco_producto_75 = pd.read_excel(
+                RUTA_BANCO_GENERAL,
+                dtype=str
+            ).fillna("")
+
+        except Exception as error_banco_75:
+
+            st.error(
+                "No fue posible cargar el Banco General."
+            )
+
+            st.code(
+                str(error_banco_75)
+            )
+
+            banco_producto_75 = pd.DataFrame()
 
 
-        columnas_necesarias_77 = [
+        # =================================================
+        # FUNCIONES AUXILIARES
+        # =================================================
+
+        def limpiar_producto_75(valor):
+
+            if pd.isna(valor):
+                return ""
+
+            return str(valor).strip()
+
+
+        def lista_producto_75(valor):
+
+            texto = limpiar_producto_75(valor)
+
+            if not texto:
+                return []
+
+            resultado = []
+
+            for elemento in texto.split(";"):
+
+                elemento = elemento.strip()
+
+                if elemento:
+                    resultado.append(elemento)
+
+            return resultado
+
+
+        def siguiente_id_producto_75(banco):
+
+            numeros = []
+
+            if not banco.empty:
+
+                for valor in banco.get(
+                    "Pregunta_ID",
+                    []
+                ):
+
+                    texto = limpiar_producto_75(
+                        valor
+                    )
+
+                    # Acepta IDs PROD_00001
+                    if texto.startswith("PROD_"):
+
+                        try:
+
+                            numeros.append(
+                                int(texto[5:])
+                            )
+
+                        except ValueError:
+                            pass
+
+            if numeros:
+
+                return max(numeros) + 1
+
+            return 1
+
+
+        def normalizar_firma_producto_75(
+            producto,
+            accion
+        ):
+
+            producto = limpiar_producto_75(
+                producto
+            ).lower()
+
+            accion = limpiar_producto_75(
+                accion
+            ).lower()
+
+            return (
+                producto
+                + "||"
+                + accion
+            )
+
+
+        # =================================================
+        # VERIFICAR COLUMNAS DE PRODUCTOS
+        # =================================================
+
+        columnas_producto_requeridas_75 = [
 
             "Producto",
             "Categoría principal",
-            "Categorías complementarias"
+            "Categorías complementarias",
+            "Componentes",
+            "Acciones generales"
 
         ]
 
 
-        faltantes_77 = [
+        faltantes_producto_75 = [
 
             columna
 
             for columna
-            in columnas_necesarias_77
+            in columnas_producto_requeridas_75
 
-            if columna
-            not in productos_77.columns
+            if columna not in Base_Productos.columns
 
         ]
 
 
-        if faltantes_77:
+        if faltantes_producto_75:
 
             st.error(
-                "Faltan columnas necesarias "
-                "en Base_Productos:"
+                "Faltan columnas necesarias en "
+                "Base_Productos:"
             )
 
-            st.write(
-                faltantes_77
-            )
+            for columna in faltantes_producto_75:
+
+                st.write(
+                    f"- {columna}"
+                )
+
 
         else:
 
-            # =============================================
-            # LIMPIAR TEXTO
-            # =============================================
+            # =================================================
+            # PREPARAR PRODUCTOS
+            # =================================================
 
-            for columna_77 in (
-                columnas_necesarias_77
-            ):
+            productos_75 = (
+                Base_Productos[
+                    columnas_producto_requeridas_75
+                ]
+                .copy()
+                .fillna("")
+            )
 
-                productos_77[
-                    columna_77
-                ] = (
 
-                    productos_77[
-                        columna_77
-                    ]
+            for columna in columnas_producto_requeridas_75:
+
+                productos_75[columna] = (
+
+                    productos_75[columna]
                     .astype(str)
                     .str.strip()
 
                 )
 
 
-            # =============================================
-            # SOLO PRODUCTOS CON CATEGORÍA PRINCIPAL
-            # =============================================
+            # =================================================
+            # SOLO PRODUCTOS CON INFORMACIÓN REAL
+            # =================================================
 
-            productos_validos_77 = (
-
-                productos_77[
-                    (
-                        productos_77[
-                            "Producto"
-                        ] != ""
-                    )
-                    &
-                    (
-                        productos_77[
-                            "Categoría principal"
-                        ] != ""
-                    )
-                ]
-                .copy()
-
-            )
+            productos_75 = productos_75[
+                (
+                    productos_75[
+                        "Producto"
+                    ] != ""
+                )
+                &
+                (
+                    productos_75[
+                        "Acciones generales"
+                    ] != ""
+                )
+            ].copy()
 
 
-            st.write(
-                "Productos utilizables: "
-                f"**{len(productos_validos_77)}**"
+            st.info(
+                f"Productos con acciones generales "
+                f"disponibles: {len(productos_75)}"
             )
 
 
             # =================================================
-            # CANTIDAD
+            # CANTIDAD DE PREGUNTAS A GENERAR
             # =================================================
 
-            cantidad_77 = st.number_input(
+            cantidad_generar_producto_75 = st.number_input(
 
                 "¿Cuántas preguntas desea generar?",
 
@@ -5572,14 +5666,10 @@ if (
                 step=1,
 
                 key=(
-                    "cantidad_producto_categoria_77"
+                    "cantidad_generar_"
+                    "producto_accion_75"
                 )
 
-            )
-
-
-            st.caption(
-                "Máximo 5 preguntas por tanda."
             )
 
 
@@ -5589,806 +5679,1188 @@ if (
 
             if st.button(
 
-                "GENERAR 5 PREGUNTAS",
+                "GENERAR PREGUNTAS",
 
-                key=(
-                    "generar_producto_categoria_77"
-                )
+                key="generar_producto_accion_75",
+
+                type="primary"
 
             ):
 
-                # =============================================
-                # CARGAR BANCO
-                # =============================================
+                nuevas_preguntas_producto_75 = []
 
-                if RUTA_BANCO_77.exists():
 
-                    banco_77 = pd.read_excel(
+                # =================================================
+                # RELACIONES YA EXISTENTES
+                #
+                # MUY IMPORTANTE:
+                # PENDIENTE, APROBADA Y RECHAZADA
+                # BLOQUEAN LA REGENERACIÓN.
+                # =================================================
 
-                        RUTA_BANCO_77,
+                relaciones_bloqueadas_75 = set()
+
+
+                if not banco_producto_75.empty:
+
+                    for _, fila_banco_75 in (
+                        banco_producto_75.iterrows()
+                    ):
+
+                        modulo_banco_75 = (
+                            limpiar_producto_75(
+                                fila_banco_75.get(
+                                    "Modulo",
+                                    ""
+                                )
+                            )
+                            .lower()
+                        )
+
+
+                        tipo_banco_75 = (
+                            limpiar_producto_75(
+                                fila_banco_75.get(
+                                    "Tipo_Relacion",
+                                    ""
+                                )
+                            )
+                        )
+
+
+                        estado_banco_75 = (
+                            limpiar_producto_75(
+                                fila_banco_75.get(
+                                    "Estado",
+                                    ""
+                                )
+                            )
+                            .upper()
+                        )
+
+
+                        if (
+                            modulo_banco_75
+                            == "productos"
+                            and
+                            tipo_banco_75
+                            == "Producto_AccionGeneral"
+                            and
+                            estado_banco_75
+                            in [
+                                "PENDIENTE",
+                                "APROBADA",
+                                "RECHAZADA"
+                            ]
+                        ):
+
+                            firma_existente_75 = (
+                                limpiar_producto_75(
+                                    fila_banco_75.get(
+                                        "Fuente_ID",
+                                        ""
+                                    )
+                                )
+                                .lower()
+                            )
+
+
+                            if firma_existente_75:
+
+                                relaciones_bloqueadas_75.add(
+                                    firma_existente_75
+                                )
+
+
+                # =================================================
+                # CONSTRUIR CANDIDATOS
+                # =================================================
+
+                candidatos_producto_75 = []
+
+
+                for _, fila_producto_75 in (
+                    productos_75.iterrows()
+                ):
+
+                    producto_75 = (
+                        limpiar_producto_75(
+                            fila_producto_75[
+                                "Producto"
+                            ]
+                        )
+                    )
+
+
+                    acciones_75 = lista_producto_75(
+
+                        fila_producto_75[
+                            "Acciones generales"
+                        ]
+
+                    )
+
+
+                    if not producto_75:
+                        continue
+
+
+                    if not acciones_75:
+                        continue
+
+
+                    for accion_75 in acciones_75:
+
+                        firma_75 = (
+                            normalizar_firma_producto_75(
+                                producto_75,
+                                accion_75
+                            )
+                        )
+
+
+                        # =========================================
+                        # NUNCA REGENERAR:
+                        # PENDIENTE / APROBADA / RECHAZADA
+                        # =========================================
+
+                        if (
+                            firma_75
+                            in
+                            relaciones_bloqueadas_75
+                        ):
+
+                            continue
+
+
+                        candidatos_producto_75.append({
+
+                            "Producto":
+                                producto_75,
+
+                            "Accion":
+                                accion_75,
+
+                            "Firma":
+                                firma_75
+
+                        })
+
+
+                # =================================================
+                # ELIMINAR DUPLICADOS
+                # =================================================
+
+                candidatos_unicos_75 = []
+
+                firmas_temporales_75 = set()
+
+
+                for candidato_75 in (
+                    candidatos_producto_75
+                ):
+
+                    firma_75 = candidato_75[
+                        "Firma"
+                    ]
+
+
+                    if firma_75 in firmas_temporales_75:
+                        continue
+
+
+                    firmas_temporales_75.add(
+                        firma_75
+                    )
+
+                    candidatos_unicos_75.append(
+                        candidato_75
+                    )
+
+
+                # =================================================
+                # MEZCLAR CANDIDATOS
+                # =================================================
+
+                np.random.shuffle(
+                    candidatos_unicos_75
+                )
+
+
+                # =================================================
+                # GENERAR HASTA 5
+                #
+                # NO SE FUERZA LA CANTIDAD.
+                # =================================================
+
+                for candidato_75 in (
+                    candidatos_unicos_75
+                ):
+
+                    if (
+                        len(
+                            nuevas_preguntas_producto_75
+                        )
+                        >=
+                        int(
+                            cantidad_generar_producto_75
+                        )
+                    ):
+
+                        break
+
+
+                    producto_75 = candidato_75[
+                        "Producto"
+                    ]
+
+
+                    accion_75 = candidato_75[
+                        "Accion"
+                    ]
+
+
+                    firma_75 = candidato_75[
+                        "Firma"
+                    ]
+
+
+                    # =============================================
+                    # BUSCAR OTROS PRODUCTOS PARA DISTRACTORES
+                    #
+                    # NO UTILIZAR COMO DISTRACTOR EL MISMO PRODUCTO.
+                    # =============================================
+
+                    acciones_distractoras_75 = []
+
+
+                    for otro_candidato_75 in (
+                        candidatos_unicos_75
+                    ):
+
+                        otro_producto_75 = (
+                            otro_candidato_75[
+                                "Producto"
+                            ]
+                        )
+
+
+                        otra_accion_75 = (
+                            otro_candidato_75[
+                                "Accion"
+                            ]
+                        )
+
+
+                        if (
+                            otro_producto_75
+                            .strip()
+                            .lower()
+                            ==
+                            producto_75
+                            .strip()
+                            .lower()
+                        ):
+
+                            continue
+
+
+                        if (
+                            otra_accion_75
+                            .strip()
+                            .lower()
+                            ==
+                            accion_75
+                            .strip()
+                            .lower()
+                        ):
+
+                            continue
+
+
+                        acciones_distractoras_75.append(
+                            otra_accion_75
+                        )
+
+
+                    # =============================================
+                    # QUITAR DUPLICADOS DE DISTRACTORES
+                    # =============================================
+
+                    acciones_distractoras_75 = list(
+                        dict.fromkeys(
+                            acciones_distractoras_75
+                        )
+                    )
+
+
+                    if (
+                        len(
+                            acciones_distractoras_75
+                        )
+                        < 3
+                    ):
+
+                        continue
+
+
+                    distractores_75 = list(
+                        np.random.choice(
+                            acciones_distractoras_75,
+                            size=3,
+                            replace=False
+                        )
+                    )
+
+
+                    # =============================================
+                    # CREAR OPCIONES
+                    # =============================================
+
+                    opciones_75 = [
+
+                        accion_75,
+
+                        distractores_75[0],
+
+                        distractores_75[1],
+
+                        distractores_75[2]
+
+                    ]
+
+
+                    np.random.shuffle(
+                        opciones_75
+                    )
+
+
+                    respuesta_correcta_75 = (
+
+                        opciones_75.index(
+                            accion_75
+                        )
+                        + 1
+
+                    )
+
+
+                    # =============================================
+                    # PREGUNTA
+                    # =============================================
+
+                    pregunta_75 = (
+
+                        f"Considere el producto "
+                        f"{producto_75}. "
+                        f"¿Cuál de las siguientes "
+                        f"acciones generales corresponde "
+                        f"a este producto según la matriz?"
+
+                    )
+
+
+                    # =============================================
+                    # REGISTRO
+                    # =============================================
+
+                    nuevas_preguntas_producto_75.append({
+
+                        "Pregunta_ID":
+                            f"PROD_{siguiente_id_producto_75(banco_producto_75):05d}",
+
+                        "Modulo":
+                            "Productos",
+
+                        "Tema":
+                            producto_75,
+
+                        "Nivel":
+                            "Nivel 1",
+
+                        "Tipo_Relacion":
+                            "Producto_AccionGeneral",
+
+                        "Pregunta":
+                            pregunta_75,
+
+                        "Respuesta_1":
+                            opciones_75[0],
+
+                        "Respuesta_2":
+                            opciones_75[1],
+
+                        "Respuesta_3":
+                            opciones_75[2],
+
+                        "Respuesta_4":
+                            opciones_75[3],
+
+                        "Respuesta_Correcta":
+                            str(
+                                respuesta_correcta_75
+                            ),
+
+                        "Estado":
+                            "PENDIENTE",
+
+                        "Observacion_Administrador":
+                            "",
+
+                        "Fecha_Generacion":
+                            pd.Timestamp.now().strftime(
+                                "%Y-%m-%d %H:%M:%S"
+                            ),
+
+                        # =========================================
+                        # LA FIRMA INCLUYE PRODUCTO + ACCIÓN.
+                        # ASÍ UNA RECHAZADA NO VUELVE A APARECER.
+                        # =========================================
+
+                        "Fuente_ID":
+                            firma_75
+
+                    })
+
+
+                    # =================================================
+                    # BLOQUEAR TAMBIÉN DURANTE ESTA MISMA GENERACIÓN
+                    # =================================================
+
+                    relaciones_bloqueadas_75.add(
+                        firma_75
+                    )
+
+
+                    # =================================================
+                    # SIGUIENTE ID
+                    # =================================================
+
+                    siguiente_numero_producto_75 = (
+                        siguiente_id_producto_75(
+                            banco_producto_75
+                        )
+                    )
+
+
+                    # Actualizar temporalmente el banco
+                    # para que el siguiente ID sea diferente.
+
+                    banco_producto_75 = pd.concat(
+
+                        [
+
+                            banco_producto_75,
+
+                            pd.DataFrame(
+                                [
+                                    nuevas_preguntas_producto_75[
+                                        -1
+                                    ]
+                                ]
+                            )
+
+                        ],
+
+                        ignore_index=True
+
+                    )
+
+
+                # =================================================
+                # GUARDAR PREGUNTAS GENERADAS
+                # =================================================
+
+                if nuevas_preguntas_producto_75:
+
+                    nuevas_df_producto_75 = pd.DataFrame(
+                        nuevas_preguntas_producto_75
+                    )
+
+
+                    banco_guardar_producto_75 = pd.read_excel(
+
+                        RUTA_BANCO_GENERAL,
 
                         dtype=str
 
                     ).fillna("")
 
+
+                    banco_guardar_producto_75 = pd.concat(
+
+                        [
+
+                            banco_guardar_producto_75,
+
+                            nuevas_df_producto_75
+
+                        ],
+
+                        ignore_index=True
+
+                    )
+
+
+                    banco_guardar_producto_75 = (
+                        banco_guardar_producto_75[
+                            COLUMNAS_BANCO_GENERAL
+                        ]
+                    )
+
+
+                    try:
+
+                        banco_guardar_producto_75.to_excel(
+
+                            RUTA_BANCO_GENERAL,
+
+                            index=False,
+
+                            sheet_name="Banco_General"
+
+                        )
+
+
+                        st.success(
+
+                            f"✓ Se generaron "
+                            f"{len(nuevas_df_producto_75)} "
+                            f"preguntas nuevas."
+
+                        )
+
+
+                        st.info(
+                            "Las preguntas quedaron "
+                            "PENDIENTES para validación."
+                        )
+
+
+                        st.dataframe(
+
+                            nuevas_df_producto_75[
+                                [
+                                    "Pregunta_ID",
+                                    "Modulo",
+                                    "Tema",
+                                    "Nivel",
+                                    "Tipo_Relacion",
+                                    "Pregunta",
+                                    "Respuesta_1",
+                                    "Respuesta_2",
+                                    "Respuesta_3",
+                                    "Respuesta_4",
+                                    "Respuesta_Correcta",
+                                    "Estado"
+                                ]
+                            ],
+
+                            use_container_width=True
+
+                        )
+
+
+                    except Exception as error_guardado_75:
+
+                        st.error(
+                            "No fue posible guardar "
+                            "las preguntas."
+                        )
+
+                        st.code(
+                            str(error_guardado_75)
+                        )
+
+
                 else:
 
-                    banco_77 = pd.DataFrame()
+                    st.warning(
+
+                        "No hay suficientes relaciones nuevas "
+                        "válidas para generar preguntas. "
+                        "No se forzaron preguntas."
+
+                    )
 
 
-                columnas_banco_77 = [
+    # ========================================================
+    # 7.5.1 VALIDACIÓN
+    # ========================================================
 
-                    "Pregunta_ID",
-                    "Modulo",
-                    "Tema",
-                    "Nivel",
-                    "Tipo_Relacion",
-                    "Pregunta",
-                    "Respuesta_1",
-                    "Respuesta_2",
-                    "Respuesta_3",
-                    "Respuesta_4",
-                    "Respuesta_Correcta",
-                    "Estado",
-                    "Observacion_Administrador",
-                    "Fecha_Generacion",
-                    "Fuente_ID"
+    st.divider()
+
+    st.subheader(
+        "Validación — Producto + Acción general"
+    )
+
+
+    if RUTA_BANCO_GENERAL.exists():
+
+        try:
+
+            banco_validar_producto_75 = pd.read_excel(
+
+                RUTA_BANCO_GENERAL,
+
+                dtype=str
+
+            ).fillna("")
+
+
+        except Exception as error_lectura_validar_75:
+
+            st.error(
+                "No fue posible cargar el Banco General "
+                "para validación."
+            )
+
+            st.code(
+                str(error_lectura_validar_75)
+            )
+
+            banco_validar_producto_75 = pd.DataFrame()
+
+
+        if not banco_validar_producto_75.empty:
+
+            pendientes_producto_75 = (
+
+                banco_validar_producto_75[
+
+                    (
+                        banco_validar_producto_75[
+                            "Modulo"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        .str.lower()
+                        ==
+                        "productos"
+                    )
+
+                    &
+
+                    (
+                        banco_validar_producto_75[
+                            "Tipo_Relacion"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        ==
+                        "Producto_AccionGeneral"
+                    )
+
+                    &
+
+                    (
+                        banco_validar_producto_75[
+                            "Estado"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        .str.upper()
+                        ==
+                        "PENDIENTE"
+                    )
 
                 ]
 
+                .copy()
 
-                for columna_77 in columnas_banco_77:
-
-                    if (
-                        columna_77
-                        not in banco_77.columns
-                    ):
-
-                        banco_77[
-                            columna_77
-                        ] = ""
+            )
 
 
-                banco_77 = banco_77[
-                    columnas_banco_77
-                ].copy()
+            st.write(
+
+                "Preguntas pendientes de Producto + "
+                "Acción general: "
+
+                f"**{len(pendientes_producto_75)}**"
+
+            )
 
 
-                # =============================================
-                # EVITAR PRODUCTOS YA GENERADOS
-                # =============================================
+            if not pendientes_producto_75.empty:
 
-                claves_existentes_77 = set()
+                # =================================================
+                # VALIDAR MÁXIMO 5 A LA VEZ
+                # =================================================
+
+                bloque_producto_75 = (
+                    pendientes_producto_75
+                    .head(5)
+                    .copy()
+                )
 
 
-                for _, fila_77 in (
-                    banco_77.iterrows()
+                cambios_producto_75 = {}
+
+
+                for indice_75, fila_75 in (
+                    bloque_producto_75.iterrows()
                 ):
 
-                    modulo_77 = str(
-                        fila_77[
-                            "Modulo"
-                        ]
-                    ).strip().lower()
+                    pregunta_id_75 = (
+                        limpiar_producto_75(
+                            fila_75[
+                                "Pregunta_ID"
+                            ]
+                        )
+                    )
 
 
-                    relacion_77 = str(
-                        fila_77[
-                            "Tipo_Relacion"
-                        ]
-                    ).strip()
+                    st.markdown(
+                        "---"
+                    )
 
 
-                    fuente_77 = str(
-                        fila_77[
-                            "Fuente_ID"
-                        ]
-                    ).strip()
+                    st.markdown(
+                        f"### {pregunta_id_75}"
+                    )
 
 
-                    nivel_77 = str(
-                        fila_77[
-                            "Nivel"
-                        ]
-                    ).strip()
+                    st.write(
+                        f"**Producto:** "
+                        f"{fila_75['Tema']}"
+                    )
 
 
-                    if (
+                    st.write(
+                        f"**Nivel:** "
+                        f"{fila_75['Nivel']}"
+                    )
 
-                        modulo_77
-                        ==
-                        "productos"
 
-                        and
+                    st.write(
+                        f"**Tipo:** "
+                        f"{fila_75['Tipo_Relacion']}"
+                    )
 
-                        relacion_77
-                        ==
-                        "Producto_Categoria_Principal"
 
-                        and
+                    st.write(
+                        f"**Pregunta:** "
+                        f"{fila_75['Pregunta']}"
+                    )
 
-                        nivel_77
-                        ==
-                        "Nivel 1"
 
-                    ):
+                    st.write(
+                        f"1. {fila_75['Respuesta_1']}"
+                    )
 
-                        claves_existentes_77.add(
-                            fuente_77
+                    st.write(
+                        f"2. {fila_75['Respuesta_2']}"
+                    )
+
+                    st.write(
+                        f"3. {fila_75['Respuesta_3']}"
+                    )
+
+                    st.write(
+                        f"4. {fila_75['Respuesta_4']}"
+                    )
+
+
+                    st.info(
+                        "Respuesta correcta actual: "
+                        f"{fila_75['Respuesta_Correcta']}"
+                    )
+
+
+                    estado_producto_75 = st.selectbox(
+
+                        "Estado:",
+
+                        [
+                            "PENDIENTE",
+                            "APROBADA",
+                            "RECHAZADA"
+                        ],
+
+                        index=0,
+
+                        key=(
+                            "estado_producto_accion_75_"
+                            f"{pregunta_id_75}"
                         )
 
+                    )
 
-                disponibles_77 = (
 
-                    productos_validos_77[
-                        ~productos_validos_77[
-                            "Producto"
-                        ].isin(
-                            claves_existentes_77
+                    observacion_producto_75 = (
+                        st.text_area(
+
+                            "Observación:",
+
+                            value=(
+                                limpiar_producto_75(
+                                    fila_75[
+                                        "Observacion_Administrador"
+                                    ]
+                                )
+                            ),
+
+                            key=(
+                                "obs_producto_accion_75_"
+                                f"{pregunta_id_75}"
+                            ),
+
+                            height=60
+
                         )
-                    ]
-                    .copy()
+                    )
+
+
+                    cambios_producto_75[
+                        pregunta_id_75
+                    ] = {
+
+                        "Estado":
+                            estado_producto_75,
+
+                        "Observacion":
+                            observacion_producto_75
+
+                    }
+
+
+                # =================================================
+                # DECISIÓN MASIVA
+                # =================================================
+
+                st.markdown("---")
+
+
+                accion_masiva_producto_75 = st.radio(
+
+                    "Acción para las 5 preguntas mostradas:",
+
+                    [
+                        "Mantener selección individual",
+                        "Aprobar todas",
+                        "Rechazar todas"
+                    ],
+
+                    horizontal=True,
+
+                    key="accion_masiva_producto_accion_75"
 
                 )
 
 
-                if disponibles_77.empty:
+                if st.button(
 
-                    st.warning(
-                        "No hay productos disponibles "
-                        "para generar nuevas preguntas "
-                        "de esta relación."
-                    )
+                    "GUARDAR Y SINCRONIZAR",
 
-                else:
+                    key="guardar_sincronizar_producto_75",
 
-                    # =========================================
-                    # CATEGORÍAS REALES
-                    # =========================================
+                    type="primary"
 
-                    categorias_77 = list(
+                ):
 
-                        dict.fromkeys(
+                    # =============================================
+                    # APLICAR DECISIÓN MASIVA
+                    # =============================================
 
-                            [
+                    if (
+                        accion_masiva_producto_75
+                        ==
+                        "Aprobar todas"
+                    ):
 
-                                str(valor).strip()
-
-                                for valor
-                                in productos_validos_77[
-                                    "Categoría principal"
-                                ]
-
-                                if str(
-                                    valor
-                                ).strip()
-
-                            ]
-
-                        )
-
-                    )
-
-
-                    if len(categorias_77) < 4:
-
-                        st.error(
-                            "No existen suficientes "
-                            "categorías principales distintas "
-                            "para construir cuatro opciones."
-                        )
-
-                    else:
-
-                        # =====================================
-                        # MEZCLAR PRODUCTOS
-                        # =====================================
-
-                        indices_77 = list(
-                            disponibles_77.index
-                        )
-
-
-                        np.random.shuffle(
-                            indices_77
-                        )
-
-
-                        nuevas_77 = []
-
-
-                        # =====================================
-                        # ID
-                        # =====================================
-
-                        numeros_77 = []
-
-
-                        for valor_77 in (
-                            banco_77[
-                                "Pregunta_ID"
-                            ]
+                        for pregunta_id_75 in (
+                            cambios_producto_75
                         ):
 
-                            texto_77 = str(
-                                valor_77
-                            ).strip()
+                            cambios_producto_75[
+                                pregunta_id_75
+                            ][
+                                "Estado"
+                            ] = "APROBADA"
 
 
-                            if texto_77.startswith(
-                                "PRODCAT_"
-                            ):
+                    elif (
+                        accion_masiva_producto_75
+                        ==
+                        "Rechazar todas"
+                    ):
 
-                                try:
+                        for pregunta_id_75 in (
+                            cambios_producto_75
+                        ):
 
-                                    numeros_77.append(
-
-                                        int(
-                                            texto_77[
-                                                8:
-                                            ]
-                                        )
-
-                                    )
-
-                                except Exception:
-
-                                    pass
+                            cambios_producto_75[
+                                pregunta_id_75
+                            ][
+                                "Estado"
+                            ] = "RECHAZADA"
 
 
-                        if numeros_77:
+                    # =============================================
+                    # GUARDAR EN EXCEL
+                    # =============================================
 
-                            siguiente_77 = (
-                                max(
-                                    numeros_77
-                                )
-                                + 1
-                            )
+                    try:
 
-                        else:
+                        banco_guardar_75 = pd.read_excel(
 
-                            siguiente_77 = 1
+                            RUTA_BANCO_GENERAL,
 
+                            dtype=str
 
-                        # =====================================
-                        # GENERACIÓN
-                        # =====================================
-
-                        for indice_77 in indices_77:
-
-                            if (
-                                len(nuevas_77)
-                                >=
-                                int(cantidad_77)
-                            ):
-
-                                break
+                        ).fillna("")
 
 
-                            fila_77 = (
-                                productos_validos_77
-                                .loc[indice_77]
-                            )
+                        for (
+                            pregunta_id_75,
+                            cambios_75
+                        ) in cambios_producto_75.items():
 
+                            posicion_75 = (
 
-                            producto_77 = str(
-                                fila_77[
-                                    "Producto"
+                                banco_guardar_75[
+                                    "Pregunta_ID"
                                 ]
-                            ).strip()
+                                .astype(str)
+                                .str.strip()
+                                ==
+                                pregunta_id_75
+
+                            )
 
 
-                            categoria_correcta_77 = str(
-                                fila_77[
-                                    "Categoría principal"
+                            banco_guardar_75.loc[
+                                posicion_75,
+                                "Estado"
+                            ] = cambios_75[
+                                "Estado"
+                            ]
+
+
+                            banco_guardar_75.loc[
+                                posicion_75,
+                                "Observacion_Administrador"
+                            ] = cambios_75[
+                                "Observacion"
+                            ]
+
+
+                        banco_guardar_75.to_excel(
+
+                            RUTA_BANCO_GENERAL,
+
+                            index=False,
+
+                            sheet_name="Banco_General"
+
+                        )
+
+
+                        st.success(
+                            "✓ Validación guardada "
+                            "en el Excel."
+                        )
+
+
+                    except Exception as error_guardado_validacion_75:
+
+                        st.error(
+                            "No fue posible guardar "
+                            "la validación."
+                        )
+
+                        st.code(
+                            str(
+                                error_guardado_validacion_75
+                            )
+                        )
+
+                        st.stop()
+
+
+                    # =============================================
+                    # SINCRONIZAR CON GITHUB
+                    # =============================================
+
+                    try:
+
+                        url_github_producto_75 = (
+
+                            f"https://api.github.com/repos/"
+                            f"{GITHUB_USUARIO}/"
+                            f"{GITHUB_REPOSITORIO}/"
+                            f"contents/"
+                            f"BANCO_PREGUNTAS_GENERALES.xlsx"
+
+                        )
+
+
+                        headers_github_producto_75 = {
+
+                            "Authorization":
+                                f"Bearer {GITHUB_TOKEN}",
+
+                            "Accept":
+                                "application/vnd.github+json",
+
+                            "X-GitHub-Api-Version":
+                                "2022-11-28"
+
+                        }
+
+
+                        with open(
+
+                            RUTA_BANCO_GENERAL,
+
+                            "rb"
+
+                        ) as archivo_producto_75:
+
+                            contenido_producto_75 = (
+                                archivo_producto_75.read()
+                            )
+
+
+                        contenido_base64_producto_75 = (
+
+                            base64.b64encode(
+                                contenido_producto_75
+                            )
+                            .decode("utf-8")
+
+                        )
+
+
+                        solicitud_get_producto_75 = (
+                            urllib.request.Request(
+
+                                url_github_producto_75,
+
+                                headers=(
+                                    headers_github_producto_75
+                                ),
+
+                                method="GET"
+
+                            )
+                        )
+
+
+                        with urllib.request.urlopen(
+
+                            solicitud_get_producto_75
+
+                        ) as respuesta_producto_75:
+
+                            informacion_producto_75 = json.loads(
+
+                                respuesta_producto_75
+                                .read()
+                                .decode("utf-8")
+
+                            )
+
+
+                        datos_github_producto_75 = {
+
+                            "message":
+                                "Actualizar preguntas "
+                                "Producto - Accion General",
+
+                            "content":
+                                contenido_base64_producto_75,
+
+                            "sha":
+                                informacion_producto_75[
+                                    "sha"
                                 ]
-                            ).strip()
+
+                        }
 
 
-                            # =================================
-                            # CATEGORÍAS COMPLEMENTARIAS
-                            # =================================
+                        solicitud_put_producto_75 = (
 
-                            complementarias_77 = (
+                            urllib.request.Request(
 
-                                str(
-                                    fila_77[
-                                        "Categorías complementarias"
-                                    ]
-                                )
-                                .strip()
+                                url_github_producto_75,
+
+                                data=json.dumps(
+                                    datos_github_producto_75
+                                ).encode("utf-8"),
+
+                                headers={
+                                    **headers_github_producto_75,
+
+                                    "Content-Type":
+                                        "application/json"
+                                },
+
+                                method="PUT"
+
+                            )
+                        )
+
+
+                        with urllib.request.urlopen(
+
+                            solicitud_put_producto_75
+
+                        ) as respuesta_put_producto_75:
+
+                            resultado_producto_75 = json.loads(
+
+                                respuesta_put_producto_75
+                                .read()
+                                .decode("utf-8")
 
                             )
 
 
-                            lista_complementarias_77 = [
-
-                                x.strip()
-
-                                for x
-                                in complementarias_77.split(";")
-
-                                if x.strip()
-
-                            ]
-
-
-                            # =================================
-                            # DISTRACTORES
-                            # =================================
-
-                            distractores_77 = []
-
-
-                            for categoria_77 in categorias_77:
-
-                                if (
-                                    categoria_77
-                                    ==
-                                    categoria_correcta_77
-                                ):
-
-                                    continue
-
-
-                                # -----------------------------
-                                # NO USAR UNA CATEGORÍA
-                                # COMPLEMENTARIA DEL MISMO
-                                # PRODUCTO
-                                # -----------------------------
-
-                                if (
-                                    categoria_77
-                                    in
-                                    lista_complementarias_77
-                                ):
-
-                                    continue
-
-
-                                # -----------------------------
-                                # EVITAR DUPLICADOS
-                                # -----------------------------
-
-                                if (
-                                    categoria_77
-                                    in
-                                    distractores_77
-                                ):
-
-                                    continue
-
-
-                                distractores_77.append(
-                                    categoria_77
-                                )
-
-
-                            # =================================
-                            # NECESITAMOS 3 DISTRACTORES
-                            # =================================
-
-                            if len(
-                                distractores_77
-                            ) < 3:
-
-                                continue
-
-
-                            np.random.shuffle(
-                                distractores_77
-                            )
-
-
-                            opciones_77 = [
-
-                                categoria_correcta_77,
-
-                                distractores_77[0],
-
-                                distractores_77[1],
-
-                                distractores_77[2]
-
-                            ]
-
-
-                            # =================================
-                            # ALEATORIZAR RESPUESTAS
-                            # =================================
-
-                            np.random.shuffle(
-                                opciones_77
-                            )
-
-
-                            respuesta_correcta_77 = str(
-
-                                opciones_77.index(
-                                    categoria_correcta_77
-                                )
-                                + 1
-
-                            )
-
-
-                            # =================================
-                            # ENUNCIADO
-                            # =================================
-
-                            pregunta_77 = (
-
-                                f"¿Cuál es la categoría "
-                                f"principal de "
-                                f"{producto_77}?"
-
-                            )
-
-
-                            # =================================
-                            # REGISTRO
-                            # =================================
-
-                            nuevas_77.append({
-
-                                "Pregunta_ID":
-                                    (
-                                        f"PRODCAT_"
-                                        f"{siguiente_77:05d}"
-                                    ),
-
-                                "Modulo":
-                                    "Productos",
-
-                                "Tema":
-                                    "Categoría principal",
-
-                                "Nivel":
-                                    "Nivel 1",
-
-                                "Tipo_Relacion":
-                                    (
-                                        "Producto_"
-                                        "Categoria_Principal"
-                                    ),
-
-                                "Pregunta":
-                                    pregunta_77,
-
-                                "Respuesta_1":
-                                    opciones_77[0],
-
-                                "Respuesta_2":
-                                    opciones_77[1],
-
-                                "Respuesta_3":
-                                    opciones_77[2],
-
-                                "Respuesta_4":
-                                    opciones_77[3],
-
-                                "Respuesta_Correcta":
-                                    respuesta_correcta_77,
-
-                                "Estado":
-                                    "PENDIENTE",
-
-                                "Observacion_Administrador":
-                                    "",
-
-                                "Fecha_Generacion":
-                                    pd.Timestamp.now().strftime(
-                                        "%Y-%m-%d %H:%M:%S"
-                                    ),
-
-                                "Fuente_ID":
-                                    producto_77
-
-                            })
-
-
-                            siguiente_77 += 1
-
-
-                        # =====================================
-                        # GUARDAR
-                        # =====================================
-
-                        if nuevas_77:
-
-                            nuevas_df_77 = pd.DataFrame(
-                                nuevas_77
-                            )
-
-
-                            banco_77 = pd.concat(
-
-                                [
-                                    banco_77,
-                                    nuevas_df_77
-                                ],
-
-                                ignore_index=True
-
-                            )
-
-
-                            banco_77 = banco_77[
-                                columnas_banco_77
-                            ]
-
-
-                            banco_77.to_excel(
-
-                                RUTA_BANCO_77,
-
-                                index=False,
-
-                                sheet_name="Banco_General"
-
-                            )
-
+                        if resultado_producto_75.get(
+                            "content"
+                        ):
 
                             st.success(
-
-                                f"Se generaron y guardaron "
-                                f"{len(nuevas_df_77)} "
-                                f"preguntas."
-
-                            )
-
-
-                            st.dataframe(
-
-                                nuevas_df_77,
-
-                                use_container_width=True
-
+                                "✓ Validación guardada "
+                                "y Banco General "
+                                "sincronizado con GitHub."
                             )
 
 
                         else:
 
                             st.warning(
-
-                                "No fue posible generar "
-                                "preguntas válidas con "
-                                "los productos disponibles."
-
+                                "El Excel se guardó, "
+                                "pero GitHub no confirmó "
+                                "la actualización."
                             )
 
-# ========================================================
-# 7.8 PRODUCTOS — VALIDACIÓN
-# PRODUCTO → CATEGORÍA PRINCIPAL
-# NIVEL 1
-# ========================================================
 
-if (
-    ROL_ACTUAL == "ADMINISTRADOR"
-    and opcion_evaluacion == "Banco general de preguntas"
-):
+                    except Exception as error_github_producto_75:
 
-    st.subheader(
-        "Validación — Producto → Categoría principal"
-    )
+                        st.error(
+                            "El Excel quedó guardado, "
+                            "pero NO fue posible "
+                            "sincronizar con GitHub."
+                        )
 
-    RUTA_BANCO_78 = (
-        BASE_DIR / "BANCO_PREGUNTAS_GENERALES.xlsx"
-    )
+                        st.code(
+                            str(
+                                error_github_producto_75
+                            )
+                        )
 
-    if not RUTA_BANCO_78.exists():
 
-        st.warning(
-            "No existe el Banco General de Preguntas."
-        )
+                    st.rerun()
 
-    else:
 
-        banco_78 = pd.read_excel(
-            RUTA_BANCO_78,
-            dtype=str
-        ).fillna("")
-
-        # ----------------------------------------------------
-        # BUSCAR SOLO PRODUCTO → CATEGORÍA PRINCIPAL
-        # NIVEL 1 Y PENDIENTES
-        # ----------------------------------------------------
-
-        pendientes_78 = banco_78[
-            (
-                banco_78["Tipo_Relacion"]
-                .astype(str)
-                .str.strip()
-                .str.lower()
-                ==
-                "producto_categoria_principal"
-            )
-            &
-            (
-                banco_78["Nivel"]
-                .astype(str)
-                .str.strip()
-                .str.lower()
-                ==
-                "nivel 1"
-            )
-            &
-            (
-                banco_78["Estado"]
-                .astype(str)
-                .str.strip()
-                .str.upper()
-                ==
-                "PENDIENTE"
-            )
-        ].copy()
-
-        # ----------------------------------------------------
-        # SOLO 5 POR BLOQUE
-        # ----------------------------------------------------
-
-        pendientes_78 = pendientes_78.head(5)
-
-        if pendientes_78.empty:
-
-            st.info(
-                "No hay preguntas pendientes "
-                "para validar."
-            )
-
-        else:
-
-            st.write(
-                f"Preguntas para validar: "
-                f"**{len(pendientes_78)}**"
-            )
-
-            # ------------------------------------------------
-            # OPCIÓN PARA TODO EL BLOQUE
-            # ------------------------------------------------
-
-            decision_bloque_78 = st.radio(
-                "Decisión para todo el bloque",
-                [
-                    "Mantener pendiente",
-                    "Aprobar todo",
-                    "Rechazar todo"
-                ],
-                index=0,
-                horizontal=True,
-                key="decision_bloque_producto_78"
-            )
-
-            decisiones_78 = {}
-
-            # ------------------------------------------------
-            # MOSTRAR PREGUNTAS
-            # ------------------------------------------------
-
-            for numero_78, (
-                indice_78,
-                fila_78
-            ) in enumerate(
-                pendientes_78.iterrows(),
-                start=1
-            ):
-
-                pregunta_id_78 = str(
-                    fila_78["Pregunta_ID"]
-                )
-
-                st.markdown(
-                    f"### Pregunta {numero_78}"
-                )
-
-                st.caption(
-                    f"ID: {pregunta_id_78}"
-                )
-
-                st.write(
-                    f"**Producto:** "
-                    f"{fila_78['Fuente_ID']}"
-                )
-
-                st.write(
-                    f"**Pregunta:** "
-                    f"{fila_78['Pregunta']}"
-                )
-
-                st.write(
-                    f"1. {fila_78['Respuesta_1']}"
-                )
-
-                st.write(
-                    f"2. {fila_78['Respuesta_2']}"
-                )
-
-                st.write(
-                    f"3. {fila_78['Respuesta_3']}"
-                )
-
-                st.write(
-                    f"4. {fila_78['Respuesta_4']}"
-                )
-
-                st.write(
-                    f"**Respuesta correcta:** "
-                    f"{fila_78['Respuesta_Correcta']}"
-                )
-
-                decision_individual_78 = st.radio(
-                    "Estado",
-                    [
-                        "PENDIENTE",
-                        "APROBADA",
-                        "RECHAZADA"
-                    ],
-                    index=0,
-                    horizontal=True,
-                    key=f"estado_producto_78_{pregunta_id_78}"
-                )
-
-                decisiones_78[indice_78] = (
-                    decision_individual_78
-                )
-
-                st.divider()
-
-            # ------------------------------------------------
-            # GUARDAR
-            # ------------------------------------------------
-
-            if st.button(
-                "GUARDAR VALIDACIÓN",
-                type="primary",
-                key="guardar_producto_78"
-            ):
-
-                for indice_78, decision_78 in (
-                    decisiones_78.items()
-                ):
-
-                    if (
-                        decision_bloque_78
-                        ==
-                        "Aprobar todo"
-                    ):
-
-                        banco_78.loc[
-                            indice_78,
-                            "Estado"
-                        ] = "APROBADA"
-
-                    elif (
-                        decision_bloque_78
-                        ==
-                        "Rechazar todo"
-                    ):
-
-                        banco_78.loc[
-                            indice_78,
-                            "Estado"
-                        ] = "RECHAZADA"
-
-                    else:
-
-                        banco_78.loc[
-                            indice_78,
-                            "Estado"
-                        ] = decision_78
-
-                banco_78.to_excel(
-                    RUTA_BANCO_78,
-                    index=False,
-                    sheet_name="Banco_General"
-                )
+            else:
 
                 st.success(
-                    "✓ Estados guardados correctamente."
-                )
-
-                st.rerun()
-
+                    "No hay preguntas pendientes "
+                    "de Producto + Acción general."
+                )            )
 # ========================================================
 # 7.9 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL + COMPLEMENTARIAS
