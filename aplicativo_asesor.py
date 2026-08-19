@@ -5428,16 +5428,27 @@ if (
 # GENERAR → VALIDAR → GUARDAR → SINCRONIZAR GITHUB
 # SOLO ADMINISTRADOR
 # ========================================================
-
 if (
     ROL_ACTUAL == "ADMINISTRADOR"
+    and
+    opcion_evaluacion == "Banco general de preguntas"
     and opcion_evaluacion == "Banco general de preguntas"
 ):
 
     st.subheader(
-        "Generador de preguntas — Producto + Acción general"
+        "Generador — Producto → Categoría principal"
     )
 
+    st.write(
+        "Genera preguntas Nivel 1 relacionando "
+        "cada producto con su categoría principal."
+    )
+
+    RUTA_BANCO_77 = (
+        BASE_DIR
+        / "BANCO_PREGUNTAS_GENERALES.xlsx"
+        "Generador de preguntas — Producto + Acción general"
+    )
     # ====================================================
     # RUTA DEL BANCO
     # ====================================================
