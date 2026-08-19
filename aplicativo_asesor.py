@@ -5419,6 +5419,9 @@ if (
             st.success(
                 "No hay preguntas de Restricciones "
                 "pendientes de validación."
+
+
+
 # ========================================================
 # 7.5 BANCO GENERAL — PRODUCTO + ACCIÓN GENERAL
 # NIVEL 1
@@ -5430,9 +5433,11 @@ if (
     ROL_ACTUAL == "ADMINISTRADOR"
     and opcion_evaluacion == "Banco general de preguntas"
 ):
+
     st.subheader(
         "Generador de preguntas — Producto + Acción general"
     )
+
     # ====================================================
     # RUTA DEL BANCO
     # ====================================================
@@ -5468,7 +5473,6 @@ if (
             )
 
             banco_producto_75 = pd.DataFrame()
-
 
         # =================================================
         # FUNCIONES AUXILIARES
@@ -5526,6 +5530,7 @@ if (
                             )
 
                         except ValueError:
+
                             pass
 
             if numeros:
@@ -5553,7 +5558,6 @@ if (
                 + "||"
                 + accion
             )
-
 
         # =================================================
         # VERIFICAR COLUMNAS DE PRODUCTOS
