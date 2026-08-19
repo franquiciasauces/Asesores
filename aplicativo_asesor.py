@@ -5421,34 +5421,27 @@ if (
                 "pendientes de validación."
 
 
-
 # ========================================================
 # 7.5 BANCO GENERAL — PRODUCTO + ACCIÓN GENERAL
 # NIVEL 1
 # GENERAR → VALIDAR → GUARDAR → SINCRONIZAR GITHUB
 # SOLO ADMINISTRADOR
 # ========================================================
+
 if (
     ROL_ACTUAL == "ADMINISTRADOR"
-    and
-    opcion_evaluacion == "Banco general de preguntas"
     and opcion_evaluacion == "Banco general de preguntas"
 ):
 
     st.subheader(
-        "Generador — Producto → Categoría principal"
+        "Generador de preguntas — Producto + Acción general"
     )
 
     st.write(
         "Genera preguntas Nivel 1 relacionando "
-        "cada producto con su categoría principal."
+        "cada producto con una acción general."
     )
 
-    RUTA_BANCO_77 = (
-        BASE_DIR
-        / "BANCO_PREGUNTAS_GENERALES.xlsx"
-        "Generador de preguntas — Producto + Acción general"
-    )
     # ====================================================
     # RUTA DEL BANCO
     # ====================================================
@@ -5461,7 +5454,6 @@ if (
         )
 
     else:
-
         # =================================================
         # CARGAR BANCO
         # =================================================
