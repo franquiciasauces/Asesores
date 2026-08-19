@@ -5678,6 +5678,48 @@ if (
         f"Relaciones disponibles: "
         f"{len(dataframe_normalizado_75)}"
     )
+
+    # ====================================================
+    # 7.5.4 VERIFICACIÓN DEL DATAFRAME NORMALIZADO
+    # ====================================================
+
+    if dataframe_normalizado_75.empty:
+
+        st.warning(
+            "7.5.4 — No existen relaciones disponibles "
+            "para generar preguntas."
+        )
+
+    else:
+
+        productos_nivel_1_75 = (
+            dataframe_normalizado_75[
+                "Producto"
+            ]
+            .nunique()
+        )
+
+        productos_nivel_2_75 = (
+            dataframe_normalizado_75
+            .groupby("Producto")
+            .size()
+            .ge(2)
+            .sum()
+        )
+
+        st.info(
+            f"Productos aptos para Nivel 1: "
+            f"{productos_nivel_1_75}"
+        )
+
+        st.info(
+            f"Productos aptos para Nivel 2: "
+            f"{productos_nivel_2_75}"
+        )
+
+        st.success(
+            "7.5.4 ✓ DataFrame normalizado verificado."
+        )
 # ========================================================
 # 7.9 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL + COMPLEMENTARIAS
