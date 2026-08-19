@@ -6451,7 +6451,99 @@ if (
 
         st.stop()
 
+# ====================================================
+# 7.5.3 FUNCIONES ÚNICAS DE LIMPIEZA Y NORMALIZACIÓN
+# ====================================================
 
+    def limpiar_texto_75(valor):
+
+        if pd.isna(valor):
+
+            return ""
+
+        texto_75 = str(valor)
+
+        texto_75 = (
+            texto_75
+            .replace("\r\n", " ")
+            .replace("\n", " ")
+            .replace("\r", " ")
+            .replace("\t", " ")
+        )
+
+        texto_75 = " ".join(
+            texto_75.split()
+        )
+
+        return texto_75.strip()
+
+
+    def firma_texto_75(valor):
+
+        texto_75 = limpiar_texto_75(
+            valor
+        )
+
+        if not texto_75:
+
+            return ""
+
+        return (
+            texto_75
+            .casefold()
+            .strip(" .;,:")
+        )
+
+
+    def separar_acciones_75(valor):
+
+        texto_75 = limpiar_texto_75(
+            valor
+        )
+
+        if not texto_75:
+
+            return []
+
+        acciones_75 = []
+
+        for elemento_75 in texto_75.split(";"):
+
+            elemento_limpio_75 = (
+                limpiar_texto_75(
+                    elemento_75
+                )
+            )
+
+            if not elemento_limpio_75:
+
+                continue
+
+            firma_75 = firma_texto_75(
+                elemento_limpio_75
+            )
+
+            if not firma_75:
+
+                continue
+
+            if any(
+                firma_75
+                ==
+                firma_texto_75(
+                    accion_existente_75
+                )
+                for accion_existente_75
+                in acciones_75
+            ):
+
+                continue
+
+            acciones_75.append(
+                elemento_limpio_75
+            )
+
+        return acciones_75
 # ========================================================
 # 7.9 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL + COMPLEMENTARIAS
