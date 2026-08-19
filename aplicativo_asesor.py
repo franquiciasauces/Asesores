@@ -8196,7 +8196,6 @@ if (
                             )
                         )
 
-
                         # -----------------------------------------
                         # RESPETAR LAS COLUMNAS OFICIALES
                         # -----------------------------------------
@@ -8359,12 +8358,9 @@ if (
                     )
 
 
-                except Exception as (
-                    error_validar_75
-                ):
+                except Exception as error_validar_75:
 
                     st.error(
-
                         "No fue posible cargar el "
                         "Banco General para validación."
 
