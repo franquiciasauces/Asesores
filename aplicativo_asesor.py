@@ -6147,6 +6147,85 @@ if (
             "7.5.5A ✓ Muestra de normalización disponible."
         )
 
+        # ====================================================
+    # 7.5.8 PREPARAR CANDIDATOS DE GENERACIÓN
+    # ====================================================
+
+    candidatos_75 = []
+
+    if not dataframe_normalizado_75.empty:
+
+        for _, fila_75 in (
+            dataframe_normalizado_75.iterrows()
+        ):
+
+            producto_75 = fila_75[
+                "Producto"
+            ]
+
+            accion_75 = fila_75[
+                "Accion_General"
+            ]
+
+            firma_75 = fila_75[
+                "Firma"
+            ]
+
+            if modo_generacion_75 == "Nivel 1":
+
+                niveles_75 = [
+                    "Nivel 1"
+                ]
+
+            elif modo_generacion_75 == "Nivel 2":
+
+                niveles_75 = [
+                    "Nivel 2"
+                ]
+
+            else:
+
+                niveles_75 = [
+                    "Nivel 1",
+                    "Nivel 2"
+                ]
+
+            for nivel_75 in niveles_75:
+
+                fuente_75 = (
+                    "N1||"
+                    if nivel_75 == "Nivel 1"
+                    else "N2||"
+                ) + firma_75
+
+                if (
+                    nivel_75.casefold(),
+                    fuente_75.casefold()
+                ) in relaciones_bloqueadas_75:
+
+                    continue
+
+                candidatos_75.append({
+
+                    "Producto":
+                        producto_75,
+
+                    "Accion_General":
+                        accion_75,
+
+                    "Nivel":
+                        nivel_75,
+
+                    "Fuente_ID":
+                        fuente_75
+
+                })
+
+    st.success(
+        f"7.5.8 ✓ Candidatos disponibles: "
+        f"{len(candidatos_75)}"
+    )
+
     # ====================================================
     # 7.5.6 SELECCIÓN DEL NIVEL DE GENERACIÓN
     # ====================================================
