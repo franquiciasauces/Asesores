@@ -6110,6 +6110,42 @@ if (
         "7.5.5 ✓ Relaciones existentes identificadas. "
         f"Bloqueadas: {len(relaciones_bloqueadas_75)}"
     )
+
+    # ====================================================
+    # 7.5.5A MUESTRA DE NORMALIZACIÓN Y ABSTRACCIÓN
+    # ====================================================
+
+    st.subheader(
+        "Ejemplo de normalización y abstracción"
+    )
+
+    if dataframe_normalizado_75.empty:
+
+        st.warning(
+            "No hay registros normalizados para mostrar."
+        )
+
+    else:
+
+        muestra_normalizada_75 = (
+            dataframe_normalizado_75[
+                [
+                    "Producto",
+                    "Accion_General"
+                ]
+            ]
+            .head(5)
+        )
+
+        st.dataframe(
+            muestra_normalizada_75,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.success(
+            "7.5.5A ✓ Muestra de normalización disponible."
+        )
 # ========================================================
 # 7.9 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL + COMPLEMENTARIAS
