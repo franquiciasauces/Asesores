@@ -5720,6 +5720,62 @@ if (
         st.success(
             "7.5.4 ✓ DataFrame normalizado verificado."
         )
+
+    # ====================================================
+    # 7.5.5 RELACIONES YA REGISTRADAS
+    # ====================================================
+
+    relaciones_bloqueadas_75 = set()
+
+    if not banco_general_75.empty:
+
+        for _, fila_75 in banco_general_75.iterrows():
+
+            estado_75 = firma_texto_75(
+                fila_75.get(
+                    "Estado",
+                    ""
+                )
+            ).upper()
+
+            if estado_75 not in {
+                "PENDIENTE",
+                "APROBADA",
+                "RECHAZADA"
+            }:
+
+                continue
+
+            nivel_75 = limpiar_texto_75(
+                fila_75.get(
+                    "Nivel",
+                    ""
+                )
+            )
+
+            fuente_75 = limpiar_texto_75(
+                fila_75.get(
+                    "Fuente_ID",
+                    ""
+                )
+            )
+
+            if (
+                nivel_75
+                and fuente_75
+            ):
+
+                relaciones_bloqueadas_75.add(
+                    (
+                        nivel_75.casefold(),
+                        fuente_75.casefold()
+                    )
+                )
+
+    st.success(
+        "7.5.5 ✓ Relaciones existentes identificadas. "
+        f"Bloqueadas: {len(relaciones_bloqueadas_75)}"
+    )
 # ========================================================
 # 7.9 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL + COMPLEMENTARIAS
