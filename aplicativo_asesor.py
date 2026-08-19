@@ -5434,7 +5434,6 @@ if (
     st.subheader(
         "Generador de preguntas — Producto + Acción general"
     )
-
     # ====================================================
     # RUTA DEL BANCO
     # ====================================================
