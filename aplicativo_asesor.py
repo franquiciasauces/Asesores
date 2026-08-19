@@ -8305,9 +8305,7 @@ if (
                         )
 
 
-                    except Exception as (
-                        error_guardado_generacion_75
-                    ):
+                    except Exception as error_guardado_generacion_75:
 
                         st.error(
 
