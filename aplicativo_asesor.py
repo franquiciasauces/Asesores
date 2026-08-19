@@ -5419,6 +5419,7 @@ if (
             st.success(
                 "No hay preguntas de Restricciones "
                 "pendientes de validación."
+            )
 
 
 # ========================================================
