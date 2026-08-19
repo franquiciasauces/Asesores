@@ -6146,6 +6146,28 @@ if (
         st.success(
             "7.5.5A ✓ Muestra de normalización disponible."
         )
+
+    # ====================================================
+    # 7.5.6 SELECCIÓN DEL NIVEL DE GENERACIÓN
+    # ====================================================
+
+    st.divider()
+
+    modo_generacion_75 = st.radio(
+        "¿Qué desea generar?",
+        [
+            "Nivel 1",
+            "Nivel 2",
+            "Nivel 1 y Nivel 2"
+        ],
+        horizontal=True,
+        key="modo_generacion_75"
+    )
+
+    st.success(
+        f"7.5.6 ✓ Nivel seleccionado: "
+        f"{modo_generacion_75}"
+    )
 # ========================================================
 # 7.9 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL + COMPLEMENTARIAS
