@@ -6265,6 +6265,201 @@ if (
         st.success(
             "7.5.8 ✓ Generación iniciada."
         )
+    # ====================================================
+    # 7.5.9 GENERAR PREGUNTAS
+    # ====================================================
+
+    if generar_preguntas_75:
+
+        preguntas_generadas_75 = []
+
+        np.random.shuffle(
+            candidatos_75
+        )
+
+        for candidato_75 in candidatos_75:
+
+            if (
+                len(preguntas_generadas_75)
+                >= int(cantidad_maxima_75)
+            ):
+                break
+
+            producto_75 = candidato_75[
+                "Producto"
+            ]
+
+            accion_correcta_75 = candidato_75[
+                "Accion_General"
+            ]
+
+            nivel_75 = candidato_75[
+                "Nivel"
+            ]
+
+            acciones_75 = (
+                acciones_por_producto_75.get(
+                    producto_75,
+                    []
+                )
+            )
+
+            distractores_75 = []
+
+            if nivel_75 == "Nivel 2":
+
+                distractores_75 = [
+                    accion_75
+                    for accion_75 in acciones_75
+                    if firma_texto_75(
+                        accion_75
+                    )
+                    != firma_texto_75(
+                        accion_correcta_75
+                    )
+                ]
+
+            if len(distractores_75) < 3:
+
+                distractores_75.extend(
+                    dataframe_normalizado_75[
+                        "Accion_General"
+                    ].tolist()
+                )
+
+            distractores_75 = [
+                accion_75
+                for accion_75 in quitar_duplicados_75(
+                    distractores_75
+                )
+                if firma_texto_75(
+                    accion_75
+                )
+                != firma_texto_75(
+                    accion_correcta_75
+                )
+            ]
+
+            if len(distractores_75) < 3:
+                continue
+
+            distractores_75 = list(
+                np.random.choice(
+                    distractores_75,
+                    3,
+                    replace=False
+                )
+            )
+
+            opciones_75 = [
+                accion_correcta_75,
+                *distractores_75
+            ]
+
+            np.random.shuffle(
+                opciones_75
+            )
+
+            pregunta_75 = (
+                f"Considere el producto "
+                f"{producto_75}. "
+                f"¿Cuál de las siguientes "
+                f"acciones generales corresponde "
+                f"a este producto?"
+            )
+
+            preguntas_generadas_75.append({
+
+                "Pregunta_ID":
+                    None,
+
+                "Modulo":
+                    "Productos",
+
+                "Tema":
+                    producto_75,
+
+                "Nivel":
+                    nivel_75,
+
+                "Tipo_Relacion":
+                    (
+                        "Producto_AccionGeneral"
+                        if nivel_75 == "Nivel 1"
+                        else
+                        "Producto_AccionGeneral_N2"
+                    ),
+
+                "Pregunta":
+                    pregunta_75,
+
+                "Respuesta_1":
+                    opciones_75[0],
+
+                "Respuesta_2":
+                    opciones_75[1],
+
+                "Respuesta_3":
+                    opciones_75[2],
+
+                "Respuesta_4":
+                    opciones_75[3],
+
+                "Respuesta_Correcta":
+                    str(
+                        opciones_75.index(
+                            accion_correcta_75
+                        ) + 1
+                    ),
+
+                "Estado":
+                    "PENDIENTE",
+
+                "Observacion_Administrador":
+                    "",
+
+                "Fecha_Generacion":
+                    pd.Timestamp.now().strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    ),
+
+                "Fuente_ID":
+                    candidato_75[
+                        "Fuente_ID"
+                    ]
+            })
+
+        st.success(
+            "7.5.9 ✓ Preguntas generadas: "
+            f"{len(preguntas_generadas_75)}"
+        )
+
+        if preguntas_generadas_75:
+
+            dataframe_preguntas_75 = pd.DataFrame(
+                preguntas_generadas_75
+            )
+
+            st.dataframe(
+                dataframe_preguntas_75,
+                use_container_width=True,
+                hide_index=True
+            )
+
+    # ====================================================
+    # 7.5.10 PREPARAR PREGUNTAS PARA EL BANCO
+    # ====================================================
+
+    if (
+        generar_preguntas_75
+        and preguntas_generadas_75
+    ):
+
+        st.success(
+            "7.5.10 ✓ Preguntas listas para guardar "
+            "en el Banco General."
+        )
+
 
 
 
