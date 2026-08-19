@@ -6866,7 +6866,7 @@ if (
                 st.success(
                     "No hay preguntas pendientes "
                     "de Producto + Acción general."
-                )            )
+                )            
 # ========================================================
 # 7.9 PRODUCTOS — GENERADOR
 # PRODUCTO → CATEGORÍA PRINCIPAL + COMPLEMENTARIAS
