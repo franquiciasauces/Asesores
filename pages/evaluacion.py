@@ -5529,51 +5529,54 @@ except Exception as e:
         f"🔴 5.10 ERROR: "
         f"{type(e).__name__}: {e}"
     )
+
 # ============================================================
-# 5.11 NORMALIZACIÓN INICIAL DE COMPONENTES Y ACCIONES
+# 5.11 NORMALIZACIÓN Y ABSTRACCIÓN COMPONENTE - ACCIÓN
 #
-# FUENTE EXCLUSIVA:
+# FUENTE:
+#   df_fuente
+#
+# UTILIZA EXCLUSIVAMENTE:
 #   Producto
 #   Componentes
 #   Acciones generales
 #
-# OBJETIVO:
-#   Preparar la información limpia que utilizará 5.12
-#   para determinar la relación:
-#
-#   Producto -> Componente -> Acción componente
-#
-# REGLA FUNDAMENTAL:
-#
-#   1 componente:
-#       Las acciones funcionales del producto pueden
-#       atribuirse al único componente.
-#
-#   Más de 1 componente:
-#       5.12 deberá verificar si la acción identifica
-#       explícitamente al componente.
-#
-# IMPORTANTE:
-#   5.11 NO construye todavía el DF2 definitivo.
-#   5.11 NO decide componente -> acción.
-#   5.11 NO contiene productos de prueba específicos.
-#
-# SALIDA DE 5.11:
-#
+# SALIDA EXACTA DE 5.11:
 #   Producto
 #   Componente
-#   Cantidad componentes
 #   Acción candidata
 #   Texto funcional
 #
-# Estas columnas son internas de 5.11.
-# El DF2 final de 5.12 tendrá SOLO:
+# REGLA CENTRAL:
 #
-#   Código | Producto | Componente | Acción componente
+# 1. SE IDENTIFICAN LOS COMPONENTES DE CADA PRODUCTO.
+#
+# 2. SE LIMPIAN LAS ACCIONES GENERALES.
+#
+# 3. SI EL PRODUCTO TIENE UN SOLO COMPONENTE:
+#      Las acciones funcionales del producto pueden
+#      atribuirse a ese único componente.
+#
+# 4. SI EL PRODUCTO TIENE VARIOS COMPONENTES:
+#      Una acción SOLO se atribuye a un componente
+#      cuando existe información explícita que permita
+#      relacionarlos.
+#
+# 5. SI UNA ACCIÓN ES GENERAL Y NO IDENTIFICA COMPONENTE:
+#      NO SE ASIGNA A NINGÚN COMPONENTE.
+#      NO SE GENERA REGISTRO.
+#
+# 6. NO SE CRUZAN TODOS LOS COMPONENTES CON TODAS
+#    LAS ACCIONES.
+#
+# 7. NO SE INVENTAN RELACIONES.
+#
+# 8. NO SE UTILIZAN VALIDACIONES FIJAS DE PRODUCTOS.
+#
 # ============================================================
 
 st.markdown(
-    "### 5.11 Normalización inicial de componentes y acciones"
+    "### 5.11 Normalización y abstracción componente - acción"
 )
 
 try:
@@ -5582,7 +5585,7 @@ try:
     import pandas as pd
 
     # ========================================================
-    # 1. VALIDAR MATRIZ GENERAL
+    # 1. VALIDAR FUENTE
     # ========================================================
 
     if (
@@ -5600,10 +5603,10 @@ try:
     else:
 
         # ====================================================
-        # 2. COLUMNAS REALMENTE NECESARIAS
+        # 2. COLUMNAS ÚNICAS DE ENTRADA
         # ====================================================
 
-        columnas_requeridas_511 = [
+        columnas_entrada_511 = [
             "Producto",
             "Componentes",
             "Acciones generales"
@@ -5611,36 +5614,33 @@ try:
 
         faltantes_511 = [
             columna
-            for columna in columnas_requeridas_511
+            for columna in columnas_entrada_511
             if columna not in df_fuente.columns
         ]
 
         if faltantes_511:
 
             st.error(
-                "🔴 5.11 ERROR: Faltan columnas requeridas: "
+                "🔴 5.11 ERROR: Faltan columnas en la matriz "
+                "original: "
                 + ", ".join(faltantes_511)
             )
 
         else:
 
             # =================================================
-            # 3. COPIA EXCLUSIVA DE LA INFORMACIÓN NECESARIA
+            # 3. COPIA EXCLUSIVA
             # =================================================
 
             df_base_511 = df_fuente[
-                [
-                    "Producto",
-                    "Componentes",
-                    "Acciones generales"
-                ]
+                columnas_entrada_511
             ].copy()
 
             # =================================================
             # 4. LIMPIEZA BÁSICA
             # =================================================
 
-            for columna_511 in columnas_requeridas_511:
+            for columna_511 in columnas_entrada_511:
 
                 df_base_511[columna_511] = (
                     df_base_511[columna_511]
@@ -5650,37 +5650,21 @@ try:
                 )
 
             df_base_511 = df_base_511[
-                df_base_511["Producto"] != ""
+                df_base_511["Producto"].str.strip() != ""
             ].copy()
 
             # =================================================
-            # 5. NORMALIZACIÓN DE TEXTO
-            # =================================================
-
-            def normalizar_texto_511(texto):
-
-                texto = str(texto or "").strip()
-
-                texto = re.sub(
-                    r"\s+",
-                    " ",
-                    texto
-                )
-
-                return texto.strip()
-
-            # =================================================
-            # 6. SEPARAR LISTAS
-            #
-            # Se utilizan únicamente separadores estructurales.
+            # 5. SEPARAR ELEMENTOS
             # =================================================
 
             def separar_elementos_511(texto):
 
-                texto = normalizar_texto_511(texto)
+                if texto is None:
+                    return []
+
+                texto = str(texto).strip()
 
                 if not texto:
-
                     return []
 
                 partes = re.split(
@@ -5692,23 +5676,47 @@ try:
 
                 for parte in partes:
 
-                    parte = normalizar_texto_511(
-                        parte
+                    parte = re.sub(
+                        r"\s+",
+                        " ",
+                        str(parte).strip()
                     )
 
-                    if part := parte:
-
-                        if part not in resultado:
-
-                            resultado.append(part)
+                    if parte:
+                        resultado.append(parte)
 
                 return resultado
 
             # =================================================
-            # 7. LIMPIAR BLOQUES NO FUNCIONALES
+            # 6. NORMALIZACIÓN PARA COMPARACIÓN
+            # =================================================
+
+            def normalizar_511(texto):
+
+                texto = str(texto).strip().lower()
+
+                texto = re.sub(
+                    r"\s+",
+                    " ",
+                    texto
+                )
+
+                return texto
+
+            # =================================================
+            # 7. LIMPIAR ACCIONES GENERALES
             #
-            # Todo lo que venga después de estos marcadores
-            # no debe convertirse en acción candidata.
+            # SE ELIMINAN:
+            # - combinaciones
+            # - frases comerciales
+            # - recomendaciones
+            # - otros productos
+            # - posología
+            # - dosis
+            # - modo de uso
+            # - instrucciones
+            #
+            # NO SE ELIMINA LA ACCIÓN FUNCIONAL.
             # =================================================
 
             marcadores_fin_511 = [
@@ -5716,29 +5724,37 @@ try:
                 "COMBINACION:",
                 "FRASE DE VENTA:",
                 "FRASE VENTA:",
-                "FRASES DE VENTA:",
                 "RECOMENDACIÓN:",
                 "RECOMENDACIONES:",
                 "RECOMENDACION:",
                 "POSOLOGÍA:",
                 "POSOLOGIA:",
                 "DOSIS:",
-                "DOSIFICACIÓN:",
-                "DOSIFICACION:",
                 "FORMA DE USO:",
                 "MODO DE USO:",
                 "INSTRUCCIONES DE USO:",
-                "USO:",
-                "PRESENTACIÓN:",
-                "PRESENTACION:"
+                "INSTRUCCIONES:"
             ]
 
-            def limpiar_bloque_funcional_511(texto):
+            patrones_basura_511 = [
+                r"^\s*COMPLEMENTAR\s+CON\b.*$",
+                r"^\s*COMPLEMENTAR\s+CON\s+.*",
+                r"^\s*SE\s+RECOMIENDA\s+.*",
+                r"^\s*RECOMENDADO\s+.*",
+                r"^\s*RECOMENDADA\s+.*",
+                r"^\s*RECOMENDAR\s+.*",
+                r"^\s*COMBINAR\s+CON\s+.*",
+                r"^\s*COMBINADO\s+CON\s+.*"
+            ]
 
-                texto = normalizar_texto_511(texto)
+            def limpiar_acciones_511(texto):
+
+                if texto is None:
+                    return ""
+
+                texto = str(texto).strip()
 
                 if not texto:
-
                     return ""
 
                 texto_mayusculas = texto.upper()
@@ -5752,20 +5768,13 @@ try:
                     )
 
                     if posicion >= 0:
-
-                        posiciones.append(
-                            posicion
-                        )
+                        posiciones.append(posicion)
 
                 if posiciones:
 
                     texto = texto[
                         :min(posiciones)
                     ].strip()
-
-                # ---------------------------------------------
-                # El encabezado MODO DE ACCIÓN no es una acción.
-                # ---------------------------------------------
 
                 texto = re.sub(
                     r"^\s*MODO\s+DE\s+ACCI[ÓO]N\s*:\s*",
@@ -5781,347 +5790,408 @@ try:
                     flags=re.IGNORECASE
                 )
 
-                return normalizar_texto_511(
-                    texto
+                partes = separar_elementos_511(texto)
+
+                partes_limpias = []
+
+                for parte in partes:
+
+                    parte = parte.strip()
+
+                    if not parte:
+                        continue
+
+                    excluir = False
+
+                    for patron in patrones_basura_511:
+
+                        if re.search(
+                            patron,
+                            parte,
+                            flags=re.IGNORECASE
+                        ):
+
+                            excluir = True
+                            break
+
+                    if excluir:
+                        continue
+
+                    # -----------------------------------------
+                    # Evitar frases claramente comerciales
+                    # -----------------------------------------
+
+                    texto_normalizado = normalizar_511(
+                        parte
+                    )
+
+                    indicadores_comerciales = [
+                        "compra",
+                        "adquiere",
+                        "lleva",
+                        "ideal para comprar",
+                        "producto recomendado"
+                    ]
+
+                    if any(
+                        indicador in texto_normalizado
+                        for indicador in indicadores_comerciales
+                    ):
+                        continue
+
+                    partes_limpias.append(parte)
+
+                return partes_limpias
+
+            # =================================================
+            # 8. FUNCIÓN PARA DETECTAR COMPONENTE EXPLÍCITO
+            #
+            # La comparación se hace contra el componente
+            # completo y también contra su denominación base
+            # antes de paréntesis.
+            # =================================================
+
+            def componente_aparece_en_accion_511(
+                componente,
+                accion
+            ):
+
+                componente_n = normalizar_511(
+                    componente
                 )
 
-            # =================================================
-            # 8. FILTRO DE CONTENIDO COMERCIAL / NO FUNCIONAL
-            #
-            # NO queremos convertir recomendaciones de otros
-            # productos, frases comerciales, posología, etc.
-            # en acciones.
-            # =================================================
+                accion_n = normalizar_511(
+                    accion
+                )
 
-            patrones_no_funcionales_511 = [
+                if not componente_n or not accion_n:
+                    return False
 
-                r"^\s*complementar\s+con\b",
-                r"^\s*complementar\s+con\s+el\b",
-                r"^\s*se\s+recomienda\s+\b",
-                r"^\s*recomendado\s+con\b",
-                r"^\s*recomienda\s+usar\b",
-                r"^\s*acompañar\s+con\b",
-                r"^\s*combinar\s+con\b",
-                r"^\s*combinado\s+con\b",
-                r"^\s*ideal\s+para\b",
-                r"^\s*excelente\s+para\b",
-                r"^\s*perfecto\s+para\b",
-                r"^\s*producto\s+ideal\b",
-                r"^\s*frase\s+de\s+venta\b",
-                r"^\s*promoción\b",
-                r"^\s*promocion\b",
-                r"^\s*venta\b",
-                r"^\s*precio\b",
-                r"^\s*presentación\b",
-                r"^\s*presentacion\b",
-                r"^\s*posología\b",
-                r"^\s*posologia\b",
-                r"^\s*dosis\b",
-                r"^\s*forma\s+de\s+uso\b",
-                r"^\s*modo\s+de\s+uso\b",
-                r"^\s*instrucciones\s+de\s+uso\b"
-            ]
+                # ---------------------------------------------
+                # Nombre completo
+                # ---------------------------------------------
 
-            def es_no_funcional_511(texto):
-
-                texto = normalizar_texto_511(texto)
-
-                if not texto:
-
+                if componente_n in accion_n:
                     return True
 
-                texto_minuscula = texto.lower()
+                # ---------------------------------------------
+                # Nombre base sin información entre paréntesis
+                # ---------------------------------------------
 
-                for patron in patrones_no_funcionales_511:
+                componente_base = re.sub(
+                    r"\([^)]*\)",
+                    "",
+                    componente_n
+                ).strip()
 
-                    if re.search(
-                        patron,
-                        texto_minuscula,
-                        flags=re.IGNORECASE
-                    ):
+                if (
+                    componente_base
+                    and len(componente_base) >= 3
+                    and componente_base in accion_n
+                ):
 
-                        return True
+                    return True
 
                 return False
 
             # =================================================
-            # 9. SEPARAR COMPONENTES POR PRODUCTO
+            # 9. CREAR REGISTROS DE PRODUCTO Y COMPONENTES
             # =================================================
 
-            registros_componentes_511 = []
+            registros_511 = []
 
-            for _, fila in df_base_511.iterrows():
+            for _, fila_511 in df_base_511.iterrows():
 
-                producto = normalizar_texto_511(
-                    fila["Producto"]
-                )
+                producto = fila_511[
+                    "Producto"
+                ].strip()
 
                 componentes = separar_elementos_511(
-                    fila["Componentes"]
+                    fila_511["Componentes"]
                 )
 
-                acciones_generales = limpiar_bloque_funcional_511(
-                    fila["Acciones generales"]
+                acciones = limpiar_acciones_511(
+                    fila_511["Acciones generales"]
                 )
+
+                # ---------------------------------------------
+                # El producto debe tener componentes.
+                # ---------------------------------------------
 
                 if not componentes:
-
                     continue
 
                 # ---------------------------------------------
-                # DEDUPLICAR COMPONENTES DENTRO DEL PRODUCTO
+                # Eliminar componentes duplicados manteniendo
+                # orden original.
                 # ---------------------------------------------
 
-                componentes_unicos = []
+                componentes_limpios = []
+
+                vistos_componentes = set()
 
                 for componente in componentes:
 
-                    if componente not in componentes_unicos:
+                    clave_componente = normalizar_511(
+                        componente
+                    )
 
-                        componentes_unicos.append(
+                    if (
+                        clave_componente
+                        and clave_componente
+                        not in vistos_componentes
+                    ):
+
+                        vistos_componentes.add(
+                            clave_componente
+                        )
+
+                        componentes_limpios.append(
                             componente
                         )
 
-                cantidad_componentes = len(
-                    componentes_unicos
-                )
-
-                for componente in componentes_unicos:
-
-                    registros_componentes_511.append(
-                        {
-                            "Producto": producto,
-                            "Componente": componente,
-                            "Cantidad componentes":
-                                cantidad_componentes,
-                            "Acciones generales":
-                                acciones_generales
-                        }
-                    )
-
-            # =================================================
-            # 10. DATAFRAME BASE
-            # =================================================
-
-            df_componentes_base_511 = pd.DataFrame(
-                registros_componentes_511,
-                columns=[
-                    "Producto",
-                    "Componente",
-                    "Cantidad componentes",
-                    "Acciones generales"
-                ]
-            )
-
-            if df_componentes_base_511.empty:
-
-                st.error(
-                    "🔴 5.11 ERROR: No se encontraron "
-                    "componentes válidos en la matriz."
-                )
-
-            else:
-
                 # =================================================
-                # 11. SEPARAR ACCIONES FUNCIONALES
+                # 10. CASO: UN SOLO COMPONENTE
                 #
-                # IMPORTANTE:
-                #
-                # Aquí NO se decide todavía a qué componente
-                # pertenece la acción.
+                # Todas las acciones funcionales separadas
+                # pertenecen a ese único componente.
                 # =================================================
 
-                registros_acciones_511 = []
+                if len(componentes_limpios) == 1:
 
-                for _, fila in (
-                    df_componentes_base_511.iterrows()
-                ):
-
-                    producto = fila["Producto"]
-
-                    componente = fila["Componente"]
-
-                    cantidad_componentes = int(
-                        fila["Cantidad componentes"]
-                    )
-
-                    texto_funcional = fila[
-                        "Acciones generales"
-                    ]
-
-                    acciones = separar_elementos_511(
-                        texto_funcional
+                    componente_unico = (
+                        componentes_limpios[0]
                     )
 
                     for accion in acciones:
 
-                        accion = normalizar_texto_511(
-                            accion
-                        )
-
                         if not accion:
-
                             continue
 
-                        if es_no_funcional_511(
-                            accion
-                        ):
-
-                            continue
-
-                        registros_acciones_511.append(
+                        registros_511.append(
                             {
-                                "Producto":
-                                    producto,
-
+                                "Producto": producto,
                                 "Componente":
-                                    componente,
-
-                                "Cantidad componentes":
-                                    cantidad_componentes,
-
+                                    componente_unico,
                                 "Acción candidata":
                                     accion,
-
                                 "Texto funcional":
-                                    texto_funcional
+                                    accion
                             }
                         )
 
                 # =================================================
-                # 12. DATAFRAME FINAL DE 5.11
-                # =================================================
-
-                df_normalizado_componentes_511 = pd.DataFrame(
-                    registros_acciones_511,
-                    columns=[
-                        "Producto",
-                        "Componente",
-                        "Cantidad componentes",
-                        "Acción candidata",
-                        "Texto funcional"
-                    ]
-                )
-
-                # =================================================
-                # 13. ELIMINAR DUPLICADOS
+                # 11. CASO: VARIOS COMPONENTES
                 #
-                # Se conserva una sola aparición de cada
-                # Producto + Componente + Acción.
+                # SOLO SE GENERAN RELACIONES CUANDO LA ACCIÓN
+                # IDENTIFICA EXPLÍCITAMENTE EL COMPONENTE.
                 # =================================================
-
-                if not df_normalizado_componentes_511.empty:
-
-                    df_normalizado_componentes_511 = (
-                        df_normalizado_componentes_511
-                        .drop_duplicates(
-                            subset=[
-                                "Producto",
-                                "Componente",
-                                "Acción candidata"
-                            ]
-                        )
-                        .reset_index(
-                            drop=True
-                        )
-                    )
-
-                # =================================================
-                # 14. GUARDAR EN SESSION STATE
-                # =================================================
-
-                st.session_state[
-                    "df_normalizado_componentes_511"
-                ] = (
-                    df_normalizado_componentes_511.copy()
-                )
-
-                # =================================================
-                # 15. CONTADORES
-                # =================================================
-
-                productos_511 = (
-                    df_normalizado_componentes_511[
-                        "Producto"
-                    ]
-                    .nunique()
-                )
-
-                componentes_511 = (
-                    df_normalizado_componentes_511[
-                        [
-                            "Producto",
-                            "Componente"
-                        ]
-                    ]
-                    .drop_duplicates()
-                    .shape[0]
-                )
-
-                acciones_511 = (
-                    df_normalizado_componentes_511[
-                        "Acción candidata"
-                    ]
-                    .nunique()
-                )
-
-                # =================================================
-                # 16. RESULTADO
-                # =================================================
-
-                st.success(
-                    "🟢 5.11 NORMALIZACIÓN TERMINADA: "
-                    f"{productos_511} productos | "
-                    f"{componentes_511} relaciones "
-                    "producto-componente | "
-                    f"{acciones_511} acciones candidatas."
-                )
-
-                # =================================================
-                # 17. MOSTRAR RESULTADO
-                # =================================================
-
-                st.write(
-                    "### Resultado de 5.11"
-                )
-
-                if df_normalizado_componentes_511.empty:
-
-                    st.warning(
-                        "⚠️ 5.11 no encontró acciones "
-                        "funcionales candidatas."
-                    )
 
                 else:
 
-                    st.dataframe(
+                    for accion in acciones:
+
+                        if not accion:
+                            continue
+
+                        componentes_identificados = []
+
+                        for componente in (
+                            componentes_limpios
+                        ):
+
+                            if componente_aparece_en_accion_511(
+                                componente,
+                                accion
+                            ):
+
+                                componentes_identificados.append(
+                                    componente
+                                )
+
+                        # -----------------------------------------
+                        # Si la acción menciona explícitamente
+                        # uno o varios componentes, se abstrae.
+                        # -----------------------------------------
+
+                        for componente in (
+                            componentes_identificados
+                        ):
+
+                            registros_511.append(
+                                {
+                                    "Producto": producto,
+                                    "Componente":
+                                        componente,
+                                    "Acción candidata":
+                                        accion,
+                                    "Texto funcional":
+                                        accion
+                                }
+                            )
+
+                        # -----------------------------------------
+                        # Si NO menciona ningún componente:
+                        #
+                        # NO SE CREA REGISTRO.
+                        # -----------------------------------------
+
+            # =================================================
+            # 12. DATAFRAME FINAL DE 5.11
+            #
+            # EXACTAMENTE 4 COLUMNAS.
+            # =================================================
+
+            df_normalizado_componentes_511 = pd.DataFrame(
+                registros_511,
+                columns=[
+                    "Producto",
+                    "Componente",
+                    "Acción candidata",
+                    "Texto funcional"
+                ]
+            )
+
+            # =================================================
+            # 13. LIMPIEZA FINAL
+            # =================================================
+
+            if not df_normalizado_componentes_511.empty:
+
+                for columna_511 in [
+                    "Producto",
+                    "Componente",
+                    "Acción candidata",
+                    "Texto funcional"
+                ]:
+
+                    df_normalizado_componentes_511[
+                        columna_511
+                    ] = (
                         df_normalizado_componentes_511[
-                            [
-                                "Producto",
-                                "Componente",
-                                "Cantidad componentes",
-                                "Acción candidata"
-                            ]
-                        ],
-                        use_container_width=True,
-                        hide_index=True
+                            columna_511
+                        ]
+                        .fillna("")
+                        .astype(str)
+                        .str.strip()
                     )
 
-                # =================================================
-                # 18. INFORMACIÓN PARA 5.12
-                # =================================================
-
-                st.info(
-                    "ℹ️ 5.11 solamente normaliza y limpia. "
-                    "La atribución de una acción al componente "
-                    "se realizará en 5.12. "
-                    "En productos con un solo componente, "
-                    "5.12 podrá atribuir las acciones funcionales "
-                    "al único componente. "
-                    "En productos con varios componentes, "
-                    "5.12 deberá identificar explícitamente "
-                    "el componente dentro de la acción."
+                df_normalizado_componentes_511 = (
+                    df_normalizado_componentes_511[
+                        (
+                            df_normalizado_componentes_511[
+                                "Producto"
+                            ] != ""
+                        )
+                        &
+                        (
+                            df_normalizado_componentes_511[
+                                "Componente"
+                            ] != ""
+                        )
+                        &
+                        (
+                            df_normalizado_componentes_511[
+                                "Acción candidata"
+                            ] != ""
+                        )
+                    ]
+                    .drop_duplicates(
+                        subset=[
+                            "Producto",
+                            "Componente",
+                            "Acción candidata"
+                        ]
+                    )
+                    .reset_index(drop=True)
                 )
+
+            # =================================================
+            # 14. GUARDAR SALIDA
+            # =================================================
+
+            st.session_state[
+                "df_normalizado_componentes_511"
+            ] = (
+                df_normalizado_componentes_511.copy()
+            )
+
+            # =================================================
+            # 15. CONTADORES
+            # =================================================
+
+            productos_511 = (
+                df_normalizado_componentes_511[
+                    "Producto"
+                ].nunique()
+            )
+
+            componentes_511 = (
+                df_normalizado_componentes_511[
+                    "Componente"
+                ].nunique()
+            )
+
+            relaciones_511 = len(
+                df_normalizado_componentes_511
+            )
+
+            # =================================================
+            # 16. RESULTADO
+            # =================================================
+
+            st.success(
+                "🟢 5.11 TERMINADO: "
+                f"{productos_511} productos | "
+                f"{componentes_511} componentes | "
+                f"{relaciones_511} relaciones "
+                "componente-acción."
+            )
+
+            # =================================================
+            # 17. MOSTRAR EXACTAMENTE LAS 4 COLUMNAS
+            # =================================================
+
+            st.write(
+                "### Resultado 5.11"
+            )
+
+            if df_normalizado_componentes_511.empty:
+
+                st.warning(
+                    "⚠️ 5.11 no encontró relaciones "
+                    "componente-acción con evidencia suficiente."
+                )
+
+            else:
+
+                st.dataframe(
+                    df_normalizado_componentes_511[
+                        [
+                            "Producto",
+                            "Componente",
+                            "Acción candidata",
+                            "Texto funcional"
+                        ]
+                    ],
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+            # =================================================
+            # 18. RESUMEN DE REGLA APLICADA
+            # =================================================
+
+            st.info(
+                "ℹ️ 5.11 no cruza automáticamente componentes "
+                "con acciones. Los productos con un solo "
+                "componente pueden asignar sus acciones "
+                "funcionales a ese componente. En productos "
+                "con varios componentes, una acción solo se "
+                "incluye cuando identifica explícitamente "
+                "el componente. Las acciones generales sin "
+                "atribución suficiente quedan fuera."
+            )
 
 except Exception as e:
 
