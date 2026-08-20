@@ -6432,7 +6432,7 @@ else:
         "Siguiente etapa: 7.5.3. No avance a ese bloque "
         "hasta comprobar visualmente este DataFrame."
     )
-```
+
 
 # ============================================================
 # 8. PIE DE APLICACIÓN
