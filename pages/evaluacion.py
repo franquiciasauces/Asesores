@@ -227,6 +227,8 @@ st.dataframe(
     ],
     use_container_width=True
 )
+
+
 # ============================================================
 # 5.8 — ESTRUCTURA INICIAL DE NORMALIZACIÓN
 # ============================================================
@@ -238,10 +240,6 @@ def limpiar_texto(valor):
 
     return str(valor).strip()
 
-
-# ------------------------------------------------------------
-# Crear registros por producto
-# ------------------------------------------------------------
 
 registros_normalizacion = []
 
@@ -263,7 +261,6 @@ for _, fila in df_trabajo.iterrows():
     if not producto:
         continue
 
-
     registros_normalizacion.append(
         {
             "Producto": producto,
@@ -279,7 +276,7 @@ df_normalizacion_base = pd.DataFrame(
 
 
 # ============================================================
-# 5.9 — MOSTRAR ESTRUCTURA DE NORMALIZACIÓN
+# 5.9 — COMPROBACIÓN
 # ============================================================
 
 st.subheader(
@@ -293,27 +290,5 @@ st.write(
 
 st.dataframe(
     df_normalizacion_base,
-    use_container_width=True
-)
-
-# ============================================================
-# 5.9 — VISTA PREVIA
-# ============================================================
-
-st.subheader(
-    "Acciones generales identificadas"
-)
-
-df_vista_acciones = df_trabajo[
-    [
-        "Producto",
-        "Componentes",
-        "Acciones generales",
-        "Lista_acciones"
-    ]
-].copy()
-
-st.dataframe(
-    df_vista_acciones,
     use_container_width=True
 )
