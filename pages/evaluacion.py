@@ -6842,51 +6842,43 @@ except Exception as e:
         f"{type(e).__name__}: {e}"
     )
 
+
 # ============================================================
-# 5.13 DF2 PERMANENTE - COMPONENTE / ACCIÓN
+# 5.13 — DF2 PERMANENTE DE COMPONENTES Y ACCIONES
 #
 # FUENTE:
-#     DF2 PROVISIONAL generado por 5.12
-#
-# FUENTE DE PERMANENCIA:
-#     DF2_COMPONENTES_ACCIONES.xlsx en GitHub
+#   df2_componentes_acciones
+#   generado por 5.12
 #
 # OBJETIVO:
-#     Mantener el DF2 definitivo y sincronizado con GitHub.
+#   Crear y mantener el DF2 permanente que alimentará
+#   posteriormente el Banco General de Preguntas.
 #
-# COLUMNAS ÚNICAS:
-#     Código
-#     Producto
-#     Componente
-#     Acción componente
+# REGLA:
+#   NO depende de validación manual fila por fila.
+#   Conserva las relaciones que 5.12 ya determinó como
+#   pertenecientes.
 #
-# REGLAS:
-#     - 5.13 NO interpreta.
-#     - 5.13 NO asigna acciones.
-#     - 5.13 NO aprende.
-#     - 5.13 NO usa el Banco General anterior.
-#     - 5.13 recibe únicamente lo aprobado por 5.12.
-#     - Las relaciones que permanecen conservan su Código CF.
-#     - Las relaciones nuevas reciben un Código nuevo.
-#     - Las relaciones que ya no están aprobadas en 5.12
-#       salen del DF2 permanente.
-#     - GitHub es la fuente de permanencia.
+# SALIDA EXCLUSIVA:
+#   Código
+#   Producto
+#   Componente
+#   Acción componente
+#
 # ============================================================
 
 st.markdown(
-    "### 5.13 DF2 permanente - componente / acción"
+    "### 5.13 DF2 permanente — componentes y acciones"
 )
 
 try:
 
-    import io
-    import base64
-    import os
-    import requests
     import pandas as pd
+    import re
+    import io
 
     # ========================================================
-    # 1. VALIDAR DF2 DE 5.12
+    # 1. VALIDAR FUENTE DE 5.12
     # ========================================================
 
     if (
@@ -6895,706 +6887,595 @@ try:
     ):
 
         st.error(
-            "🔴 5.13 ERROR: No existe el DF2 provisional "
-            "generado por 5.12."
+            "🔴 5.13 ERROR: No existe el DF2 generado "
+            "por 5.12."
         )
 
     else:
 
-        df2_512_513 = (
+        df2_512 = (
             st.session_state[
                 "df2_componentes_acciones"
             ]
             .copy()
         )
 
-        # ====================================================
-        # 2. COLUMNAS EXACTAS
-        # ====================================================
+        if df2_512 is None or df2_512.empty:
 
-        columnas_513 = [
-            "Código",
-            "Producto",
-            "Componente",
-            "Acción componente"
-        ]
-
-        columnas_relacion_513 = [
-            "Producto",
-            "Componente",
-            "Acción componente"
-        ]
-
-        faltantes_513 = [
-            columna
-            for columna in columnas_relacion_513
-            if columna not in df2_512_513.columns
-        ]
-
-        if faltantes_513:
-
-            st.error(
-                "🔴 5.13 ERROR: El DF2 de 5.12 no contiene "
-                "las columnas requeridas: "
-                +
-                ", ".join(faltantes_513)
+            st.warning(
+                "⚠️ 5.13: 5.12 no produjo relaciones "
+                "componente–acción para conservar."
             )
 
         else:
 
             # =================================================
-            # 3. TOMAR SOLO LAS TRES COLUMNAS QUE DEFINEN
-            #    LA RELACIÓN
-            #
-            # El Código de 5.12 NO se utiliza como permanente.
-            # El Código permanente viene de GitHub.
+            # 2. COLUMNAS OBLIGATORIAS DE LA FUENTE
             # =================================================
 
-            df2_512_513 = (
-                df2_512_513[
-                    columnas_relacion_513
-                ]
-                .copy()
-            )
+            columnas_entrada_513 = [
+                "Producto",
+                "Componente",
+                "Acción componente"
+            ]
 
-            # =================================================
-            # 4. LIMPIEZA
-            # =================================================
+            faltantes_513 = [
+                columna
+                for columna in columnas_entrada_513
+                if columna not in df2_512.columns
+            ]
 
-            for columna_513 in columnas_relacion_513:
-
-                df2_512_513[
-                    columna_513
-                ] = (
-                    df2_512_513[
-                        columna_513
-                    ]
-                    .fillna("")
-                    .astype(str)
-                    .str.strip()
-                )
-
-            # =================================================
-            # 5. ELIMINAR RELACIONES INCOMPLETAS
-            # =================================================
-
-            df2_512_513 = (
-                df2_512_513[
-                    (
-                        df2_512_513[
-                            "Producto"
-                        ] != ""
-                    )
-                    &
-                    (
-                        df2_512_513[
-                            "Componente"
-                        ] != ""
-                    )
-                    &
-                    (
-                        df2_512_513[
-                            "Acción componente"
-                        ] != ""
-                    )
-                ]
-                .copy()
-            )
-
-            # =================================================
-            # 6. ELIMINAR DUPLICADOS
-            # =================================================
-
-            df2_512_513 = (
-                df2_512_513
-                .drop_duplicates(
-                    subset=columnas_relacion_513
-                )
-                .reset_index(drop=True)
-            )
-
-            # =================================================
-            # 7. CONFIGURACIÓN GITHUB
-            #
-            # NO SE GUARDA NINGÚN TOKEN EN EL CÓDIGO.
-            # =================================================
-
-            github_token_513 = (
-                st.secrets.get(
-                    "GITHUB_TOKEN",
-                    ""
-                )
-                if hasattr(
-                    st,
-                    "secrets"
-                )
-                else ""
-            )
-
-            if not github_token_513:
-
-                github_token_513 = os.getenv(
-                    "GITHUB_TOKEN",
-                    ""
-                )
-
-            github_usuario_513 = (
-                st.secrets.get(
-                    "GITHUB_USUARIO",
-                    ""
-                )
-                if hasattr(
-                    st,
-                    "secrets"
-                )
-                else ""
-            )
-
-            if not github_usuario_513:
-
-                github_usuario_513 = os.getenv(
-                    "GITHUB_USUARIO",
-                    "franquiciasauces"
-                )
-
-            github_repositorio_513 = (
-                st.secrets.get(
-                    "GITHUB_REPOSITORIO",
-                    ""
-                )
-                if hasattr(
-                    st,
-                    "secrets"
-                )
-                else ""
-            )
-
-            if not github_repositorio_513:
-
-                github_repositorio_513 = os.getenv(
-                    "GITHUB_REPOSITORIO",
-                    "Asesores"
-                )
-
-            github_rama_513 = (
-                st.secrets.get(
-                    "GITHUB_RAMA",
-                    ""
-                )
-                if hasattr(
-                    st,
-                    "secrets"
-                )
-                else ""
-            )
-
-            if not github_rama_513:
-
-                github_rama_513 = os.getenv(
-                    "GITHUB_RAMA",
-                    "main"
-                )
-
-            if not github_token_513:
+            if faltantes_513:
 
                 st.error(
-                    "🔴 5.13 ERROR: No existe "
-                    "GITHUB_TOKEN en los Secrets."
+                    "🔴 5.13 ERROR: El DF2 de 5.12 "
+                    "no contiene las columnas requeridas: "
+                    +
+                    ", ".join(faltantes_513)
                 )
 
             else:
 
-                # =================================================
-                # 8. ARCHIVO PERMANENTE EN EL REPOSITORIO
+                # =============================================
+                # 3. TOMAR EXCLUSIVAMENTE LAS 3 COLUMNAS
+                #    REALES DE LA RELACIÓN
                 #
-                # IMPORTANTE:
-                # Se utiliza la raíz del repositorio.
+                #    El código se vuelve a generar aquí.
+                # =============================================
+
+                df2_nuevo_513 = df2_512[
+                    [
+                        "Producto",
+                        "Componente",
+                        "Acción componente"
+                    ]
+                ].copy()
+
+                # =============================================
+                # 4. LIMPIEZA
+                # =============================================
+
+                for columna_513 in columnas_entrada_513:
+
+                    df2_nuevo_513[
+                        columna_513
+                    ] = (
+                        df2_nuevo_513[
+                            columna_513
+                        ]
+                        .fillna("")
+                        .astype(str)
+                        .str.strip()
+                    )
+
+                # =============================================
+                # 5. ELIMINAR REGISTROS INCOMPLETOS
+                # =============================================
+
+                df2_nuevo_513 = (
+                    df2_nuevo_513[
+                        (
+                            df2_nuevo_513[
+                                "Producto"
+                            ] != ""
+                        )
+                        &
+                        (
+                            df2_nuevo_513[
+                                "Componente"
+                            ] != ""
+                        )
+                        &
+                        (
+                            df2_nuevo_513[
+                                "Acción componente"
+                            ] != ""
+                        )
+                    ]
+                    .copy()
+                )
+
+                # =============================================
+                # 6. NORMALIZACIÓN DE CLAVE
+                #
+                # Solo para identificar duplicados.
+                # NO modifica el texto mostrado.
+                # =============================================
+
+                def clave_513(
+                    producto,
+                    componente,
+                    accion
+                ):
+
+                    def normalizar_513(texto):
+
+                        texto = str(
+                            texto
+                        ).strip().casefold()
+
+                        texto = re.sub(
+                            r"\s+",
+                            " ",
+                            texto
+                        )
+
+                        return texto
+
+                    return (
+                        normalizar_513(
+                            producto
+                        )
+                        + "|||"
+                        +
+                        normalizar_513(
+                            componente
+                        )
+                        + "|||"
+                        +
+                        normalizar_513(
+                            accion
+                        )
+                    )
+
+                # =============================================
+                # 7. ELIMINAR DUPLICADOS DEL RESULTADO
+                #    ACTUAL DE 5.12
+                # =============================================
+
+                df2_nuevo_513[
+                    "_clave_513"
+                ] = df2_nuevo_513.apply(
+                    lambda fila: clave_513(
+                        fila["Producto"],
+                        fila["Componente"],
+                        fila["Acción componente"]
+                    ),
+                    axis=1
+                )
+
+                df2_nuevo_513 = (
+                    df2_nuevo_513
+                    .drop_duplicates(
+                        subset=[
+                            "_clave_513"
+                        ]
+                    )
+                    .drop(
+                        columns=[
+                            "_clave_513"
+                        ]
+                    )
+                    .reset_index(
+                        drop=True
+                    )
+                )
+
+                # =================================================
+                # 8. ARCHIVO PERMANENTE
+                #
+                # Se mantiene localmente en la misma aplicación.
                 # =================================================
 
-                ruta_github_513 = (
+                ARCHIVO_DF2_PERMANENTE = (
+                    BASE_DIR
+                    /
                     "DF2_COMPONENTES_ACCIONES.xlsx"
                 )
 
-                url_github_513 = (
-                    "https://api.github.com/repos/"
-                    f"{github_usuario_513}/"
-                    f"{github_repositorio_513}/contents/"
-                    f"{ruta_github_513}"
-                )
-
-                headers_github_513 = {
-                    "Authorization":
-                        f"Bearer {github_token_513}",
-
-                    "Accept":
-                        "application/vnd.github+json",
-
-                    "X-GitHub-Api-Version":
-                        "2022-11-28"
-                }
+                columnas_finales_513 = [
+                    "Código",
+                    "Producto",
+                    "Componente",
+                    "Acción componente"
+                ]
 
                 # =================================================
-                # 9. LEER EL DF2 PERMANENTE ACTUAL DE GITHUB
-                #
-                # GitHub es la fuente real de permanencia.
+                # 9. LEER PERMANENCIA ANTERIOR
                 # =================================================
 
-                respuesta_get_513 = requests.get(
-                    url_github_513,
-                    headers=headers_github_513,
-                    params={
-                        "ref": github_rama_513
-                    },
-                    timeout=30
-                )
+                if ARCHIVO_DF2_PERMANENTE.exists():
 
-                sha_513 = None
+                    try:
 
-                if respuesta_get_513.status_code == 200:
+                        df2_anterior_513 = pd.read_excel(
+                            ARCHIVO_DF2_PERMANENTE,
+                            sheet_name="DF2"
+                        )
 
-                    datos_github_513 = (
-                        respuesta_get_513.json()
+                    except Exception:
+
+                        df2_anterior_513 = pd.DataFrame(
+                            columns=columnas_finales_513
+                        )
+
+                else:
+
+                    df2_anterior_513 = pd.DataFrame(
+                        columns=columnas_finales_513
                     )
 
-                    sha_513 = datos_github_513.get(
-                        "sha"
-                    )
+                # =================================================
+                # 10. VALIDAR ESTRUCTURA ANTERIOR
+                # =================================================
 
-                    contenido_513 = (
-                        datos_github_513.get(
-                            "content",
-                            ""
-                        )
-                        .replace(
-                            "\n",
-                            ""
-                        )
-                    )
+                columnas_relacion_513 = [
+                    "Producto",
+                    "Componente",
+                    "Acción componente"
+                ]
 
-                    if contenido_513:
+                if not all(
+                    columna in df2_anterior_513.columns
+                    for columna in columnas_relacion_513
+                ):
 
-                        bytes_archivo_513 = (
-                            base64.b64decode(
-                                contenido_513
-                            )
-                        )
-
-                        df2_permanente_anterior_513 = (
-                            pd.read_excel(
-                                io.BytesIO(
-                                    bytes_archivo_513
-                                )
-                            )
-                        )
-
-                    else:
-
-                        df2_permanente_anterior_513 = (
-                            pd.DataFrame(
-                                columns=columnas_513
-                            )
-                        )
-
-                elif respuesta_get_513.status_code == 404:
-
-                    # ---------------------------------------------
-                    # El archivo todavía no existe.
-                    # ---------------------------------------------
-
-                    df2_permanente_anterior_513 = (
-                        pd.DataFrame(
-                            columns=columnas_513
-                        )
+                    df2_anterior_513 = pd.DataFrame(
+                        columns=columnas_finales_513
                     )
 
                 else:
 
-                    st.error(
-                        "🔴 5.13 ERROR al consultar "
-                        "el DF2 permanente en GitHub: "
-                        f"{respuesta_get_513.status_code} "
-                        f"- {respuesta_get_513.text[:500]}"
+                    df2_anterior_513 = (
+                        df2_anterior_513[
+                            columnas_finales_513
+                        ]
+                        .copy()
                     )
 
-                    df2_permanente_anterior_513 = None
-
                 # =================================================
-                # 10. CONTINUAR SOLO SI GITHUB RESPONDIÓ BIEN
+                # 11. LIMPIAR PERMANENCIA ANTERIOR
                 # =================================================
 
-                if (
-                    df2_permanente_anterior_513
-                    is not None
+                for columna_513 in columnas_relacion_513:
+
+                    df2_anterior_513[
+                        columna_513
+                    ] = (
+                        df2_anterior_513[
+                            columna_513
+                        ]
+                        .fillna("")
+                        .astype(str)
+                        .str.strip()
+                    )
+
+                # =================================================
+                # 12. CONSERVAR RELACIONES ANTERIORES
+                #
+                # La permanencia NO depende de que vuelvan a
+                # aparecer en la tanda actual de aprendizaje.
+                # =================================================
+
+                permanentes_513 = []
+
+                claves_permanentes_513 = set()
+
+                for _, fila_513 in (
+                    df2_anterior_513.iterrows()
                 ):
 
-                    # =============================================
-                    # 11. VALIDAR ESTRUCTURA DEL ARCHIVO ANTERIOR
-                    # =============================================
-
-                    faltantes_anterior_513 = [
-                        columna
-                        for columna in columnas_relacion_513
-                        if columna
-                        not in
-                        df2_permanente_anterior_513.columns
+                    producto_513 = fila_513[
+                        "Producto"
                     ]
 
-                    if faltantes_anterior_513:
+                    componente_513 = fila_513[
+                        "Componente"
+                    ]
 
-                        st.error(
-                            "🔴 5.13 ERROR: El DF2 permanente "
-                            "de GitHub tiene una estructura "
-                            "incompatible. Faltan: "
-                            +
-                            ", ".join(
-                                faltantes_anterior_513
-                            )
-                        )
+                    accion_513 = fila_513[
+                        "Acción componente"
+                    ]
 
-                    else:
+                    if not (
+                        producto_513
+                        and componente_513
+                        and accion_513
+                    ):
 
-                        # =========================================
-                        # 12. NORMALIZAR DF2 ANTERIOR
-                        # =========================================
+                        continue
 
-                        if (
-                            "Código"
-                            not in
-                            df2_permanente_anterior_513.columns
-                        ):
+                    clave_actual_513 = clave_513(
+                        producto_513,
+                        componente_513,
+                        accion_513
+                    )
 
-                            df2_permanente_anterior_513.insert(
-                                0,
-                                "Código",
-                                ""
-                            )
+                    if clave_actual_513 in (
+                        claves_permanentes_513
+                    ):
 
-                        for columna_513 in columnas_513:
+                        continue
 
-                            df2_permanente_anterior_513[
-                                columna_513
-                            ] = (
-                                df2_permanente_anterior_513[
-                                    columna_513
-                                ]
-                                .fillna("")
-                                .astype(str)
-                                .str.strip()
-                            )
+                    permanentes_513.append(
+                        {
+                            "Producto":
+                                producto_513,
 
-                        # =========================================
-                        # 13. MAPA DE CÓDIGOS PERMANENTES
-                        #
-                        # Una relación existente conserva su CF.
-                        # =========================================
+                            "Componente":
+                                componente_513,
 
-                        mapa_codigos_513 = {}
-
-                        for _, fila_513 in (
-                            df2_permanente_anterior_513
-                            .iterrows()
-                        ):
-
-                            clave_513 = (
-                                fila_513[
-                                    "Producto"
-                                ].lower(),
-
-                                fila_513[
-                                    "Componente"
-                                ].lower(),
-
-                                fila_513[
-                                    "Acción componente"
-                                ].lower()
-                            )
-
-                            codigo_513 = (
-                                fila_513[
-                                    "Código"
-                                ]
-                                .strip()
-                            )
-
-                            if codigo_513:
-
-                                mapa_codigos_513[
-                                    clave_513
-                                ] = codigo_513
-
-                        # =========================================
-                        # 14. ENCONTRAR ÚLTIMO CF
-                        # =========================================
-
-                        numeros_cf_513 = []
-
-                        for codigo_513 in (
-                            mapa_codigos_513.values()
-                        ):
-
-                            codigo_limpio_513 = (
-                                str(
-                                    codigo_513
-                                )
-                                .strip()
-                                .upper()
-                            )
-
-                            if (
-                                codigo_limpio_513
-                                .startswith("CF")
-                            ):
-
-                                try:
-
-                                    numeros_cf_513.append(
-                                        int(
-                                            codigo_limpio_513[
-                                                2:
-                                            ]
-                                        )
-                                    )
-
-                                except ValueError:
-
-                                    pass
-
-                        siguiente_cf_513 = (
-                            max(
-                                numeros_cf_513,
-                                default=0
-                            )
-                            + 1
-                        )
-
-                        # =========================================
-                        # 15. CONSTRUIR NUEVO DF2 PERMANENTE
-                        #
-                        # IMPORTANTE:
-                        # SOLO entran relaciones actualmente
-                        # aprobadas por 5.12.
-                        #
-                        # Las que desaparecieron de 5.12
-                        # desaparecen del permanente.
-                        # =========================================
-
-                        registros_513 = []
-
-                        for _, fila_513 in (
-                            df2_512_513.iterrows()
-                        ):
-
-                            producto_513 = (
-                                fila_513[
-                                    "Producto"
-                                ]
-                            )
-
-                            componente_513 = (
-                                fila_513[
-                                    "Componente"
-                                ]
-                            )
-
-                            accion_513 = (
-                                fila_513[
-                                    "Acción componente"
-                                ]
-                            )
-
-                            clave_513 = (
-                                producto_513.lower(),
-                                componente_513.lower(),
-                                accion_513.lower()
-                            )
-
-                            if (
-                                clave_513
-                                in
-                                mapa_codigos_513
-                            ):
-
-                                codigo_513 = (
-                                    mapa_codigos_513[
-                                        clave_513
-                                    ]
-                                )
-
-                            else:
-
-                                codigo_513 = (
-                                    f"CF"
-                                    f"{siguiente_cf_513:06d}"
-                                )
-
-                                siguiente_cf_513 += 1
-
-                            registros_513.append(
-                                {
-                                    "Código":
-                                        codigo_513,
-
-                                    "Producto":
-                                        producto_513,
-
-                                    "Componente":
-                                        componente_513,
-
-                                    "Acción componente":
-                                        accion_513
-                                }
-                            )
-
-                        # =========================================
-                        # 16. DATAFRAME PERMANENTE
-                        # =========================================
-
-                        df2_permanente_513 = (
-                            pd.DataFrame(
-                                registros_513,
-                                columns=columnas_513
-                            )
-                        )
-
-                        # =========================================
-                        # 17. ORDENAR
-                        # =========================================
-
-                        if not df2_permanente_513.empty:
-
-                            df2_permanente_513 = (
-                                df2_permanente_513
-                                .sort_values(
-                                    by=[
-                                        "Código"
-                                    ],
-                                    kind="stable"
-                                )
-                                .reset_index(
-                                    drop=True
-                                )
-                            )
-
-                        # =========================================
-                        # 18. CONVERTIR A XLSX EN MEMORIA
-                        # =========================================
-
-                        buffer_513 = (
-                            io.BytesIO()
-                        )
-
-                        with pd.ExcelWriter(
-                            buffer_513,
-                            engine="openpyxl"
-                        ) as writer:
-
-                            df2_permanente_513.to_excel(
-                                writer,
-                                index=False,
-                                sheet_name="DF2"
-                            )
-
-                        buffer_513.seek(0)
-
-                        contenido_nuevo_513 = (
-                            base64.b64encode(
-                                buffer_513.read()
-                            )
-                            .decode("utf-8")
-                        )
-
-                        # =========================================
-                        # 19. PREPARAR ACTUALIZACIÓN GITHUB
-                        # =========================================
-
-                        payload_513 = {
-                            "message":
-                                "Actualizar DF2 permanente",
-                            "content":
-                                contenido_nuevo_513,
-                            "branch":
-                                github_rama_513
+                            "Acción componente":
+                                accion_513
                         }
+                    )
 
-                        if sha_513:
+                    claves_permanentes_513.add(
+                        clave_actual_513
+                    )
 
-                            payload_513[
-                                "sha"
-                            ] = sha_513
+                # =================================================
+                # 13. AGREGAR NUEVAS RELACIONES DE 5.12
+                #
+                # NO exige validación manual.
+                # Si 5.12 la produjo como relación aceptada,
+                # entra automáticamente.
+                # =================================================
 
-                        # =========================================
-                        # 20. ACTUALIZAR / CREAR ARCHIVO
-                        # =========================================
+                nuevas_513 = 0
 
-                        respuesta_put_513 = requests.put(
-                            url_github_513,
-                            headers=headers_github_513,
-                            json=payload_513,
-                            timeout=30
+                for _, fila_513 in (
+                    df2_nuevo_513.iterrows()
+                ):
+
+                    producto_513 = fila_513[
+                        "Producto"
+                    ]
+
+                    componente_513 = fila_513[
+                        "Componente"
+                    ]
+
+                    accion_513 = fila_513[
+                        "Acción componente"
+                    ]
+
+                    clave_actual_513 = clave_513(
+                        producto_513,
+                        componente_513,
+                        accion_513
+                    )
+
+                    if clave_actual_513 in (
+                        claves_permanentes_513
+                    ):
+
+                        continue
+
+                    permanentes_513.append(
+                        {
+                            "Producto":
+                                producto_513,
+
+                            "Componente":
+                                componente_513,
+
+                            "Acción componente":
+                                accion_513
+                        }
+                    )
+
+                    claves_permanentes_513.add(
+                        clave_actual_513
+                    )
+
+                    nuevas_513 += 1
+
+                # =================================================
+                # 14. CONSTRUIR DF2 PERMANENTE
+                # =================================================
+
+                df2_permanente_513 = pd.DataFrame(
+                    permanentes_513,
+                    columns=[
+                        "Producto",
+                        "Componente",
+                        "Acción componente"
+                    ]
+                )
+
+                # =================================================
+                # 15. ORDEN ESTABLE
+                # =================================================
+
+                if not df2_permanente_513.empty:
+
+                    df2_permanente_513 = (
+                        df2_permanente_513
+                        .sort_values(
+                            by=[
+                                "Producto",
+                                "Componente",
+                                "Acción componente"
+                            ],
+                            kind="stable"
                         )
+                        .reset_index(
+                            drop=True
+                        )
+                    )
 
-                        # =========================================
-                        # 21. VALIDAR RESPUESTA
-                        # =========================================
+                # =================================================
+                # 16. GENERAR CÓDIGOS ESTABLES
+                # =================================================
 
-                        if (
-                            respuesta_put_513.status_code
-                            in [200, 201]
-                        ):
+                if not df2_permanente_513.empty:
 
-                            # -------------------------------------
-                            # Guardar también en session_state.
-                            # -------------------------------------
-
-                            st.session_state[
-                                "df2_permanente"
-                            ] = (
-                                df2_permanente_513
-                                .copy()
+                    df2_permanente_513.insert(
+                        0,
+                        "Código",
+                        [
+                            f"CF{numero:06d}"
+                            for numero in range(
+                                1,
+                                len(
+                                    df2_permanente_513
+                                ) + 1
                             )
+                        ]
+                    )
 
-                            st.success(
-                                "🟢 5.13 TERMINADO: "
-                                "DF2 permanente actualizado "
-                                "correctamente en GitHub."
-                            )
+                else:
 
-                            st.info(
-                                f"Relaciones anteriores: "
-                                f"**{len(df2_permanente_anterior_513)}** | "
-                                f"Relaciones actuales: "
-                                f"**{len(df2_permanente_513)}**"
-                            )
+                    df2_permanente_513 = pd.DataFrame(
+                        columns=columnas_finales_513
+                    )
 
-                            st.dataframe(
-                                df2_permanente_513[
-                                    columnas_513
-                                ],
-                                use_container_width=True,
-                                hide_index=True
-                            )
+                # =================================================
+                # 17. GUARDAR EN SESSION STATE
+                # =================================================
 
-                            st.caption(
-                                "GitHub queda como fuente permanente "
-                                "del DF2. El Banco General posterior "
-                                "deberá construirse exclusivamente "
-                                "desde este archivo."
-                            )
+                st.session_state[
+                    "df2_componentes_acciones"
+                ] = (
+                    df2_permanente_513.copy()
+                )
 
-                        else:
+                st.session_state[
+                    "df2_permanente_513"
+                ] = (
+                    df2_permanente_513.copy()
+                )
 
-                            st.error(
-                                "🔴 5.13 ERROR: No fue posible "
-                                "actualizar el archivo en GitHub. "
-                                f"Código HTTP: "
-                                f"{respuesta_put_513.status_code}"
-                            )
+                # =================================================
+                # 18. GUARDAR ARCHIVO PERMANENTE
+                # =================================================
 
-                            st.code(
-                                respuesta_put_513.text[
-                                    :1000
-                                ]
-                            )
+                with pd.ExcelWriter(
+                    ARCHIVO_DF2_PERMANENTE,
+                    engine="openpyxl"
+                ) as writer:
+
+                    df2_permanente_513.to_excel(
+                        writer,
+                        sheet_name="DF2",
+                        index=False
+                    )
+
+                # =================================================
+                # 19. RESULTADO
+                # =================================================
+
+                st.success(
+                    "🟢 5.13 DF2 PERMANENTE ACTUALIZADO"
+                )
+
+                st.info(
+                    f"Relaciones permanentes: "
+                    f"**{len(df2_permanente_513)}** | "
+                    f"Nuevas incorporadas desde 5.12: "
+                    f"**{nuevas_513}**"
+                )
+
+                # =================================================
+                # 20. VALIDACIÓN DE COLUMNAS
+                # =================================================
+
+                columnas_reales_513 = (
+                    list(
+                        df2_permanente_513.columns
+                    )
+                )
+
+                if (
+                    columnas_reales_513
+                    != columnas_finales_513
+                ):
+
+                    st.error(
+                        "🔴 5.13 ERROR: La salida no tiene "
+                        "la estructura esperada."
+                    )
+
+                else:
+
+                    st.success(
+                        "✓ Estructura validada: "
+                        "Código | Producto | Componente | "
+                        "Acción componente"
+                    )
+
+                # =================================================
+                # 21. MOSTRAR DF2 PERMANENTE
+                # =================================================
+
+                st.write(
+                    "### DF2 permanente"
+                )
+
+                if df2_permanente_513.empty:
+
+                    st.warning(
+                        "⚠️ El DF2 permanente está vacío."
+                    )
+
+                else:
+
+                    st.dataframe(
+                        df2_permanente_513[
+                            [
+                                "Código",
+                                "Producto",
+                                "Componente",
+                                "Acción componente"
+                            ]
+                        ],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                # =================================================
+                # 22. DESCARGA
+                # =================================================
+
+                buffer_513 = io.BytesIO()
+
+                with pd.ExcelWriter(
+                    buffer_513,
+                    engine="openpyxl"
+                ) as writer:
+
+                    df2_permanente_513.to_excel(
+                        writer,
+                        sheet_name="DF2",
+                        index=False
+                    )
+
+                st.download_button(
+                    label=(
+                        "⬇️ Descargar "
+                        "DF2_COMPONENTES_ACCIONES.xlsx"
+                    ),
+                    data=buffer_513.getvalue(),
+                    file_name=(
+                        "DF2_COMPONENTES_ACCIONES.xlsx"
+                    ),
+                    mime=(
+                        "application/vnd.openxmlformats-officedocument."
+                        "spreadsheetml.sheet"
+                    ),
+                    key="descargar_df2_permanente_513"
+                )
 
 except Exception as e:
 
