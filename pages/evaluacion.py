@@ -4270,3 +4270,536 @@ except Exception as e:
         f"🔴 5.8 ERROR: "
         f"{type(e).__name__}: {e}"
     )
+# ============================================================
+# 5.9 PRIMER DATAFRAME DE ACCIONES GENERALES
+#
+# Usa:
+#   - df_resultado_58
+#   - aprendizaje acumulado 5.4 → 5.8
+#
+# NO modifica 5.2, 5.3, 5.4, 5.5, 5.6, 5.7 ni 5.8
+#
+# Salida:
+#   Código | Nombre del producto | Acción general
+# ============================================================
+
+st.markdown("### 5.9 Primer DataFrame de acciones generales")
+
+try:
+
+    import io
+    import pandas as pd
+    import numpy as np
+
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
+
+    # ========================================================
+    # 1. TOMAR EL RESULTADO REAL DEL 5.8
+    # ========================================================
+
+    if "df_resultado_58" not in locals():
+
+        df_resultado_58 = st.session_state.get(
+            "df_resultado_58",
+            None
+        )
+
+    if (
+        df_resultado_58 is None
+        or not isinstance(
+            df_resultado_58,
+            pd.DataFrame
+        )
+        or df_resultado_58.empty
+    ):
+
+        st.error(
+            "🔴 5.9 ERROR: No existe df_resultado_58. "
+            "Debe ejecutarse primero el 5.8."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 2. VALIDAR ESTRUCTURA
+    # ========================================================
+
+    columnas_base_59 = [
+        "Código",
+        "Nombre del producto",
+        "Acción"
+    ]
+
+    faltantes_59 = [
+        c
+        for c in columnas_base_59
+        if c not in df_resultado_58.columns
+    ]
+
+    if faltantes_59:
+
+        st.error(
+            "🔴 5.9 ERROR: Faltan columnas en "
+            "df_resultado_58: "
+            + ", ".join(faltantes_59)
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 3. RECUPERAR TODO EL APRENDIZAJE ACUMULADO REAL
+    #
+    # NO se crea una memoria nueva.
+    # Se utilizan exactamente las memorias existentes.
+    # ========================================================
+
+    entrenamiento_total_59 = {}
+
+    nombres_entrenamiento_59 = [
+        "entrenamiento_54",
+        "entrenamiento_acciones_54",
+        "aprendizaje_activo_55",
+        "aprendizaje_55",
+        "aprendizaje_56",
+        "aprendizaje_57",
+        "historico_58",
+        "historico_57"
+    ]
+
+    for nombre_memoria in nombres_entrenamiento_59:
+
+        if nombre_memoria in st.session_state:
+
+            memoria = st.session_state[
+                nombre_memoria
+            ]
+
+            if isinstance(
+                memoria,
+                dict
+            ):
+
+                entrenamiento_total_59.update(
+                    memoria
+                )
+
+    # ========================================================
+    # 4. TAMBIÉN RECUPERAR EL ENTRENAMIENTO ACUMULADO
+    # QUE 5.6/5.7/5.8 PUEDAN HABER GUARDADO COMO
+    # "entrenamiento_total"
+    # ========================================================
+
+    posibles_totales_59 = [
+        "entrenamiento_total",
+        "entrenamiento_acumulado",
+        "aprendizaje_acumulado"
+    ]
+
+    for nombre_total in posibles_totales_59:
+
+        if nombre_total in st.session_state:
+
+            memoria_total = st.session_state[
+                nombre_total
+            ]
+
+            if isinstance(
+                memoria_total,
+                dict
+            ):
+
+                entrenamiento_total_59.update(
+                    memoria_total
+                )
+
+    # ========================================================
+    # 5. CATEGORÍAS VÁLIDAS
+    # ========================================================
+
+    categorias_59 = [
+        "ACCIÓN GENERAL",
+        "COMPONENTE + FUNCIÓN",
+        "RECOMENDACIÓN / COMPLEMENTO",
+        "USO / POSOLOGÍA / PRECAUCIÓN",
+        "COMERCIAL"
+    ]
+
+    entrenamiento_total_59 = {
+
+        str(codigo): str(categoria)
+
+        for codigo, categoria
+        in entrenamiento_total_59.items()
+
+        if str(categoria).strip()
+        in categorias_59
+    }
+
+    # ========================================================
+    # 6. CREAR BASE PARA EL MODELO
+    # ========================================================
+
+    df_modelo_59 = df_resultado_58[
+        columnas_base_59
+    ].copy()
+
+    df_modelo_59["Código"] = (
+        df_modelo_59["Código"]
+        .astype(str)
+        .str.strip()
+    )
+
+    df_modelo_59["Nombre del producto"] = (
+        df_modelo_59["Nombre del producto"]
+        .astype(str)
+        .str.strip()
+    )
+
+    df_modelo_59["Acción"] = (
+        df_modelo_59["Acción"]
+        .astype(str)
+        .str.strip()
+    )
+
+    # ========================================================
+    # 7. TEXTO QUE APRENDE EL MODELO
+    #
+    # Producto + acción.
+    #
+    # La salida continuará siendo únicamente la acción.
+    # ========================================================
+
+    df_modelo_59["Texto_modelo"] = (
+        "PRODUCTO: "
+        + df_modelo_59["Nombre del producto"]
+        + " ACCIÓN: "
+        + df_modelo_59["Acción"]
+    )
+
+    # ========================================================
+    # 8. CONSTRUIR CONJUNTO DE ENTRENAMIENTO
+    # ========================================================
+
+    df_train_59 = df_modelo_59[
+        df_modelo_59["Código"].isin(
+            entrenamiento_total_59.keys()
+        )
+    ].copy()
+
+    df_train_59["Etiqueta"] = (
+        df_train_59["Código"]
+        .map(
+            entrenamiento_total_59
+        )
+    )
+
+    df_train_59 = df_train_59[
+        df_train_59["Etiqueta"].isin(
+            categorias_59
+        )
+    ].copy()
+
+    # ========================================================
+    # 9. MOSTRAR CUÁNTO APRENDIZAJE REAL SE RECUPERÓ
+    # ========================================================
+
+    st.info(
+        "🧠 Aprendizaje acumulado recuperado: "
+        f"**{len(df_train_59)} ejemplos**."
+    )
+
+    if len(df_train_59) < 10:
+
+        st.error(
+            "🔴 5.9 ERROR: El aprendizaje acumulado "
+            "recuperado tiene menos de 10 ejemplos."
+        )
+
+        st.stop()
+
+    if (
+        df_train_59["Etiqueta"]
+        .nunique()
+        < 2
+    ):
+
+        st.error(
+            "🔴 5.9 ERROR: El aprendizaje acumulado "
+            "solo contiene una categoría."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 10. ENTRENAR CON TODO LO APRENDIDO
+    # ========================================================
+
+    modelo_final_59 = Pipeline(
+        [
+            (
+                "tfidf",
+                TfidfVectorizer(
+                    lowercase=True,
+                    strip_accents="unicode",
+                    ngram_range=(1, 2),
+                    max_features=20000,
+                    sublinear_tf=True
+                )
+            ),
+            (
+                "clasificador",
+                LogisticRegression(
+                    max_iter=5000,
+                    class_weight="balanced"
+                )
+            )
+        ]
+    )
+
+    modelo_final_59.fit(
+        df_train_59["Texto_modelo"],
+        df_train_59["Etiqueta"]
+    )
+
+    # ========================================================
+    # 11. CLASIFICAR TODO
+    # ========================================================
+
+    predicciones_finales_59 = (
+        modelo_final_59.predict(
+            df_modelo_59["Texto_modelo"]
+        )
+    )
+
+    probabilidades_finales_59 = (
+        modelo_final_59.predict_proba(
+            df_modelo_59["Texto_modelo"]
+        )
+    )
+
+    confianza_final_59 = (
+        np.max(
+            probabilidades_finales_59,
+            axis=1
+        )
+    )
+
+    # ========================================================
+    # 12. RESULTADO COMPLETO
+    # ========================================================
+
+    df_clasificacion_final_59 = (
+        df_modelo_59[
+            columnas_base_59
+        ].copy()
+    )
+
+    df_clasificacion_final_59[
+        "Clasificación final"
+    ] = predicciones_finales_59
+
+    df_clasificacion_final_59[
+        "Confianza"
+    ] = confianza_final_59
+
+    # ========================================================
+    # 13. GUARDAR RESULTADO COMPLETO
+    # ========================================================
+
+    st.session_state[
+        "df_clasificacion_final_59"
+    ] = df_clasificacion_final_59.copy()
+
+    # ========================================================
+    # 14. EXTRAER ACCIONES GENERALES
+    # ========================================================
+
+    df_acciones_generales_59 = (
+        df_clasificacion_final_59[
+            df_clasificacion_final_59[
+                "Clasificación final"
+            ]
+            == "ACCIÓN GENERAL"
+        ]
+        [
+            [
+                "Código",
+                "Nombre del producto",
+                "Acción"
+            ]
+        ]
+        .copy()
+    )
+
+    # ========================================================
+    # 15. RENOMBRAR COLUMNA
+    # ========================================================
+
+    df_acciones_generales_59.rename(
+        columns={
+            "Acción": "Acción general"
+        },
+        inplace=True
+    )
+
+    # ========================================================
+    # 16. GUARDAR PRIMER DATAFRAME
+    # ========================================================
+
+    st.session_state[
+        "df_acciones_generales_59"
+    ] = df_acciones_generales_59.copy()
+
+    # ========================================================
+    # 17. RESUMEN
+    # ========================================================
+
+    st.success(
+        "🟢 5.9 TERMINADO"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Registros analizados",
+            len(df_clasificacion_final_59)
+        )
+
+    with col2:
+
+        st.metric(
+            "Ejemplos de aprendizaje",
+            len(df_train_59)
+        )
+
+    with col3:
+
+        st.metric(
+            "Acciones generales",
+            len(df_acciones_generales_59)
+        )
+
+    # ========================================================
+    # 18. DISTRIBUCIÓN
+    # ========================================================
+
+    st.write(
+        "### Distribución de la clasificación final"
+    )
+
+    distribucion_59 = (
+        df_clasificacion_final_59[
+            "Clasificación final"
+        ]
+        .value_counts()
+        .rename_axis(
+            "Clasificación"
+        )
+        .reset_index(
+            name="Cantidad"
+        )
+    )
+
+    st.dataframe(
+        distribucion_59,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    # ========================================================
+    # 19. MOSTRAR PRIMER DATAFRAME
+    # ========================================================
+
+    st.write(
+        "### 📋 PRIMER DATAFRAME — ACCIONES GENERALES"
+    )
+
+    st.dataframe(
+        df_acciones_generales_59,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    # ========================================================
+    # 20. PREPARAR EXCEL
+    # ========================================================
+
+    buffer_excel_59 = io.BytesIO()
+
+    with pd.ExcelWriter(
+        buffer_excel_59,
+        engine="openpyxl"
+    ) as writer:
+
+        # -----------------------------------------------
+        # HOJA 1
+        # -----------------------------------------------
+
+        df_acciones_generales_59.to_excel(
+            writer,
+            sheet_name="Acciones_Generales",
+            index=False
+        )
+
+        # -----------------------------------------------
+        # HOJA 2
+        # -----------------------------------------------
+
+        df_clasificacion_final_59.to_excel(
+            writer,
+            sheet_name="Clasificacion_Completa",
+            index=False
+        )
+
+        # -----------------------------------------------
+        # HOJA 3
+        # -----------------------------------------------
+
+        df_train_59[
+            [
+                "Código",
+                "Nombre del producto",
+                "Acción",
+                "Etiqueta"
+            ]
+        ].to_excel(
+            writer,
+            sheet_name="Aprendizaje_Acumulado",
+            index=False
+        )
+
+    buffer_excel_59.seek(0)
+
+    # ========================================================
+    # 21. DESCARGA
+    # ========================================================
+
+    st.download_button(
+        label="⬇️ DESCARGAR PRIMER DATAFRAME",
+        data=buffer_excel_59,
+        file_name=(
+            "PRIMER_DATAFRAME_ACCIONES_GENERALES.xlsx"
+        ),
+        mime=(
+            "application/vnd.openxmlformats-"
+            "officedocument.spreadsheetml.sheet"
+        ),
+        key="descargar_dataframe_59"
+    )
+
+    st.success(
+        "✅ El Excel contiene el primer DataFrame "
+        "y, adicionalmente, la clasificación completa "
+        "y el aprendizaje acumulado utilizado."
+    )
+
+except Exception as e:
+
+    st.error(
+        f"🔴 5.9 ERROR: "
+        f"{type(e).__name__}: {e}"
+    )
