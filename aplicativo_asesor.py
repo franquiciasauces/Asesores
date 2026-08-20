@@ -6471,6 +6471,546 @@ else:
             "revisión."
         )
 
+
+# ========================================================
+# 7.5.4 — ABSTRACCIÓN DE ACCIONES GENERALES
+# ========================================================
+#
+# OBJETIVO:
+# Obtener una descripción funcional y general de la acción
+# del producto a partir de la acción original.
+#
+# REGLAS:
+# - Trabajar SOLO sobre dataframe_trabajo_75.
+# - NO modificar Base_Productos.
+# - Conservar siempre Accion_Original.
+# - No mencionar componentes.
+# - No incluir frases comerciales.
+# - No incluir recomendaciones.
+# - No incluir combinaciones con otros productos.
+# - No sustituir arbitrariamente un verbo por un sinónimo.
+# - No inventar funciones que no estén respaldadas por
+#   la descripción original.
+#
+# IMPORTANTE:
+# La abstracción no significa simplemente cortar texto.
+# Debe conservar la función expresada por la descripción,
+# pero eliminar detalles innecesarios para identificar
+# la acción general del producto.
+# ========================================================
+
+
+# ========================================================
+# 7.5.4.1 VERIFICAR DATAFRAME
+# ========================================================
+
+if (
+    "dataframe_trabajo_75"
+    not in globals()
+):
+
+    st.error(
+        "❌ 7.5.4 — No existe "
+        "dataframe_trabajo_75."
+    )
+
+    st.stop()
+
+
+if dataframe_trabajo_75.empty:
+
+    st.warning(
+        "⚠️ 7.5.4 — El DataFrame de trabajo "
+        "está vacío."
+    )
+
+else:
+
+    # ====================================================
+    # 7.5.4.2 FUNCIÓN DE ABSTRACCIÓN
+    # ====================================================
+    #
+    # Esta primera versión realiza una abstracción
+    # conservadora.
+    #
+    # NO intenta convertir automáticamente una función
+    # en otra.
+    #
+    # La descripción original sigue siendo la fuente
+    # principal de conocimiento.
+    # ====================================================
+
+    def abstraer_accion_general_75_4(
+        accion_original_75_4
+    ):
+
+        if pd.isna(
+            accion_original_75_4
+        ):
+
+            return ""
+
+        texto_75_4 = str(
+            accion_original_75_4
+        ).strip()
+
+
+        if not texto_75_4:
+
+            return ""
+
+
+        # ------------------------------------------------
+        # LIMPIEZA BÁSICA
+        # ------------------------------------------------
+
+        texto_75_4 = (
+            texto_75_4
+            .replace("\r", " ")
+            .replace("\n", " ")
+            .replace("\t", " ")
+        )
+
+        texto_75_4 = " ".join(
+            texto_75_4.split()
+        ).strip()
+
+
+        # ------------------------------------------------
+        # ELIMINAR ENCABEZADOS TÉCNICOS
+        # ------------------------------------------------
+
+        texto_75_4 = re.sub(
+            r"^\s*(acción|accion|función|funcion)\s*:\s*",
+            "",
+            texto_75_4,
+            count=1,
+            flags=re.IGNORECASE
+        ).strip()
+
+
+        # ------------------------------------------------
+        # ELIMINAR CONTENIDO COMERCIAL O DE VENTA
+        #
+        # Solo se eliminan segmentos explícitamente
+        # identificados como comerciales.
+        # ------------------------------------------------
+
+        marcadores_comerciales_75_4 = [
+
+            r"\bfrase\s+de\s+venta\s*:",
+            r"\bfrase\s+comercial\s*:",
+            r"\brecomendación\s*:",
+            r"\brecomendacion\s*:",
+            r"\bmodo\s+de\s+uso\s*:",
+            r"\bmodo\s+de\s+accion\s*:",
+            r"\bmodo\s+de\s+acción\s*:",
+            r"\bcombinaciones\s*:"
+        ]
+
+
+        posiciones_75_4 = []
+
+
+        for marcador_75_4 in (
+            marcadores_comerciales_75_4
+        ):
+
+            coincidencia_75_4 = re.search(
+                marcador_75_4,
+                texto_75_4,
+                flags=re.IGNORECASE
+            )
+
+            if coincidencia_75_4:
+
+                posiciones_75_4.append(
+                    coincidencia_75_4.start()
+                )
+
+
+        if posiciones_75_4:
+
+            texto_75_4 = (
+                texto_75_4[
+                    :min(
+                        posiciones_75_4
+                    )
+                ]
+                .strip(
+                    " .;:-"
+                )
+            )
+
+
+        # ------------------------------------------------
+        # ELIMINAR FRASES COMERCIALES AL FINAL
+        # CUANDO ESTÉN EXPLÍCITAMENTE MARCADAS
+        # ------------------------------------------------
+
+        texto_75_4 = re.sub(
+            r"\s*\(?\s*frase\s+de\s+venta.*$",
+            "",
+            texto_75_4,
+            flags=re.IGNORECASE
+        ).strip()
+
+
+        texto_75_4 = re.sub(
+            r"\s*\(?\s*frase\s+comercial.*$",
+            "",
+            texto_75_4,
+            flags=re.IGNORECASE
+        ).strip()
+
+
+        # ------------------------------------------------
+        # LIMPIEZA FINAL
+        # ------------------------------------------------
+
+        texto_75_4 = " ".join(
+            texto_75_4.split()
+        ).strip(
+            " .;:-"
+        )
+
+
+        if not texto_75_4:
+
+            return ""
+
+
+        # ------------------------------------------------
+        # NO SE HACEN SUSTITUCIONES SEMÁNTICAS
+        #
+        # Ejemplo:
+        #
+        # "reforzar las defensas"
+        #
+        # NO se convierte automáticamente en:
+        #
+        # "fortalecer el sistema inmunológico"
+        #
+        # porque eso requeriría una interpretación
+        # semántica que no necesariamente está expresada
+        # en la fuente.
+        # ------------------------------------------------
+
+        return texto_75_4
+
+
+    # ====================================================
+    # 7.5.4.3 APLICAR ABSTRACCIÓN
+    # ====================================================
+
+    mascara_generales_75_4 = (
+
+        dataframe_trabajo_75[
+            "Accion_Original"
+        ]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .ne("")
+
+    )
+
+
+    if mascara_generales_75_4.any():
+
+        dataframe_trabajo_75.loc[
+            mascara_generales_75_4,
+            "Accion_General"
+        ] = (
+
+            dataframe_trabajo_75.loc[
+                mascara_generales_75_4,
+                "Accion_General_Normalizada"
+            ]
+            .fillna("")
+            .astype(str)
+            .apply(
+                abstraer_accion_general_75_4
+            )
+
+        )
+
+
+    # ====================================================
+    # 7.5.4.4 CREAR FIRMA DE LA ACCIÓN GENERAL
+    # ====================================================
+
+    dataframe_trabajo_75.loc[
+        mascara_generales_75_4,
+        "Firma_General"
+    ] = (
+
+        dataframe_trabajo_75.loc[
+            mascara_generales_75_4,
+            [
+                "Producto",
+                "Accion_General"
+            ]
+        ]
+        .apply(
+            lambda fila_75_4:
+            (
+                firma_texto_75_2(
+                    fila_75_4[
+                        "Producto"
+                    ]
+                )
+                + "||"
+                +
+                firma_texto_75_2(
+                    fila_75_4[
+                        "Accion_General"
+                    ]
+                )
+            ),
+            axis=1
+        )
+
+    )
+
+
+    # ====================================================
+    # 7.5.4.5 MUESTRA ORIGINAL → ABSTRACCIÓN
+    # ====================================================
+
+    muestra_abstraccion_75_4 = (
+
+        dataframe_trabajo_75.loc[
+            mascara_generales_75_4,
+            [
+                "Producto",
+                "Accion_Original",
+                "Accion_General_Normalizada",
+                "Accion_General"
+            ]
+        ]
+        .head(15)
+
+    )
+
+
+    st.subheader(
+        "7.5.4 — Ejemplo de abstracción"
+    )
+
+
+    if muestra_abstraccion_75_4.empty:
+
+        st.warning(
+            "⚠️ No existen acciones generales "
+            "para mostrar."
+        )
+
+    else:
+
+        st.dataframe(
+            muestra_abstraccion_75_4,
+            use_container_width=True,
+            hide_index=True
+        )
+
+
+    # ====================================================
+    # 7.5.4.6 CONTROL DE COMPONENTES
+    # ====================================================
+    #
+    # Esta comprobación evita que la abstracción general
+    # termine incorporando nombres de componentes.
+    #
+    # NO elimina automáticamente texto.
+    # Solo informa para revisión.
+    # ====================================================
+
+    filas_con_componentes_en_accion_75_4 = []
+
+
+    if tiene_componentes_75:
+
+        for indice_75_4, fila_75_4 in (
+            dataframe_trabajo_75.loc[
+                mascara_generales_75_4
+            ].iterrows()
+        ):
+
+            producto_75_4 = str(
+                fila_75_4[
+                    "Producto"
+                ]
+            ).strip()
+
+
+            accion_75_4 = str(
+                fila_75_4[
+                    "Accion_General"
+                ]
+            ).strip()
+
+
+            fila_fuente_75_4 = (
+                dataframe_fuente_75[
+                    dataframe_fuente_75[
+                        "Producto"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .str.casefold()
+                    ==
+                    producto_75_4.casefold()
+                ]
+            )
+
+
+            if fila_fuente_75_4.empty:
+
+                continue
+
+
+            componentes_producto_75_4 = []
+
+
+            for valor_75_4 in (
+                fila_fuente_75_4[
+                    "Componentes"
+                ]
+            ):
+
+                componentes_producto_75_4.extend(
+                    separar_elementos_75_2(
+                        valor_75_4
+                    )
+                )
+
+
+            componentes_producto_75_4 = (
+                quitar_duplicados_75_2(
+                    componentes_producto_75_4
+                )
+            )
+
+
+            for componente_75_4 in (
+                componentes_producto_75_4
+            ):
+
+                if (
+                    componente_75_4.casefold()
+                    in
+                    accion_75_4.casefold()
+                ):
+
+                    filas_con_componentes_en_accion_75_4.append(
+                        indice_75_4
+                    )
+
+                    break
+
+
+    # ====================================================
+    # 7.5.4.7 RESULTADO DE CONTROL
+    # ====================================================
+
+    if filas_con_componentes_en_accion_75_4:
+
+        st.warning(
+            "⚠️ 7.5.4 — Se detectaron posibles "
+            "nombres de componentes dentro de "
+            "algunas acciones generales."
+        )
+
+        st.write(
+            "Registros para revisión:"
+        )
+
+        st.write(
+            [
+                int(valor_75_4)
+                for valor_75_4
+                in filas_con_componentes_en_accion_75_4[
+                    :10
+                ]
+            ]
+        )
+
+        st.info(
+            "No se eliminaron automáticamente. "
+            "La información debe revisarse antes "
+            "de continuar."
+        )
+
+    else:
+
+        st.success(
+            "✓ No se detectaron nombres de "
+            "componentes dentro de las acciones "
+            "generales procesadas."
+        )
+
+
+    # ====================================================
+    # 7.5.4.8 VALIDACIÓN GENERAL
+    # ====================================================
+
+    total_acciones_75_4 = int(
+        mascara_generales_75_4.sum()
+    )
+
+
+    total_abstraidas_75_4 = int(
+
+        dataframe_trabajo_75.loc[
+            mascara_generales_75_4,
+            "Accion_General"
+        ]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .ne("")
+        .sum()
+
+    )
+
+
+    if (
+        total_acciones_75_4 > 0
+        and
+        total_abstraidas_75_4
+        == total_acciones_75_4
+        and
+        not filas_con_componentes_en_accion_75_4
+    ):
+
+        st.success(
+            "🟢 7.5.4 FUNCIONA — "
+            f"{total_abstraidas_75_4:,} acciones generales "
+            "procesadas y almacenadas en el DataFrame "
+            "de trabajo."
+        )
+
+    elif (
+        total_acciones_75_4 > 0
+        and
+        total_abstraidas_75_4
+        == total_acciones_75_4
+    ):
+
+        st.warning(
+            "🟡 7.5.4 — Las acciones fueron procesadas, "
+            "pero existen registros que requieren "
+            "revisión por posible presencia de "
+            "componentes."
+        )
+
+    else:
+
+        st.error(
+            "❌ 7.5.4 — No todas las acciones generales "
+            "pudieron procesarse."
+        )
 # ============================================================
 # 8. PIE DE APLICACIÓN
 # ============================================================
