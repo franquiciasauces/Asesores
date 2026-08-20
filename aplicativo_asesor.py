@@ -5708,6 +5708,410 @@ if (
         "Todavía no se generan preguntas ni se "
         "modifican archivos permanentes."
     )
+# ========================================================
+# 7.5.2 — EXTRACCIÓN Y NORMALIZACIÓN ESTRUCTURAL
+# ========================================================
+#
+# OBJETIVO:
+# Construir las relaciones iniciales a partir de la fuente,
+# conservando exactamente el contenido original.
+#
+# ESTE BLOQUE:
+# - NO modifica Base_Productos.
+# - NO hace abstracción semántica.
+# - NO cambia verbos por otros.
+# - NO elimina componentes.
+# - NO genera preguntas.
+# - NO genera distractores.
+#
+# PREPARA:
+# Producto
+# Acción original
+# Componente
+# Acción del componente original
+#
+# ========================================================
+
+    # ====================================================
+    # 7.5.2.1 FUNCIONES DE LIMPIEZA
+    # ====================================================
+
+    def limpiar_texto_75_2(valor):
+
+        if pd.isna(valor):
+            return ""
+
+        texto_75_2 = str(
+            valor
+        )
+
+        texto_75_2 = (
+            texto_75_2
+            .replace("\r", " ")
+            .replace("\n", " ")
+            .replace("\t", " ")
+        )
+
+        return " ".join(
+            texto_75_2.split()
+        ).strip()
+
+
+    def separar_elementos_75_2(valor):
+
+        texto_75_2 = (
+            limpiar_texto_75_2(
+                valor
+            )
+        )
+
+        if not texto_75_2:
+            return []
+
+        elementos_75_2 = []
+
+        for elemento_75_2 in (
+            texto_75_2.split(";")
+        ):
+
+            elemento_75_2 = (
+                limpiar_texto_75_2(
+                    elemento_75_2
+                )
+            )
+
+            if elemento_75_2:
+
+                elementos_75_2.append(
+                    elemento_75_2
+                )
+
+        return elementos_75_2
+
+
+    def quitar_duplicados_75_2(
+        elementos_75_2
+    ):
+
+        resultado_75_2 = []
+        vistos_75_2 = set()
+
+        for elemento_75_2 in (
+            elementos_75_2
+        ):
+
+            firma_75_2 = (
+                limpiar_texto_75_2(
+                    elemento_75_2
+                ).casefold()
+            )
+
+            if (
+                firma_75_2
+                and
+                firma_75_2
+                not in vistos_75_2
+            ):
+
+                vistos_75_2.add(
+                    firma_75_2
+                )
+
+                resultado_75_2.append(
+                    elemento_75_2
+                )
+
+        return resultado_75_2
+
+
+    # ====================================================
+    # 7.5.2.2 CONSTRUIR RELACIONES DE TRABAJO
+    # ====================================================
+
+    registros_75_2 = []
+
+    for _, fila_75_2 in (
+        dataframe_fuente_75.iterrows()
+    ):
+
+        producto_75_2 = (
+            limpiar_texto_75_2(
+                fila_75_2[
+                    "Producto"
+                ]
+            )
+        )
+
+        if not producto_75_2:
+
+            continue
+
+
+        # ------------------------------------------------
+        # ACCIONES GENERALES
+        # ------------------------------------------------
+
+        acciones_generales_75_2 = (
+            separar_elementos_75_2(
+                fila_75_2[
+                    "Acciones generales"
+                ]
+            )
+        )
+
+        acciones_generales_75_2 = (
+            quitar_duplicados_75_2(
+                acciones_generales_75_2
+            )
+        )
+
+
+        # ------------------------------------------------
+        # COMPONENTES
+        # ------------------------------------------------
+
+        componentes_75_2 = []
+
+        if tiene_componentes_75:
+
+            componentes_75_2 = (
+                separar_elementos_75_2(
+                    fila_75_2[
+                        "Componentes"
+                    ]
+                )
+            )
+
+            componentes_75_2 = (
+                quitar_duplicados_75_2(
+                    componentes_75_2
+                )
+            )
+
+
+        # ------------------------------------------------
+        # REGISTRAR ACCIONES GENERALES
+        # ------------------------------------------------
+
+        for accion_75_2 in (
+            acciones_generales_75_2
+        ):
+
+            registros_75_2.append({
+
+                "Producto":
+                    producto_75_2,
+
+                "Accion_Original":
+                    accion_75_2,
+
+                "Accion_General":
+                    "",
+
+                "Accion_General_Normalizada":
+                    "",
+
+                "Componente":
+                    "",
+
+                "Accion_Componente_Original":
+                    "",
+
+                "Accion_Componente":
+                    "",
+
+                "Accion_Componente_Normalizada":
+                    "",
+
+                "Firma_General":
+                    "",
+
+                "Firma_Componente":
+                    ""
+
+            })
+
+
+        # ------------------------------------------------
+        # PREPARAR COMPONENTES
+        #
+        # En este bloque todavía NO asignamos acciones
+        # a componentes porque eso requiere analizar la
+        # información específica de la matriz.
+        # ------------------------------------------------
+
+        for componente_75_2 in (
+            componentes_75_2
+        ):
+
+            registros_75_2.append({
+
+                "Producto":
+                    producto_75_2,
+
+                "Accion_Original":
+                    "",
+
+                "Accion_General":
+                    "",
+
+                "Accion_General_Normalizada":
+                    "",
+
+                "Componente":
+                    componente_75_2,
+
+                "Accion_Componente_Original":
+                    "",
+
+                "Accion_Componente":
+                    "",
+
+                "Accion_Componente_Normalizada":
+                    "",
+
+                "Firma_General":
+                    "",
+
+                "Firma_Componente":
+                    ""
+
+            })
+
+
+    # ====================================================
+    # 7.5.2.3 CREAR DATAFRAME ESTRUCTURAL
+    # ====================================================
+
+    dataframe_trabajo_75 = pd.DataFrame(
+        registros_75_2,
+        columns=columnas_trabajo_75
+    )
+
+
+    # ====================================================
+    # 7.5.2.4 LIMPIEZA FINAL
+    # ====================================================
+
+    if not dataframe_trabajo_75.empty:
+
+        dataframe_trabajo_75 = (
+            dataframe_trabajo_75
+            .drop_duplicates()
+            .reset_index(drop=True)
+        )
+
+
+    # ====================================================
+    # 7.5.2.5 ESTADÍSTICAS DE CONTROL
+    # ====================================================
+
+    total_registros_75_2 = (
+        len(
+            dataframe_trabajo_75
+        )
+    )
+
+    total_productos_75_2 = (
+        dataframe_trabajo_75[
+            "Producto"
+        ]
+        .replace("", np.nan)
+        .nunique()
+    )
+
+    total_acciones_75_2 = (
+        dataframe_trabajo_75[
+            "Accion_Original"
+        ]
+        .replace("", np.nan)
+        .count()
+    )
+
+    total_componentes_75_2 = (
+        dataframe_trabajo_75[
+            "Componente"
+        ]
+        .replace("", np.nan)
+        .count()
+    )
+
+
+    # ====================================================
+    # 7.5.2.6 MOSTRAR RESULTADO
+    # ====================================================
+
+    st.success(
+        "🟢 7.5.2 FUNCIONA — Extracción estructural "
+        "realizada correctamente."
+    )
+
+    st.write(
+        f"Productos identificados: "
+        f"**{total_productos_75_2:,}**"
+    )
+
+    st.write(
+        f"Acciones generales extraídas: "
+        f"**{total_acciones_75_2:,}**"
+    )
+
+    st.write(
+        f"Componentes identificados: "
+        f"**{total_componentes_75_2:,}**"
+    )
+
+    st.write(
+        f"Registros de trabajo creados: "
+        f"**{total_registros_75_2:,}**"
+    )
+
+
+    # ====================================================
+    # 7.5.2.7 MUESTRA DE CONTROL
+    # ====================================================
+
+    if not dataframe_trabajo_75.empty:
+
+        st.subheader(
+            "Ejemplo del DataFrame de trabajo"
+        )
+
+        st.dataframe(
+            dataframe_trabajo_75[
+                [
+                    "Producto",
+                    "Accion_Original",
+                    "Componente"
+                ]
+            ].head(15),
+            use_container_width=True,
+            hide_index=True
+        )
+
+
+    # ====================================================
+    # 7.5.2.8 VALIDACIÓN DEL BLOQUE
+    # ====================================================
+
+    if (
+        total_registros_75_2 > 0
+        and
+        total_productos_75_2 > 0
+    ):
+
+        st.success(
+            "✅ 7.5.2 VALIDADO — El DataFrame contiene "
+            "productos y relaciones estructurales "
+            "listas para la siguiente etapa."
+        )
+
+    else:
+
+        st.warning(
+            "⚠️ 7.5.2 — No se encontraron relaciones "
+            "estructurales suficientes para continuar."
+        )
 
 # ============================================================
 # 8. PIE DE APLICACIÓN
