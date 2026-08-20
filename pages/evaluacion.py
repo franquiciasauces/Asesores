@@ -779,7 +779,7 @@ except Exception as e:
     )
 
 # ============================================================
-# 5.4 ENTRENAMIENTO SEMÁNTICO DE ACCIONES
+# 5.4 CLASIFICACIÓN SEMÁNTICA DE ACCIONES
 # ============================================================
 
 st.markdown("### 5.4 Clasificación semántica de acciones")
@@ -791,16 +791,21 @@ try:
     from sklearn.linear_model import LogisticRegression
     from sklearn.pipeline import Pipeline
 
+    # --------------------------------------------------------
+    # VALIDAR RESULTADO DEL 5.3
+    # --------------------------------------------------------
+
     if "df_depurado" not in locals() or df_depurado.empty:
 
         st.error(
-            "🔴 5.4 ERROR: No existe df_depurado proveniente del 5.3."
+            "🔴 5.4 ERROR: No existe df_depurado "
+            "proveniente del 5.3."
         )
 
     else:
 
         # ----------------------------------------------------
-        # PREPARAR DATAFRAME
+        # DATAFRAME BASE
         # ----------------------------------------------------
 
         df_ml = df_depurado[
@@ -836,19 +841,19 @@ try:
         ).reset_index(drop=True)
 
         # ----------------------------------------------------
-        # CATEGORÍAS DE ENTRENAMIENTO
+        # CATEGORÍAS
         # ----------------------------------------------------
 
-        categorias_54 = {
-            "ACCIÓN GENERAL": 0,
-            "COMPONENTE + FUNCIÓN": 1,
-            "RECOMENDACIÓN / COMPLEMENTO": 2,
-            "USO / POSOLOGÍA / PRECAUCIÓN": 3,
-            "COMERCIAL": 4
-        }
+        categorias_54 = [
+            "ACCIÓN GENERAL",
+            "COMPONENTE + FUNCIÓN",
+            "RECOMENDACIÓN / COMPLEMENTO",
+            "USO / POSOLOGÍA / PRECAUCIÓN",
+            "COMERCIAL"
+        ]
 
         # ----------------------------------------------------
-        # MEMORIA DE CLASIFICACIONES
+        # MEMORIA DEL ENTRENAMIENTO
         # ----------------------------------------------------
 
         if "entrenamiento_acciones_54" not in st.session_state:
@@ -860,7 +865,7 @@ try:
         )
 
         # ----------------------------------------------------
-        # MÁXIMO ABSOLUTO DE 50 EJEMPLOS
+        # MÁXIMO 50
         # ----------------------------------------------------
 
         total_etiquetados = len(etiquetas)
@@ -904,17 +909,16 @@ try:
             muestra = pd.DataFrame()
 
         # ----------------------------------------------------
-        # INTERFAZ DE ENTRENAMIENTO
+        # ENTRENAMIENTO MANUAL
         # ----------------------------------------------------
 
         st.write(
-            "### Entrenamiento inicial"
+            "### Ejemplos para entrenamiento"
         )
 
         st.info(
-            "El entrenamiento utiliza como máximo "
-            "**50 ejemplos**. Cuando llegue a 50, "
-            "no se mostrarán más ejemplos."
+            "El sistema utilizará entre 10 y 50 ejemplos. "
+            "Cuando llegue a 50 no mostrará más."
         )
 
         if not muestra.empty:
@@ -938,14 +942,12 @@ try:
                 )
 
                 st.write(
-                    f"Texto: **{accion}**"
+                    f"Acción: **{accion}**"
                 )
 
                 opcion = st.radio(
-                    "Clasificación",
-                    list(
-                        categorias_54.keys()
-                    ),
+                    "¿Qué representa este texto?",
+                    categorias_54,
                     index=None,
                     key=f"clasificacion_54_{codigo}"
                 )
@@ -954,14 +956,12 @@ try:
 
                     st.session_state.entrenamiento_acciones_54[
                         codigo
-                    ] = categorias_54[
-                        opcion
-                    ]
+                    ] = opcion
 
                 st.divider()
 
         # ----------------------------------------------------
-        # ACTUALIZAR CONTADOR
+        # ACTUALIZAR CONTADORES
         # ----------------------------------------------------
 
         total_etiquetados = len(
@@ -969,8 +969,8 @@ try:
         )
 
         conteo = {
-            nombre: 0
-            for nombre in categorias_54
+            categoria: 0
+            for categoria in categorias_54
         }
 
         for valor in (
@@ -979,10 +979,9 @@ try:
             .values()
         ):
 
-            for nombre, numero in categorias_54.items():
+            if valor in conteo:
 
-                if valor == numero:
-                    conteo[nombre] += 1
+                conteo[valor] += 1
 
         st.write(
             f"**Ejemplos clasificados: "
@@ -992,17 +991,21 @@ try:
         st.write(
             " | ".join(
                 [
-                    f"{nombre}: **{conteo[nombre]}**"
-                    for nombre in categorias_54
+                    f"{categoria}: **{conteo[categoria]}**"
+                    for categoria in categorias_54
                 ]
             )
         )
 
         # ----------------------------------------------------
-        # ENTRENAMIENTO
+        # ENTRENAR DESDE 10 EJEMPLOS
         # ----------------------------------------------------
 
-        if total_etiquetados >= 20:
+        if total_etiquetados >= 10:
+
+            # -----------------------------------------------
+            # PREPARAR ENTRENAMIENTO
+            # -----------------------------------------------
 
             codigos_entrenamiento = list(
                 st.session_state
@@ -1024,23 +1027,69 @@ try:
                 )
             )
 
-            clases_presentes = (
-                df_entrenamiento["Etiqueta"]
-                .nunique()
+            # -----------------------------------------------
+            # TEXTO DE ENTRENAMIENTO
+            #
+            # IMPORTANTE:
+            # producto + acción
+            #
+            # Esto permite diferenciar, por ejemplo:
+            #
+            # COLÁGENO PLUS
+            # Biotina (cabello y uñas)
+            #
+            # de
+            #
+            # BIOTIN
+            # Soporte estructural del cabello y uñas
+            # -----------------------------------------------
+
+            df_entrenamiento["Texto ML"] = (
+                "PRODUCTO: "
+                + df_entrenamiento[
+                    "Nombre del producto"
+                ]
+                + " ACCIÓN: "
+                + df_entrenamiento[
+                    "Acción"
+                ]
             )
+
+            df_ml["Texto ML"] = (
+                "PRODUCTO: "
+                + df_ml[
+                    "Nombre del producto"
+                ]
+                + " ACCIÓN: "
+                + df_ml[
+                    "Acción"
+                ]
+            )
+
+            clases_presentes = (
+                df_entrenamiento[
+                    "Etiqueta"
+                ].nunique()
+            )
+
+            # -----------------------------------------------
+            # VERIFICAR QUE EXISTAN AL MENOS 2 CATEGORÍAS
+            # -----------------------------------------------
 
             if clases_presentes < 2:
 
                 st.warning(
-                    "⚠️ Se necesitan al menos "
-                    "dos categorías diferentes para entrenar."
+                    "⚠️ Ya hay 10 ejemplos, pero todos "
+                    "pertenecen a la misma categoría. "
+                    "Clasifique al menos un ejemplo "
+                    "de otra categoría para poder entrenar."
                 )
 
             else:
 
-                # --------------------------------------------
+                # -------------------------------------------
                 # MODELO
-                # --------------------------------------------
+                # -------------------------------------------
 
                 modelo_acciones_54 = Pipeline(
                     [
@@ -1050,7 +1099,7 @@ try:
                                 lowercase=True,
                                 strip_accents="unicode",
                                 ngram_range=(1, 2),
-                                max_features=5000,
+                                max_features=8000,
                                 sublinear_tf=True
                             )
                         ),
@@ -1064,69 +1113,51 @@ try:
                     ]
                 )
 
+                # -------------------------------------------
+                # ENTRENAR
+                # -------------------------------------------
+
                 modelo_acciones_54.fit(
-                    df_entrenamiento["Acción"],
+                    df_entrenamiento["Texto ML"],
                     df_entrenamiento["Etiqueta"]
                 )
 
-                # --------------------------------------------
-                # PREDICCIÓN
-                # --------------------------------------------
+                # -------------------------------------------
+                # CLASIFICAR TODAS LAS ACCIONES
+                # -------------------------------------------
 
                 probabilidades = (
                     modelo_acciones_54
                     .predict_proba(
-                        df_ml["Acción"]
+                        df_ml["Texto ML"]
                     )
                 )
 
                 predicciones = (
                     modelo_acciones_54
                     .predict(
-                        df_ml["Acción"]
+                        df_ml["Texto ML"]
                     )
                 )
 
-                clases_modelo = (
-                    modelo_acciones_54
-                    .named_steps[
-                        "clasificador"
-                    ]
-                    .classes_
+                confianza = np.max(
+                    probabilidades,
+                    axis=1
                 )
-
-                confianza = (
-                    np.max(
-                        probabilidades,
-                        axis=1
-                    )
-                )
-
-                nombres_categorias = {
-                    numero: nombre
-                    for nombre, numero
-                    in categorias_54.items()
-                }
 
                 df_resultado_54 = df_ml.copy()
 
                 df_resultado_54[
                     "Clasificación IA"
-                ] = [
-                    nombres_categorias.get(
-                        int(valor),
-                        "REVISAR"
-                    )
-                    for valor in predicciones
-                ]
+                ] = predicciones
 
                 df_resultado_54[
                     "Confianza IA"
                 ] = confianza
 
-                # --------------------------------------------
-                # NIVEL DE CONFIANZA
-                # --------------------------------------------
+                # -------------------------------------------
+                # ESTADO
+                # -------------------------------------------
 
                 df_resultado_54[
                     "Estado IA"
@@ -1140,17 +1171,17 @@ try:
                     )
                 )
 
-                # --------------------------------------------
-                # GUARDAR
-                # --------------------------------------------
+                # -------------------------------------------
+                # GUARDAR RESULTADO
+                # -------------------------------------------
 
                 st.session_state[
                     "df_resultado_54"
                 ] = df_resultado_54
 
-                # --------------------------------------------
+                # -------------------------------------------
                 # ESTADÍSTICAS
-                # --------------------------------------------
+                # -------------------------------------------
 
                 total = len(
                     df_resultado_54
@@ -1184,23 +1215,22 @@ try:
                 )
 
                 st.success(
-                    "🟢 Modelo entrenado y aplicado "
-                    "a todas las acciones."
+                    "🟢 Modelo entrenado correctamente."
                 )
 
                 st.info(
-                    f"Total: **{total}** | "
-                    f"Alta: **{alta}** | "
-                    f"Media: **{media}** | "
+                    f"Acciones procesadas: **{total}** | "
+                    f"Alta confianza: **{alta}** | "
+                    f"Confianza media: **{media}** | "
                     f"Revisar: **{revisar}**"
                 )
 
-                # --------------------------------------------
+                # -------------------------------------------
                 # DISTRIBUCIÓN
-                # --------------------------------------------
+                # -------------------------------------------
 
                 st.write(
-                    "### Clasificación obtenida"
+                    "### Distribución de clasificación"
                 )
 
                 for categoria in categorias_54:
@@ -1218,9 +1248,9 @@ try:
                         f"- {categoria}: **{cantidad}**"
                     )
 
-                # --------------------------------------------
-                # SOLO LOS CASOS DE BAJA CONFIANZA
-                # --------------------------------------------
+                # -------------------------------------------
+                # SOLO MOSTRAR LOS CASOS MÁS DUDOSOS
+                # -------------------------------------------
 
                 df_revision_54 = (
                     df_resultado_54[
@@ -1238,8 +1268,8 @@ try:
                 if not df_revision_54.empty:
 
                     st.warning(
-                        "⚠️ Muestra de los casos "
-                        "con menor confianza."
+                        "⚠️ Estos son solamente los "
+                        "30 casos de menor confianza."
                     )
 
                     st.dataframe(
@@ -1256,33 +1286,40 @@ try:
                         hide_index=True
                     )
 
-                # --------------------------------------------
-                # MATRIZ DEL PRIMER DATAFRAME
-                # NO SE AGREGAN COLUMNAS
-                # --------------------------------------------
+                # -------------------------------------------
+                # MATRIZ FINAL DEL PRIMER PROCESO
+                # SOLO 3 COLUMNAS
+                # -------------------------------------------
 
                 st.write(
-                    "### Matriz de acciones"
+                    "### Matriz de normalización"
                 )
 
-                st.dataframe(
+                df_normalizacion_54 = (
                     df_resultado_54[
                         [
                             "Código",
                             "Nombre del producto",
                             "Acción"
                         ]
-                    ],
+                    ].copy()
+                )
+
+                st.dataframe(
+                    df_normalizacion_54,
                     use_container_width=True,
                     hide_index=True
                 )
 
         else:
 
+            faltan = (
+                10 - total_etiquetados
+            )
+
             st.warning(
-                f"⚠️ Faltan "
-                f"{20 - total_etiquetados} "
-                "ejemplos para iniciar el entrenamiento."
+                f"⚠️ Faltan **{faltan}** ejemplos "
+                "para iniciar el entrenamiento."
             )
 
 except Exception as e:
