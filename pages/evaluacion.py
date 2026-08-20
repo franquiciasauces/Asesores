@@ -82,140 +82,147 @@ st.write(
 if not ARCHIVO_MATRIZ.exists():
 
     st.error(
-        "No se encontró el archivo "
+        "No se encontró "
         "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
     )
 
-    st.write(
-        f"Ruta buscada: {ARCHIVO_MATRIZ}"
-    )
-
     st.stop()
-
 
 st.success(
     "✓ MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx encontrada."
 )
 
+
 # ============================================================
-# 5.1 — CARGAR BASE_PRODUCTOS
+# 5.1 LEER HOJA BASE_PRODUCTOS DE LA MATRIZ
 # ============================================================
 
-@st.cache_data
-def cargar_base_productos(ruta_matriz):
+df_base_productos = pd.read_excel(
+    ARCHIVO_MATRIZ,
+    sheet_name="Base_Productos"
+)
 
-    return pd.read_excel(
-        ruta_matriz,
-        sheet_name="Base_Productos"
-    )
+st.success(
+    "✓ Hoja Base_Productos cargada desde la matriz."
+)
 
 
-try:
+# ============================================================
+# 5.2 COLUMNAS REALES DE BASE_PRODUCTOS
+# ============================================================
 
-    df_base_productos = cargar_base_productos(
-        ARCHIVO_MATRIZ
-    )
+COL_PRODUCTO = "Producto"
+COL_CATEGORIA_PRINCIPAL = "Categoría principal"
+COL_CATEGORIAS_COMPLEMENTARIAS = "Categorías complementarias"
+COL_COMPONENTES = "componentes"
+COL_ACCIONES_GENERALES = "Acciones generales"
+COL_PRECIO = "Precio público"
+COL_FOTO = "Foto"
 
-except Exception as error:
+
+# ============================================================
+# 5.3 VALIDAR LAS COLUMNAS DE LA HOJA
+# ============================================================
+
+COLUMNAS_REQUERIDAS = [
+    COL_PRODUCTO,
+    COL_CATEGORIA_PRINCIPAL,
+    COL_CATEGORIAS_COMPLEMENTARIAS,
+    COL_COMPONENTES,
+    COL_ACCIONES_GENERALES,
+    COL_PRECIO,
+    COL_FOTO
+]
+
+faltantes = [
+    columna
+    for columna in COLUMNAS_REQUERIDAS
+    if columna not in df_base_productos.columns
+]
+
+if faltantes:
 
     st.error(
-        "No fue posible cargar la hoja "
-        "Base_Productos."
+        "Faltan columnas en la hoja Base_Productos:"
     )
 
-    st.exception(error)
+    for columna in faltantes:
+        st.write(f"- {columna}")
 
     st.stop()
 
 
 st.success(
-    "✓ Base_Productos cargada correctamente."
+    "✓ Estructura de Base_Productos validada."
 )
+
 
 # ============================================================
-# 5.2 — COLUMNAS DE BASE_PRODUCTOS
-# ============================================================
-
-COL_PRODUCTO = "Producto"
-
-COL_CATEGORIA_PRINCIPAL = (
-    "Categoría principal"
-)
-
-COL_CATEGORIAS_COMPLEMENTARIAS = (
-    "Categorías complementarias"
-)
-
-COL_COMPONENTES = "componentes"
-
-COL_ACCIONES_GENERALES = (
-    "Acciones generales"
-)
-
-COL_PRECIO = "Precio público"
-
-COL_FOTO = "Foto"
-
-# ============================================================
-# 5.3 — BASE DE TRABAJO
+# 5.4 CREAR BASE DE TRABAJO
 # ============================================================
 
 df_trabajo = df_base_productos[
     [
-        COL_PRODUCTO,
-        COL_COMPONENTES,
-        COL_ACCIONES_GENERALES
+        "Producto",
+        "componentes",
+        "Acciones generales"
     ]
 ].copy()
 
 
+# ============================================================
+# 5.5 LIMPIEZA TÉCNICA, SIN CAMBIAR EL CONTENIDO
+# ============================================================
+
 df_trabajo["Producto"] = (
-    df_trabajo[COL_PRODUCTO]
+    df_trabajo["Producto"]
+    .fillna("")
+    .astype(str)
+    .str.strip()
+)
+
+df_trabajo["componentes"] = (
+    df_trabajo["componentes"]
+    .fillna("")
+    .astype(str)
+    .str.strip()
+)
+
+df_trabajo["Acciones generales"] = (
+    df_trabajo["Acciones generales"]
     .fillna("")
     .astype(str)
     .str.strip()
 )
 
 
-df_trabajo["Componentes"] = (
-    df_trabajo[COL_COMPONENTES]
-    .fillna("")
-    .astype(str)
-    .str.strip()
-)
-
-
-df_trabajo["Acciones_generales"] = (
-    df_trabajo[COL_ACCIONES_GENERALES]
-    .fillna("")
-    .astype(str)
-    .str.strip()
-)
-
+# ============================================================
+# 5.6 ELIMINAR FILAS SIN PRODUCTO
+# ============================================================
 
 df_trabajo = df_trabajo[
-    df_trabajo["Producto"].ne("")
+    df_trabajo["Producto"] != ""
 ].copy()
 
 
 # ============================================================
-# 5.4 — COMPROBACIÓN DE BASE DE TRABAJO
+# 5.7 RESULTADO DE LA BASE DE TRABAJO
 # ============================================================
 
 st.subheader(
-    "Base de trabajo"
+    "Base de trabajo para normalización"
 )
 
 st.write(
-    f"Registros: **{len(df_trabajo)}**"
+    f"Registros encontrados: **{len(df_trabajo)}**"
 )
 
 st.dataframe(
     df_trabajo[
         [
             "Producto",
-            "Componentes",
-            "Acciones_generales"
+            "componentes",
+            "Acciones generales"
         ]
     ],
     use_container_width=True
