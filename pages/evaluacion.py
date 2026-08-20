@@ -159,11 +159,13 @@ except Exception as e:
     )
 
 # ============================================================
-# 5.2 NORMALIZACIÓN INICIAL: PRODUCTO + ACCIONES GENERALES
-# FUENTE EXCLUSIVA: COLUMNA A Y COLUMNA E
+# 5.2 NORMALIZACIÓN INICIAL DE ACCIONES GENERALES
+# FUENTE EXCLUSIVA:
+# A = Producto
+# E = Acciones generales
 # ============================================================
 
-st.markdown("### 5.2 Normalización de acciones generales")
+st.markdown("### 5.2 Normalización inicial de acciones generales")
 
 try:
 
@@ -177,47 +179,52 @@ try:
     elif len(df_fuente.columns) < 5:
 
         st.error(
-            "🔴 5.2 ERROR: La hoja seleccionada no tiene "
-            "al menos 5 columnas. Se necesitan A y E."
+            "🔴 5.2 ERROR: La hoja seleccionada tiene menos "
+            "de 5 columnas. Se necesitan las columnas A y E."
         )
 
     else:
 
         # ----------------------------------------------------
-        # FUENTES FIJAS
-        # A = Producto
-        # E = Acciones generales
+        # IDENTIFICACIÓN FIJA DE LAS COLUMNAS DE ORIGEN
         # ----------------------------------------------------
 
         columna_producto = df_fuente.columns[0]
         columna_acciones = df_fuente.columns[4]
 
         st.info(
-            f"Fuente producto: **columna A → {columna_producto}**"
+            f"📌 Columna A utilizada como PRODUCTO: "
+            f"**{columna_producto}**"
         )
 
         st.info(
-            f"Fuente acciones: **columna E → {columna_acciones}**"
+            f"📌 Columna E utilizada como ACCIONES GENERALES: "
+            f"**{columna_acciones}**"
         )
 
         # ----------------------------------------------------
-        # TOMAR EXCLUSIVAMENTE A Y E
+        # COPIA DE TRABAJO:
+        # SOLO A Y E
         # ----------------------------------------------------
 
         df_trabajo = df_fuente[
             [columna_producto, columna_acciones]
         ].copy()
 
-        # ----------------------------------------------------
-        # GENERAR REGISTROS
-        # ----------------------------------------------------
-
         registros = []
+
+        # ----------------------------------------------------
+        # PROCESAR CADA PRODUCTO
+        # ----------------------------------------------------
 
         for _, fila in df_trabajo.iterrows():
 
             producto = fila[columna_producto]
             acciones = fila[columna_acciones]
+
+            # -----------------------------------------------
+            # Validar producto
+            # -----------------------------------------------
 
             if pd.isna(producto):
                 continue
@@ -227,6 +234,10 @@ try:
             if not producto:
                 continue
 
+            # -----------------------------------------------
+            # Validar acciones
+            # -----------------------------------------------
+
             if pd.isna(acciones):
                 continue
 
@@ -235,14 +246,31 @@ try:
             if not acciones:
                 continue
 
-            # ------------------------------------------------
-            # Separadores posibles dentro de ACCIONES GENERALES
-            # ------------------------------------------------
+            # -----------------------------------------------
+            # Separadores de acciones
+            #
+            # NO se utiliza ninguna otra columna.
+            # -----------------------------------------------
 
-            partes = re.split(
-                r"\s*(?:\n|;|\||•|\u2022)\s*",
-                acciones
-            )
+            texto_acciones = acciones
+
+            for separador in [
+                ";",
+                "|",
+                "•",
+                "\n"
+            ]:
+
+                texto_acciones = texto_acciones.replace(
+                    separador,
+                    "\n"
+                )
+
+            partes = texto_acciones.split("\n")
+
+            # -----------------------------------------------
+            # UNA ACCIÓN = UNA FILA
+            # -----------------------------------------------
 
             for parte in partes:
 
@@ -259,13 +287,19 @@ try:
                 )
 
         # ----------------------------------------------------
-        # CREAR DATAFRAME
+        # CREAR DATAFRAME NORMALIZADO
         # ----------------------------------------------------
 
-        df_normalizado = pd.DataFrame(registros)
+        df_normalizado = pd.DataFrame(
+            registros,
+            columns=[
+                "Nombre del producto",
+                "Acción"
+            ]
+        )
 
         # ----------------------------------------------------
-        # CÓDIGO AUTOMÁTICO
+        # GENERAR CÓDIGO AUTOMÁTICO
         # ----------------------------------------------------
 
         if not df_normalizado.empty:
@@ -283,71 +317,109 @@ try:
             )
 
         # ----------------------------------------------------
-        # RESULTADO
+        # VALIDAR RESULTADO
         # ----------------------------------------------------
 
         if df_normalizado.empty:
 
             st.error(
-                "🔴 5.2 ERROR: No se encontraron acciones "
-                "generales en la columna E."
+                "🔴 5.2 ERROR: No se encontraron registros "
+                "para normalizar utilizando A y E."
             )
 
         else:
 
-            st.success(
-                f"🟢 5.2 OK: Se generaron "
-                f"**{len(df_normalizado)} acciones** "
-                f"para **{df_normalizado['Nombre del producto'].nunique()} productos**."
+            cantidad_productos = (
+                df_normalizado[
+                    "Nombre del producto"
+                ]
+                .nunique()
             )
 
+            cantidad_acciones = len(
+                df_normalizado
+            )
+
+            st.success(
+                f"🟢 5.2 OK: "
+                f"{cantidad_productos} productos | "
+                f"{cantidad_acciones} acciones independientes."
+            )
+
+            # ------------------------------------------------
+            # MOSTRAR SOLO LAS 3 COLUMNAS DEFINIDAS
+            # ------------------------------------------------
+
             st.write(
-                "### Resultado provisional"
+                "### Matriz de normalización provisional"
             )
 
             st.dataframe(
-                df_normalizado.head(100),
+                df_normalizado,
                 use_container_width=True,
                 hide_index=True
             )
 
             # ------------------------------------------------
-            # VALIDACIÓN ESPECÍFICA DE PROSTENFIT
+            # VALIDACIÓN DE PROSTENFIT
             # ------------------------------------------------
 
-            ejemplo = df_normalizado[
+            ejemplo_prostenfit = df_normalizado[
                 df_normalizado[
                     "Nombre del producto"
-                ].str.contains(
+                ]
+                .str.contains(
                     "PROSTENFIT",
                     case=False,
                     na=False
                 )
             ]
 
-            if not ejemplo.empty:
+            if not ejemplo_prostenfit.empty:
 
                 st.success(
-                    f"🟢 PROSTENFIT: "
-                    f"**{len(ejemplo)} acciones independientes** detectadas."
+                    "🟢 VALIDACIÓN PROSTENFIT: "
+                    f"{len(ejemplo_prostenfit)} "
+                    "acciones independientes."
                 )
 
                 st.dataframe(
-                    ejemplo,
+                    ejemplo_prostenfit,
                     use_container_width=True,
                     hide_index=True
                 )
 
-            else:
+            # ------------------------------------------------
+            # CONFIRMACIÓN DE ESTRUCTURA
+            # ------------------------------------------------
 
-                st.info(
-                    "ℹ️ No se encontró PROSTENFIT en el resultado."
+            columnas_salida = list(
+                df_normalizado.columns
+            )
+
+            if columnas_salida == [
+                "Código",
+                "Nombre del producto",
+                "Acción"
+            ]:
+
+                st.success(
+                    "✅ Estructura correcta: "
+                    "Código | Nombre del producto | Acción"
                 )
 
-            st.success(
-                "✅ 5.2 TERMINADO: La normalización provisional "
-                "utilizó EXCLUSIVAMENTE las columnas A y E. "
-                "Las demás columnas fueron ignoradas."
+            else:
+
+                st.error(
+                    "🔴 ERROR: La estructura de salida "
+                    "no coincide con las tres columnas requeridas."
+                )
+
+            st.info(
+                "ℹ️ 5.2 todavía NO realiza la depuración "
+                "semántica de las acciones. En esta etapa "
+                "solo se extraen A y E, se separan las acciones "
+                "y se genera una fila y un código por acción."
             )
 
 except Exception as e:
