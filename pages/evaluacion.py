@@ -59,192 +59,73 @@ ARCHIVO_MATRIZ = (
 
 
 # ============================================================
-# 5. ESTADO DE SESIÓN
+# 5. AUTENTICACIÓN COMPARTIDA CON APLICATIVO ASESOR
 # ============================================================
 
 st.session_state.setdefault(
-    "evaluacion_autenticado",
+    "usuario_autenticado",
     False
 )
 
 st.session_state.setdefault(
-    "evaluacion_usuario",
+    "usuario_actual",
     ""
 )
 
 st.session_state.setdefault(
-    "evaluacion_rol",
+    "rol_usuario",
     ""
 )
 
+# ------------------------------------------------------------
+# EVALUACIÓN UTILIZA LA SESIÓN DEL APLICATIVO ASESOR
+# ------------------------------------------------------------
 
-# ============================================================
-# 6. FUNCIÓN PARA CARGAR USUARIOS
-# ============================================================
+if st.session_state.get("usuario_autenticado", False):
 
-def cargar_usuarios():
-
-    ruta_usuarios = (
-        BASE_DIR / "USUARIOS.xlsx"
-    )
-
-    if not ruta_usuarios.exists():
-
-        return pd.DataFrame(
-            columns=[
-                "Usuario_ID",
-                "Nombre",
-                "Documento_ID",
-                "Nombre_Usuario",
-                "Clave",
-                "Correo",
-                "Rol",
-                "Estado"
-            ]
+    USUARIO_ACTUAL = (
+        st.session_state.get(
+            "usuario_actual",
+            ""
         )
-
-    usuarios = pd.read_excel(
-        ruta_usuarios,
-        dtype=str
+        .strip()
+        .upper()
     )
 
-    usuarios = usuarios.fillna("")
-
-    return usuarios
-
-
-# ============================================================
-# 7. PANTALLA DE INGRESO
-# ============================================================
-
-if not st.session_state[
-    "evaluacion_autenticado"
-]:
-
-    st.title(
-        "📝 FITOASISTE — EVALUACIÓN"
-    )
-
-    st.subheader(
-        "Aplicativo independiente de evaluación"
-    )
-
-    st.write(
-        "Ingrese sus credenciales para acceder "
-        "al módulo de evaluación."
-    )
-
-    usuario_ingresado = st.text_input(
-        "Nombre de usuario",
-        key="evaluacion_login_usuario"
-    )
-
-    clave_ingresada = st.text_input(
-        "Contraseña",
-        type="password",
-        key="evaluacion_login_clave"
-    )
-
-    if st.button(
-        "Ingresar",
-        key="evaluacion_boton_ingresar"
-    ):
-
-        usuarios = cargar_usuarios()
-
-        usuario_normalizado = (
-            usuario_ingresado
-            .strip()
-            .upper()
+    ROL_ACTUAL = (
+        st.session_state.get(
+            "rol_usuario",
+            ""
         )
+        .strip()
+        .upper()
+    )
 
-        clave_normalizada = (
-            clave_ingresada
-            .strip()
-        )
+else:
 
-        coincidencias = usuarios[
-            usuarios[
-                "Nombre_Usuario"
-            ]
-            .astype(str)
-            .str.strip()
-            .str.upper()
-            ==
-            usuario_normalizado
-        ]
+    USUARIO_ACTUAL = ""
+    ROL_ACTUAL = ""
 
-        if coincidencias.empty:
+# ------------------------------------------------------------
+# SI NO EXISTE SESIÓN, EVALUACIÓN NO PIDE OTRA CLAVE
+# ------------------------------------------------------------
 
-            st.error(
-                "Usuario o contraseña incorrectos."
-            )
+if not USUARIO_ACTUAL:
 
-        else:
-
-            usuario = coincidencias.iloc[0]
-
-            clave_guardada = str(
-                usuario["Clave"]
-            ).strip()
-
-            estado = str(
-                usuario["Estado"]
-            ).strip().upper()
-
-            if estado != "ACTIVO":
-
-                st.error(
-                    "El usuario se encuentra inactivo."
-                )
-
-            elif clave_guardada != clave_normalizada:
-
-                st.error(
-                    "Usuario o contraseña incorrectos."
-                )
-
-            else:
-
-                st.session_state[
-                    "evaluacion_autenticado"
-                ] = True
-
-                st.session_state[
-                    "evaluacion_usuario"
-                ] = usuario_normalizado
-
-                st.session_state[
-                    "evaluacion_rol"
-                ] = str(
-                    usuario["Rol"]
-                ).strip().upper()
-
-                st.rerun()
+    st.warning(
+        "Debe ingresar primero al Aplicativo Asesor "
+        "con un usuario autorizado."
+    )
 
     st.stop()
 
+# ------------------------------------------------------------
+# VALIDAR ADMINISTRADOR
+# ------------------------------------------------------------
 
-# ============================================================
-# 8. DATOS DEL USUARIO ACTUAL
-# ============================================================
-
-USUARIO_ACTUAL = (
-    st.session_state.get(
-        "evaluacion_usuario",
-        ""
-    )
+ES_ADMINISTRADOR = (
+    ROL_ACTUAL == "ADMINISTRADOR"
 )
-
-ROL_ACTUAL = (
-    st.session_state.get(
-        "evaluacion_rol",
-        ""
-    )
-    .strip()
-    .upper()
-)
-
 
 # ============================================================
 # 9. ENCABEZADO
