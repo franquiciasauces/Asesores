@@ -228,53 +228,73 @@ st.dataframe(
     use_container_width=True
 )
 # ============================================================
-# 5.8 — PREPARAR ACCIONES GENERALES
+# 5.8 — ESTRUCTURA INICIAL DE NORMALIZACIÓN
 # ============================================================
 
-import re
-
-
-def separar_acciones(valor):
+def limpiar_texto(valor):
 
     if pd.isna(valor):
-        return []
+        return ""
 
-    texto = str(valor).strip()
+    return str(valor).strip()
 
-    if not texto:
-        return []
 
-    # Unificar saltos de línea para poder analizarlos
-    texto = texto.replace("\r\n", "\n")
-    texto = texto.replace("\r", "\n")
+# ------------------------------------------------------------
+# Crear registros por producto
+# ------------------------------------------------------------
 
-    # Separar únicamente cuando exista una línea independiente.
-    partes = re.split(
-        r"\n+",
-        texto
+registros_normalizacion = []
+
+
+for _, fila in df_trabajo.iterrows():
+
+    producto = limpiar_texto(
+        fila["Producto"]
     )
 
-    acciones = []
+    componentes = limpiar_texto(
+        fila["Componentes"]
+    )
 
-    for parte in partes:
+    acciones = limpiar_texto(
+        fila["Acciones generales"]
+    )
 
-        parte = parte.strip()
-
-        if not parte:
-            continue
-
-        acciones.append(
-            parte
-        )
-
-    return acciones
+    if not producto:
+        continue
 
 
-df_trabajo["Lista_acciones"] = (
-    df_trabajo["Acciones generales"]
-    .apply(separar_acciones)
+    registros_normalizacion.append(
+        {
+            "Producto": producto,
+            "Componentes_original": componentes,
+            "Acciones_originales": acciones
+        }
+    )
+
+
+df_normalizacion_base = pd.DataFrame(
+    registros_normalizacion
 )
 
+
+# ============================================================
+# 5.9 — MOSTRAR ESTRUCTURA DE NORMALIZACIÓN
+# ============================================================
+
+st.subheader(
+    "Estructura inicial de normalización"
+)
+
+st.write(
+    f"Productos procesados: "
+    f"**{len(df_normalizacion_base)}**"
+)
+
+st.dataframe(
+    df_normalizacion_base,
+    use_container_width=True
+)
 
 # ============================================================
 # 5.9 — VISTA PREVIA
