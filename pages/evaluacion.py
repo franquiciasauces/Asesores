@@ -1968,6 +1968,7 @@ except Exception as e:
         f"🔴 5.4 ERROR: {type(e).__name__}: {e}"
     )
 
+
 # ============================================================
 # 5.6 APRENDIZAJE ACTIVO ITERATIVO
 # ============================================================
@@ -1995,11 +1996,11 @@ try:
         "COMERCIAL"
     ]
 
-    MAX_EJEMPLOS = 50
-    CASOS_POR_CICLO = 10
+    MAX_EJEMPLOS_56 = 50
+    CASOS_POR_CICLO_56 = 10
 
     # ========================================================
-    # RECUPERAR RESULTADO ANTERIOR
+    # RECUPERAR DATAFRAME DEL PASO ANTERIOR
     # ========================================================
 
     if (
@@ -2009,7 +2010,7 @@ try:
         ].empty
     ):
 
-        df_56 = (
+        df_base_56 = (
             st.session_state[
                 "df_resultado_55"
             ].copy()
@@ -2022,7 +2023,7 @@ try:
         ].empty
     ):
 
-        df_56 = (
+        df_base_56 = (
             st.session_state[
                 "df_resultado_54"
             ].copy()
@@ -2031,14 +2032,38 @@ try:
     else:
 
         st.error(
-            "🔴 5.6: No existe un resultado "
-            "válido de 5.4 o 5.5."
+            "🔴 5.6 ERROR: No existe información "
+            "proveniente de 5.4 o 5.5."
         )
 
         st.stop()
 
     # ========================================================
-    # MEMORIA PERMANENTE DE ESTE MÓDULO
+    # ASEGURAR COLUMNAS BÁSICAS
+    # ========================================================
+
+    columnas_base = [
+        "Código",
+        "Nombre del producto",
+        "Acción"
+    ]
+
+    faltantes = [
+        c for c in columnas_base
+        if c not in df_base_56.columns
+    ]
+
+    if faltantes:
+
+        st.error(
+            "🔴 5.6 ERROR: Faltan columnas: "
+            + ", ".join(faltantes)
+        )
+
+        st.stop()
+
+    # ========================================================
+    # MEMORIA ACUMULADA
     # ========================================================
 
     if "aprendizaje_56" not in st.session_state:
@@ -2050,46 +2075,44 @@ try:
     )
 
     # ========================================================
-    # RECUPERAR ENTRENAMIENTO ANTERIOR
-    # ========================================================
-
-    entrenamiento_anterior = {}
-
-    if "entrenamiento_54" in st.session_state:
-
-        entrenamiento_anterior.update(
-            st.session_state.entrenamiento_54
-        )
-
-    if "aprendizaje_activo_55" in st.session_state:
-
-        entrenamiento_anterior.update(
-            st.session_state.aprendizaje_activo_55
-        )
-
-    # ========================================================
-    # UNIR TODO SIN BORRAR INFORMACIÓN
+    # RECUPERAR ENTRENAMIENTO DE 5.4
     # ========================================================
 
     entrenamiento_total = {}
 
-    entrenamiento_total.update(
-        entrenamiento_anterior
-    )
+    if "entrenamiento_54" in st.session_state:
+
+        entrenamiento_total.update(
+            st.session_state.entrenamiento_54
+        )
+
+    # ========================================================
+    # RECUPERAR ENTRENAMIENTO DE 5.5
+    # ========================================================
+
+    if "aprendizaje_activo_55" in st.session_state:
+
+        entrenamiento_total.update(
+            st.session_state.aprendizaje_activo_55
+        )
+
+    # ========================================================
+    # AGREGAR APRENDIZAJE NUEVO DE 5.6
+    # ========================================================
 
     entrenamiento_total.update(
         aprendizaje_56
     )
 
     # ========================================================
-    # LIMITE MÁXIMO
+    # LIMITAR A 50 EJEMPLOS
     # ========================================================
 
-    if len(entrenamiento_total) > MAX_EJEMPLOS:
+    if len(entrenamiento_total) > MAX_EJEMPLOS_56:
 
         claves = list(
             entrenamiento_total.keys()
-        )[:MAX_EJEMPLOS]
+        )[:MAX_EJEMPLOS_56]
 
         entrenamiento_total = {
             k: entrenamiento_total[k]
@@ -2097,11 +2120,37 @@ try:
         }
 
     # ========================================================
-    # DATAFRAME DE ENTRENAMIENTO
+    # CONTADOR DE CICLO
     # ========================================================
 
-    df_train = df_56[
-        df_56["Código"]
+    if "ciclo_56" not in st.session_state:
+
+        st.session_state.ciclo_56 = 1
+
+    ciclo_actual = (
+        st.session_state.ciclo_56
+    )
+
+    # ========================================================
+    # ENCABEZADO DEL CICLO
+    # ========================================================
+
+    st.write(
+        f"## 🔄 Ciclo de aprendizaje {ciclo_actual}"
+    )
+
+    st.info(
+        f"Registros analizados: **{len(df_base_56)}** | "
+        f"Ejemplos acumulados: "
+        f"**{len(entrenamiento_total)}/{MAX_EJEMPLOS_56}**"
+    )
+
+    # ========================================================
+    # CREAR DATAFRAME DE ENTRENAMIENTO
+    # ========================================================
+
+    df_train = df_base_56[
+        df_base_56["Código"]
         .astype(str)
         .isin(
             entrenamiento_total.keys()
@@ -2120,7 +2169,9 @@ try:
 
         df_train = df_train[
             df_train["Etiqueta"]
-            .isin(CATEGORIAS_56)
+            .isin(
+                CATEGORIAS_56
+            )
         ].copy()
 
         df_train["Texto_Modelo"] = (
@@ -2135,225 +2186,253 @@ try:
         )
 
     # ========================================================
+    # VERIFICAR ENTRENAMIENTO
+    # ========================================================
+
+    if (
+        len(df_train) < 10
+        or df_train["Etiqueta"].nunique() < 2
+    ):
+
+        st.warning(
+            "⚠️ Todavía no hay suficientes ejemplos "
+            "diversos para realizar el aprendizaje."
+        )
+
+        st.write(
+            f"Ejemplos disponibles: "
+            f"**{len(df_train)}**"
+        )
+
+        st.stop()
+
+    # ========================================================
     # ENTRENAR MODELO
     # ========================================================
 
-    modelo_56 = None
-
-    if (
-        len(df_train) >= 10
-        and df_train["Etiqueta"].nunique() >= 2
-    ):
-
-        modelo_56 = Pipeline(
-            [
-                (
-                    "tfidf",
-                    TfidfVectorizer(
-                        lowercase=True,
-                        strip_accents="unicode",
-                        ngram_range=(1, 2),
-                        max_features=12000,
-                        sublinear_tf=True
-                    )
-                ),
-                (
-                    "clasificador",
-                    LogisticRegression(
-                        max_iter=5000,
-                        class_weight="balanced"
-                    )
+    modelo_56 = Pipeline(
+        [
+            (
+                "tfidf",
+                TfidfVectorizer(
+                    lowercase=True,
+                    strip_accents="unicode",
+                    ngram_range=(1, 2),
+                    max_features=12000,
+                    sublinear_tf=True
                 )
-            ]
-        )
-
-        modelo_56.fit(
-            df_train["Texto_Modelo"],
-            df_train["Etiqueta"]
-        )
-
-    # ========================================================
-    # RECLASIFICAR TODO
-    # ========================================================
-
-    if modelo_56 is not None:
-
-        df_56["Texto_Modelo"] = (
-            "PRODUCTO: "
-            + df_56[
-                "Nombre del producto"
-            ].astype(str)
-            + " | INFORMACIÓN: "
-            + df_56[
-                "Acción"
-            ].astype(str)
-        )
-
-        probabilidades = (
-            modelo_56.predict_proba(
-                df_56["Texto_Modelo"]
-            )
-        )
-
-        predicciones = (
-            modelo_56.predict(
-                df_56["Texto_Modelo"]
-            )
-        )
-
-        clases = (
-            modelo_56
-            .named_steps[
-                "clasificador"
-            ]
-            .classes_
-        )
-
-        orden = np.argsort(
-            probabilidades,
-            axis=1
-        )
-
-        mejor = orden[:, -1]
-        segunda = orden[:, -2]
-
-        confianza_1 = (
-            probabilidades[
-                np.arange(
-                    len(probabilidades)
-                ),
-                mejor
-            ]
-        )
-
-        confianza_2 = (
-            probabilidades[
-                np.arange(
-                    len(probabilidades)
-                ),
-                segunda
-            ]
-        )
-
-        diferencia = (
-            confianza_1
-            - confianza_2
-        )
-
-        segunda_categoria = [
-            clases[i]
-            for i in segunda
-        ]
-
-        df_56[
-            "Clasificación IA"
-        ] = predicciones
-
-        df_56[
-            "Confianza IA"
-        ] = confianza_1
-
-        df_56[
-            "Segunda opción IA"
-        ] = segunda_categoria
-
-        df_56[
-            "Confianza segunda"
-        ] = confianza_2
-
-        df_56[
-            "Diferencia IA"
-        ] = diferencia
-
-        # ====================================================
-        # DETECCIÓN DE AMBIGÜEDAD
-        # ====================================================
-
-        df_56["Ambiguo"] = (
-            (
-                df_56[
-                    "Diferencia IA"
-                ] < 0.15
-            )
-            |
-            (
-                df_56[
-                    "Confianza IA"
-                ] < 0.45
-            )
-        )
-
-        # Los ejemplos ya aprendidos no vuelven a aparecer
-
-        df_56.loc[
-            df_56["Código"]
-            .astype(str)
-            .isin(
-                entrenamiento_total.keys()
             ),
-            "Ambiguo"
-        ] = False
+            (
+                "clasificador",
+                LogisticRegression(
+                    max_iter=5000,
+                    class_weight="balanced"
+                )
+            )
+        ]
+    )
 
-    else:
-
-        df_56["Ambiguo"] = True
-
-        df_56[
-            "Clasificación IA"
-        ] = ""
-
-        df_56[
-            "Confianza IA"
-        ] = 0.0
-
-        df_56[
-            "Segunda opción IA"
-        ] = ""
-
-        df_56[
-            "Confianza segunda"
-        ] = 0.0
-
-        df_56[
-            "Diferencia IA"
-        ] = 0.0
+    modelo_56.fit(
+        df_train["Texto_Modelo"],
+        df_train["Etiqueta"]
+    )
 
     # ========================================================
-    # GUARDAR RESULTADO
+    # CLASIFICAR TODA LA MATRIZ
+    # ========================================================
+
+    df_pred = df_base_56.copy()
+
+    df_pred["Texto_Modelo"] = (
+        "PRODUCTO: "
+        + df_pred[
+            "Nombre del producto"
+        ].astype(str)
+        + " | INFORMACIÓN: "
+        + df_pred[
+            "Acción"
+        ].astype(str)
+    )
+
+    probabilidades = (
+        modelo_56.predict_proba(
+            df_pred["Texto_Modelo"]
+        )
+    )
+
+    predicciones = (
+        modelo_56.predict(
+            df_pred["Texto_Modelo"]
+        )
+    )
+
+    clases = (
+        modelo_56
+        .named_steps[
+            "clasificador"
+        ]
+        .classes_
+    )
+
+    # ========================================================
+    # PRIMERA Y SEGUNDA CATEGORÍA
+    # ========================================================
+
+    orden = np.argsort(
+        probabilidades,
+        axis=1
+    )
+
+    mejor = orden[:, -1]
+    segunda = orden[:, -2]
+
+    confianza_1 = (
+        probabilidades[
+            np.arange(
+                len(probabilidades)
+            ),
+            mejor
+        ]
+    )
+
+    confianza_2 = (
+        probabilidades[
+            np.arange(
+                len(probabilidades)
+            ),
+            segunda
+        ]
+    )
+
+    diferencia = (
+        confianza_1
+        - confianza_2
+    )
+
+    segunda_categoria = [
+        clases[i]
+        for i in segunda
+    ]
+
+    df_pred[
+        "Clasificación IA"
+    ] = predicciones
+
+    df_pred[
+        "Confianza IA"
+    ] = confianza_1
+
+    df_pred[
+        "Segunda opción IA"
+    ] = segunda_categoria
+
+    df_pred[
+        "Confianza segunda"
+    ] = confianza_2
+
+    df_pred[
+        "Diferencia IA"
+    ] = diferencia
+
+    # ========================================================
+    # DETECTAR AMBIGÜEDAD
+    #
+    # Se considera ambiguo cuando:
+    # - las dos categorías están muy próximas, O
+    # - la confianza máxima sigue siendo baja.
+    # ========================================================
+
+    df_pred[
+        "Ambiguo"
+    ] = (
+        (
+            df_pred[
+                "Diferencia IA"
+            ] < 0.15
+        )
+        |
+        (
+            df_pred[
+                "Confianza IA"
+            ] < 0.45
+        )
+    )
+
+    # ========================================================
+    # NO VOLVER A MOSTRAR EJEMPLOS YA APRENDIDOS
+    # ========================================================
+
+    df_pred.loc[
+        df_pred["Código"]
+        .astype(str)
+        .isin(
+            entrenamiento_total.keys()
+        ),
+        "Ambiguo"
+    ] = False
+
+    # ========================================================
+    # GUARDAR RESULTADO DEL CICLO
     # ========================================================
 
     st.session_state[
         "df_resultado_56"
-    ] = df_56.copy()
+    ] = df_pred.copy()
 
     # ========================================================
-    # ESTADÍSTICAS
+    # CONTADORES
     # ========================================================
 
-    total = len(df_56)
-
-    ambiguos = int(
-        df_56["Ambiguo"].sum()
+    total_56 = len(
+        df_pred
     )
 
-    aprendidos = len(
-        entrenamiento_total
-    )
-
-    st.info(
-        f"Acciones analizadas: **{total}** | "
-        f"Ejemplos acumulados: "
-        f"**{aprendidos}/{MAX_EJEMPLOS}** | "
-        f"Ambiguos actuales: **{ambiguos}**"
+    ambiguos_56 = int(
+        df_pred[
+            "Ambiguo"
+        ].sum()
     )
 
     # ========================================================
-    # MOSTRAR 10 CASOS MÁS AMBIGUOS
+    # PANEL DE ESTADO
     # ========================================================
 
-    df_ambiguos = (
-        df_56[
-            df_56["Ambiguo"]
+    st.markdown(
+        "### 📊 Estado del aprendizaje"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Analizados",
+            total_56
+        )
+
+    with col2:
+
+        st.metric(
+            "Ejemplos aprendidos",
+            f"{len(entrenamiento_total)}/50"
+        )
+
+    with col3:
+
+        st.metric(
+            "Ambiguos actuales",
+            ambiguos_56
+        )
+
+    # ========================================================
+    # SELECCIONAR SOLO LOS 10 MÁS AMBIGUOS
+    # ========================================================
+
+    df_ambiguos_56 = (
+        df_pred[
+            df_pred[
+                "Ambiguo"
+            ]
         ]
         .sort_values(
             [
@@ -2362,20 +2441,30 @@ try:
             ]
         )
         .head(
-            CASOS_POR_CICLO
+            CASOS_POR_CICLO_56
         )
         .copy()
     )
 
-    if not df_ambiguos.empty:
+    # ========================================================
+    # BANDEJA DE APRENDIZAJE
+    # ========================================================
+
+    st.markdown(
+        "### 🎯 Casos para este ciclo"
+    )
+
+    if not df_ambiguos_56.empty:
 
         st.warning(
-            f"⚠️ Hay **{ambiguos} casos ambiguos**. "
-            f"En este ciclo revise solamente "
-            f"estos **{len(df_ambiguos)}**."
+            f"Hay **{ambiguos_56} casos ambiguos**. "
+            f"En este ciclo se muestran solamente "
+            f"**{len(df_ambiguos_56)}**."
         )
 
-        for _, fila in df_ambiguos.iterrows():
+        for _, fila in (
+            df_ambiguos_56.iterrows()
+        ):
 
             codigo = str(
                 fila["Código"]
@@ -2414,12 +2503,14 @@ try:
             )
 
             st.write(
-                f"**IA:** {propuesta} "
+                f"**Primera opción:** "
+                f"{propuesta} "
                 f"({confianza:.1%})"
             )
 
             st.write(
-                f"**Segunda opción:** {segunda} "
+                f"**Segunda opción:** "
+                f"{segunda} "
                 f"({confianza_2:.1%})"
             )
 
@@ -2429,7 +2520,7 @@ try:
                     "Seleccione...",
                     *CATEGORIAS_56
                 ],
-                key=f"decision_56_{codigo}"
+                key=f"categoria_56_{codigo}"
             )
 
             if decision != "Seleccione...":
@@ -2447,74 +2538,101 @@ try:
         )
 
     # ========================================================
-    # BOTÓN DE REENTRENAMIENTO
+    # CONTADOR DE DECISIONES DEL CICLO
     # ========================================================
 
-    nuevas = len(
+    decisiones_ciclo = len(
         aprendizaje_56
     )
 
-    if nuevas > 0:
+    st.info(
+        f"Decisiones nuevas guardadas: "
+        f"**{decisiones_ciclo}/{CASOS_POR_CICLO_56}**"
+    )
 
-        st.write(
-            f"Decisiones nuevas en este ciclo: "
-            f"**{nuevas}**"
-        )
+    # ========================================================
+    # BOTÓN DE APRENDIZAJE
+    # ========================================================
+
+    if decisiones_ciclo > 0:
 
         if st.button(
-            "🔄 APRENDER Y VOLVER A CLASIFICAR",
-            key="reentrenar_56"
+            "🧠 APRENDER ESTAS DECISIONES Y VOLVER A ANALIZAR",
+            key="aprender_56"
         ):
 
-            st.session_state[
-                "ciclo_56"
-            ] = (
-                st.session_state.get(
-                    "ciclo_56",
-                    0
-                ) + 1
-            )
+            # -----------------------------------------------
+            # Las decisiones YA están en aprendizaje_56.
+            # Se conservan y se incorporan en el siguiente
+            # entrenamiento.
+            # -----------------------------------------------
+
+            st.session_state.ciclo_56 += 1
 
             st.rerun()
 
     # ========================================================
-    # MATRIZ ACTUAL DE ACCIONES GENERALES
+    # MATRIZ DE ACCIONES GENERALES
+    #
+    # SOLO SE MUESTRA COMO RESULTADO,
+    # NO COMO BANDEJA DE REVISIÓN.
     # ========================================================
 
-    if modelo_56 is not None:
+    st.markdown(
+        "### 📋 Resultado actual — Acciones generales"
+    )
 
-        df_acciones = df_56[
-            df_56[
-                "Clasificación IA"
-            ]
-            == "ACCIÓN GENERAL"
-        ].copy()
+    df_acciones_56 = df_pred[
+        df_pred[
+            "Clasificación IA"
+        ]
+        == "ACCIÓN GENERAL"
+    ].copy()
 
-        df_acciones = df_acciones[
-            [
-                "Código",
-                "Nombre del producto",
-                "Acción"
-            ]
-        ].copy()
+    df_acciones_56 = df_acciones_56[
+        [
+            "Código",
+            "Nombre del producto",
+            "Acción"
+        ]
+    ].copy()
 
-        st.session_state[
-            "df_normalizacion_final"
-        ] = df_acciones
+    st.session_state[
+        "df_normalizacion_final"
+    ] = df_acciones_56.copy()
+
+    st.dataframe(
+        df_acciones_56,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.success(
+        f"Acciones generales actuales: "
+        f"**{len(df_acciones_56)}**"
+    )
+
+    # ========================================================
+    # RESUMEN DE CATEGORÍAS
+    # ========================================================
+
+    st.markdown(
+        "### Distribución actual"
+    )
+
+    for categoria in CATEGORIAS_56:
+
+        cantidad = int(
+            (
+                df_pred[
+                    "Clasificación IA"
+                ]
+                == categoria
+            ).sum()
+        )
 
         st.write(
-            "### Matriz actual de acciones generales"
-        )
-
-        st.dataframe(
-            df_acciones,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        st.success(
-            f"Acciones generales actuales: "
-            f"**{len(df_acciones)}**"
+            f"- {categoria}: **{cantidad}**"
         )
 
 except Exception as e:
