@@ -91,7 +91,17 @@ if not ARCHIVO_MATRIZ.exists():
 st.success(
     "✓ Matriz encontrada."
 )
+# ============================================================
+# 5.1 — COLUMNAS BASE_PRODUCTOS
+# ============================================================
 
+COL_PRODUCTO = "Producto"
+COL_CATEGORIA_PRINCIPAL = "Categoría principal"
+COL_CATEGORIAS_COMPLEMENTARIAS = "Categorías complementarias"
+COL_COMPONENTES = "componentes"
+COL_ACCIONES_GENERALES = "Acciones generales"
+COL_PRECIO = "Precio público"
+COL_FOTO = "Foto"
 
 # ============================================================
 # 6. CARGAR BASE_PRODUCTOS
