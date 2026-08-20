@@ -3400,3 +3400,873 @@ except Exception as e:
         f"🔴 5.7 ERROR: "
         f"{type(e).__name__}: {e}"
     )
+
+# ============================================================
+# 5.8 APRENDIZAJE ACTIVO ITERATIVO
+# CICLOS CERRADOS DE 5 CASOS
+# ============================================================
+
+st.markdown("### 5.8 Aprendizaje activo iterativo")
+
+try:
+
+    import numpy as np
+    import pandas as pd
+
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
+
+    # ========================================================
+    # CONFIGURACIÓN
+    # ========================================================
+
+    CATEGORIAS_58 = [
+        "ACCIÓN GENERAL",
+        "COMPONENTE + FUNCIÓN",
+        "RECOMENDACIÓN / COMPLEMENTO",
+        "USO / POSOLOGÍA / PRECAUCIÓN",
+        "COMERCIAL"
+    ]
+
+    CASOS_POR_CICLO = 5
+
+    # ========================================================
+    # 1. RECUPERAR MATRIZ
+    # ========================================================
+
+    df_base_58 = None
+
+    for nombre_estado in [
+        "df_resultado_57",
+        "df_resultado_56",
+        "df_resultado_55",
+        "df_resultado_54"
+    ]:
+
+        if nombre_estado in st.session_state:
+
+            posible = st.session_state[
+                nombre_estado
+            ]
+
+            if (
+                isinstance(posible, pd.DataFrame)
+                and not posible.empty
+            ):
+
+                df_base_58 = posible.copy()
+                break
+
+    if df_base_58 is None:
+
+        st.error(
+            "🔴 5.8 ERROR: No se encontró la matriz "
+            "generada por los módulos anteriores."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 2. VALIDAR COLUMNAS
+    # ========================================================
+
+    requeridas_58 = [
+        "Código",
+        "Nombre del producto",
+        "Acción"
+    ]
+
+    faltantes_58 = [
+        c
+        for c in requeridas_58
+        if c not in df_base_58.columns
+    ]
+
+    if faltantes_58:
+
+        st.error(
+            "🔴 5.8 ERROR: Faltan columnas: "
+            + ", ".join(faltantes_58)
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 3. NORMALIZAR
+    # ========================================================
+
+    for columna in requeridas_58:
+
+        df_base_58[columna] = (
+            df_base_58[columna]
+            .astype(str)
+            .str.strip()
+        )
+
+    df_base_58["Texto_58"] = (
+        "PRODUCTO: "
+        + df_base_58[
+            "Nombre del producto"
+        ]
+        + " | INFORMACIÓN: "
+        + df_base_58[
+            "Acción"
+        ]
+    )
+
+    # ========================================================
+    # 4. CREAR MEMORIAS PERSISTENTES DE 5.8
+    # ========================================================
+
+    if "historico_58" not in st.session_state:
+
+        st.session_state.historico_58 = {}
+
+    if "lote_58" not in st.session_state:
+
+        st.session_state.lote_58 = []
+
+    if "decisiones_lote_58" not in st.session_state:
+
+        st.session_state.decisiones_lote_58 = {}
+
+    if "ciclo_58" not in st.session_state:
+
+        st.session_state.ciclo_58 = 1
+
+    if "resultado_ciclo_58" not in st.session_state:
+
+        st.session_state.resultado_ciclo_58 = None
+
+    # ========================================================
+    # 5. RECUPERAR APRENDIZAJE ANTERIOR
+    # ========================================================
+
+    historico = {}
+
+    if "entrenamiento_54" in st.session_state:
+
+        historico.update(
+            st.session_state.entrenamiento_54
+        )
+
+    if "aprendizaje_activo_55" in st.session_state:
+
+        historico.update(
+            st.session_state.aprendizaje_activo_55
+        )
+
+    if "aprendizaje_56" in st.session_state:
+
+        historico.update(
+            st.session_state.aprendizaje_56
+        )
+
+    if "aprendizaje_57" in st.session_state:
+
+        historico.update(
+            st.session_state.aprendizaje_57
+        )
+
+    # ========================================================
+    # 6. AGREGAR APRENDIZAJE PROPIO DE 5.8
+    # ========================================================
+
+    historico.update(
+        st.session_state.historico_58
+    )
+
+    # ========================================================
+    # 7. LIMPIAR CATEGORÍAS INVÁLIDAS
+    # ========================================================
+
+    historico = {
+        str(codigo): categoria
+        for codigo, categoria in historico.items()
+        if categoria in CATEGORIAS_58
+    }
+
+    st.session_state.historico_58 = historico
+
+    # ========================================================
+    # 8. ENTRENAMIENTO ACTUAL
+    # ========================================================
+
+    df_train_58 = df_base_58[
+        df_base_58["Código"].isin(
+            historico.keys()
+        )
+    ].copy()
+
+    df_train_58["Etiqueta_58"] = (
+        df_train_58["Código"]
+        .map(historico)
+    )
+
+    df_train_58 = df_train_58[
+        df_train_58[
+            "Etiqueta_58"
+        ].isin(
+            CATEGORIAS_58
+        )
+    ].copy()
+
+    # ========================================================
+    # 9. VALIDAR MODELO
+    # ========================================================
+
+    if (
+        len(df_train_58) < 10
+        or df_train_58[
+            "Etiqueta_58"
+        ].nunique() < 2
+    ):
+
+        st.warning(
+            "⚠️ El modelo necesita al menos "
+            "10 ejemplos de entrenamiento "
+            "distribuidos en mínimo 2 categorías."
+        )
+
+        st.write(
+            f"Ejemplos actuales: {len(df_train_58)}"
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 10. ENTRENAR MODELO DESDE CERO
+    # ========================================================
+
+    modelo_58 = Pipeline(
+        [
+            (
+                "tfidf",
+                TfidfVectorizer(
+                    lowercase=True,
+                    strip_accents="unicode",
+                    ngram_range=(1, 2),
+                    max_features=15000,
+                    sublinear_tf=True
+                )
+            ),
+            (
+                "clasificador",
+                LogisticRegression(
+                    max_iter=5000,
+                    class_weight="balanced"
+                )
+            )
+        ]
+    )
+
+    modelo_58.fit(
+        df_train_58[
+            "Texto_58"
+        ],
+        df_train_58[
+            "Etiqueta_58"
+        ]
+    )
+
+    # ========================================================
+    # 11. ANALIZAR TODA LA MATRIZ
+    # ========================================================
+
+    probabilidades_58 = (
+        modelo_58.predict_proba(
+            df_base_58[
+                "Texto_58"
+            ]
+        )
+    )
+
+    predicciones_58 = (
+        modelo_58.predict(
+            df_base_58[
+                "Texto_58"
+            ]
+        )
+    )
+
+    clases_58 = (
+        modelo_58
+        .named_steps[
+            "clasificador"
+        ]
+        .classes_
+    )
+
+    # ========================================================
+    # 12. CALCULAR INCERTIDUMBRE
+    # ========================================================
+
+    orden_58 = np.argsort(
+        probabilidades_58,
+        axis=1
+    )
+
+    mejor_58 = orden_58[:, -1]
+
+    if probabilidades_58.shape[1] > 1:
+
+        segundo_58 = orden_58[:, -2]
+
+    else:
+
+        segundo_58 = mejor_58
+
+    confianza_58 = (
+        probabilidades_58[
+            np.arange(
+                len(probabilidades_58)
+            ),
+            mejor_58
+        ]
+    )
+
+    confianza_2_58 = (
+        probabilidades_58[
+            np.arange(
+                len(probabilidades_58)
+            ),
+            segundo_58
+        ]
+    )
+
+    diferencia_58 = (
+        confianza_58
+        - confianza_2_58
+    )
+
+    segunda_categoria_58 = [
+        clases_58[i]
+        for i in segundo_58
+    ]
+
+    # ========================================================
+    # 13. ENTROPÍA
+    # ========================================================
+
+    p_58 = np.clip(
+        probabilidades_58,
+        1e-12,
+        1
+    )
+
+    entropia_58 = -np.sum(
+        p_58 * np.log(p_58),
+        axis=1
+    )
+
+    max_entropia_58 = np.log(
+        len(clases_58)
+    )
+
+    entropia_normalizada_58 = (
+        entropia_58
+        / max_entropia_58
+        if max_entropia_58 > 0
+        else entropia_58
+    )
+
+    # ========================================================
+    # 14. ÍNDICE DE INCERTIDUMBRE
+    # ========================================================
+
+    incertidumbre_58 = (
+        (1 - diferencia_58) * 0.50
+        +
+        (1 - confianza_58) * 0.30
+        +
+        entropia_normalizada_58 * 0.20
+    )
+
+    # ========================================================
+    # 15. CONSTRUIR RESULTADO
+    # ========================================================
+
+    df_resultado_58 = df_base_58[
+        [
+            "Código",
+            "Nombre del producto",
+            "Acción"
+        ]
+    ].copy()
+
+    df_resultado_58[
+        "Clasificación IA"
+    ] = predicciones_58
+
+    df_resultado_58[
+        "Confianza IA"
+    ] = confianza_58
+
+    df_resultado_58[
+        "Segunda opción IA"
+    ] = segunda_categoria_58
+
+    df_resultado_58[
+        "Confianza segunda"
+    ] = confianza_2_58
+
+    df_resultado_58[
+        "Diferencia IA"
+    ] = diferencia_58
+
+    df_resultado_58[
+        "Incertidumbre IA"
+    ] = incertidumbre_58
+
+    # ========================================================
+    # 16. EXCLUIR TODO LO YA APRENDIDO
+    # ========================================================
+
+    df_no_aprendido_58 = (
+        df_resultado_58[
+            ~df_resultado_58[
+                "Código"
+            ].isin(
+                historico.keys()
+            )
+        ].copy()
+    )
+
+    # ========================================================
+    # 17. DEFINIR AMBIGUOS
+    #
+    # NO son simplemente "pendientes".
+    #
+    # Se toman los registros con mayor incertidumbre.
+    # ========================================================
+
+    if not df_no_aprendido_58.empty:
+
+        # Umbral adaptativo basado en distribución.
+        # Se consideran candidatos los registros
+        # ubicados en el 20% superior de incertidumbre.
+
+        umbral_58 = (
+            df_no_aprendido_58[
+                "Incertidumbre IA"
+            ].quantile(
+                0.80
+            )
+        )
+
+        df_ambiguos_58 = (
+            df_no_aprendido_58[
+                df_no_aprendido_58[
+                    "Incertidumbre IA"
+                ] >= umbral_58
+            ]
+            .sort_values(
+                "Incertidumbre IA",
+                ascending=False
+            )
+            .copy()
+        )
+
+    else:
+
+        df_ambiguos_58 = (
+            df_no_aprendido_58.copy()
+        )
+
+    # ========================================================
+    # 18. IDENTIFICAR EL LOTE ACTUAL
+    # ========================================================
+
+    lote_actual = (
+        st.session_state.lote_58
+    )
+
+    # ========================================================
+    # 19. SI NO HAY LOTE, CREAR EXACTAMENTE 5
+    # ========================================================
+
+    if len(lote_actual) == 0:
+
+        nuevos_codigos = (
+            df_ambiguos_58[
+                "Código"
+            ]
+            .astype(str)
+            .head(
+                CASOS_POR_CICLO
+            )
+            .tolist()
+        )
+
+        st.session_state.lote_58 = (
+            nuevos_codigos
+        )
+
+        st.session_state[
+            "decisiones_lote_58"
+        ] = {}
+
+        lote_actual = nuevos_codigos
+
+    # ========================================================
+    # 20. FILTRAR LOTE
+    # ========================================================
+
+    df_lote_58 = df_resultado_58[
+        df_resultado_58[
+            "Código"
+        ].isin(
+            lote_actual
+        )
+    ].copy()
+
+    # ========================================================
+    # 21. MOSTRAR RESUMEN
+    # ========================================================
+
+    cantidad_ambiguos = len(
+        df_ambiguos_58
+    )
+
+    st.markdown(
+        f"## 🔄 Ciclo {st.session_state.ciclo_58}"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Total analizado",
+            len(df_resultado_58)
+        )
+
+    with col2:
+
+        st.metric(
+            "Ejemplos aprendidos",
+            len(historico)
+        )
+
+    with col3:
+
+        st.metric(
+            "AMBIGUOS ACTUALES",
+            cantidad_ambiguos
+        )
+
+    # ========================================================
+    # 22. RESULTADO DEL CICLO ANTERIOR
+    # ========================================================
+
+    resultado_anterior = (
+        st.session_state[
+            "resultado_ciclo_58"
+        ]
+    )
+
+    if resultado_anterior is not None:
+
+        st.markdown(
+            "### 📉 Resultado del aprendizaje anterior"
+        )
+
+        antes = resultado_anterior[
+            "antes"
+        ]
+
+        despues = resultado_anterior[
+            "despues"
+        ]
+
+        aprendidos = resultado_anterior[
+            "aprendidos"
+        ]
+
+        reduccion = (
+            antes - despues
+        )
+
+        col_a, col_b, col_c, col_d = st.columns(4)
+
+        with col_a:
+
+            st.metric(
+                "Antes",
+                antes
+            )
+
+        with col_b:
+
+            st.metric(
+                "Aprendidos",
+                aprendidos
+            )
+
+        with col_c:
+
+            st.metric(
+                "Después",
+                despues
+            )
+
+        with col_d:
+
+            st.metric(
+                "Reducción",
+                reduccion
+            )
+
+    # ========================================================
+    # 23. MOSTRAR LOTE CONGELADO
+    # ========================================================
+
+    st.markdown(
+        "### 🎯 Casos ambiguos a revisar"
+    )
+
+    st.info(
+        f"Hay **{cantidad_ambiguos} casos ambiguos** "
+        f"en total."
+    )
+
+    st.warning(
+        f"Este ciclo tiene exactamente "
+        f"**{len(df_lote_58)} casos**."
+    )
+
+    # ========================================================
+    # 24. FORMULARIO
+    #
+    # MUY IMPORTANTE:
+    # El formulario impide que una selección parcial
+    # se convierta en aprendizaje.
+    # ========================================================
+
+    with st.form(
+        "formulario_lote_58"
+    ):
+
+        decisiones_formulario = {}
+
+        for _, fila in df_lote_58.iterrows():
+
+            codigo = str(
+                fila["Código"]
+            )
+
+            st.markdown(
+                f"**{codigo} — "
+                f"{fila['Nombre del producto']}**"
+            )
+
+            st.write(
+                f"**Texto:** "
+                f"{fila['Acción']}"
+            )
+
+            st.write(
+                f"**IA propone:** "
+                f"{fila['Clasificación IA']} "
+                f"({fila['Confianza IA']:.1%})"
+            )
+
+            st.write(
+                f"**Segunda opción:** "
+                f"{fila['Segunda opción IA']} "
+                f"({fila['Confianza segunda']:.1%})"
+            )
+
+            decision = st.selectbox(
+                "Clasificación correcta",
+                [
+                    "Seleccione...",
+                    *CATEGORIAS_58
+                ],
+                key=(
+                    "form_58_"
+                    + codigo
+                )
+            )
+
+            decisiones_formulario[
+                codigo
+            ] = decision
+
+            st.divider()
+
+        enviar = st.form_submit_button(
+            "🧠 APRENDER ESTOS 5 Y RECLASIFICAR"
+        )
+
+    # ========================================================
+    # 25. PROCESAR EL CICLO
+    # ========================================================
+
+    if enviar:
+
+        incompletos = [
+            codigo
+            for codigo, decision
+            in decisiones_formulario.items()
+            if decision == "Seleccione..."
+        ]
+
+        if incompletos:
+
+            st.error(
+                "Debe clasificar los 5 casos "
+                "antes de aprender."
+            )
+
+        else:
+
+            # -----------------------------------------------
+            # GUARDAR LOS 5
+            # -----------------------------------------------
+
+            for codigo, decision in (
+                decisiones_formulario.items()
+            ):
+
+                st.session_state[
+                    "historico_58"
+                ][codigo] = decision
+
+            # -----------------------------------------------
+            # CANTIDAD DE AMBIGUOS ANTES
+            # -----------------------------------------------
+
+            ambiguos_antes = (
+                cantidad_ambiguos
+            )
+
+            # -----------------------------------------------
+            # CERRAR LOTE
+            # -----------------------------------------------
+
+            st.session_state[
+                "lote_58"
+            ] = []
+
+            st.session_state[
+                "decisiones_lote_58"
+            ] = {}
+
+            # -----------------------------------------------
+            # SIGUIENTE CICLO
+            # -----------------------------------------------
+
+            st.session_state[
+                "ciclo_58"
+            ] += 1
+
+            # -----------------------------------------------
+            # Guardar temporalmente el valor anterior.
+            # En el siguiente rerun el modelo se entrena
+            # nuevamente con los 5 nuevos ejemplos y se
+            # calcula la nueva cantidad de ambiguos.
+            # -----------------------------------------------
+
+            st.session_state[
+                "ambiguos_antes_58"
+            ] = ambiguos_antes
+
+            st.session_state[
+                "aprendidos_ultimo_ciclo_58"
+            ] = len(
+                decisiones_formulario
+            )
+
+            st.rerun()
+
+    # ========================================================
+    # 26. SI ACABA DE HABER UN APRENDIZAJE,
+    #     REGISTRAR EL RESULTADO REAL
+    # ========================================================
+
+    if (
+        "ambiguos_antes_58"
+        in st.session_state
+    ):
+
+        antes = st.session_state[
+            "ambiguos_antes_58"
+        ]
+
+        aprendidos = st.session_state[
+            "aprendidos_ultimo_ciclo_58"
+        ]
+
+        # En este punto ya se hizo el nuevo análisis.
+        despues = cantidad_ambiguos
+
+        st.session_state[
+            "resultado_ciclo_58"
+        ] = {
+            "antes": antes,
+            "despues": despues,
+            "aprendidos": aprendidos
+        }
+
+        del st.session_state[
+            "ambiguos_antes_58"
+        ]
+
+        del st.session_state[
+            "aprendidos_ultimo_ciclo_58"
+        ]
+
+        st.rerun()
+
+    # ========================================================
+    # 27. GUARDAR RESULTADO COMPLETO
+    # ========================================================
+
+    st.session_state[
+        "df_resultado_58"
+    ] = df_resultado_58.copy()
+
+    # ========================================================
+    # 28. MATRIZ DE ACCIONES GENERALES
+    # ========================================================
+
+    st.markdown(
+        "### 📋 Acciones generales"
+    )
+
+    df_acciones_58 = df_resultado_58[
+        df_resultado_58[
+            "Clasificación IA"
+        ]
+        == "ACCIÓN GENERAL"
+    ][
+        [
+            "Código",
+            "Nombre del producto",
+            "Acción"
+        ]
+    ].copy()
+
+    st.session_state[
+        "df_normalizacion_final"
+    ] = df_acciones_58.copy()
+
+    st.dataframe(
+        df_acciones_58,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    st.success(
+        f"Acciones generales actuales: "
+        f"{len(df_acciones_58)}"
+    )
+
+except Exception as e:
+
+    st.error(
+        f"🔴 5.8 ERROR: "
+        f"{type(e).__name__}: {e}"
+    )
