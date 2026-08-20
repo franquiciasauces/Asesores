@@ -1327,4 +1327,361 @@ except Exception as e:
     st.error(
         f"🔴 5.4 ERROR: {type(e).__name__}: {e}"
     )
+# ============================================================
+# 5.5 REVISIÓN DE CASOS DUDOSOS Y MATRIZ FINAL
+# ============================================================
 
+st.markdown("### 5.5 Revisión de casos dudosos")
+
+try:
+
+    # --------------------------------------------------------
+    # VALIDAR RESULTADO DEL 5.4
+    # --------------------------------------------------------
+
+    if (
+        "df_resultado_54" not in st.session_state
+        or st.session_state["df_resultado_54"].empty
+    ):
+
+        st.warning(
+            "⚠️ 5.5 todavía no puede ejecutarse. "
+            "Primero debe completarse el entrenamiento del 5.4."
+        )
+
+    else:
+
+        df_55 = (
+            st.session_state["df_resultado_54"]
+            .copy()
+        )
+
+        # ----------------------------------------------------
+        # MEMORIA DE DECISIONES MANUALES
+        # ----------------------------------------------------
+
+        if "decisiones_55" not in st.session_state:
+
+            st.session_state.decisions_55 = {}
+
+        decisiones = (
+            st.session_state.decisions_55
+        )
+
+        # ----------------------------------------------------
+        # CASOS DUDOSOS
+        # ----------------------------------------------------
+
+        df_dudosos = df_55[
+            df_55["Estado IA"] == "REVISAR"
+        ].copy()
+
+        # ----------------------------------------------------
+        # APLICAR DECISIONES ANTERIORES
+        # ----------------------------------------------------
+
+        for codigo, decision in decisiones.items():
+
+            filtro = (
+                df_55["Código"].astype(str)
+                == str(codigo)
+            )
+
+            if decision == "ACCIÓN GENERAL":
+
+                df_55.loc[
+                    filtro,
+                    "Clasificación IA"
+                ] = "ACCIÓN GENERAL"
+
+                df_55.loc[
+                    filtro,
+                    "Estado IA"
+                ] = "VALIDADA"
+
+            elif decision == "NO ES ACCIÓN GENERAL":
+
+                df_55.loc[
+                    filtro,
+                    "Clasificación IA"
+                ] = "NO ES ACCIÓN GENERAL"
+
+                df_55.loc[
+                    filtro,
+                    "Estado IA"
+                ] = "VALIDADA"
+
+        # ----------------------------------------------------
+        # VOLVER A OBTENER LOS DUDOSOS
+        # ----------------------------------------------------
+
+        df_dudosos = df_55[
+            df_55["Estado IA"] == "REVISAR"
+        ].copy()
+
+        # ----------------------------------------------------
+        # INFORMACIÓN GENERAL
+        # ----------------------------------------------------
+
+        st.info(
+            f"Acciones procesadas: **{len(df_55)}** | "
+            f"Casos pendientes de revisión: "
+            f"**{len(df_dudosos)}**"
+        )
+
+        # ----------------------------------------------------
+        # REVISIÓN MANUAL SOLO DE DUDOSOS
+        # ----------------------------------------------------
+
+        if not df_dudosos.empty:
+
+            st.write(
+                "### Casos que necesitan decisión"
+            )
+
+            st.warning(
+                "Solo revise estos casos. "
+                "Las acciones con alta confianza "
+                "no requieren revisión manual."
+            )
+
+            for _, fila in df_dudosos.iterrows():
+
+                codigo = str(
+                    fila["Código"]
+                )
+
+                producto = str(
+                    fila["Nombre del producto"]
+                )
+
+                accion = str(
+                    fila["Acción"]
+                )
+
+                clasificacion = str(
+                    fila["Clasificación IA"]
+                )
+
+                confianza = float(
+                    fila["Confianza IA"]
+                )
+
+                st.markdown(
+                    f"**{codigo} — {producto}**"
+                )
+
+                st.write(
+                    f"**Texto:** {accion}"
+                )
+
+                st.write(
+                    f"**IA propone:** {clasificacion}"
+                )
+
+                st.write(
+                    f"**Confianza:** "
+                    f"{confianza:.1%}"
+                )
+
+                decision = st.radio(
+                    "Decisión",
+                    [
+                        "ACCIÓN GENERAL",
+                        "NO ES ACCIÓN GENERAL"
+                    ],
+                    index=None,
+                    key=f"decision_55_{codigo}"
+                )
+
+                if decision is not None:
+
+                    st.session_state.decisions_55[
+                        codigo
+                    ] = decision
+
+                st.divider()
+
+        else:
+
+            st.success(
+                "🟢 No quedan casos dudosos pendientes."
+            )
+
+        # ----------------------------------------------------
+        # ACTUALIZAR DECISIONES
+        # ----------------------------------------------------
+
+        for codigo, decision in decisiones.items():
+
+            filtro = (
+                df_55["Código"].astype(str)
+                == str(codigo)
+            )
+
+            if decision == "ACCIÓN GENERAL":
+
+                df_55.loc[
+                    filtro,
+                    "Clasificación IA"
+                ] = "ACCIÓN GENERAL"
+
+                df_55.loc[
+                    filtro,
+                    "Estado IA"
+                ] = "VALIDADA"
+
+            else:
+
+                df_55.loc[
+                    filtro,
+                    "Clasificación IA"
+                ] = "NO ES ACCIÓN GENERAL"
+
+                df_55.loc[
+                    filtro,
+                    "Estado IA"
+                ] = "VALIDADA"
+
+        # ----------------------------------------------------
+        # CONTAR PENDIENTES
+        # ----------------------------------------------------
+
+        pendientes = int(
+            (
+                df_55["Estado IA"]
+                == "REVISAR"
+            ).sum()
+        )
+
+        validadas = int(
+            (
+                df_55["Estado IA"]
+                == "VALIDADA"
+            ).sum()
+        )
+
+        acciones_ia = int(
+            (
+                df_55["Clasificación IA"]
+                == "ACCIÓN GENERAL"
+            ).sum()
+        )
+
+        # ----------------------------------------------------
+        # MATRIZ FINAL
+        #
+        # SOLO ACCIONES GENERALES
+        # ----------------------------------------------------
+
+        df_final_55 = df_55[
+            df_55["Clasificación IA"]
+            == "ACCIÓN GENERAL"
+        ].copy()
+
+        df_final_55 = df_final_55[
+            [
+                "Código",
+                "Nombre del producto",
+                "Acción"
+            ]
+        ].copy()
+
+        # ----------------------------------------------------
+        # RESULTADO
+        # ----------------------------------------------------
+
+        st.write(
+            "### Estado de la depuración"
+        )
+
+        st.info(
+            f"Acciones generales identificadas: "
+            f"**{acciones_ia}** | "
+            f"Decisiones manuales: **{validadas}** | "
+            f"Pendientes: **{pendientes}**"
+        )
+
+        # ----------------------------------------------------
+        # MOSTRAR MATRIZ SOLO SI NO HAY PENDIENTES
+        # ----------------------------------------------------
+
+        if pendientes == 0:
+
+            st.success(
+                "🟢 Revisión terminada. "
+                "La matriz de acciones generales está lista."
+            )
+
+            st.write(
+                "### MATRIZ FINAL — ACCIONES GENERALES"
+            )
+
+            st.dataframe(
+                df_final_55,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            # -----------------------------------------------
+            # GUARDAR MATRIZ FINAL
+            # -----------------------------------------------
+
+            st.session_state[
+                "df_normalizacion_final"
+            ] = df_final_55
+
+            # -----------------------------------------------
+            # VALIDAR COLUMNAS
+            # -----------------------------------------------
+
+            columnas_correctas = list(
+                df_final_55.columns
+            ) == [
+                "Código",
+                "Nombre del producto",
+                "Acción"
+            ]
+
+            if columnas_correctas:
+
+                st.success(
+                    "✅ Estructura correcta: "
+                    "Código | Nombre del producto | Acción"
+                )
+
+            else:
+
+                st.error(
+                    "🔴 ERROR: La matriz final "
+                    "no tiene las tres columnas requeridas."
+                )
+
+        else:
+
+            st.warning(
+                f"⚠️ Aún quedan **{pendientes}** "
+                "casos dudosos por decidir."
+            )
+
+        # ----------------------------------------------------
+        # GUARDAR DECISIONES PARA FUTURO APRENDIZAJE
+        # ----------------------------------------------------
+
+        if decisiones:
+
+            st.session_state[
+                "retroalimentacion_acciones"
+            ] = decisiones.copy()
+
+            st.success(
+                f"🧠 Se conservaron "
+                f"**{len(decisiones)} decisiones** "
+                "como retroalimentación del clasificador."
+            )
+
+except Exception as e:
+
+    st.error(
+        f"🔴 5.5 ERROR: {type(e).__name__}: {e}"
+    )
