@@ -1,0 +1,52 @@
+# ============================================================
+# FITOASISTE
+# APLICATIVO INDEPENDIENTE DE EVALUACIÓN
+# ============================================================
+
+from pathlib import Path
+
+import streamlit as st
+import pandas as pd
+import numpy as np
+
+
+# ============================================================
+# 1. CONFIGURACIÓN
+# ============================================================
+
+st.set_page_config(
+    page_title="FITOASISTE — Evaluación",
+    page_icon="📝",
+    layout="wide"
+)
+
+
+# ============================================================
+# 2. UBICACIÓN DEL PROYECTO
+# ============================================================
+
+BASE_DIR = Path(__file__).resolve().parent
+
+
+# ============================================================
+# 3. ARCHIVOS PRINCIPALES
+# ============================================================
+
+ARCHIVO_MATRIZ = (
+    BASE_DIR / "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
+)
+
+ARCHIVO_USUARIOS = (
+    BASE_DIR / "USUARIOS.xlsx"
+)
+
+
+# ============================================================
+# 4. TÍTULO
+# ============================================================
+
+st.title("FITOASISTE — EVALUACIÓN")
+
+st.write(
+    "Módulo de evaluación y seguimiento del aprendizaje."
+)
