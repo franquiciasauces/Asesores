@@ -1327,125 +1327,205 @@ except Exception as e:
     st.error(
         f"🔴 5.4 ERROR: {type(e).__name__}: {e}"
     )
+
+
 # ============================================================
-# 5.5 REVISIÓN DE CASOS DUDOSOS Y MATRIZ FINAL
+# 5.4 ENTRENAMIENTO SEMÁNTICO REPRESENTATIVO
 # ============================================================
 
-st.markdown("### 5.5 Revisión de casos dudosos")
+st.markdown("### 5.4 Entrenamiento semántico de acciones")
 
 try:
 
-    # --------------------------------------------------------
-    # VALIDAR RESULTADO DEL 5.4
-    # --------------------------------------------------------
+    import numpy as np
+    import pandas as pd
 
-    if (
-        "df_resultado_54" not in st.session_state
-        or st.session_state["df_resultado_54"].empty
-    ):
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
 
-        st.warning(
-            "⚠️ 5.5 todavía no puede ejecutarse. "
-            "Primero debe completarse el entrenamiento del 5.4."
+    # ========================================================
+    # 1. VALIDAR DATAFRAME DEL 5.3
+    # ========================================================
+
+    if "df_depurado" not in locals() or df_depurado.empty:
+
+        st.error(
+            "🔴 5.4 ERROR: No existe df_depurado "
+            "proveniente del 5.3."
         )
 
     else:
 
-        df_55 = (
-            st.session_state["df_resultado_54"]
-            .copy()
-        )
+        # ====================================================
+        # 2. CREAR DATAFRAME DE TRABAJO
+        # ====================================================
 
-        # ----------------------------------------------------
-        # MEMORIA DE DECISIONES MANUALES
-        # ----------------------------------------------------
-
-        if "decisiones_55" not in st.session_state:
-
-            st.session_state.decisions_55 = {}
-
-        decisiones = (
-            st.session_state.decisions_55
-        )
-
-        # ----------------------------------------------------
-        # CASOS DUDOSOS
-        # ----------------------------------------------------
-
-        df_dudosos = df_55[
-            df_55["Estado IA"] == "REVISAR"
+        df_ml = df_depurado[
+            [
+                "Código",
+                "Nombre del producto",
+                "Acción"
+            ]
         ].copy()
 
-        # ----------------------------------------------------
-        # APLICAR DECISIONES ANTERIORES
-        # ----------------------------------------------------
+        df_ml["Código"] = (
+            df_ml["Código"]
+            .astype(str)
+            .str.strip()
+        )
 
-        for codigo, decision in decisiones.items():
+        df_ml["Nombre del producto"] = (
+            df_ml["Nombre del producto"]
+            .astype(str)
+            .str.strip()
+        )
 
-            filtro = (
-                df_55["Código"].astype(str)
-                == str(codigo)
+        df_ml["Acción"] = (
+            df_ml["Acción"]
+            .astype(str)
+            .str.strip()
+        )
+
+        df_ml = df_ml[
+            df_ml["Acción"] != ""
+        ].copy()
+
+        df_ml = (
+            df_ml
+            .drop_duplicates(subset=["Código"])
+            .reset_index(drop=True)
+        )
+
+        # ====================================================
+        # 3. CATEGORÍAS
+        # ====================================================
+
+        CATEGORIAS_54 = [
+            "ACCIÓN GENERAL",
+            "COMPONENTE + FUNCIÓN",
+            "RECOMENDACIÓN / COMPLEMENTO",
+            "USO / POSOLOGÍA / PRECAUCIÓN",
+            "COMERCIAL"
+        ]
+
+        # ====================================================
+        # 4. MEMORIA DE ENTRENAMIENTO
+        # ====================================================
+
+        if "entrenamiento_54" not in st.session_state:
+
+            st.session_state.entrenamiento_54 = {}
+
+        entrenamiento = (
+            st.session_state.entrenamiento_54
+        )
+
+        # ====================================================
+        # 5. MÁXIMO ABSOLUTO DE 50
+        # ====================================================
+
+        total_entrenamiento = len(
+            entrenamiento
+        )
+
+        # ====================================================
+        # 6. SELECCIÓN DE EJEMPLOS
+        #
+        # No se seleccionan simplemente los primeros 50.
+        #
+        # Se intenta obtener una muestra variada de:
+        # - productos diferentes
+        # - acciones diferentes
+        # - textos cortos y largos
+        # ====================================================
+
+        if total_entrenamiento < 50:
+
+            disponibles = df_ml[
+                ~df_ml["Código"].isin(
+                    entrenamiento.keys()
+                )
+            ].copy()
+
+            cupos = min(
+                50 - total_entrenamiento,
+                len(disponibles)
             )
 
-            if decision == "ACCIÓN GENERAL":
+            if cupos > 0:
 
-                df_55.loc[
-                    filtro,
-                    "Clasificación IA"
-                ] = "ACCIÓN GENERAL"
+                # --------------------------------------------
+                # QUITAR DUPLICADOS SEMÁNTICOS SIMPLES
+                # --------------------------------------------
 
-                df_55.loc[
-                    filtro,
-                    "Estado IA"
-                ] = "VALIDADA"
+                disponibles["_texto_normal"] = (
+                    disponibles["Acción"]
+                    .str.lower()
+                    .str.replace(
+                        r"\s+",
+                        " ",
+                        regex=True
+                    )
+                    .str.strip()
+                )
 
-            elif decision == "NO ES ACCIÓN GENERAL":
+                disponibles = (
+                    disponibles
+                    .drop_duplicates(
+                        subset=["_texto_normal"]
+                    )
+                    .drop(columns=["_texto_normal"])
+                )
 
-                df_55.loc[
-                    filtro,
-                    "Clasificación IA"
-                ] = "NO ES ACCIÓN GENERAL"
+                # --------------------------------------------
+                # DISTRIBUCIÓN A LO LARGO DEL DATAFRAME
+                # --------------------------------------------
 
-                df_55.loc[
-                    filtro,
-                    "Estado IA"
-                ] = "VALIDADA"
+                if len(disponibles) <= cupos:
 
-        # ----------------------------------------------------
-        # VOLVER A OBTENER LOS DUDOSOS
-        # ----------------------------------------------------
+                    muestra = disponibles.copy()
 
-        df_dudosos = df_55[
-            df_55["Estado IA"] == "REVISAR"
-        ].copy()
+                else:
 
-        # ----------------------------------------------------
-        # INFORMACIÓN GENERAL
-        # ----------------------------------------------------
+                    posiciones = np.linspace(
+                        0,
+                        len(disponibles) - 1,
+                        cupos,
+                        dtype=int
+                    )
+
+                    muestra = (
+                        disponibles
+                        .iloc[posiciones]
+                        .copy()
+                    )
+
+            else:
+
+                muestra = pd.DataFrame()
+
+        else:
+
+            muestra = pd.DataFrame()
+
+        # ====================================================
+        # 7. MOSTRAR EJEMPLOS PARA CLASIFICACIÓN
+        # ====================================================
+
+        st.write(
+            "### Entrenamiento inicial"
+        )
 
         st.info(
-            f"Acciones procesadas: **{len(df_55)}** | "
-            f"Casos pendientes de revisión: "
-            f"**{len(df_dudosos)}**"
+            "Máximo: **50 ejemplos**. "
+            "El modelo clasifica cada texto según "
+            "la categoría que corresponda."
         )
 
-        # ----------------------------------------------------
-        # REVISIÓN MANUAL SOLO DE DUDOSOS
-        # ----------------------------------------------------
+        if not muestra.empty:
 
-        if not df_dudosos.empty:
-
-            st.write(
-                "### Casos que necesitan decisión"
-            )
-
-            st.warning(
-                "Solo revise estos casos. "
-                "Las acciones con alta confianza "
-                "no requieren revisión manual."
-            )
-
-            for _, fila in df_dudosos.iterrows():
+            for _, fila in muestra.iterrows():
 
                 codigo = str(
                     fila["Código"]
@@ -1459,14 +1539,6 @@ try:
                     fila["Acción"]
                 )
 
-                clasificacion = str(
-                    fila["Clasificación IA"]
-                )
-
-                confianza = float(
-                    fila["Confianza IA"]
-                )
-
                 st.markdown(
                     f"**{codigo} — {producto}**"
                 )
@@ -1475,213 +1547,423 @@ try:
                     f"**Texto:** {accion}"
                 )
 
-                st.write(
-                    f"**IA propone:** {clasificacion}"
-                )
-
-                st.write(
-                    f"**Confianza:** "
-                    f"{confianza:.1%}"
-                )
-
-                decision = st.radio(
-                    "Decisión",
+                seleccion = st.selectbox(
+                    "Clasifique este contenido",
                     [
-                        "ACCIÓN GENERAL",
-                        "NO ES ACCIÓN GENERAL"
+                        "Seleccione...",
+                        *CATEGORIAS_54
                     ],
-                    index=None,
-                    key=f"decision_55_{codigo}"
+                    key=f"select_54_{codigo}"
                 )
 
-                if decision is not None:
+                if seleccion != "Seleccione...":
 
-                    st.session_state.decisions_55[
+                    st.session_state.entrenamiento_54[
                         codigo
-                    ] = decision
+                    ] = seleccion
 
                 st.divider()
 
-        else:
+        # ====================================================
+        # 8. CONTADORES
+        # ====================================================
 
-            st.success(
-                "🟢 No quedan casos dudosos pendientes."
-            )
-
-        # ----------------------------------------------------
-        # ACTUALIZAR DECISIONES
-        # ----------------------------------------------------
-
-        for codigo, decision in decisiones.items():
-
-            filtro = (
-                df_55["Código"].astype(str)
-                == str(codigo)
-            )
-
-            if decision == "ACCIÓN GENERAL":
-
-                df_55.loc[
-                    filtro,
-                    "Clasificación IA"
-                ] = "ACCIÓN GENERAL"
-
-                df_55.loc[
-                    filtro,
-                    "Estado IA"
-                ] = "VALIDADA"
-
-            else:
-
-                df_55.loc[
-                    filtro,
-                    "Clasificación IA"
-                ] = "NO ES ACCIÓN GENERAL"
-
-                df_55.loc[
-                    filtro,
-                    "Estado IA"
-                ] = "VALIDADA"
-
-        # ----------------------------------------------------
-        # CONTAR PENDIENTES
-        # ----------------------------------------------------
-
-        pendientes = int(
-            (
-                df_55["Estado IA"]
-                == "REVISAR"
-            ).sum()
+        total_entrenamiento = len(
+            st.session_state.entrenamiento_54
         )
 
-        validadas = int(
-            (
-                df_55["Estado IA"]
-                == "VALIDADA"
-            ).sum()
-        )
+        conteo_categorias = {
+            categoria: 0
+            for categoria in CATEGORIAS_54
+        }
 
-        acciones_ia = int(
-            (
-                df_55["Clasificación IA"]
-                == "ACCIÓN GENERAL"
-            ).sum()
-        )
+        for valor in (
+            st.session_state
+            .entrenamiento_54
+            .values()
+        ):
 
-        # ----------------------------------------------------
-        # MATRIZ FINAL
-        #
-        # SOLO ACCIONES GENERALES
-        # ----------------------------------------------------
+            if valor in conteo_categorias:
 
-        df_final_55 = df_55[
-            df_55["Clasificación IA"]
-            == "ACCIÓN GENERAL"
-        ].copy()
-
-        df_final_55 = df_final_55[
-            [
-                "Código",
-                "Nombre del producto",
-                "Acción"
-            ]
-        ].copy()
-
-        # ----------------------------------------------------
-        # RESULTADO
-        # ----------------------------------------------------
+                conteo_categorias[
+                    valor
+                ] += 1
 
         st.write(
-            "### Estado de la depuración"
+            f"**Ejemplos clasificados: "
+            f"{total_entrenamiento}/50**"
         )
 
-        st.info(
-            f"Acciones generales identificadas: "
-            f"**{acciones_ia}** | "
-            f"Decisiones manuales: **{validadas}** | "
-            f"Pendientes: **{pendientes}**"
-        )
-
-        # ----------------------------------------------------
-        # MOSTRAR MATRIZ SOLO SI NO HAY PENDIENTES
-        # ----------------------------------------------------
-
-        if pendientes == 0:
-
-            st.success(
-                "🟢 Revisión terminada. "
-                "La matriz de acciones generales está lista."
-            )
+        for categoria in CATEGORIAS_54:
 
             st.write(
-                "### MATRIZ FINAL — ACCIONES GENERALES"
+                f"- {categoria}: "
+                f"**{conteo_categorias[categoria]}**"
             )
 
-            st.dataframe(
-                df_final_55,
-                use_container_width=True,
-                hide_index=True
+        # ====================================================
+        # 9. ENTRENAR
+        # ====================================================
+
+        if total_entrenamiento >= 10:
+
+            codigos = list(
+                st.session_state
+                .entrenamiento_54
+                .keys()
+            )
+
+            df_train = df_ml[
+                df_ml["Código"].isin(
+                    codigos
+                )
+            ].copy()
+
+            df_train["Etiqueta"] = (
+                df_train["Código"]
+                .map(
+                    st.session_state.entrenamiento_54
+                )
             )
 
             # -----------------------------------------------
-            # GUARDAR MATRIZ FINAL
+            # VERIFICAR DIVERSIDAD
             # -----------------------------------------------
 
-            st.session_state[
-                "df_normalizacion_final"
-            ] = df_final_55
+            clases = (
+                df_train["Etiqueta"]
+                .nunique()
+            )
 
-            # -----------------------------------------------
-            # VALIDAR COLUMNAS
-            # -----------------------------------------------
+            if clases < 2:
 
-            columnas_correctas = list(
-                df_final_55.columns
-            ) == [
-                "Código",
-                "Nombre del producto",
-                "Acción"
-            ]
-
-            if columnas_correctas:
-
-                st.success(
-                    "✅ Estructura correcta: "
-                    "Código | Nombre del producto | Acción"
+                st.warning(
+                    "⚠️ El modelo necesita ejemplos "
+                    "de al menos dos categorías diferentes."
                 )
 
             else:
 
-                st.error(
-                    "🔴 ERROR: La matriz final "
-                    "no tiene las tres columnas requeridas."
+                # -------------------------------------------
+                # TEXTO UTILIZADO POR EL MODELO
+                # -------------------------------------------
+
+                df_train["Texto_Modelo"] = (
+                    "PRODUCTO: "
+                    + df_train[
+                        "Nombre del producto"
+                    ]
+                    + " | ACCIÓN: "
+                    + df_train[
+                        "Acción"
+                    ]
+                )
+
+                df_ml["Texto_Modelo"] = (
+                    "PRODUCTO: "
+                    + df_ml[
+                        "Nombre del producto"
+                    ]
+                    + " | ACCIÓN: "
+                    + df_ml[
+                        "Acción"
+                    ]
+                )
+
+                # -------------------------------------------
+                # MODELO
+                # -------------------------------------------
+
+                modelo_54 = Pipeline(
+                    [
+                        (
+                            "tfidf",
+                            TfidfVectorizer(
+                                lowercase=True,
+                                strip_accents="unicode",
+                                ngram_range=(1, 2),
+                                max_features=10000,
+                                sublinear_tf=True
+                            )
+                        ),
+                        (
+                            "clasificador",
+                            LogisticRegression(
+                                max_iter=4000,
+                                class_weight="balanced"
+                            )
+                        )
+                    ]
+                )
+
+                # -------------------------------------------
+                # ENTRENAR
+                # -------------------------------------------
+
+                modelo_54.fit(
+                    df_train["Texto_Modelo"],
+                    df_train["Etiqueta"]
+                )
+
+                # -------------------------------------------
+                # CLASIFICAR TODO
+                # -------------------------------------------
+
+                predicciones = (
+                    modelo_54.predict(
+                        df_ml["Texto_Modelo"]
+                    )
+                )
+
+                probabilidades = (
+                    modelo_54.predict_proba(
+                        df_ml["Texto_Modelo"]
+                    )
+                )
+
+                confianza = np.max(
+                    probabilidades,
+                    axis=1
+                )
+
+                # -------------------------------------------
+                # SEGUNDA MEJOR CATEGORÍA
+                #
+                # Esto es importante para detectar casos
+                # realmente ambiguos.
+                # -------------------------------------------
+
+                orden_probabilidades = np.argsort(
+                    probabilidades,
+                    axis=1
+                )
+
+                mejor = (
+                    orden_probabilidades[:, -1]
+                )
+
+                segunda = (
+                    orden_probabilidades[:, -2]
+                )
+
+                diferencia = (
+                    probabilidades[
+                        np.arange(
+                            len(probabilidades)
+                        ),
+                        mejor
+                    ]
+                    -
+                    probabilidades[
+                        np.arange(
+                            len(probabilidades)
+                        ),
+                        segunda
+                    ]
+                )
+
+                # -------------------------------------------
+                # CREAR RESULTADO
+                # -------------------------------------------
+
+                df_resultado_54 = df_ml[
+                    [
+                        "Código",
+                        "Nombre del producto",
+                        "Acción"
+                    ]
+                ].copy()
+
+                df_resultado_54[
+                    "Clasificación IA"
+                ] = predicciones
+
+                df_resultado_54[
+                    "Confianza IA"
+                ] = confianza
+
+                df_resultado_54[
+                    "Diferencia IA"
+                ] = diferencia
+
+                # -------------------------------------------
+                # ESTADO
+                #
+                # No usamos solamente 70%.
+                #
+                # Si la categoría ganadora está claramente
+                # por encima de la segunda, se acepta.
+                # -------------------------------------------
+
+                estados = []
+
+                for conf, dif in zip(
+                    confianza,
+                    diferencia
+                ):
+
+                    if conf >= 0.55 and dif >= 0.15:
+
+                        estados.append(
+                            "ACEPTADA_IA"
+                        )
+
+                    elif conf >= 0.45 and dif >= 0.10:
+
+                        estados.append(
+                            "ACEPTADA_IA"
+                        )
+
+                    else:
+
+                        estados.append(
+                            "REVISAR"
+                        )
+
+                df_resultado_54[
+                    "Estado IA"
+                ] = estados
+
+                # -------------------------------------------
+                # GUARDAR
+                # -------------------------------------------
+
+                st.session_state[
+                    "df_resultado_54"
+                ] = df_resultado_54
+
+                # =================================================
+                # 10. RESULTADOS
+                # =================================================
+
+                total = len(
+                    df_resultado_54
+                )
+
+                aceptadas = int(
+                    (
+                        df_resultado_54[
+                            "Estado IA"
+                        ]
+                        == "ACEPTADA_IA"
+                    ).sum()
+                )
+
+                revisar = int(
+                    (
+                        df_resultado_54[
+                            "Estado IA"
+                        ]
+                        == "REVISAR"
+                    ).sum()
+                )
+
+                st.success(
+                    "🟢 Modelo entrenado y aplicado."
+                )
+
+                st.info(
+                    f"Procesadas: **{total}** | "
+                    f"Aceptadas automáticamente: "
+                    f"**{aceptadas}** | "
+                    f"Revisión: **{revisar}**"
+                )
+
+                # =================================================
+                # 11. DISTRIBUCIÓN
+                # =================================================
+
+                st.write(
+                    "### Distribución por categoría"
+                )
+
+                for categoria in CATEGORIAS_54:
+
+                    cantidad = int(
+                        (
+                            df_resultado_54[
+                                "Clasificación IA"
+                            ]
+                            == categoria
+                        ).sum()
+                    )
+
+                    st.write(
+                        f"- {categoria}: **{cantidad}**"
+                    )
+
+                # =================================================
+                # 12. CASOS DUDOSOS
+                # =================================================
+
+                df_revision = (
+                    df_resultado_54[
+                        df_resultado_54[
+                            "Estado IA"
+                        ]
+                        == "REVISAR"
+                    ]
+                    .sort_values(
+                        [
+                            "Diferencia IA",
+                            "Confianza IA"
+                        ]
+                    )
+                    .head(30)
+                )
+
+                if not df_revision.empty:
+
+                    st.warning(
+                        "⚠️ Muestra de los casos "
+                        "realmente ambiguos."
+                    )
+
+                    st.dataframe(
+                        df_revision[
+                            [
+                                "Código",
+                                "Nombre del producto",
+                                "Acción",
+                                "Clasificación IA",
+                                "Confianza IA",
+                                "Diferencia IA"
+                            ]
+                        ],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                # =================================================
+                # 13. MATRIZ DE SALIDA
+                # =================================================
+
+                st.write(
+                    "### Matriz de normalización"
+                )
+
+                st.dataframe(
+                    df_resultado_54[
+                        [
+                            "Código",
+                            "Nombre del producto",
+                            "Acción"
+                        ]
+                    ],
+                    use_container_width=True,
+                    hide_index=True
                 )
 
         else:
 
             st.warning(
-                f"⚠️ Aún quedan **{pendientes}** "
-                "casos dudosos por decidir."
-            )
-
-        # ----------------------------------------------------
-        # GUARDAR DECISIONES PARA FUTURO APRENDIZAJE
-        # ----------------------------------------------------
-
-        if decisiones:
-
-            st.session_state[
-                "retroalimentacion_acciones"
-            ] = decisiones.copy()
-
-            st.success(
-                f"🧠 Se conservaron "
-                f"**{len(decisiones)} decisiones** "
-                "como retroalimentación del clasificador."
+                f"⚠️ Clasifique "
+                f"{10 - total_entrenamiento} "
+                "ejemplos más para iniciar el entrenamiento."
             )
 
 except Exception as e:
 
     st.error(
-        f"🔴 5.5 ERROR: {type(e).__name__}: {e}"
+        f"🔴 5.4 ERROR: {type(e).__name__}: {e}"
     )
