@@ -5529,3 +5529,638 @@ except Exception as e:
         f"🔴 5.10 ERROR: "
         f"{type(e).__name__}: {e}"
     )
+# ============================================================
+# 5.11 IDENTIFICACIÓN Y LIMPIEZA
+# PRODUCTO + COMPONENTE + ACCIÓN ESPECÍFICA DEL COMPONENTE
+#
+# FUENTE EXCLUSIVA:
+# df_fuente = matriz general cargada en 5.1
+#
+# NO utiliza:
+#   - df_normalizado
+#   - df_depurado
+#   - df_resultado_58
+#   - df_acciones_generales_59
+#
+# Esta etapa NO entrena todavía.
+# Primero construye y muestra el DF2 para revisión.
+# ============================================================
+
+st.markdown(
+    "### 5.11 Producto | Componente | Acción específica"
+)
+
+try:
+
+    import re
+    import pandas as pd
+
+    # ========================================================
+    # 1. VALIDAR MATRIZ GENERAL
+    # ========================================================
+
+    if (
+        "df_fuente" not in locals()
+        or df_fuente is None
+        or not isinstance(df_fuente, pd.DataFrame)
+        or df_fuente.empty
+    ):
+
+        st.error(
+            "🔴 5.11 ERROR: No existe la matriz general "
+            "df_fuente proveniente de 5.1."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 2. NORMALIZAR NOMBRES DE COLUMNAS SOLO PARA BÚSQUEDA
+    # ========================================================
+
+    def normalizar_nombre_columna_511(texto):
+
+        texto = str(texto).strip().lower()
+
+        reemplazos = {
+            "á": "a",
+            "é": "e",
+            "í": "i",
+            "ó": "o",
+            "ú": "u",
+            "ü": "u",
+            "ñ": "n"
+        }
+
+        for origen, destino in reemplazos.items():
+
+            texto = texto.replace(
+                origen,
+                destino
+            )
+
+        texto = re.sub(
+            r"[^a-z0-9]+",
+            " ",
+            texto
+        )
+
+        return " ".join(
+            texto.split()
+        )
+
+    columnas_originales_511 = list(
+        df_fuente.columns
+    )
+
+    columnas_normalizadas_511 = {
+        columna:
+            normalizar_nombre_columna_511(
+                columna
+            )
+        for columna in columnas_originales_511
+    }
+
+    # ========================================================
+    # 3. IDENTIFICAR COLUMNA PRODUCTO
+    #
+    # Primero intenta encontrarla por nombre.
+    # Si no existe, utiliza A como respaldo porque 5.2
+    # ya estableció A como producto.
+    # ========================================================
+
+    columna_producto_511 = None
+
+    candidatos_producto_511 = [
+        "producto",
+        "nombre producto",
+        "nombre del producto",
+        "productos"
+    ]
+
+    for columna, normalizada in (
+        columnas_normalizadas_511.items()
+    ):
+
+        if normalizada in candidatos_producto_511:
+
+            columna_producto_511 = columna
+            break
+
+    if columna_producto_511 is None:
+
+        columna_producto_511 = (
+            df_fuente.columns[0]
+        )
+
+    # ========================================================
+    # 4. IDENTIFICAR COLUMNAS RELACIONADAS CON COMPONENTES
+    #
+    # NO se asume una posición fija.
+    # ========================================================
+
+    palabras_componente_511 = [
+        "componente",
+        "componentes",
+        "ingrediente",
+        "ingredientes",
+        "principio activo",
+        "principios activos"
+    ]
+
+    columnas_componente_511 = []
+
+    for columna, normalizada in (
+        columnas_normalizadas_511.items()
+    ):
+
+        if any(
+            palabra in normalizada
+            for palabra in palabras_componente_511
+        ):
+
+            columnas_componente_511.append(
+                columna
+            )
+
+    # ========================================================
+    # 5. MOSTRAR ESTRUCTURA DETECTADA
+    # ========================================================
+
+    st.write(
+        "### Estructura detectada en la matriz"
+    )
+
+    st.info(
+        f"Producto: **{columna_producto_511}**"
+    )
+
+    if columnas_componente_511:
+
+        st.info(
+            "Columnas relacionadas con componentes: "
+            +
+            " | ".join(
+                str(c)
+                for c in columnas_componente_511
+            )
+        )
+
+    else:
+
+        st.error(
+            "🔴 5.11: No se encontró ninguna columna "
+            "identificada como componente."
+        )
+
+        st.write(
+            "Columnas disponibles:"
+        )
+
+        st.write(
+            list(df_fuente.columns)
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 6. CREAR REGISTROS
+    # ========================================================
+
+    registros_511 = []
+
+    # ========================================================
+    # 7. PROCESAR FILA POR FILA
+    # ========================================================
+
+    for indice_511, fila_511 in (
+        df_fuente.iterrows()
+    ):
+
+        producto_511 = fila_511[
+            columna_producto_511
+        ]
+
+        if pd.isna(producto_511):
+
+            continue
+
+        producto_511 = str(
+            producto_511
+        ).strip()
+
+        if not producto_511:
+
+            continue
+
+        # ----------------------------------------------------
+        # CADA COLUMNA DE COMPONENTES
+        # ----------------------------------------------------
+
+        for columna_componente_511 in (
+            columnas_componente_511
+        ):
+
+            valor_componente_511 = (
+                fila_511[
+                    columna_componente_511
+                ]
+            )
+
+            if pd.isna(
+                valor_componente_511
+            ):
+
+                continue
+
+            texto_componente_511 = str(
+                valor_componente_511
+            ).strip()
+
+            if not texto_componente_511:
+
+                continue
+
+            # ------------------------------------------------
+            # SEPARAR POSIBLES COMPONENTES
+            #
+            # Solo se separan cuando hay separadores
+            # explícitos.
+            # ------------------------------------------------
+
+            partes_componente_511 = re.split(
+                r";|\n|\||•",
+                texto_componente_511
+            )
+
+            for parte_511 in (
+                partes_componente_511
+            ):
+
+                componente_511 = str(
+                    parte_511
+                ).strip()
+
+                if not componente_511:
+
+                    continue
+
+                # ------------------------------------------------
+                # EXTRAER FUNCIÓN SI VIENE ESCRITA JUNTO
+                # AL COMPONENTE.
+                #
+                # Ejemplos:
+                #
+                # Zinc (refuerzo inmunológico)
+                # Biotina - cabello y uñas
+                #
+                # NO se inventa ninguna función.
+                # ------------------------------------------------
+
+                componente_limpio_511 = (
+                    componente_511
+                )
+
+                accion_especifica_511 = ""
+
+                # ------------------------------------------------
+                # CASO: Componente (función)
+                # ------------------------------------------------
+
+                coincidencia_parentesis_511 = re.match(
+                    r"^\s*(.+?)\s*"
+                    r"\(([^()]+)\)\s*$",
+                    componente_511
+                )
+
+                if coincidencia_parentesis_511:
+
+                    componente_limpio_511 = (
+                        coincidencia_parentesis_511
+                        .group(1)
+                        .strip()
+                    )
+
+                    accion_especifica_511 = (
+                        coincidencia_parentesis_511
+                        .group(2)
+                        .strip()
+                    )
+
+                else:
+
+                    # --------------------------------------------
+                    # CASO: Componente - función
+                    # --------------------------------------------
+
+                    coincidencia_guion_511 = re.match(
+                        r"^\s*(.+?)\s+[-–—:]\s+(.+?)\s*$",
+                        componente_511
+                    )
+
+                    if coincidencia_guion_511:
+
+                        componente_limpio_511 = (
+                            coincidencia_guion_511
+                            .group(1)
+                            .strip()
+                        )
+
+                        accion_especifica_511 = (
+                            coincidencia_guion_511
+                            .group(2)
+                            .strip()
+                        )
+
+                # ------------------------------------------------
+                # LIMPIEZA
+                # ------------------------------------------------
+
+                componente_limpio_511 = (
+                    " ".join(
+                        componente_limpio_511.split()
+                    )
+                ).strip()
+
+                accion_especifica_511 = (
+                    " ".join(
+                        accion_especifica_511.split()
+                    )
+                ).strip()
+
+                if not componente_limpio_511:
+
+                    continue
+
+                # ------------------------------------------------
+                # REGISTRO
+                # ------------------------------------------------
+
+                registros_511.append(
+                    {
+                        "Nombre del producto":
+                            producto_511,
+
+                        "Componente":
+                            componente_limpio_511,
+
+                        "Acción específica":
+                            accion_especifica_511,
+
+                        "Fuente":
+                            columna_componente_511,
+
+                        "Fila origen":
+                            indice_511 + 2
+                    }
+                )
+
+    # ========================================================
+    # 8. CREAR DATAFRAME
+    # ========================================================
+
+    df_componentes_511 = pd.DataFrame(
+        registros_511,
+        columns=[
+            "Nombre del producto",
+            "Componente",
+            "Acción específica",
+            "Fuente",
+            "Fila origen"
+        ]
+    )
+
+    # ========================================================
+    # 9. ELIMINAR DUPLICADOS EXACTOS
+    # ========================================================
+
+    if not df_componentes_511.empty:
+
+        df_componentes_511 = (
+            df_componentes_511
+            .drop_duplicates(
+                subset=[
+                    "Nombre del producto",
+                    "Componente",
+                    "Acción específica"
+                ]
+            )
+            .reset_index(
+                drop=True
+            )
+        )
+
+    # ========================================================
+    # 10. GENERAR CÓDIGO
+    # ========================================================
+
+    if not df_componentes_511.empty:
+
+        df_componentes_511.insert(
+            0,
+            "Código",
+            [
+                f"CF{numero:06d}"
+                for numero in range(
+                    1,
+                    len(df_componentes_511) + 1
+                )
+            ]
+        )
+
+    # ========================================================
+    # 11. VALIDAR RESULTADO
+    # ========================================================
+
+    if df_componentes_511.empty:
+
+        st.warning(
+            "⚠️ 5.11 no encontró registros "
+            "Producto + Componente."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 12. GUARDAR EN SESSION STATE
+    # ========================================================
+
+    st.session_state[
+        "df_componentes_511"
+    ] = df_componentes_511.copy()
+
+    # ========================================================
+    # 13. CONTADORES
+    # ========================================================
+
+    cantidad_registros_511 = (
+        len(df_componentes_511)
+    )
+
+    cantidad_productos_511 = (
+        df_componentes_511[
+            "Nombre del producto"
+        ]
+        .nunique()
+    )
+
+    cantidad_componentes_511 = (
+        df_componentes_511[
+            "Componente"
+        ]
+        .nunique()
+    )
+
+    cantidad_con_funcion_511 = (
+        (
+            df_componentes_511[
+                "Acción específica"
+            ]
+            .astype(str)
+            .str.strip()
+            != ""
+        )
+        .sum()
+    )
+
+    cantidad_sin_funcion_511 = (
+        cantidad_registros_511
+        -
+        cantidad_con_funcion_511
+    )
+
+    # ========================================================
+    # 14. RESULTADO
+    # ========================================================
+
+    st.success(
+        f"🟢 5.11 TERMINADO: "
+        f"{cantidad_registros_511} registros | "
+        f"{cantidad_productos_511} productos | "
+        f"{cantidad_componentes_511} componentes."
+    )
+
+    st.info(
+        f"Con acción específica detectada: "
+        f"**{cantidad_con_funcion_511}** | "
+        f"Sin acción específica: "
+        f"**{cantidad_sin_funcion_511}**"
+    )
+
+    # ========================================================
+    # 15. MOSTRAR DF2
+    # ========================================================
+
+    st.write(
+        "### DF2 provisional — Producto / Componente / Acción"
+    )
+
+    st.dataframe(
+        df_componentes_511[
+            [
+                "Código",
+                "Nombre del producto",
+                "Componente",
+                "Acción específica"
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True
+    )
+
+    # ========================================================
+    # 16. MOSTRAR CASOS SIN FUNCIÓN
+    #
+    # Estos NO se eliminan.
+    # Quedan disponibles para la siguiente etapa.
+    # ========================================================
+
+    casos_sin_funcion_511 = (
+        df_componentes_511[
+            df_componentes_511[
+                "Acción específica"
+            ]
+            .astype(str)
+            .str.strip()
+            == ""
+        ]
+        .copy()
+    )
+
+    if not casos_sin_funcion_511.empty:
+
+        st.write(
+            "### Casos que requieren interpretación"
+        )
+
+        st.info(
+            f"Hay **{len(casos_sin_funcion_511)}** "
+            "registros donde el componente fue identificado "
+            "pero su función no aparece explícitamente "
+            "en el mismo texto."
+        )
+
+        st.dataframe(
+            casos_sin_funcion_511[
+                [
+                    "Código",
+                    "Nombre del producto",
+                    "Componente"
+                ]
+            ],
+            use_container_width=True,
+            hide_index=True
+        )
+
+    # ========================================================
+    # 17. VALIDACIÓN DE EJEMPLOS CONOCIDOS
+    # ========================================================
+
+    ejemplos_511 = df_componentes_511[
+        df_componentes_511[
+            "Nombre del producto"
+        ]
+        .str.contains(
+            "CRANBERRY|COLAGENO|PROSTENFIT",
+            case=False,
+            na=False
+        )
+    ]
+
+    if not ejemplos_511.empty:
+
+        st.write(
+            "### Validación de productos de referencia"
+        )
+
+        st.dataframe(
+            ejemplos_511[
+                [
+                    "Código",
+                    "Nombre del producto",
+                    "Componente",
+                    "Acción específica"
+                ]
+            ],
+            use_container_width=True,
+            hide_index=True
+        )
+
+    # ========================================================
+    # 18. INFORMACIÓN
+    # ========================================================
+
+    st.info(
+        "ℹ️ 5.11 todavía NO realiza aprendizaje automático. "
+        "Primero construye el DF2 desde la matriz general "
+        "y conserva también los casos donde la función "
+        "del componente no aparece explícitamente. "
+        "Estos casos serán la base del siguiente aprendizaje."
+    )
+
+except Exception as e:
+
+    st.error(
+        f"🔴 5.11 ERROR: "
+        f"{type(e).__name__}: {e}"
+    )
+
