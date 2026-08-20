@@ -777,560 +777,429 @@ except Exception as e:
     st.error(
         f"🔴 5.3 ERROR: {type(e).__name__}: {e}"
     )
+
 # ============================================================
-# 5.4 DEPURACIÓN CONTEXTUAL Y CONTROL DE CALIDAD
-# Trabaja exclusivamente sobre df_depurado del 5.3
+# 5.4 ENTRENAMIENTO SEMÁNTICO INICIAL
+# Clasificador específico para ACCIONES GENERALES
 # ============================================================
 
-st.markdown("### 5.4 Depuración contextual de acciones")
+st.markdown("### 5.4 Entrenamiento del clasificador de acciones")
 
 try:
 
     if "df_depurado" not in locals() or df_depurado.empty:
 
         st.error(
-            "🔴 5.4 ERROR: No existe una matriz depurada "
-            "proveniente del 5.3."
+            "🔴 5.4 ERROR: No existe df_depurado proveniente del 5.3."
         )
 
     else:
 
         # ----------------------------------------------------
-        # FUNCIONES GENERALES DE LIMPIEZA
+        # IMPORTACIONES LOCALES
         # ----------------------------------------------------
 
-        def limpiar_espacios(texto):
-
-            if texto is None:
-                return ""
-
-            texto = str(texto)
-
-            texto = " ".join(
-                texto.split()
-            )
-
-            return texto.strip()
-
-        def quitar_puntuacion_final(texto):
-
-            texto = limpiar_espacios(texto)
-
-            while texto.endswith(
-                (".", ",", ";", ":", "-", "|")
-            ):
-                texto = texto[:-1].strip()
-
-            return texto
+        from sklearn.feature_extraction.text import TfidfVectorizer
+        from sklearn.linear_model import LogisticRegression
+        from sklearn.pipeline import Pipeline
 
         # ----------------------------------------------------
-        # PATRONES LINGÜÍSTICOS DE INFORMACIÓN ACCESORIA
-        #
-        # No dependen de nombres concretos de productos,
-        # componentes o marcas.
+        # PREPARAR DATOS
         # ----------------------------------------------------
 
-        patrones_accesorios = [
-
-            # Recomendaciones / complementos
-            "como complemento",
-            "como complemento de",
-            "complemento de",
-            "complementar con",
-            "se puede complementar",
-            "puede complementar",
-            "acompañar con",
-            "acompañado de",
-            "acompañada de",
-            "adicionalmente",
-
-            # Precauciones / restricciones
-            "por posible fotosensibilidad",
-            "por fotosensibilidad",
-            "posible fotosensibilidad",
-            "por sensibilidad solar",
-            "evitar exposición solar",
-            "evitar exposicion solar",
-            "evitar el sol",
-            "uso nocturno",
-            "uso nocturno por",
-            "no usar durante",
-
-            # Uso / administración
-            "modo de uso",
-            "forma de uso",
-            "forma de empleo",
-            "forma de tomar",
-            "forma de aplicación",
-            "forma de aplicacion",
-            "aplicar",
-            "tomar",
-            "consumir",
-            "ingerir",
-
-            # Posología
-            "una cápsula al día",
-            "una capsula al dia",
-            "dos cápsulas al día",
-            "dos capsulas al dia",
-            "por día",
-            "por dia",
-            "cada día",
-            "cada dia",
-            "antes de las comidas",
-            "después de las comidas",
-            "despues de las comidas",
-
-            # Comercial
-            "ideal para",
-            "perfecto para",
-            "perfecta para",
-            "excelente opción",
-            "excelente opcion",
-            "una excelente opción",
-            "una excelente opcion",
-            "recomendado para",
-            "recomendada para",
-            "te ayuda a",
-            "ayuda a descubrir",
-            "descubre",
-            "conoce",
-            "disfruta",
-            "lleva tu",
-            "potencia tu",
-            "cuida tu",
-            "obtén",
-            "obten",
-            "consigue"
-        ]
-
-        # ----------------------------------------------------
-        # Detectar si una frase parece información accesoria
-        # ----------------------------------------------------
-
-        def detectar_accesorio(texto):
-
-            texto_minus = limpiar_espacios(
-                texto
-            ).lower()
-
-            for patron in patrones_accesorios:
-
-                if patron in texto_minus:
-
-                    return True
-
-            return False
-
-        # ----------------------------------------------------
-        # Detectar estructuras que suelen describir
-        # componentes o información complementaria.
-        #
-        # NO elimina por sí solo.
-        # Solo aumenta el nivel de revisión.
-        # ----------------------------------------------------
-
-        def estructura_componentes(texto):
-
-            texto_minus = limpiar_espacios(
-                texto
-            ).lower()
-
-            indicadores = [
-                " + ",
-                " y ",
-                "con ",
-                "contenido de ",
-                "contiene ",
-                "a base de ",
-                "a base de:",
-                "extracto de ",
-                "extractos de ",
-                "vitamina ",
-                "vitaminas ",
-                "mineral ",
-                "minerales ",
-                "aminoácido ",
-                "aminoacidos ",
-                "ácido ",
-                "acido "
+        df_ml = df_depurado[
+            [
+                "Código",
+                "Nombre del producto",
+                "Acción"
             ]
+        ].copy()
 
-            cantidad = 0
-
-            for indicador in indicadores:
-
-                if indicador in texto_minus:
-                    cantidad += 1
-
-            return cantidad >= 1
-
-        # ----------------------------------------------------
-        # Detectar texto entre paréntesis que parece ser
-        # explicación adicional y no parte del núcleo.
-        # ----------------------------------------------------
-
-        def parentesis_accesorio(texto):
-
-            texto = limpiar_espacios(
-                texto
-            )
-
-            if "(" not in texto or ")" not in texto:
-                return False
-
-            inicio = texto.find("(")
-            fin = texto.find(")", inicio + 1)
-
-            if fin < 0:
-                return False
-
-            contenido = texto[
-                inicio + 1:fin
-            ].strip()
-
-            if not contenido:
-                return False
-
-            contenido_minus = contenido.lower()
-
-            indicadores = [
-                "+",
-                "cabello",
-                "uñas",
-                "unas",
-                "articulaciones",
-                "inmunológico",
-                "inmunologico",
-                "energía",
-                "energia",
-                "piel",
-                "huesos",
-                "músculo",
-                "musculo"
-            ]
-
-            coincidencias = 0
-
-            for indicador in indicadores:
-
-                if indicador in contenido_minus:
-                    coincidencias += 1
-
-            return coincidencias >= 1
-
-        # ----------------------------------------------------
-        # DEPURACIÓN CONSERVADORA
-        # ----------------------------------------------------
-
-        resultados = []
-
-        for _, fila in df_depurado.iterrows():
-
-            producto = limpiar_espacios(
-                fila["Nombre del producto"]
-            )
-
-            accion_original = limpiar_espacios(
-                fila["Acción"]
-            )
-
-            accion = accion_original
-
-            requiere_revision = False
-            motivo_revision = ""
-
-            # ------------------------------------------------
-            # 1. Eliminar texto posterior a una instrucción
-            # claramente accesoria.
-            # ------------------------------------------------
-
-            posiciones = []
-
-            texto_minus = accion.lower()
-
-            for patron in patrones_accesorios:
-
-                posicion = texto_minus.find(
-                    patron.lower()
-                )
-
-                if posicion > 0:
-
-                    posiciones.append(
-                        posicion
-                    )
-
-            if posiciones:
-
-                posicion_corte = min(
-                    posiciones
-                )
-
-                texto_anterior = accion[
-                    :posicion_corte
-                ].strip()
-
-                if len(texto_anterior) >= 8:
-
-                    accion = texto_anterior
-
-            # ------------------------------------------------
-            # 2. Si parece contener estructura de componente,
-            # NO eliminar automáticamente.
-            # ------------------------------------------------
-
-            if estructura_componentes(
-                accion
-            ):
-
-                requiere_revision = True
-
-                motivo_revision = (
-                    "Posible referencia a componente "
-                    "o estructura complementaria"
-                )
-
-            # ------------------------------------------------
-            # 3. Si contiene paréntesis con posible explicación
-            # complementaria, conservar pero marcar.
-            # ------------------------------------------------
-
-            if parentesis_accesorio(
-                accion
-            ):
-
-                requiere_revision = True
-
-                if motivo_revision:
-
-                    motivo_revision += "; "
-
-                motivo_revision += (
-                    "Posible explicación asociada"
-                )
-
-            # ------------------------------------------------
-            # 4. Limpieza final
-            # ------------------------------------------------
-
-            accion = limpiar_espacios(
-                accion
-            )
-
-            accion = quitar_puntuacion_final(
-                accion
-            )
-
-            # ------------------------------------------------
-            # 5. No permitir acciones vacías.
-            # ------------------------------------------------
-
-            if not accion:
-
-                continue
-
-            resultados.append(
-                {
-                    "Código": fila["Código"],
-                    "Nombre del producto": producto,
-                    "Acción": accion,
-                    "_accion_original": accion_original,
-                    "_modificada": (
-                        accion_original != accion
-                    ),
-                    "_revision": requiere_revision,
-                    "_motivo": motivo_revision
-                }
-            )
-
-        # ----------------------------------------------------
-        # DATAFRAME INTERNO
-        # ----------------------------------------------------
-
-        df_5_4_interno = pd.DataFrame(
-            resultados
+        df_ml["Acción"] = (
+            df_ml["Acción"]
+            .astype(str)
+            .str.strip()
         )
 
-        if df_5_4_interno.empty:
+        df_ml = df_ml[
+            df_ml["Acción"] != ""
+        ].copy()
 
-            st.error(
-                "🔴 5.4 ERROR: No quedaron acciones "
-                "después de la depuración."
+        # ----------------------------------------------------
+        # ESTADO DEL ENTRENAMIENTO
+        # Se conserva durante la sesión de Streamlit
+        # ----------------------------------------------------
+
+        if "entrenamiento_acciones" not in st.session_state:
+
+            st.session_state.entrenamiento_acciones = {}
+
+        # ----------------------------------------------------
+        # SELECCIONAR MUESTRA INICIAL
+        # MÁXIMO 50
+        # ----------------------------------------------------
+
+        etiquetados = (
+            st.session_state
+            .entrenamiento_acciones
+        )
+
+        pendientes = df_ml[
+            ~df_ml["Código"].astype(str).isin(
+                etiquetados.keys()
+            )
+        ].copy()
+
+        # ----------------------------------------------------
+        # SELECCIÓN REPRESENTATIVA
+        #
+        # Se distribuyen los ejemplos a lo largo del
+        # conjunto, en lugar de tomar simplemente los
+        # primeros 50.
+        # ----------------------------------------------------
+
+        limite_muestra = min(
+            50,
+            len(pendientes)
+        )
+
+        if limite_muestra > 0:
+
+            posiciones = np.linspace(
+                0,
+                len(pendientes) - 1,
+                limite_muestra,
+                dtype=int
+            )
+
+            muestra = (
+                pendientes
+                .iloc[posiciones]
+                .drop_duplicates(
+                    subset=["Código"]
+                )
+                .copy()
             )
 
         else:
 
-            # ------------------------------------------------
-            # ESTADÍSTICAS
-            # ------------------------------------------------
+            muestra = pd.DataFrame()
 
-            total = len(
-                df_5_4_interno
-            )
+        # ----------------------------------------------------
+        # INTERFAZ DE ETIQUETADO
+        # ----------------------------------------------------
 
-            modificadas = int(
-                df_5_4_interno[
-                    "_modificada"
-                ].sum()
-            )
+        st.write(
+            "El sistema selecciona hasta **50 ejemplos** "
+            "para construir el entrenamiento inicial."
+        )
 
-            revisiones = int(
-                df_5_4_interno[
-                    "_revision"
-                ].sum()
-            )
+        st.info(
+            "Clasifique solamente los ejemplos mostrados. "
+            "No necesita revisar las ~500 acciones."
+        )
 
-            sin_cambio = (
-                total
-                - modificadas
-            )
+        if not muestra.empty:
 
-            st.success(
-                f"🟢 5.4 TERMINADO: "
-                f"{total} acciones procesadas."
-            )
+            for _, fila in muestra.iterrows():
 
-            st.info(
-                f"Sin cambios: **{sin_cambio}** | "
-                f"Depuradas: **{modificadas}** | "
-                f"Marcadas para control: **{revisiones}**"
-            )
+                codigo = str(
+                    fila["Código"]
+                )
 
-            # ------------------------------------------------
-            # MATRIZ DE SALIDA: SOLO 3 COLUMNAS
-            # ------------------------------------------------
+                accion = str(
+                    fila["Acción"]
+                )
 
-            df_normalizacion_final = (
-                df_5_4_interno[
-                    [
-                        "Código",
-                        "Nombre del producto",
-                        "Acción"
-                    ]
-                ].copy()
-            )
+                producto = str(
+                    fila["Nombre del producto"]
+                )
 
-            st.write(
-                "### Matriz de normalización"
-            )
-
-            st.dataframe(
-                df_normalizacion_final,
-                use_container_width=True,
-                hide_index=True
-            )
-
-            # ------------------------------------------------
-            # MUESTRA AUTOMÁTICA DE CAMBIOS
-            # ------------------------------------------------
-
-            cambios = df_5_4_interno[
-                df_5_4_interno[
-                    "_modificada"
-                ]
-            ].copy()
-
-            if not cambios.empty:
+                st.markdown(
+                    f"**{codigo} — {producto}**"
+                )
 
                 st.write(
-                    "### Muestra automática de depuración"
+                    f"Acción: **{accion}**"
                 )
 
-                muestra = cambios[
+                opcion = st.radio(
+                    "Clasificación",
                     [
-                        "_accion_original",
-                        "Acción"
-                    ]
-                ].head(15).copy()
-
-                muestra.columns = [
-                    "Antes",
-                    "Después"
-                ]
-
-                st.dataframe(
-                    muestra,
-                    use_container_width=True,
-                    hide_index=True
+                        "Acción general",
+                        "No es acción"
+                    ],
+                    index=None,
+                    key=f"clasificacion_54_{codigo}"
                 )
 
-            # ------------------------------------------------
-            # MUESTRA DE CASOS QUE EL SISTEMA NO ELIMINÓ
-            # SINO QUE CONSERVÓ PARA CONTROL INTERNO.
-            # ------------------------------------------------
+                if opcion is not None:
 
-            casos_revision = df_5_4_interno[
-                df_5_4_interno[
-                    "_revision"
-                ]
-            ].copy()
+                    st.session_state.entrenamiento_acciones[
+                        codigo
+                    ] = (
+                        1
+                        if opcion == "Acción general"
+                        else 0
+                    )
 
-            if not casos_revision.empty:
+                st.divider()
 
-                st.warning(
-                    f"⚠️ Se conservaron "
-                    f"{len(casos_revision)} acciones "
-                    f"que presentan estructuras que "
-                    f"requieren control semántico."
-                )
+        # ----------------------------------------------------
+        # ESTADO ACTUAL
+        # ----------------------------------------------------
 
-                muestra_revision = (
-                    casos_revision[
-                        [
-                            "Nombre del producto",
-                            "_accion_original",
-                            "Acción",
-                            "_motivo"
-                        ]
-                    ]
-                    .head(15)
-                    .copy()
-                )
+        total_etiquetados = len(
+            st.session_state.entrenamiento_acciones
+        )
 
-                muestra_revision.columns = [
-                    "Producto",
-                    "Original",
-                    "Resultado",
-                    "Motivo"
-                ]
+        positivos = sum(
+            1
+            for valor
+            in st.session_state.entrenamiento_acciones.values()
+            if valor == 1
+        )
 
-                st.dataframe(
-                    muestra_revision,
-                    use_container_width=True,
-                    hide_index=True
-                )
+        negativos = (
+            total_etiquetados
+            - positivos
+        )
 
-            # ------------------------------------------------
-            # VALIDACIONES
-            # ------------------------------------------------
+        st.write(
+            f"**Ejemplos clasificados:** "
+            f"{total_etiquetados}/50"
+        )
 
-            columnas_finales = list(
-                df_normalizacion_final.columns
+        st.write(
+            f"Acción general: **{positivos}** | "
+            f"No es acción: **{negativos}**"
+        )
+
+        # ----------------------------------------------------
+        # ENTRENAR CUANDO HAYA SUFICIENTES EJEMPLOS
+        # ----------------------------------------------------
+
+        if total_etiquetados >= 20:
+
+            codigos_entrenamiento = list(
+                st.session_state
+                .entrenamiento_acciones
+                .keys()
             )
 
-            if columnas_finales == [
-                "Código",
-                "Nombre del producto",
-                "Acción"
-            ]:
+            df_entrenamiento = df_ml[
+                df_ml["Código"].astype(str).isin(
+                    codigos_entrenamiento
+                )
+            ].copy()
 
-                st.success(
-                    "✅ Estructura final correcta: "
-                    "Código | Nombre del producto | Acción"
+            df_entrenamiento["Etiqueta"] = (
+                df_entrenamiento["Código"]
+                .astype(str)
+                .map(
+                    st.session_state
+                    .entrenamiento_acciones
+                )
+            )
+
+            clases = (
+                df_entrenamiento["Etiqueta"]
+                .nunique()
+            )
+
+            if clases < 2:
+
+                st.warning(
+                    "⚠️ El entrenamiento necesita ejemplos "
+                    "de las dos clases: Acción general y "
+                    "No es acción."
                 )
 
             else:
 
-                st.error(
-                    "🔴 ERROR: La matriz final no tiene "
-                    "las tres columnas requeridas."
+                # --------------------------------------------
+                # MODELO
+                # --------------------------------------------
+
+                modelo_acciones = Pipeline(
+                    [
+                        (
+                            "vectorizador",
+                            TfidfVectorizer(
+                                lowercase=True,
+                                strip_accents="unicode",
+                                ngram_range=(1, 2),
+                                min_df=1,
+                                max_features=5000
+                            )
+                        ),
+                        (
+                            "clasificador",
+                            LogisticRegression(
+                                max_iter=2000,
+                                class_weight="balanced"
+                            )
+                        )
+                    ]
                 )
 
-            st.success(
-                "✅ 5.4 procesó automáticamente todas las "
-                "acciones. Los casos dudosos se conservaron "
-                "en lugar de eliminarlos."
+                modelo_acciones.fit(
+                    df_entrenamiento["Acción"],
+                    df_entrenamiento["Etiqueta"]
+                )
+
+                # --------------------------------------------
+                # PREDICCIÓN SOBRE TODAS LAS ACCIONES
+                # --------------------------------------------
+
+                df_resultado_ml = df_ml.copy()
+
+                probabilidades = (
+                    modelo_acciones.predict_proba(
+                        df_resultado_ml["Acción"]
+                    )
+                )
+
+                clases_modelo = (
+                    modelo_acciones
+                    .named_steps[
+                        "clasificador"
+                    ]
+                    .classes_
+                )
+
+                indice_positivo = list(
+                    clases_modelo
+                ).index(1)
+
+                df_resultado_ml[
+                    "Confianza acción general"
+                ] = (
+                    probabilidades[
+                        :,
+                        indice_positivo
+                    ]
+                )
+
+                df_resultado_ml[
+                    "Clasificación IA"
+                ] = np.where(
+                    df_resultado_ml[
+                        "Confianza acción general"
+                    ] >= 0.70,
+                    "Acción general",
+                    "Revisar"
+                )
+
+                # --------------------------------------------
+                # GUARDAR RESULTADO EN SESIÓN
+                # --------------------------------------------
+
+                st.session_state[
+                    "df_resultado_ml"
+                ] = df_resultado_ml
+
+                # --------------------------------------------
+                # ESTADÍSTICAS
+                # --------------------------------------------
+
+                alta_confianza = int(
+                    (
+                        df_resultado_ml[
+                            "Clasificación IA"
+                        ]
+                        == "Acción general"
+                    ).sum()
+                )
+
+                revisar = int(
+                    (
+                        df_resultado_ml[
+                            "Clasificación IA"
+                        ]
+                        == "Revisar"
+                    ).sum()
+                )
+
+                st.success(
+                    "🟢 Modelo entrenado y aplicado."
+                )
+
+                st.info(
+                    f"Acciones procesadas: **{len(df_resultado_ml)}** | "
+                    f"Alta confianza: **{alta_confianza}** | "
+                    f"Para revisar: **{revisar}**"
+                )
+
+                # --------------------------------------------
+                # MOSTRAR SOLO CASOS DE REVISIÓN
+                # --------------------------------------------
+
+                df_revision = (
+                    df_resultado_ml[
+                        df_resultado_ml[
+                            "Clasificación IA"
+                        ]
+                        == "Revisar"
+                    ]
+                    .sort_values(
+                        "Confianza acción general"
+                    )
+                    .head(30)
+                    .copy()
+                )
+
+                if not df_revision.empty:
+
+                    st.warning(
+                        f"⚠️ Se muestran los "
+                        f"{len(df_revision)} casos "
+                        "de menor confianza."
+                    )
+
+                    st.dataframe(
+                        df_revision[
+                            [
+                                "Código",
+                                "Nombre del producto",
+                                "Acción",
+                                "Confianza acción general"
+                            ]
+                        ],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                # --------------------------------------------
+                # MATRIZ FINAL PROVISIONAL
+                # SOLO LAS 3 COLUMNAS REQUERIDAS
+                # --------------------------------------------
+
+                st.write(
+                    "### Resultado del clasificador"
+                )
+
+                st.dataframe(
+                    df_resultado_ml[
+                        [
+                            "Código",
+                            "Nombre del producto",
+                            "Acción"
+                        ]
+                    ],
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+        else:
+
+            faltan = (
+                20 - total_etiquetados
+            )
+
+            st.warning(
+                f"⚠️ Faltan **{faltan}** ejemplos "
+                "clasificados para entrenar el primer modelo."
             )
 
 except Exception as e:
