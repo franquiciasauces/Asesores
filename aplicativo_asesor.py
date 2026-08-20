@@ -6459,7 +6459,130 @@ if (
             "7.5.10 ✓ Preguntas listas para guardar "
             "en el Banco General."
         )
+    # ====================================================
+    # 7.5.11 GUARDAR PREGUNTAS EN EL BANCO GENERAL
+    # ====================================================
 
+    if (
+        generar_preguntas_75
+        and preguntas_generadas_75
+    ):
+
+        try:
+
+            banco_guardado_75 = pd.read_excel(
+                RUTA_BANCO_GENERAL,
+                dtype=str
+            ).fillna("")
+
+            columnas_banco_75 = [
+                "Pregunta_ID",
+                "Modulo",
+                "Tema",
+                "Nivel",
+                "Tipo_Relacion",
+                "Pregunta",
+                "Respuesta_1",
+                "Respuesta_2",
+                "Respuesta_3",
+                "Respuesta_4",
+                "Respuesta_Correcta",
+                "Estado",
+                "Observacion_Administrador",
+                "Fecha_Generacion",
+                "Fuente_ID"
+            ]
+
+            for columna_75 in columnas_banco_75:
+
+                if columna_75 not in banco_guardado_75.columns:
+
+                    banco_guardado_75[
+                        columna_75
+                    ] = ""
+
+            banco_guardado_75 = banco_guardado_75[
+                columnas_banco_75
+            ]
+
+            nuevas_preguntas_75 = pd.DataFrame(
+                preguntas_generadas_75
+            )
+
+            numeros_75 = []
+
+            for valor_id_75 in (
+                banco_guardado_75["Pregunta_ID"]
+            ):
+
+                texto_id_75 = str(
+                    valor_id_75
+                ).strip()
+
+                if texto_id_75.startswith(
+                    "PROD_"
+                ):
+
+                    try:
+
+                        numeros_75.append(
+                            int(
+                                texto_id_75[5:]
+                            )
+                        )
+
+                    except ValueError:
+
+                        pass
+
+            siguiente_id_75 = (
+                max(numeros_75) + 1
+                if numeros_75
+                else 1
+            )
+
+            for indice_75 in (
+                nuevas_preguntas_75.index
+            ):
+
+                nuevas_preguntas_75.at[
+                    indice_75,
+                    "Pregunta_ID"
+                ] = (
+                    f"PROD_"
+                    f"{siguiente_id_75:05d}"
+                )
+
+                siguiente_id_75 += 1
+
+            banco_guardado_75 = pd.concat(
+                [
+                    banco_guardado_75,
+                    nuevas_preguntas_75
+                ],
+                ignore_index=True
+            )
+
+            banco_guardado_75.to_excel(
+                RUTA_BANCO_GENERAL,
+                index=False
+            )
+
+            st.success(
+                "7.5.11 ✓ Preguntas guardadas "
+                "en el Banco General."
+            )
+
+        except Exception as error_guardado_75:
+
+            st.error(
+                "7.5.11 ✗ No fue posible guardar "
+                "las preguntas."
+            )
+
+            st.code(
+                str(error_guardado_75)
+            )
 
 
 
