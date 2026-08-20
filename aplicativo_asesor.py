@@ -5571,224 +5571,9 @@ if (
         "7.5.2 ✓ Funciones de limpieza preparadas."
     )  
 
-     # ====================================================
-    # 7.5.3 NORMALIZACIÓN Y ABSTRACCIÓN ÚNICA
     # ====================================================
-
-    def normalizar_accion_75(
-        accion_original_75,
-        componentes_75=None
-    ):
-
-        texto_75 = limpiar_texto_75(
-            accion_original_75
-        )
-
-        if not texto_75:
-            return ""
-
-        # ------------------------------------------------
-        # UNIFICAR ESPACIOS Y SIGNOS
-        # ------------------------------------------------
-
-        texto_75 = re.sub(
-            r"\s+",
-            " ",
-            texto_75
-        ).strip()
-
-        # ------------------------------------------------
-        # ELIMINAR FRASES COMERCIALES / DE VENTA
-        # ------------------------------------------------
-
-        frases_venta_75 = [
-            r"\bideal para\b",
-            r"\brecomendado para\b",
-            r"\brecomendada para\b",
-            r"\bperfecto para\b",
-            r"\bperfecta para\b",
-            r"\bexcelente para\b",
-            r"\bayuda a\b",
-            r"\bayuda al\b",
-            r"\bayuda con\b",
-            r"\bcontribuye a\b",
-            r"\bpuede ayudar a\b",
-            r"\bpuede contribuir a\b",
-            r"\bapoya\b",
-            r"\baporta\b",
-            r"\bfavorece\b",
-            r"\bfavorecer\b",
-            r"\bpromueve\b",
-            r"\bpromover\b",
-            r"\bfortalece\b",
-            r"\bfortalecer\b",
-            r"\bbeneficia\b",
-            r"\bbeneficiar\b",
-            r"\bmantiene\b",
-            r"\bmantener\b",
-            r"\bpermite\b",
-            r"\bbrinda\b",
-            r"\bproporciona\b",
-            r"\bofrece\b",
-            r"\bpara ayudar a\b",
-            r"\bpara contribuir a\b"
-        ]
-
-        for patron_75 in frases_venta_75:
-
-            texto_75 = re.sub(
-                patron_75,
-                "",
-                texto_75,
-                flags=re.IGNORECASE
-            )
-
-        # ------------------------------------------------
-        # ELIMINAR REFERENCIAS EXPLÍCITAS A COMPONENTES
-        # ------------------------------------------------
-
-        if componentes_75:
-
-            for componente_75 in componentes_75:
-
-                componente_75 = (
-                    limpiar_texto_75(
-                        componente_75
-                    )
-                )
-
-                if not componente_75:
-                    continue
-
-                texto_75 = re.sub(
-                    re.escape(
-                        componente_75
-                    ),
-                    "",
-                    texto_75,
-                    flags=re.IGNORECASE
-                )
-
-        # ------------------------------------------------
-        # LIMPIEZA DE CONECTORES COMERCIALES
-        # ------------------------------------------------
-
-        texto_75 = re.sub(
-            r"\bdel producto\b",
-            "",
-            texto_75,
-            flags=re.IGNORECASE
-        )
-
-        texto_75 = re.sub(
-            r"\bdel suplemento\b",
-            "",
-            texto_75,
-            flags=re.IGNORECASE
-        )
-
-        texto_75 = re.sub(
-            r"\bmediante\b.*$",
-            "",
-            texto_75,
-            flags=re.IGNORECASE
-        )
-
-        texto_75 = re.sub(
-            r"\bgracias a\b.*$",
-            "",
-            texto_75,
-            flags=re.IGNORECASE
-        )
-
-        texto_75 = re.sub(
-            r"\s+",
-            " ",
-            texto_75
-        ).strip(" ,.;:-")
-
-        if not texto_75:
-            return ""
-
-        # ------------------------------------------------
-        # CONVERTIR INICIO VERBAL A FUNCIÓN GENERAL
-        # ------------------------------------------------
-
-        equivalencias_75 = {
-
-            "favorecer": "favorecer",
-            "favorece": "favorecer",
-
-            "ayudar": "ayudar",
-            "ayuda": "ayudar",
-
-            "contribuir": "contribuir",
-            "contribuye": "contribuir",
-
-            "apoyar": "apoyar",
-            "apoya": "apoyar",
-
-            "promover": "promover",
-            "promueve": "promover",
-
-            "fortalecer": "fortalecer",
-            "fortalece": "fortalecer",
-
-            "mantener": "mantener",
-            "mantiene": "mantener",
-
-            "mejorar": "mejorar",
-            "mejora": "mejorar",
-
-            "regular": "regular",
-            "regula": "regular",
-
-            "proteger": "proteger",
-            "protege": "proteger",
-
-            "estimular": "estimular",
-            "estimula": "estimular",
-
-            "aportar": "aportar",
-            "aporta": "aportar"
-        }
-
-        palabras_75 = texto_75.split()
-
-        if palabras_75:
-
-            primera_75 = (
-                palabras_75[0]
-                .lower()
-            )
-
-            if primera_75 in equivalencias_75:
-
-                palabras_75[0] = (
-                    equivalencias_75[
-                        primera_75
-                    ]
-                )
-
-                texto_75 = " ".join(
-                    palabras_75
-                )
-
-        # ------------------------------------------------
-        # LIMPIEZA FINAL
-        # ------------------------------------------------
-
-        texto_75 = re.sub(
-            r"\s+",
-            " ",
-            texto_75
-        ).strip(" ,.;:-")
-
-        return texto_75
-
-
-    # ====================================================
-    # CREAR DATAFRAME NORMALIZADO ÚNICO
+    # 7.5.3 DATAFRAME NUEVO — NORMALIZACIÓN Y ABSTRACCIÓN
+    # NO MODIFICA LA MATRIZ ORIGINAL
     # ====================================================
 
     registros_normalizados_75 = []
@@ -5804,9 +5589,7 @@ if (
 
         acciones_originales_75 = (
             separar_lista_75(
-                fila_75[
-                    "Acciones generales"
-                ]
+                fila_75["Acciones generales"]
             )
         )
 
@@ -5814,53 +5597,87 @@ if (
 
         if "Componentes" in fuente_75.columns:
 
-            componentes_75 = (
-                separar_lista_75(
-                    fila_75[
-                        "Componentes"
-                    ]
-                )
+            componentes_75 = separar_lista_75(
+                fila_75["Componentes"]
             )
 
-        for accion_original_75 in (
-            acciones_originales_75
-        ):
+        for accion_original_75 in acciones_originales_75:
+
+            accion_original_75 = limpiar_texto_75(
+                accion_original_75
+            )
+
+            if not accion_original_75:
+                continue
+
+            # --------------------------------------------
+            # LA ABSTRACCIÓN SE HACE SOBRE UNA COPIA
+            # --------------------------------------------
 
             accion_abstraida_75 = (
-                normalizar_accion_75(
+                abstraer_accion_75(
                     accion_original_75,
                     componentes_75
                 )
             )
 
-            if not accion_abstraida_75:
-                continue
+            if isinstance(
+                accion_abstraida_75,
+                str
+            ):
 
-            firma_75 = (
-                firma_texto_75(
-                    producto_75
-                )
-                + "||"
-                + firma_texto_75(
+                acciones_resultado_75 = [
+                    accion_abstraida_75
+                ]
+
+            else:
+
+                acciones_resultado_75 = (
                     accion_abstraida_75
                 )
-            )
 
-            registros_normalizados_75.append({
+            for accion_general_75 in (
+                acciones_resultado_75
+            ):
 
-                "Producto":
-                    producto_75,
+                accion_general_75 = (
+                    limpiar_texto_75(
+                        accion_general_75
+                    )
+                )
 
-                "Accion_Original":
-                    accion_original_75,
+                if not accion_general_75:
+                    continue
 
-                "Accion_General":
-                    accion_abstraida_75,
+                firma_75 = (
+                    firma_texto_75(
+                        producto_75
+                    )
+                    + "||"
+                    + firma_texto_75(
+                        accion_general_75
+                    )
+                )
 
-                "Firma":
-                    firma_75
-            })
+                registros_normalizados_75.append({
 
+                    "Producto":
+                        producto_75,
+
+                    "Accion_Original":
+                        accion_original_75,
+
+                    "Accion_General":
+                        accion_general_75,
+
+                    "Firma":
+                        firma_75
+                })
+
+
+    # ====================================================
+    # DATAFRAME NUEVO
+    # ====================================================
 
     dataframe_normalizado_75 = pd.DataFrame(
         registros_normalizados_75,
@@ -5874,7 +5691,7 @@ if (
 
 
     # ====================================================
-    # ELIMINAR RELACIONES DUPLICADAS
+    # ELIMINAR DUPLICADOS SOLO DEL DATAFRAME NUEVO
     # ====================================================
 
     if not dataframe_normalizado_75.empty:
@@ -5891,11 +5708,40 @@ if (
 
 
     st.success(
-        "7.5.3 ✓ DataFrame normalizado y abstraído "
-        "creado correctamente. "
+        "7.5.3 ✓ DataFrame nuevo de "
+        "normalización y abstracción creado. "
         f"Relaciones: "
         f"{len(dataframe_normalizado_75)}"
     )
+
+
+    # ====================================================
+    # MUESTRA PARA VERIFICAR LA ABSTRACCIÓN
+    # ====================================================
+
+    if not dataframe_normalizado_75.empty:
+
+        st.subheader(
+            "Ejemplo de normalización y abstracción"
+        )
+
+        st.dataframe(
+            dataframe_normalizado_75[
+                [
+                    "Producto",
+                    "Accion_Original",
+                    "Accion_General"
+                ]
+            ].head(10),
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.info(
+            "La matriz original permanece intacta. "
+            "La normalización y abstracción se realizan "
+            "exclusivamente en el DataFrame nuevo."
+        )
 
 
     # ====================================================
