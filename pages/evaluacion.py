@@ -227,110 +227,356 @@ st.dataframe(
     ],
     use_container_width=True
 )
-
+```python
 # ============================================================
-# 5.8 — LIMPIEZA DE ACCIONES GENERALES
+# 5.8 — NORMALIZACIÓN UNIVERSAL DE ACCIONES GENERALES
 # ============================================================
 
 import re
+import io
 
+
+# ============================================================
+# ARCHIVO PERMANENTE
+# ============================================================
+
+ARCHIVO_ACCIONES_GENERALES = (
+    BASE_DIR / "ACCIONES_GENERALES.xlsx"
+)
+
+
+# ============================================================
+# 5.8.1 — LIMPIEZA BÁSICA
+# ============================================================
 
 def limpiar_texto(valor):
 
     if pd.isna(valor):
         return ""
 
-    return str(valor).strip()
+    texto = str(valor)
+
+    texto = texto.replace("\r\n", "\n")
+    texto = texto.replace("\r", "\n")
+
+    return texto.strip()
 
 
-def limpiar_acciones_generales(valor):
+def normalizar_espacios(texto):
 
-    texto = limpiar_texto(valor)
+    texto = re.sub(
+        r"\s+",
+        " ",
+        texto
+    )
+
+    return texto.strip()
+
+
+# ============================================================
+# 5.8.2 — SECCIONES QUE NO PERTENECEN A ACCIONES
+# ============================================================
+
+MARCADORES_NO_ACCION = [
+    r"MODO\s+DE\s+ACCI[ÓO]N\s*:?",
+    r"COMBINACIONES?\s*:?",
+    r"COMBINAR\s+CON\s*:?",
+    r"FRASE\s+DE\s+VENTA\s*:?",
+    r"RECOMENDACIONES?\s*:?",
+    r"RECOMENDACI[ÓO]N\s+DE\s+USO\s*:?",
+    r"PRECAUCIONES?\s*:?",
+    r"CONTRAINDICACIONES?\s*:?",
+    r"ADVERTENCIAS?\s*:?",
+    r"COMPLEMENTAR\s+CON\s*:?",
+    r"COMPLEMENTOS?\s*:?"
+]
+
+
+# ============================================================
+# 5.8.3 — CORTAR SECCIONES POSTERIORES
+# ============================================================
+
+def cortar_secciones_no_accion(texto):
+
+    posiciones = []
+
+    for patron in MARCADORES_NO_ACCION:
+
+        coincidencias = re.finditer(
+            patron,
+            texto,
+            flags=re.IGNORECASE
+        )
+
+        for coincidencia in coincidencias:
+
+            posiciones.append(
+                coincidencia.start()
+            )
+
+    if posiciones:
+
+        texto = texto[
+            :min(posiciones)
+        ]
+
+    return texto.strip()
+
+
+# ============================================================
+# 5.8.4 — SEPARAR ELEMENTOS
+# ============================================================
+
+def separar_elementos(texto):
+
+    texto = limpiar_texto(
+        texto
+    )
 
     if not texto:
         return []
 
-    # Normalizar saltos de línea
-    texto = texto.replace("\r\n", "\n")
-    texto = texto.replace("\r", "\n")
-
-    # --------------------------------------------------------
-    # ELIMINAR SECCIONES QUE NO SON ACCIONES
-    # --------------------------------------------------------
-
-    # MODO DE ACCIÓN no es una acción
-    texto = re.sub(
-        r"(?i)\bMODO\s+DE\s+ACCI[ÓO]N\s*:?",
-        "",
+    # Separadores estructurales
+    partes = re.split(
+        r"\s*;\s*|\n+|[•▪●]",
         texto
     )
 
-    # COMBINAR CON y todo lo que sigue no pertenece
-    # al DataFrame de acciones generales
-    texto = re.split(
-        r"(?i)\bCOMBINAR\s+CON\s*:?",
-        texto,
-        maxsplit=1
-    )[0]
+    resultado = []
 
-    # FRASE DE VENTA y todo lo que sigue no pertenece
-    # al DataFrame de acciones generales
-    texto = re.split(
-        r"(?i)\bFRASE\s+DE\s+VENTA\s*:?",
-        texto,
-        maxsplit=1
-    )[0]
+    for parte in partes:
+
+        parte = normalizar_espacios(
+            parte
+        )
+
+        if parte:
+            resultado.append(
+                parte
+            )
+
+    return resultado
+
+
+# ============================================================
+# 5.8.5 — IDENTIFICAR COMPONENTES
+# ============================================================
+
+def obtener_componentes(valor):
+
+    return separar_elementos(
+        valor
+    )
+
+
+# ============================================================
+# 5.8.6 — NORMALIZAR NOMBRE DE COMPONENTE
+# ============================================================
+
+def normalizar_componente(
+    componente
+):
+
+    componente = normalizar_espacios(
+        componente
+    ).lower()
+
+    # Quitar información entre paréntesis
+    componente = re.sub(
+        r"\([^)]*\)",
+        "",
+        componente
+    )
+
+    return componente.strip()
+
+
+# ============================================================
+# 5.8.7 — DETECTAR SI EL TEXTO ES CLARAMENTE
+# UNA REFERENCIA A COMPONENTE
+# ============================================================
+
+def contiene_referencia_explicita_componente(
+    texto,
+    componentes
+):
+
+    texto_lower = normalizar_espacios(
+        texto
+    ).lower()
+
+    if not texto_lower:
+        return False
+
+    for componente in componentes:
+
+        componente_norm = normalizar_componente(
+            componente
+        )
+
+        if len(componente_norm) < 4:
+            continue
+
+        # Coincidencia de la expresión completa
+        if componente_norm in texto_lower:
+            return True
+
+    return False
+
+
+# ============================================================
+# 5.8.8 — DETECTAR FRASES QUE SON RECOMENDACIONES,
+# COMPLEMENTOS, PRECAUCIONES, ETC.
+# ============================================================
+
+def es_contenido_no_general(
+    texto
+):
+
+    texto = normalizar_espacios(
+        texto
+    )
+
+    if not texto:
+        return True
+
+    patrones = [
+
+        r"(?i)^recomendad[oa]?\b",
+
+        r"(?i)^recomendaci[óo]n\b",
+
+        r"(?i)^se\s+recomienda\b",
+
+        r"(?i)^complementar\s+con\b",
+
+        r"(?i)^complemento\b",
+
+        r"(?i)^combinar\s+con\b",
+
+        r"(?i)^combinaci[óo]n\b",
+
+        r"(?i)^precauci[óo]n\b",
+
+        r"(?i)^contraindicaci[óo]n\b",
+
+        r"(?i)^advertencia\b",
+
+        r"(?i)^frase\s+de\s+venta\b",
+
+        r"(?i)^modo\s+de\s+acci[óo]n\b"
+    ]
+
+    for patron in patrones:
+
+        if re.search(
+            patron,
+            texto
+        ):
+            return True
+
+    return False
+
+
+# ============================================================
+# 5.8.9 — OBTENER ACCIONES GENERALES
+# ============================================================
+
+def obtener_acciones_generales(
+    valor_acciones,
+    valor_componentes
+):
+
+    texto = limpiar_texto(
+        valor_acciones
+    )
+
+    if not texto:
+        return []
 
     # --------------------------------------------------------
-    # SEPARAR REGISTROS
+    # Cortar únicamente cuando aparece un encabezado real
+    # de una sección posterior.
     # --------------------------------------------------------
 
-    partes = re.split(
-        r"\n+",
+    texto = cortar_secciones_no_accion(
+        texto
+    )
+
+    if not texto:
+        return []
+
+    componentes = obtener_componentes(
+        valor_componentes
+    )
+
+    elementos = separar_elementos(
         texto
     )
 
     acciones = []
 
-    for parte in partes:
+    for elemento in elementos:
 
-        parte = parte.strip()
+        elemento = normalizar_espacios(
+            elemento
+        )
 
-        if not parte:
+        if not elemento:
+            continue
+
+        # Encabezados / contenido no pertinente
+        if es_contenido_no_general(
+            elemento
+        ):
             continue
 
         # ----------------------------------------------------
-        # DESCARTAR ENCABEZADOS AISLADOS
+        # Si la propia frase identifica explícitamente un
+        # componente, no se clasifica como acción general.
         # ----------------------------------------------------
 
-        if re.fullmatch(
-            r"(?i)MODO\s+DE\s+ACCI[ÓO]N\s*:?",
-            parte
+        if contiene_referencia_explicita_componente(
+            elemento,
+            componentes
         ):
             continue
 
-        if re.fullmatch(
-            r"(?i)COMBINAR\s+CON\s*:?",
-            parte
-        ):
+        acciones.append(
+            elemento
+        )
+
+    # --------------------------------------------------------
+    # DEDUPLICAR SIN ALTERAR EL TEXTO
+    # --------------------------------------------------------
+
+    resultado = []
+
+    vistos = set()
+
+    for accion in acciones:
+
+        clave = accion.casefold()
+
+        if clave in vistos:
             continue
 
-        if re.fullmatch(
-            r"(?i)FRASE\s+DE\s+VENTA\s*:?",
-            parte
-        ):
-            continue
+        vistos.add(
+            clave
+        )
 
-        acciones.append(parte)
+        resultado.append(
+            accion
+        )
 
-    return acciones
+    return resultado
 
 
 # ============================================================
-# 5.9 — CONSTRUIR DATAFRAME DE ACCIONES GENERALES
+# 5.8.10 — GENERAR REGISTROS
 # ============================================================
 
-registros_acciones_generales = []
+registros_nuevos = []
 
 
 for _, fila in df_trabajo.iterrows():
@@ -342,39 +588,40 @@ for _, fila in df_trabajo.iterrows():
     if not producto:
         continue
 
-    acciones = limpiar_acciones_generales(
-        fila["Acciones generales"]
+    acciones = obtener_acciones_generales(
+        fila["Acciones generales"],
+        fila["Componentes"]
     )
 
     for accion in acciones:
 
-        registros_acciones_generales.append(
+        registros_nuevos.append(
             {
                 "Producto": producto,
-                "Acción general": accion
+                "Accion_general": accion
             }
         )
 
 
-df_acciones_generales = pd.DataFrame(
-    registros_acciones_generales,
+df_nuevo = pd.DataFrame(
+    registros_nuevos,
     columns=[
         "Producto",
-        "Acción general"
+        "Accion_general"
     ]
 )
 
 
 # ============================================================
-# 5.10 — ELIMINAR DUPLICADOS EXACTOS
+# 5.8.11 — ELIMINAR DUPLICADOS
 # ============================================================
 
-df_acciones_generales = (
-    df_acciones_generales
+df_nuevo = (
+    df_nuevo
     .drop_duplicates(
         subset=[
             "Producto",
-            "Acción general"
+            "Accion_general"
         ]
     )
     .reset_index(drop=True)
@@ -382,7 +629,286 @@ df_acciones_generales = (
 
 
 # ============================================================
-# 5.11 — MOSTRAR DATAFRAME
+# 5.8.12 — LEER ARCHIVO PERMANENTE
+# ============================================================
+
+if ARCHIVO_ACCIONES_GENERALES.exists():
+
+    try:
+
+        df_anterior = pd.read_excel(
+            ARCHIVO_ACCIONES_GENERALES,
+            sheet_name="Acciones_Generales"
+        )
+
+    except Exception:
+
+        df_anterior = pd.DataFrame(
+            columns=[
+                "ID_Accion",
+                "Producto",
+                "Accion_general"
+            ]
+        )
+
+else:
+
+    df_anterior = pd.DataFrame(
+        columns=[
+            "ID_Accion",
+            "Producto",
+            "Accion_general"
+        ]
+    )
+
+
+# ============================================================
+# 5.8.13 — VALIDAR ESTRUCTURA PERMANENTE
+# ============================================================
+
+columnas_finales = [
+    "ID_Accion",
+    "Producto",
+    "Accion_general"
+]
+
+if not set(columnas_finales).issubset(
+    df_anterior.columns
+):
+
+    df_anterior = pd.DataFrame(
+        columns=columnas_finales
+    )
+else:
+
+    df_anterior = df_anterior[
+        columnas_finales
+    ].copy()
+
+
+# ============================================================
+# 5.8.14 — ÍNDICE DE REGISTROS EXISTENTES
+# ============================================================
+
+claves_existentes = {}
+
+ids_utilizados = set()
+
+
+for _, fila in df_anterior.iterrows():
+
+    identificador = limpiar_texto(
+        fila["ID_Accion"]
+    )
+
+    producto = limpiar_texto(
+        fila["Producto"]
+    )
+
+    accion = limpiar_texto(
+        fila["Accion_general"]
+    )
+
+    if identificador:
+
+        ids_utilizados.add(
+            identificador
+        )
+
+    if (
+        producto
+        and accion
+        and identificador
+    ):
+
+        claves_existentes[
+            (
+                producto.casefold(),
+                accion.casefold()
+            )
+        ] = identificador
+
+
+# ============================================================
+# 5.8.15 — SIGUIENTE ID ESTABLE
+# ============================================================
+
+def siguiente_id_accion():
+
+    numeros = []
+
+    for identificador in ids_utilizados:
+
+        resultado = re.fullmatch(
+            r"AG(\d+)",
+            identificador
+        )
+
+        if resultado:
+
+            numeros.append(
+                int(
+                    resultado.group(1)
+                )
+            )
+
+    siguiente = (
+        max(numeros) + 1
+        if numeros
+        else 1
+    )
+
+    nuevo_id = (
+        f"AG{siguiente:06d}"
+    )
+
+    ids_utilizados.add(
+        nuevo_id
+    )
+
+    return nuevo_id
+
+
+# ============================================================
+# 5.8.16 — CONSERVAR EXISTENTES Y AGREGAR NUEVOS
+# ============================================================
+
+registros_finales = []
+
+claves_finales = set()
+
+
+# Primero conservar el archivo permanente
+for _, fila in df_anterior.iterrows():
+
+    identificador = limpiar_texto(
+        fila["ID_Accion"]
+    )
+
+    producto = limpiar_texto(
+        fila["Producto"]
+    )
+
+    accion = limpiar_texto(
+        fila["Accion_general"]
+    )
+
+    if not (
+        identificador
+        and producto
+        and accion
+    ):
+        continue
+
+    clave = (
+        producto.casefold(),
+        accion.casefold()
+    )
+
+    if clave in claves_finales:
+        continue
+
+    registros_finales.append(
+        {
+            "ID_Accion": identificador,
+            "Producto": producto,
+            "Accion_general": accion
+        }
+    )
+
+    claves_finales.add(
+        clave
+    )
+
+
+# Después incorporar únicamente lo nuevo
+for _, fila in df_nuevo.iterrows():
+
+    producto = limpiar_texto(
+        fila["Producto"]
+    )
+
+    accion = limpiar_texto(
+        fila["Accion_general"]
+    )
+
+    if not (
+        producto
+        and accion
+    ):
+        continue
+
+    clave = (
+        producto.casefold(),
+        accion.casefold()
+    )
+
+    if clave in claves_finales:
+        continue
+
+    identificador = (
+        siguiente_id_accion()
+    )
+
+    registros_finales.append(
+        {
+            "ID_Accion": identificador,
+            "Producto": producto,
+            "Accion_general": accion
+        }
+    )
+
+    claves_finales.add(
+        clave
+    )
+
+
+# ============================================================
+# 5.8.17 — DATAFRAME FINAL
+# ============================================================
+
+df_acciones_generales = pd.DataFrame(
+    registros_finales,
+    columns=[
+        "ID_Accion",
+        "Producto",
+        "Accion_general"
+    ]
+)
+
+
+# ============================================================
+# 5.8.18 — GUARDAR ARCHIVO PERMANENTE
+# ============================================================
+
+try:
+
+    with pd.ExcelWriter(
+        ARCHIVO_ACCIONES_GENERALES,
+        engine="openpyxl"
+    ) as writer:
+
+        df_acciones_generales.to_excel(
+            writer,
+            sheet_name="Acciones_Generales",
+            index=False
+        )
+
+    st.success(
+        "✓ ACCIONES_GENERALES.xlsx "
+        "actualizado correctamente."
+    )
+
+except Exception as error:
+
+    st.error(
+        f"No fue posible guardar "
+        f"ACCIONES_GENERALES.xlsx: {error}"
+    )
+
+
+# ============================================================
+# 5.8.19 — MOSTRAR
 # ============================================================
 
 st.subheader(
@@ -400,21 +926,33 @@ st.dataframe(
 
 
 # ============================================================
-# 5.12 — DESCARGAR
+# 5.8.20 — DESCARGAR EXCEL
 # ============================================================
 
-csv_acciones_generales = (
-    df_acciones_generales
-    .to_csv(
-        index=False,
-        encoding="utf-8-sig"
+buffer_excel = io.BytesIO()
+
+with pd.ExcelWriter(
+    buffer_excel,
+    engine="openpyxl"
+) as writer:
+
+    df_acciones_generales.to_excel(
+        writer,
+        sheet_name="Acciones_Generales",
+        index=False
     )
-)
+
 
 st.download_button(
-    label="⬇️ Descargar Acciones Generales",
-    data=csv_acciones_generales,
-    file_name="ACCIONES_GENERALES.csv",
-    mime="text/csv",
+    label="⬇️ Descargar ACCIONES_GENERALES.xlsx",
+    data=buffer_excel.getvalue(),
+    file_name="ACCIONES_GENERALES.xlsx",
+    mime=(
+        "application/vnd.openxmlformats-officedocument."
+        "spreadsheetml.sheet"
+    ),
     key="descargar_acciones_generales"
 )
+```
+
+# ============================================================
