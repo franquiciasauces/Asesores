@@ -4803,19 +4803,28 @@ except Exception as e:
         f"🔴 5.9 ERROR: "
         f"{type(e).__name__}: {e}"
     )
+
 # ============================================================
-# 5.10 PERSISTENCIA DEL PRIMER DATAFRAME
+# 5.10 PERSISTENCIA Y SINCRONIZACIÓN DEL PRIMER DATAFRAME
 #
-# Conserva el DataFrame existente
-# Agrega únicamente registros nuevos
-# Mantiene los códigos AG existentes
-# Genera códigos nuevos sin duplicarlos
-# Guarda localmente
+# Toma:
+#   df_acciones_generales_59
+#
+# Conserva:
+#   - registros existentes
+#   - códigos AG existentes
+#   - aprendizaje realizado
+#
+# Agrega:
+#   - únicamente productos + acciones nuevas
+#
+# Sincroniza:
+#   GitHub -> franquiciasauces / Asesores
 #
 # NO modifica 5.9
 # ============================================================
 
-st.markdown("### 5.10 Persistencia de acciones generales")
+st.markdown("### 5.10 Persistencia y sincronización")
 
 try:
 
@@ -4825,21 +4834,39 @@ try:
     import pandas as pd
 
     # ========================================================
-    # CONFIGURACIÓN
+    # 1. CONFIGURACIÓN REAL DEL REPOSITORIO
     # ========================================================
 
-    ARCHIVO_ACCIONES_59 = (
-        BASE_DIR / "ACCIONES_GENERALES.xlsx"
-        if "BASE_DIR" in globals()
-        else Path("ACCIONES_GENERALES.xlsx")
-    )
+    GITHUB_USUARIO_510 = "franquiciasauces"
+    GITHUB_REPOSITORIO_510 = "Asesores"
+    GITHUB_RAMA_510 = "main"
 
-    NOMBRE_ARCHIVO_GITHUB_59 = (
+    GITHUB_ARCHIVO_510 = (
         "ACCIONES_GENERALES.xlsx"
     )
 
     # ========================================================
-    # 1. VALIDAR DATAFRAME GENERADO EN 5.9
+    # 2. RUTA LOCAL
+    # ========================================================
+
+    if "BASE_DIR" in globals():
+
+        ARCHIVO_ACCIONES_510 = (
+            BASE_DIR /
+            GITHUB_ARCHIVO_510
+        )
+
+    else:
+
+        from pathlib import Path
+
+        ARCHIVO_ACCIONES_510 = (
+            Path(__file__).resolve().parent.parent /
+            GITHUB_ARCHIVO_510
+        )
+
+    # ========================================================
+    # 3. RECUPERAR RESULTADO DE 5.9
     # ========================================================
 
     df_nuevo_510 = st.session_state.get(
@@ -4857,14 +4884,14 @@ try:
     ):
 
         st.error(
-            "🔴 5.10 ERROR: No existe el DataFrame "
-            "generado por 5.9."
+            "🔴 5.10 ERROR: No existe "
+            "df_acciones_generales_59 generado por 5.9."
         )
 
         st.stop()
 
     # ========================================================
-    # 2. VALIDAR COLUMNAS
+    # 4. COLUMNAS OBLIGATORIAS
     # ========================================================
 
     columnas_510 = [
@@ -4874,9 +4901,9 @@ try:
     ]
 
     faltantes_510 = [
-        c
-        for c in columnas_510
-        if c not in df_nuevo_510.columns
+        columna
+        for columna in columnas_510
+        if columna not in df_nuevo_510.columns
     ]
 
     if faltantes_510:
@@ -4893,13 +4920,14 @@ try:
     ].copy()
 
     # ========================================================
-    # 3. LIMPIEZA
+    # 5. LIMPIAR
     # ========================================================
 
     for columna in columnas_510:
 
         df_nuevo_510[columna] = (
             df_nuevo_510[columna]
+            .fillna("")
             .astype(str)
             .str.strip()
         )
@@ -4911,15 +4939,15 @@ try:
     ].copy()
 
     # ========================================================
-    # 4. CARGAR ARCHIVO EXISTENTE
+    # 6. CARGAR ARCHIVO LOCAL EXISTENTE
     # ========================================================
 
-    if ARCHIVO_ACCIONES_59.exists():
+    if ARCHIVO_ACCIONES_510.exists():
 
         try:
 
             df_existente_510 = pd.read_excel(
-                ARCHIVO_ACCIONES_59
+                ARCHIVO_ACCIONES_510
             )
 
         except Exception:
@@ -4935,7 +4963,7 @@ try:
         )
 
     # ========================================================
-    # 5. VALIDAR / NORMALIZAR ARCHIVO EXISTENTE
+    # 7. NORMALIZAR ARCHIVO EXISTENTE
     # ========================================================
 
     for columna in columnas_510:
@@ -4946,6 +4974,7 @@ try:
 
         df_existente_510[columna] = (
             df_existente_510[columna]
+            .fillna("")
             .astype(str)
             .str.strip()
         )
@@ -4955,26 +4984,24 @@ try:
     ].copy()
 
     # ========================================================
-    # 6. CLAVE ÚNICA
+    # 8. CLAVE ÚNICA
     #
-    # Un registro se considera igual cuando coinciden:
+    # Producto + Acción general
     #
-    # PRODUCTO + ACCIÓN GENERAL
-    #
-    # El código NO se utiliza para determinar duplicados.
+    # El código NO determina si es duplicado.
     # ========================================================
 
     def clave_510(fila):
 
-        return (
+        producto = (
             str(
                 fila["Nombre del producto"]
             )
             .strip()
             .upper()
-            +
-            "|||"
-            +
+        )
+
+        accion = (
             str(
                 fila["Acción general"]
             )
@@ -4982,41 +5009,51 @@ try:
             .upper()
         )
 
+        return (
+            producto
+            + "|||"
+            + accion
+        )
+
     if not df_existente_510.empty:
 
-        df_existente_510["_clave_510"] = (
-            df_existente_510.apply(
-                clave_510,
-                axis=1
-            )
+        df_existente_510[
+            "_CLAVE_510"
+        ] = df_existente_510.apply(
+            clave_510,
+            axis=1
         )
 
     else:
 
-        df_existente_510["_clave_510"] = ""
+        df_existente_510[
+            "_CLAVE_510"
+        ] = ""
 
-    df_nuevo_510["_clave_510"] = (
-        df_nuevo_510.apply(
-            clave_510,
-            axis=1
-        )
+    df_nuevo_510[
+        "_CLAVE_510"
+    ] = df_nuevo_510.apply(
+        clave_510,
+        axis=1
     )
 
     # ========================================================
-    # 7. IDENTIFICAR SOLO LOS NUEVOS
+    # 9. DETECTAR NUEVOS
     # ========================================================
 
     claves_existentes_510 = set(
         df_existente_510[
-            "_clave_510"
-        ].tolist()
+            "_CLAVE_510"
+        ]
+        .tolist()
     )
 
-    df_para_agregar_510 = (
+    df_nuevos_510 = (
         df_nuevo_510[
             ~df_nuevo_510[
-                "_clave_510"
-            ].isin(
+                "_CLAVE_510"
+            ]
+            .isin(
                 claves_existentes_510
             )
         ]
@@ -5024,66 +5061,65 @@ try:
     )
 
     # ========================================================
-    # 8. GENERAR CÓDIGOS NUEVOS
-    #
-    # NO SE RENUMERAN LOS EXISTENTES.
+    # 10. OBTENER ÚLTIMO CÓDIGO EXISTENTE
     # ========================================================
 
-    codigos_existentes_510 = (
+    numeros_510 = []
+
+    for codigo in (
         df_existente_510["Código"]
         .astype(str)
-        .str.upper()
         .tolist()
-    )
+    ):
 
-    numeros_existentes_510 = []
-
-    for codigo in codigos_existentes_510:
+        codigo = codigo.strip().upper()
 
         if codigo.startswith("AG"):
 
             try:
 
-                numero = int(
-                    codigo[2:]
-                )
-
-                numeros_existentes_510.append(
-                    numero
+                numeros_510.append(
+                    int(
+                        codigo[2:]
+                    )
                 )
 
             except Exception:
 
                 pass
 
-    siguiente_codigo_510 = (
+    siguiente_510 = (
         max(
-            numeros_existentes_510,
+            numeros_510,
             default=0
         )
         + 1
     )
 
+    # ========================================================
+    # 11. ASIGNAR CÓDIGOS SOLO A LOS NUEVOS
+    # ========================================================
+
     nuevos_codigos_510 = []
 
     for _ in range(
-        len(df_para_agregar_510)
+        len(df_nuevos_510)
     ):
 
         nuevos_codigos_510.append(
-            f"AG{siguiente_codigo_510:06d}"
+            f"AG{siguiente_510:06d}"
         )
 
-        siguiente_codigo_510 += 1
+        siguiente_510 += 1
 
-    if not df_para_agregar_510.empty:
+    if not df_nuevos_510.empty:
 
-        df_para_agregar_510[
+        df_nuevos_510[
             "Código"
         ] = nuevos_codigos_510
 
     # ========================================================
-    # 9. COMBINAR SIN BORRAR
+    # 12. UNIR SIN BORRAR
     # ========================================================
 
     df_final_510 = pd.concat(
@@ -5091,7 +5127,7 @@ try:
             df_existente_510[
                 columnas_510
             ],
-            df_para_agregar_510[
+            df_nuevos_510[
                 columnas_510
             ]
         ],
@@ -5099,24 +5135,28 @@ try:
     )
 
     # ========================================================
-    # 10. ELIMINAR DUPLICADOS
+    # 13. ELIMINAR DUPLICADOS
     # ========================================================
 
-    df_final_510["_clave_510"] = (
-        df_final_510.apply(
-            clave_510,
-            axis=1
-        )
+    df_final_510[
+        "_CLAVE_510"
+    ] = df_final_510.apply(
+        clave_510,
+        axis=1
     )
 
     df_final_510 = (
         df_final_510
         .drop_duplicates(
-            subset=["_clave_510"],
+            subset=[
+                "_CLAVE_510"
+            ],
             keep="first"
         )
         .drop(
-            columns=["_clave_510"]
+            columns=[
+                "_CLAVE_510"
+            ]
         )
         .reset_index(
             drop=True
@@ -5124,11 +5164,11 @@ try:
     )
 
     # ========================================================
-    # 11. GUARDAR LOCALMENTE
+    # 14. GUARDAR LOCALMENTE
     # ========================================================
 
     with pd.ExcelWriter(
-        ARCHIVO_ACCIONES_59,
+        ARCHIVO_ACCIONES_510,
         engine="openpyxl"
     ) as writer:
 
@@ -5139,7 +5179,7 @@ try:
         )
 
     # ========================================================
-    # 12. GUARDAR EN SESSION_STATE
+    # 15. GUARDAR EN SESSION STATE
     # ========================================================
 
     st.session_state[
@@ -5147,15 +5187,15 @@ try:
     ] = df_final_510.copy()
 
     # ========================================================
-    # 13. RESUMEN
+    # 16. RESUMEN
     # ========================================================
 
-    cantidad_anterior_510 = (
+    cantidad_existente_510 = (
         len(df_existente_510)
     )
 
     cantidad_nueva_510 = (
-        len(df_para_agregar_510)
+        len(df_nuevos_510)
     )
 
     cantidad_final_510 = (
@@ -5163,7 +5203,7 @@ try:
     )
 
     st.success(
-        "🟢 5.10 ARCHIVO ACTUALIZADO"
+        "🟢 5.10 PROCESO DE PERSISTENCIA TERMINADO"
     )
 
     col1, col2, col3 = st.columns(3)
@@ -5171,14 +5211,14 @@ try:
     with col1:
 
         st.metric(
-            "Registros existentes",
-            cantidad_anterior_510
+            "Existentes conservados",
+            cantidad_existente_510
         )
 
     with col2:
 
         st.metric(
-            "Registros nuevos",
+            "Nuevos agregados",
             cantidad_nueva_510
         )
 
@@ -5190,7 +5230,7 @@ try:
         )
 
     # ========================================================
-    # 14. MOSTRAR DATAFRAME PERSISTENTE
+    # 17. MOSTRAR DATAFRAME
     # ========================================================
 
     st.write(
@@ -5204,7 +5244,7 @@ try:
     )
 
     # ========================================================
-    # 15. DESCARGA LOCAL
+    # 18. PREPARAR EXCEL
     # ========================================================
 
     buffer_510 = io.BytesIO()
@@ -5222,140 +5262,203 @@ try:
 
     buffer_510.seek(0)
 
+    # ========================================================
+    # 19. DESCARGA
+    # ========================================================
+
     st.download_button(
-        label="⬇️ Descargar DataFrame persistente",
+        label="⬇️ Descargar ACCIONES_GENERALES.xlsx",
         data=buffer_510,
         file_name="ACCIONES_GENERALES.xlsx",
         mime=(
             "application/vnd.openxmlformats-"
             "officedocument.spreadsheetml.sheet"
         ),
-        key="descargar_acciones_persistentes_510"
+        key="descargar_acciones_510"
     )
 
     # ========================================================
-    # 16. SINCRONIZACIÓN GITHUB
+    # 20. OBTENER TOKEN DE GITHUB
     #
-    # Usa las variables existentes de la aplicación.
+    # NO se escribe el token en el código.
+    #
+    # Se intenta encontrar en:
+    #
+    # st.secrets["GITHUB_TOKEN"]
+    # st.secrets["github"]["token"]
+    #
+    # o variable de entorno.
+    # ========================================================
+
+    import os
+
+    github_token_510 = None
+
+    # --------------------------------------------------------
+    # Opción 1
+    # --------------------------------------------------------
+
+    try:
+
+        github_token_510 = st.secrets.get(
+            "GITHUB_TOKEN"
+        )
+
+    except Exception:
+
+        pass
+
+    # --------------------------------------------------------
+    # Opción 2
+    # --------------------------------------------------------
+
+    if not github_token_510:
+
+        try:
+
+            github_token_510 = (
+                st.secrets
+                .get(
+                    "github",
+                    {}
+                )
+                .get(
+                    "token"
+                )
+            )
+
+        except Exception:
+
+            pass
+
+    # --------------------------------------------------------
+    # Opción 3
+    # --------------------------------------------------------
+
+    if not github_token_510:
+
+        github_token_510 = os.getenv(
+            "GITHUB_TOKEN"
+        )
+
+    # ========================================================
+    # 21. BOTÓN DE SINCRONIZACIÓN
     # ========================================================
 
     st.markdown(
-        "### ☁️ Sincronización con GitHub"
+        "### ☁️ Guardar en GitHub"
     )
 
-    github_usuario_510 = globals().get(
-        "GITHUB_USUARIO",
-        ""
-    )
-
-    github_repositorio_510 = globals().get(
-        "GITHUB_REPOSITORIO",
-        ""
-    )
-
-    github_token_510 = globals().get(
-        "GITHUB_TOKEN",
-        ""
-    )
-
-    github_ruta_510 = (
-        "ACCIONES_GENERALES.xlsx"
-    )
-
-    if not github_usuario_510:
+    if not github_token_510:
 
         st.warning(
-            "⚠️ No se encontró GITHUB_USUARIO "
-            "en la configuración actual."
+            "⚠️ No se encontró el token de GitHub "
+            "en los secretos de la aplicación."
         )
 
-    elif not github_repositorio_510:
-
-        st.warning(
-            "⚠️ No se encontró GITHUB_REPOSITORIO "
-            "en la configuración actual."
-        )
-
-    elif not github_token_510:
-
-        st.warning(
-            "⚠️ No se encontró GITHUB_TOKEN "
-            "en la configuración actual."
+        st.info(
+            "El DataFrame ya quedó guardado localmente "
+            "y puede descargarse. La sincronización "
+            "con GitHub queda pendiente de disponer "
+            "del token configurado."
         )
 
     else:
 
         if st.button(
             "☁️ GUARDAR Y SINCRONIZAR CON GITHUB",
-            key="sincronizar_acciones_510"
+            key="guardar_github_510"
         ):
 
             try:
 
                 # --------------------------------------------
-                # CONVERTIR EXCEL A BYTES
+                # CONVERTIR EXCEL A BASE64
                 # --------------------------------------------
 
-                contenido_excel_510 = (
+                contenido_510 = (
                     buffer_510.getvalue()
                 )
 
                 contenido_base64_510 = (
                     base64.b64encode(
-                        contenido_excel_510
+                        contenido_510
                     )
-                    .decode("utf-8")
+                    .decode(
+                        "utf-8"
+                    )
                 )
 
                 # --------------------------------------------
-                # CONSULTAR ARCHIVO EXISTENTE
+                # URL REAL DEL REPOSITORIO
                 # --------------------------------------------
 
                 url_github_510 = (
                     "https://api.github.com/repos/"
-                    f"{github_usuario_510}/"
-                    f"{github_repositorio_510}/contents/"
-                    f"{github_ruta_510}"
+                    f"{GITHUB_USUARIO_510}/"
+                    f"{GITHUB_REPOSITORIO_510}/contents/"
+                    f"{GITHUB_ARCHIVO_510}"
                 )
 
-                headers_github_510 = {
+                headers_510 = {
                     "Authorization":
                         f"Bearer {github_token_510}",
                     "Accept":
-                        "application/vnd.github+json"
+                        "application/vnd.github+json",
+                    "X-GitHub-Api-Version":
+                        "2022-11-28"
                 }
 
-                respuesta_get_510 = requests.get(
-                    url_github_510,
-                    headers=headers_github_510,
-                    timeout=30
+                # --------------------------------------------
+                # CONSULTAR ARCHIVO
+                # --------------------------------------------
+
+                respuesta_get_510 = (
+                    requests.get(
+                        url_github_510,
+                        headers=headers_510,
+                        params={
+                            "ref":
+                                GITHUB_RAMA_510
+                        },
+                        timeout=30
+                    )
                 )
 
                 sha_510 = None
 
-                if respuesta_get_510.status_code == 200:
+                if (
+                    respuesta_get_510.status_code
+                    == 200
+                ):
 
-                    datos_existentes_510 = (
+                    datos_github_510 = (
                         respuesta_get_510.json()
                     )
 
                     sha_510 = (
-                        datos_existentes_510
+                        datos_github_510
                         .get("sha")
                     )
 
-                elif respuesta_get_510.status_code != 404:
+                elif (
+                    respuesta_get_510.status_code
+                    != 404
+                ):
 
                     st.error(
-                        "🔴 GitHub respondió "
-                        f"{respuesta_get_510.status_code}: "
-                        f"{respuesta_get_510.text}"
+                        "🔴 GitHub devolvió "
+                        f"{respuesta_get_510.status_code}"
+                    )
+
+                    st.code(
+                        respuesta_get_510.text
                     )
 
                     st.stop()
 
                 # --------------------------------------------
-                # PREPARAR ACTUALIZACIÓN
+                # PAYLOAD
                 # --------------------------------------------
 
                 payload_510 = {
@@ -5363,7 +5466,9 @@ try:
                         "Actualizar "
                         "ACCIONES_GENERALES.xlsx",
                     "content":
-                        contenido_base64_510
+                        contenido_base64_510,
+                    "branch":
+                        GITHUB_RAMA_510
                 }
 
                 if sha_510:
@@ -5373,35 +5478,36 @@ try:
                     ] = sha_510
 
                 # --------------------------------------------
-                # SUBIR
+                # SUBIR A GITHUB
                 # --------------------------------------------
 
-                respuesta_put_510 = requests.put(
-                    url_github_510,
-                    headers=headers_github_510,
-                    json=payload_510,
-                    timeout=30
+                respuesta_put_510 = (
+                    requests.put(
+                        url_github_510,
+                        headers=headers_510,
+                        json=payload_510,
+                        timeout=30
+                    )
                 )
 
-                if respuesta_put_510.status_code in [
-                    200,
-                    201
-                ]:
+                if (
+                    respuesta_put_510.status_code
+                    in [200, 201]
+                ):
 
                     st.success(
-                        "🟢 SINCRONIZADO CON GITHUB"
+                        "🟢 SINCRONIZACIÓN EXITOSA"
                     )
 
                     st.info(
-                        "El DataFrame persistente quedó "
-                        "guardado en el repositorio como "
-                        f"**{github_ruta_510}**."
+                        "ACCIONES_GENERALES.xlsx "
+                        "quedó actualizado en GitHub."
                     )
 
                 else:
 
                     st.error(
-                        "🔴 ERROR AL SINCRONIZAR CON GITHUB: "
+                        "🔴 ERROR AL GUARDAR EN GITHUB: "
                         f"{respuesta_put_510.status_code}"
                     )
 
@@ -5409,12 +5515,12 @@ try:
                         respuesta_put_510.text
                     )
 
-            except Exception as error_github_510:
+            except Exception as error_510:
 
                 st.error(
-                    "🔴 ERROR DE CONEXIÓN CON GITHUB: "
-                    f"{type(error_github_510).__name__}: "
-                    f"{error_github_510}"
+                    "🔴 ERROR DE SINCRONIZACIÓN: "
+                    f"{type(error_510).__name__}: "
+                    f"{error_510}"
                 )
 
 except Exception as e:
