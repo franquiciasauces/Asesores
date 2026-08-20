@@ -154,7 +154,7 @@ st.subheader(
 
 st.info(
     "Seleccione las columnas reales de la matriz "
-    "que corresponden a Producto, Componente y "
+    "que corresponden a Producto, Componentes y "
     "Acción General. El sistema no modifica el "
     "contenido original."
 )
@@ -168,14 +168,14 @@ col_producto = st.selectbox(
     key="normalizacion_producto"
 )
 
-col_componente = st.selectbox(
-    "Columna COMPONENTE",
+col_componentes = st.selectbox(
+    "Columna Componentes",
     ["(No existe)"] + columnas,
-    key="normalizacion_componente"
+    key="normalizacion_componentes"
 )
 
 col_accion = st.selectbox(
-    "Columna ACCIÓN GENERAL",
+    "Columna Acciones generales",
     ["(No existe)"] + columnas,
     key="normalizacion_accion"
 )
@@ -199,14 +199,14 @@ if st.button(
         .str.strip()
     )
 
-    if col_componente == "(No existe)":
+    if col_componentes == "(No existe)":
 
-        datos["Componente"] = ""
+        datos["Componentes"] = ""
 
     else:
 
-        datos["Componente"] = (
-            df_base[col_componente]
+        datos["Componentes"] = (
+            df_base[col_componentes]
             .fillna("")
             .astype(str)
             .str.strip()
@@ -214,11 +214,11 @@ if st.button(
 
     if col_accion == "(No existe)":
 
-        datos["Accion_General"] = ""
+        datos["Accion_generales"] = ""
 
     else:
 
-        datos["Accion_General"] = (
+        datos["Acciones_generales"] = (
             df_base[col_accion]
             .fillna("")
             .astype(str)
@@ -234,8 +234,8 @@ if st.button(
     datos = datos.drop_duplicates(
         subset=[
             "Producto",
-            "Componente",
-            "Accion_General"
+            "Componentes",
+            "Acciones_generales"
         ]
     )
 
@@ -244,8 +244,8 @@ if st.button(
         datos[
             [
                 "Producto",
-                "Componente",
-                "Accion_General"
+                "Componentes",
+                "Acciones_generales"
             ]
         ]
         .astype(str)
@@ -258,8 +258,8 @@ if st.button(
         [
             "ID_Normalizado",
             "Producto",
-            "Componente",
-            "Accion_General"
+            "Componentes",
+            "Acciones_generales"
         ]
     ]
 
