@@ -75,7 +75,6 @@ st.write(
     f"Administrador: **{USUARIO}**"
 )
 
-
 # ============================================================
 # 5. VALIDAR MATRIZ
 # ============================================================
@@ -83,212 +82,142 @@ st.write(
 if not ARCHIVO_MATRIZ.exists():
 
     st.error(
-        "No se encontró la matriz."
+        "No se encontró el archivo "
+        "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
+    )
+
+    st.write(
+        f"Ruta buscada: {ARCHIVO_MATRIZ}"
     )
 
     st.stop()
 
+
 st.success(
-    "✓ Matriz encontrada."
+    "✓ MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx encontrada."
 )
-# ============================================================
-# 5.1 — COLUMNAS BASE_PRODUCTOS
-# ============================================================
-
-COL_PRODUCTO = "Producto"
-COL_CATEGORIA_PRINCIPAL = "Categoría principal"
-COL_CATEGORIAS_COMPLEMENTARIAS = "Categorías complementarias"
-COL_COMPONENTES = "componentes"
-COL_ACCIONES_GENERALES = "Acciones generales"
-COL_PRECIO = "Precio público"
-COL_FOTO = "Foto"
 
 # ============================================================
-# 6. CARGAR BASE_PRODUCTOS
+# 5.1 — CARGAR BASE_PRODUCTOS
 # ============================================================
 
 @st.cache_data
-def cargar_base_productos(ruta):
+def cargar_base_productos(ruta_matriz):
 
     return pd.read_excel(
-        ruta,
+        ruta_matriz,
         sheet_name="Base_Productos"
     )
 
 
 try:
 
-    df_base = cargar_base_productos(
+    df_base_productos = cargar_base_productos(
         ARCHIVO_MATRIZ
     )
 
 except Exception as error:
 
     st.error(
-        f"No fue posible leer Base_Productos: {error}"
+        "No fue posible cargar la hoja "
+        "Base_Productos."
     )
+
+    st.exception(error)
 
     st.stop()
 
 
-# ============================================================
-# 7. INFORMACIÓN DE LA MATRIZ
-# ============================================================
-
-st.subheader(
-    "Base_Productos"
+st.success(
+    "✓ Base_Productos cargada correctamente."
 )
-
-st.write(
-    f"Registros: **{len(df_base)}**"
-)
-
-st.write(
-    "Columnas disponibles:"
-)
-
-st.write(
-    list(df_base.columns)
-)
-
 
 # ============================================================
-# 8. SELECCIÓN DE COLUMNAS
+# 5.2 — COLUMNAS DE BASE_PRODUCTOS
 # ============================================================
 
-st.divider()
+COL_PRODUCTO = "Producto"
 
-st.subheader(
-    "Configuración de normalización"
+COL_CATEGORIA_PRINCIPAL = (
+    "Categoría principal"
 )
 
-st.info(
-    "Seleccione las columnas reales de la matriz "
-    "que corresponden a Producto, Componentes y "
-    "Acción General. El sistema no modifica el "
-    "contenido original."
+COL_CATEGORIAS_COMPLEMENTARIAS = (
+    "Categorías complementarias"
 )
 
+COL_COMPONENTES = "componentes"
 
-columnas = list(df_base.columns)
-
-col_producto = st.selectbox(
-    "Columna PRODUCTO",
-    columnas,
-    key="normalizacion_producto"
+COL_ACCIONES_GENERALES = (
+    "Acciones generales"
 )
 
-col_componentes = st.selectbox(
-    "Columna Componentes",
-    ["(No existe)"] + columnas,
-    key="normalizacion_componentes"
-)
+COL_PRECIO = "Precio público"
 
-col_accion = st.selectbox(
-    "Columna Acciones generales",
-    ["(No existe)"] + columnas,
-    key="normalizacion_accion"
-)
-
+COL_FOTO = "Foto"
 
 # ============================================================
-# 9. PREPARAR DATAFRAME
+# 5.3 — BASE DE TRABAJO
 # ============================================================
 
-if st.button(
-    "Preparar normalización",
-    type="primary"
-):
-
-    datos = pd.DataFrame()
-
-    datos["Producto"] = (
-        df_base[col_producto]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-    )
-
-    if col_componentes == "(No existe)":
-
-        datos["Componentes"] = ""
-
-    else:
-
-        datos["Componentes"] = (
-            df_base[col_componentes]
-            .fillna("")
-            .astype(str)
-            .str.strip()
-        )
-
-    if col_accion == "(No existe)":
-
-        datos["Accion_generales"] = ""
-
-    else:
-
-        datos["Acciones_generales"] = (
-            df_base[col_accion]
-            .fillna("")
-            .astype(str)
-            .str.strip()
-        )
-
-    # Eliminar filas completamente vacías
-    datos = datos[
-        datos["Producto"].ne("")
-    ].copy()
-
-    # Eliminar duplicados exactos
-    datos = datos.drop_duplicates(
-        subset=[
-            "Producto",
-            "Componentes",
-            "Acciones_generales"
-        ]
-    )
-
-    # Identificador estable del registro
-    datos["ID_Normalizado"] = (
-        datos[
-            [
-                "Producto",
-                "Componentes",
-                "Acciones_generales"
-            ]
-        ]
-        .astype(str)
-        .agg(" | ".join, axis=1)
-        .str.strip()
-    )
-
-    # Orden
-    datos = datos[
-        [
-            "ID_Normalizado",
-            "Producto",
-            "Componentes",
-            "Acciones_generales"
-        ]
+df_trabajo = df_base_productos[
+    [
+        COL_PRODUCTO,
+        COL_COMPONENTES,
+        COL_ACCIONES_GENERALES
     ]
+].copy()
 
-    # Guardar
-    datos.to_csv(
-        ARCHIVO_NORMALIZADO,
-        index=False,
-        encoding="utf-8-sig"
-    )
 
-    st.success(
-        "✓ DataFrame normalizado creado/actualizado."
-    )
+df_trabajo["Producto"] = (
+    df_trabajo[COL_PRODUCTO]
+    .fillna("")
+    .astype(str)
+    .str.strip()
+)
 
-    st.write(
-        f"Registros normalizados: **{len(datos)}**"
-    )
 
-    st.dataframe(
-        datos,
-        use_container_width=True
-    )
+df_trabajo["Componentes"] = (
+    df_trabajo[COL_COMPONENTES]
+    .fillna("")
+    .astype(str)
+    .str.strip()
+)
+
+
+df_trabajo["Acciones_generales"] = (
+    df_trabajo[COL_ACCIONES_GENERALES]
+    .fillna("")
+    .astype(str)
+    .str.strip()
+)
+
+
+df_trabajo = df_trabajo[
+    df_trabajo["Producto"].ne("")
+].copy()
+
+
+# ============================================================
+# 5.4 — COMPROBACIÓN DE BASE DE TRABAJO
+# ============================================================
+
+st.subheader(
+    "Base de trabajo"
+)
+
+st.write(
+    f"Registros: **{len(df_trabajo)}**"
+)
+
+st.dataframe(
+    df_trabajo[
+        [
+            "Producto",
+            "Componentes",
+            "Acciones_generales"
+        ]
+    ],
+    use_container_width=True
+)
+
