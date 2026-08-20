@@ -227,4 +227,73 @@ st.dataframe(
     ],
     use_container_width=True
 )
+# ============================================================
+# 5.8 — PREPARAR ACCIONES GENERALES
+# ============================================================
 
+import re
+
+
+def separar_acciones(valor):
+
+    if pd.isna(valor):
+        return []
+
+    texto = str(valor).strip()
+
+    if not texto:
+        return []
+
+    # Unificar saltos de línea para poder analizarlos
+    texto = texto.replace("\r\n", "\n")
+    texto = texto.replace("\r", "\n")
+
+    # Separar únicamente cuando exista una línea independiente.
+    partes = re.split(
+        r"\n+",
+        texto
+    )
+
+    acciones = []
+
+    for parte in partes:
+
+        parte = parte.strip()
+
+        if not parte:
+            continue
+
+        acciones.append(
+            parte
+        )
+
+    return acciones
+
+
+df_trabajo["Lista_acciones"] = (
+    df_trabajo["Acciones generales"]
+    .apply(separar_acciones)
+)
+
+
+# ============================================================
+# 5.9 — VISTA PREVIA
+# ============================================================
+
+st.subheader(
+    "Acciones generales identificadas"
+)
+
+df_vista_acciones = df_trabajo[
+    [
+        "Producto",
+        "Componentes",
+        "Acciones generales",
+        "Lista_acciones"
+    ]
+].copy()
+
+st.dataframe(
+    df_vista_acciones,
+    use_container_width=True
+)
