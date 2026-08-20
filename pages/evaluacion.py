@@ -7027,4 +7027,190 @@ except Exception as e:
         f"🔴 5.13 ERROR: "
         f"{type(e).__name__}: {e}"
     )
+# ============================================================
+# SINCRONIZACIÓN DF2_COMPONENTES_ACCIONES CON GITHUB
+# ============================================================
 
+from pathlib import Path
+import base64
+import requests
+import streamlit as st
+
+
+def sincronizar_df2_componentes_acciones_github(
+    df,
+    github_usuario,
+    github_repositorio,
+    github_token,
+    ruta_repositorio="DF2_COMPONENTES_ACCIONES.xlsx"
+):
+    """
+    Guarda el DataFrame DF2_COMPONENTES_ACCIONES y lo sincroniza
+    con GitHub.
+
+    El archivo se genera temporalmente en el servidor y luego
+    se crea o actualiza en el repositorio.
+    """
+
+    if df is None:
+        return False, "No existe DF2_COMPONENTES_ACCIONES para sincronizar."
+
+    if df.empty:
+        return False, "DF2_COMPONENTES_ACCIONES está vacío."
+
+    if not github_usuario:
+        return False, "Falta GITHUB_USUARIO."
+
+    if not github_repositorio:
+        return False, "Falta GITHUB_REPOSITORIO."
+
+    if not github_token:
+        return False, "Falta GITHUB_TOKEN."
+
+    try:
+        # --------------------------------------------------------
+        # 1. Crear archivo temporal
+        # --------------------------------------------------------
+        archivo_temporal = (
+            Path(__file__).resolve().parent
+            / "DF2_COMPONENTES_ACCIONES.xlsx"
+        )
+
+        df.to_excel(
+            archivo_temporal,
+            index=False,
+            engine="openpyxl"
+        )
+
+        # --------------------------------------------------------
+        # 2. Leer archivo generado
+        # --------------------------------------------------------
+        with open(archivo_temporal, "rb") as archivo:
+            contenido = archivo.read()
+
+        contenido_b64 = base64.b64encode(contenido).decode("utf-8")
+
+        # --------------------------------------------------------
+        # 3. URL de GitHub
+        # --------------------------------------------------------
+        url = (
+            f"https://api.github.com/repos/"
+            f"{github_usuario}/{github_repositorio}/contents/"
+            f"{ruta_repositorio}"
+        )
+
+        headers = {
+            "Authorization": f"Bearer {github_token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28"
+        }
+
+        # --------------------------------------------------------
+        # 4. Verificar si el archivo ya existe
+        # --------------------------------------------------------
+        respuesta_existencia = requests.get(
+            url,
+            headers=headers,
+            timeout=30
+        )
+
+        sha = None
+
+        if respuesta_existencia.status_code == 200:
+            datos_existencia = respuesta_existencia.json()
+            sha = datos_existencia.get("sha")
+
+        elif respuesta_existencia.status_code != 404:
+            return (
+                False,
+                "No fue posible verificar DF2_COMPONENTES_ACCIONES "
+                f"en GitHub. Código HTTP: "
+                f"{respuesta_existencia.status_code}"
+            )
+
+        # --------------------------------------------------------
+        # 5. Crear o actualizar archivo
+        # --------------------------------------------------------
+        payload = {
+            "message": (
+                "Actualizar DF2_COMPONENTES_ACCIONES "
+                "desde FITOASISTE"
+            ),
+            "content": contenido_b64
+        }
+
+        if sha:
+            payload["sha"] = sha
+
+        respuesta_github = requests.put(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+
+        # --------------------------------------------------------
+        # 6. Validar respuesta
+        # --------------------------------------------------------
+        if respuesta_github.status_code in (200, 201):
+
+            # Limpiar temporal
+            try:
+                archivo_temporal.unlink()
+            except Exception:
+                pass
+
+            return (
+                True,
+                "DF2_COMPONENTES_ACCIONES fue sincronizado "
+                "correctamente con GitHub."
+            )
+
+        return (
+            False,
+            "GitHub rechazó la sincronización. "
+            f"Código HTTP: {respuesta_github.status_code}. "
+            f"Detalle: {respuesta_github.text[:500]}"
+        )
+
+    except Exception as e:
+
+        return (
+            False,
+            f"Error sincronizando DF2_COMPONENTES_ACCIONES: {e}"
+        )
+
+
+# ============================================================
+# USO
+# ============================================================
+#
+# ESTE BLOQUE DEBE EJECUTARSE DESPUÉS DE HABER GENERADO:
+#
+# DF2_COMPONENTES_ACCIONES
+#
+# y después de tener configuradas:
+#
+# GITHUB_USUARIO
+# GITHUB_REPOSITORIO
+# GITHUB_TOKEN
+#
+# ============================================================
+
+if st.button(
+    "🔄 Sincronizar DF2_COMPONENTES_ACCIONES con GitHub",
+    key="btn_sync_df2_componentes_acciones"
+):
+
+    exito, mensaje = sincronizar_df2_componentes_acciones_github(
+        df=DF2_COMPONENTES_ACCIONES,
+        github_usuario=GITHUB_USUARIO,
+        github_repositorio=GITHUB_REPOSITORIO,
+        github_token=GITHUB_TOKEN,
+        ruta_repositorio="DF2_COMPONENTES_ACCIONES.xlsx"
+    )
+
+    if exito:
+        st.success(mensaje)
+    else:
+        st.error(mensaje)
