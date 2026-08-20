@@ -1967,3 +1967,558 @@ except Exception as e:
     st.error(
         f"🔴 5.4 ERROR: {type(e).__name__}: {e}"
     )
+
+# ============================================================
+# 5.6 APRENDIZAJE ACTIVO ITERATIVO
+# ============================================================
+
+st.markdown("### 5.6 Aprendizaje activo iterativo")
+
+try:
+
+    import numpy as np
+    import pandas as pd
+
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
+
+    # ========================================================
+    # CONFIGURACIÓN
+    # ========================================================
+
+    CATEGORIAS_56 = [
+        "ACCIÓN GENERAL",
+        "COMPONENTE + FUNCIÓN",
+        "RECOMENDACIÓN / COMPLEMENTO",
+        "USO / POSOLOGÍA / PRECAUCIÓN",
+        "COMERCIAL"
+    ]
+
+    MAX_EJEMPLOS = 50
+    CASOS_POR_CICLO = 10
+
+    # ========================================================
+    # RECUPERAR RESULTADO ANTERIOR
+    # ========================================================
+
+    if (
+        "df_resultado_55" in st.session_state
+        and not st.session_state[
+            "df_resultado_55"
+        ].empty
+    ):
+
+        df_56 = (
+            st.session_state[
+                "df_resultado_55"
+            ].copy()
+        )
+
+    elif (
+        "df_resultado_54" in st.session_state
+        and not st.session_state[
+            "df_resultado_54"
+        ].empty
+    ):
+
+        df_56 = (
+            st.session_state[
+                "df_resultado_54"
+            ].copy()
+        )
+
+    else:
+
+        st.error(
+            "🔴 5.6: No existe un resultado "
+            "válido de 5.4 o 5.5."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # MEMORIA PERMANENTE DE ESTE MÓDULO
+    # ========================================================
+
+    if "aprendizaje_56" not in st.session_state:
+
+        st.session_state.aprendizaje_56 = {}
+
+    aprendizaje_56 = (
+        st.session_state.aprendizaje_56
+    )
+
+    # ========================================================
+    # RECUPERAR ENTRENAMIENTO ANTERIOR
+    # ========================================================
+
+    entrenamiento_anterior = {}
+
+    if "entrenamiento_54" in st.session_state:
+
+        entrenamiento_anterior.update(
+            st.session_state.entrenamiento_54
+        )
+
+    if "aprendizaje_activo_55" in st.session_state:
+
+        entrenamiento_anterior.update(
+            st.session_state.aprendizaje_activo_55
+        )
+
+    # ========================================================
+    # UNIR TODO SIN BORRAR INFORMACIÓN
+    # ========================================================
+
+    entrenamiento_total = {}
+
+    entrenamiento_total.update(
+        entrenamiento_anterior
+    )
+
+    entrenamiento_total.update(
+        aprendizaje_56
+    )
+
+    # ========================================================
+    # LIMITE MÁXIMO
+    # ========================================================
+
+    if len(entrenamiento_total) > MAX_EJEMPLOS:
+
+        claves = list(
+            entrenamiento_total.keys()
+        )[:MAX_EJEMPLOS]
+
+        entrenamiento_total = {
+            k: entrenamiento_total[k]
+            for k in claves
+        }
+
+    # ========================================================
+    # DATAFRAME DE ENTRENAMIENTO
+    # ========================================================
+
+    df_train = df_56[
+        df_56["Código"]
+        .astype(str)
+        .isin(
+            entrenamiento_total.keys()
+        )
+    ].copy()
+
+    if not df_train.empty:
+
+        df_train["Etiqueta"] = (
+            df_train["Código"]
+            .astype(str)
+            .map(
+                entrenamiento_total
+            )
+        )
+
+        df_train = df_train[
+            df_train["Etiqueta"]
+            .isin(CATEGORIAS_56)
+        ].copy()
+
+        df_train["Texto_Modelo"] = (
+            "PRODUCTO: "
+            + df_train[
+                "Nombre del producto"
+            ].astype(str)
+            + " | INFORMACIÓN: "
+            + df_train[
+                "Acción"
+            ].astype(str)
+        )
+
+    # ========================================================
+    # ENTRENAR MODELO
+    # ========================================================
+
+    modelo_56 = None
+
+    if (
+        len(df_train) >= 10
+        and df_train["Etiqueta"].nunique() >= 2
+    ):
+
+        modelo_56 = Pipeline(
+            [
+                (
+                    "tfidf",
+                    TfidfVectorizer(
+                        lowercase=True,
+                        strip_accents="unicode",
+                        ngram_range=(1, 2),
+                        max_features=12000,
+                        sublinear_tf=True
+                    )
+                ),
+                (
+                    "clasificador",
+                    LogisticRegression(
+                        max_iter=5000,
+                        class_weight="balanced"
+                    )
+                )
+            ]
+        )
+
+        modelo_56.fit(
+            df_train["Texto_Modelo"],
+            df_train["Etiqueta"]
+        )
+
+    # ========================================================
+    # RECLASIFICAR TODO
+    # ========================================================
+
+    if modelo_56 is not None:
+
+        df_56["Texto_Modelo"] = (
+            "PRODUCTO: "
+            + df_56[
+                "Nombre del producto"
+            ].astype(str)
+            + " | INFORMACIÓN: "
+            + df_56[
+                "Acción"
+            ].astype(str)
+        )
+
+        probabilidades = (
+            modelo_56.predict_proba(
+                df_56["Texto_Modelo"]
+            )
+        )
+
+        predicciones = (
+            modelo_56.predict(
+                df_56["Texto_Modelo"]
+            )
+        )
+
+        clases = (
+            modelo_56
+            .named_steps[
+                "clasificador"
+            ]
+            .classes_
+        )
+
+        orden = np.argsort(
+            probabilidades,
+            axis=1
+        )
+
+        mejor = orden[:, -1]
+        segunda = orden[:, -2]
+
+        confianza_1 = (
+            probabilidades[
+                np.arange(
+                    len(probabilidades)
+                ),
+                mejor
+            ]
+        )
+
+        confianza_2 = (
+            probabilidades[
+                np.arange(
+                    len(probabilidades)
+                ),
+                segunda
+            ]
+        )
+
+        diferencia = (
+            confianza_1
+            - confianza_2
+        )
+
+        segunda_categoria = [
+            clases[i]
+            for i in segunda
+        ]
+
+        df_56[
+            "Clasificación IA"
+        ] = predicciones
+
+        df_56[
+            "Confianza IA"
+        ] = confianza_1
+
+        df_56[
+            "Segunda opción IA"
+        ] = segunda_categoria
+
+        df_56[
+            "Confianza segunda"
+        ] = confianza_2
+
+        df_56[
+            "Diferencia IA"
+        ] = diferencia
+
+        # ====================================================
+        # DETECCIÓN DE AMBIGÜEDAD
+        # ====================================================
+
+        df_56["Ambiguo"] = (
+            (
+                df_56[
+                    "Diferencia IA"
+                ] < 0.15
+            )
+            |
+            (
+                df_56[
+                    "Confianza IA"
+                ] < 0.45
+            )
+        )
+
+        # Los ejemplos ya aprendidos no vuelven a aparecer
+
+        df_56.loc[
+            df_56["Código"]
+            .astype(str)
+            .isin(
+                entrenamiento_total.keys()
+            ),
+            "Ambiguo"
+        ] = False
+
+    else:
+
+        df_56["Ambiguo"] = True
+
+        df_56[
+            "Clasificación IA"
+        ] = ""
+
+        df_56[
+            "Confianza IA"
+        ] = 0.0
+
+        df_56[
+            "Segunda opción IA"
+        ] = ""
+
+        df_56[
+            "Confianza segunda"
+        ] = 0.0
+
+        df_56[
+            "Diferencia IA"
+        ] = 0.0
+
+    # ========================================================
+    # GUARDAR RESULTADO
+    # ========================================================
+
+    st.session_state[
+        "df_resultado_56"
+    ] = df_56.copy()
+
+    # ========================================================
+    # ESTADÍSTICAS
+    # ========================================================
+
+    total = len(df_56)
+
+    ambiguos = int(
+        df_56["Ambiguo"].sum()
+    )
+
+    aprendidos = len(
+        entrenamiento_total
+    )
+
+    st.info(
+        f"Acciones analizadas: **{total}** | "
+        f"Ejemplos acumulados: "
+        f"**{aprendidos}/{MAX_EJEMPLOS}** | "
+        f"Ambiguos actuales: **{ambiguos}**"
+    )
+
+    # ========================================================
+    # MOSTRAR 10 CASOS MÁS AMBIGUOS
+    # ========================================================
+
+    df_ambiguos = (
+        df_56[
+            df_56["Ambiguo"]
+        ]
+        .sort_values(
+            [
+                "Diferencia IA",
+                "Confianza IA"
+            ]
+        )
+        .head(
+            CASOS_POR_CICLO
+        )
+        .copy()
+    )
+
+    if not df_ambiguos.empty:
+
+        st.warning(
+            f"⚠️ Hay **{ambiguos} casos ambiguos**. "
+            f"En este ciclo revise solamente "
+            f"estos **{len(df_ambiguos)}**."
+        )
+
+        for _, fila in df_ambiguos.iterrows():
+
+            codigo = str(
+                fila["Código"]
+            )
+
+            producto = str(
+                fila["Nombre del producto"]
+            )
+
+            accion = str(
+                fila["Acción"]
+            )
+
+            propuesta = str(
+                fila["Clasificación IA"]
+            )
+
+            segunda = str(
+                fila["Segunda opción IA"]
+            )
+
+            confianza = float(
+                fila["Confianza IA"]
+            )
+
+            confianza_2 = float(
+                fila["Confianza segunda"]
+            )
+
+            st.markdown(
+                f"**{codigo} — {producto}**"
+            )
+
+            st.write(
+                f"**Información:** {accion}"
+            )
+
+            st.write(
+                f"**IA:** {propuesta} "
+                f"({confianza:.1%})"
+            )
+
+            st.write(
+                f"**Segunda opción:** {segunda} "
+                f"({confianza_2:.1%})"
+            )
+
+            decision = st.selectbox(
+                "Seleccione la categoría correcta",
+                [
+                    "Seleccione...",
+                    *CATEGORIAS_56
+                ],
+                key=f"decision_56_{codigo}"
+            )
+
+            if decision != "Seleccione...":
+
+                aprendizaje_56[
+                    codigo
+                ] = decision
+
+            st.divider()
+
+    else:
+
+        st.success(
+            "🟢 No quedan casos ambiguos."
+        )
+
+    # ========================================================
+    # BOTÓN DE REENTRENAMIENTO
+    # ========================================================
+
+    nuevas = len(
+        aprendizaje_56
+    )
+
+    if nuevas > 0:
+
+        st.write(
+            f"Decisiones nuevas en este ciclo: "
+            f"**{nuevas}**"
+        )
+
+        if st.button(
+            "🔄 APRENDER Y VOLVER A CLASIFICAR",
+            key="reentrenar_56"
+        ):
+
+            st.session_state[
+                "ciclo_56"
+            ] = (
+                st.session_state.get(
+                    "ciclo_56",
+                    0
+                ) + 1
+            )
+
+            st.rerun()
+
+    # ========================================================
+    # MATRIZ ACTUAL DE ACCIONES GENERALES
+    # ========================================================
+
+    if modelo_56 is not None:
+
+        df_acciones = df_56[
+            df_56[
+                "Clasificación IA"
+            ]
+            == "ACCIÓN GENERAL"
+        ].copy()
+
+        df_acciones = df_acciones[
+            [
+                "Código",
+                "Nombre del producto",
+                "Acción"
+            ]
+        ].copy()
+
+        st.session_state[
+            "df_normalizacion_final"
+        ] = df_acciones
+
+        st.write(
+            "### Matriz actual de acciones generales"
+        )
+
+        st.dataframe(
+            df_acciones,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.success(
+            f"Acciones generales actuales: "
+            f"**{len(df_acciones)}**"
+        )
+
+except Exception as e:
+
+    st.error(
+        f"🔴 5.6 ERROR: {type(e).__name__}: {e}"
+    )
