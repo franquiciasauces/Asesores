@@ -1,13 +1,11 @@
 # ============================================================
 # FITOASISTE
-# APLICATIVO EVALUACIÓN
+# APLICATIVO DE EVALUACIÓN
+# NORMALIZACIÓN DE PRODUCTO - COMPONENTE - ACCIÓN GENERAL
 # ============================================================
 
 from pathlib import Path
-import urllib.request
-import urllib.error
-import json
-
+import pandas as pd
 import streamlit as st
 
 
@@ -23,32 +21,24 @@ st.set_page_config(
 
 
 # ============================================================
-# 2. UBICACIÓN
+# 2. RUTAS
 # ============================================================
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-
-# ============================================================
-# 3. MATRIZ
-# ============================================================
 
 ARCHIVO_MATRIZ = (
     BASE_DIR /
     "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
 )
 
-
-# ============================================================
-# 4. REPOSITORIO
-# ============================================================
-
-GITHUB_USUARIO = "franquiciasauces"
-GITHUB_REPOSITORIO = "Asesores"
+ARCHIVO_NORMALIZADO = (
+    BASE_DIR /
+    "DATAFRAME_PRODUCTO_COMPONENTE_ACCION.csv"
+)
 
 
 # ============================================================
-# 5. AUTENTICACIÓN
+# 3. SESIÓN
 # ============================================================
 
 USUARIO = st.session_state.get(
@@ -61,29 +51,22 @@ ROL = st.session_state.get(
     ""
 )
 
-
 if not USUARIO:
-
     st.warning(
-        "No se encontró una sesión activa. "
-        "Ingrese primero al Aplicativo Asesor."
+        "Debe ingresar primero al Aplicativo Asesor."
     )
-
     st.stop()
 
-
 if ROL.upper() != "ADMINISTRADOR":
-
     st.error(
-        "Esta aplicación está disponible "
-        "únicamente para el administrador."
+        "Este módulo está disponible únicamente "
+        "para el administrador."
     )
-
     st.stop()
 
 
 # ============================================================
-# 6. ENCABEZADO
+# 4. ENCABEZADO
 # ============================================================
 
 st.title("📝 FITOASISTE — EVALUACIÓN")
@@ -94,183 +77,208 @@ st.write(
 
 
 # ============================================================
-# 7. VALIDAR MATRIZ
+# 5. VALIDAR MATRIZ
 # ============================================================
 
-st.subheader("Estado del sistema")
-
-if ARCHIVO_MATRIZ.exists():
-
-    st.success(
-        "✓ MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx encontrada."
-    )
-
-else:
+if not ARCHIVO_MATRIZ.exists():
 
     st.error(
-        "✗ No se encontró "
-        "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
+        "No se encontró la matriz."
+    )
+
+    st.stop()
+
+st.success(
+    "✓ Matriz encontrada."
+)
+
+
+# ============================================================
+# 6. CARGAR BASE_PRODUCTOS
+# ============================================================
+
+@st.cache_data
+def cargar_base_productos(ruta):
+
+    return pd.read_excel(
+        ruta,
+        sheet_name="Base_Productos"
+    )
+
+
+try:
+
+    df_base = cargar_base_productos(
+        ARCHIVO_MATRIZ
+    )
+
+except Exception as error:
+
+    st.error(
+        f"No fue posible leer Base_Productos: {error}"
     )
 
     st.stop()
 
 
 # ============================================================
-# 8. CONEXIÓN CON GITHUB
+# 7. INFORMACIÓN DE LA MATRIZ
 # ============================================================
 
-def comprobar_github():
+st.subheader(
+    "Base_Productos"
+)
 
-    try:
+st.write(
+    f"Registros: **{len(df_base)}**"
+)
 
-        token = st.secrets["GITHUB_TOKEN"]
+st.write(
+    "Columnas disponibles:"
+)
 
-    except Exception:
-
-        return False, (
-            "No se encontró GITHUB_TOKEN "
-            "en los Secrets de Streamlit."
-        )
-
-    url = (
-        "https://api.github.com/repos/"
-        f"{GITHUB_USUARIO}/{GITHUB_REPOSITORIO}"
-    )
-
-    solicitud = urllib.request.Request(
-        url,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "User-Agent": "FITOASISTE"
-        },
-        method="GET"
-    )
-
-    try:
-
-        with urllib.request.urlopen(
-            solicitud,
-            timeout=15
-        ) as respuesta:
-
-            if respuesta.status == 200:
-
-                return True, (
-                    "Conexión con GitHub establecida."
-                )
-
-            return False, (
-                f"GitHub respondió con código "
-                f"{respuesta.status}."
-            )
-
-    except urllib.error.HTTPError as error:
-
-        if error.code == 401:
-
-            return False, (
-                "GitHub rechazó el token."
-            )
-
-        if error.code == 403:
-
-            return False, (
-                "El token no tiene permisos suficientes."
-            )
-
-        if error.code == 404:
-
-            return False, (
-                "No se encontró el repositorio."
-            )
-
-        return False, (
-            f"Error de GitHub: {error.code}"
-        )
-
-    except Exception as error:
-
-        return False, (
-            f"No fue posible conectar con GitHub: {error}"
-        )
-
-
-github_ok, mensaje_github = comprobar_github()
-
-
-if github_ok:
-
-    st.success(
-        "✓ " + mensaje_github
-    )
-
-    st.success(
-        "✓ Almacenamiento permanente disponible."
-    )
-
-else:
-
-    st.error(
-        "✗ " + mensaje_github
-    )
-
-
-# ============================================================
-# 9. MENÚ
-# ============================================================
-
-st.divider()
-
-st.header("Gestión de Evaluación")
-
-opcion = st.radio(
-    "Seleccione el módulo:",
-    [
-        "Banco General de Preguntas",
-        "Banco de Preguntas Especiales"
-    ],
-    key="menu_evaluacion"
+st.write(
+    list(df_base.columns)
 )
 
 
 # ============================================================
-# 10. BANCO GENERAL
+# 8. SELECCIÓN DE COLUMNAS
 # ============================================================
 
-if opcion == "Banco General de Preguntas":
+st.divider()
 
-    st.subheader(
-        "Banco General de Preguntas"
+st.subheader(
+    "Configuración de normalización"
+)
+
+st.info(
+    "Seleccione las columnas reales de la matriz "
+    "que corresponden a Producto, Componente y "
+    "Acción General. El sistema no modifica el "
+    "contenido original."
+)
+
+
+columnas = list(df_base.columns)
+
+col_producto = st.selectbox(
+    "Columna PRODUCTO",
+    columnas,
+    key="normalizacion_producto"
+)
+
+col_componente = st.selectbox(
+    "Columna COMPONENTE",
+    ["(No existe)"] + columnas,
+    key="normalizacion_componente"
+)
+
+col_accion = st.selectbox(
+    "Columna ACCIÓN GENERAL",
+    ["(No existe)"] + columnas,
+    key="normalizacion_accion"
+)
+
+
+# ============================================================
+# 9. PREPARAR DATAFRAME
+# ============================================================
+
+if st.button(
+    "Preparar normalización",
+    type="primary"
+):
+
+    datos = pd.DataFrame()
+
+    datos["Producto"] = (
+        df_base[col_producto]
+        .fillna("")
+        .astype(str)
+        .str.strip()
     )
 
-    if github_ok:
+    if col_componente == "(No existe)":
 
-        st.info(
-            "La conexión está lista. "
-            "El siguiente paso será construir "
-            "el Banco General."
-        )
+        datos["Componente"] = ""
 
     else:
 
-        st.warning(
-            "Primero debe estar disponible "
-            "la conexión con GitHub."
+        datos["Componente"] = (
+            df_base[col_componente]
+            .fillna("")
+            .astype(str)
+            .str.strip()
         )
 
+    if col_accion == "(No existe)":
 
-# ============================================================
-# 11. BANCO ESPECIAL
-# ============================================================
+        datos["Accion_General"] = ""
 
-elif opcion == "Banco de Preguntas Especiales":
+    else:
 
-    st.subheader(
-        "Banco de Preguntas Especiales"
+        datos["Accion_General"] = (
+            df_base[col_accion]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+    # Eliminar filas completamente vacías
+    datos = datos[
+        datos["Producto"].ne("")
+    ].copy()
+
+    # Eliminar duplicados exactos
+    datos = datos.drop_duplicates(
+        subset=[
+            "Producto",
+            "Componente",
+            "Accion_General"
+        ]
     )
 
-    st.info(
-        "Este banco se construirá después "
-        "del Banco General."
+    # Identificador estable del registro
+    datos["ID_Normalizado"] = (
+        datos[
+            [
+                "Producto",
+                "Componente",
+                "Accion_General"
+            ]
+        ]
+        .astype(str)
+        .agg(" | ".join, axis=1)
+        .str.strip()
+    )
+
+    # Orden
+    datos = datos[
+        [
+            "ID_Normalizado",
+            "Producto",
+            "Componente",
+            "Accion_General"
+        ]
+    ]
+
+    # Guardar
+    datos.to_csv(
+        ARCHIVO_NORMALIZADO,
+        index=False,
+        encoding="utf-8-sig"
+    )
+
+    st.success(
+        "✓ DataFrame normalizado creado/actualizado."
+    )
+
+    st.write(
+        f"Registros normalizados: **{len(datos)}**"
+    )
+
+    st.dataframe(
+        datos,
+        use_container_width=True
     )
