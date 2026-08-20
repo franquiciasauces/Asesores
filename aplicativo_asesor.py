@@ -5708,7 +5708,7 @@ if (
         "Todavía no se generan preguntas ni se "
         "modifican archivos permanentes."
     )
-```python
+
 # ========================================================
 # 7.5.2 — CONSTRUCCIÓN DEL DATAFRAME ESTRUCTURAL
 # ========================================================
