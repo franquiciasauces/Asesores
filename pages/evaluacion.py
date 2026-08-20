@@ -4,6 +4,10 @@
 # ============================================================
 
 from pathlib import Path
+import urllib.request
+import urllib.error
+import json
+
 import streamlit as st
 
 
@@ -19,16 +23,14 @@ st.set_page_config(
 
 
 # ============================================================
-# 2. RUTA DEL PROYECTO
+# 2. UBICACIÓN
 # ============================================================
 
-# Este archivo está en /pages.
-# La matriz está en la carpeta principal.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # ============================================================
-# 3. ARCHIVO DE MATRIZ
+# 3. MATRIZ
 # ============================================================
 
 ARCHIVO_MATRIZ = (
@@ -38,7 +40,15 @@ ARCHIVO_MATRIZ = (
 
 
 # ============================================================
-# 4. ACCESO
+# 4. REPOSITORIO
+# ============================================================
+
+GITHUB_USUARIO = "franquiciasauces"
+GITHUB_REPOSITORIO = "Asesores"
+
+
+# ============================================================
+# 5. AUTENTICACIÓN
 # ============================================================
 
 USUARIO = st.session_state.get(
@@ -51,23 +61,6 @@ ROL = st.session_state.get(
     ""
 )
 
-
-# ============================================================
-# 5. ENCABEZADO
-# ============================================================
-
-st.title("📝 FITOASISTE — EVALUACIÓN")
-
-if USUARIO:
-    st.write(f"Usuario: **{USUARIO}**")
-
-if ROL:
-    st.write(f"Rol: **{ROL}**")
-
-
-# ============================================================
-# 6. VALIDACIÓN DE ACCESO
-# ============================================================
 
 if not USUARIO:
 
@@ -89,14 +82,22 @@ if ROL.upper() != "ADMINISTRADOR":
     st.stop()
 
 
-st.success("Acceso de administrador habilitado.")
+# ============================================================
+# 6. ENCABEZADO
+# ============================================================
+
+st.title("📝 FITOASISTE — EVALUACIÓN")
+
+st.write(
+    f"Administrador: **{USUARIO}**"
+)
 
 
 # ============================================================
-# 7. VALIDACIÓN DE MATRIZ
+# 7. VALIDAR MATRIZ
 # ============================================================
 
-st.subheader("Fuente de información")
+st.subheader("Estado del sistema")
 
 if ARCHIVO_MATRIZ.exists():
 
@@ -115,7 +116,108 @@ else:
 
 
 # ============================================================
-# 8. MENÚ DE EVALUACIÓN
+# 8. CONEXIÓN CON GITHUB
+# ============================================================
+
+def comprobar_github():
+
+    try:
+
+        token = st.secrets["GITHUB_TOKEN"]
+
+    except Exception:
+
+        return False, (
+            "No se encontró GITHUB_TOKEN "
+            "en los Secrets de Streamlit."
+        )
+
+    url = (
+        "https://api.github.com/repos/"
+        f"{GITHUB_USUARIO}/{GITHUB_REPOSITORIO}"
+    )
+
+    solicitud = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "FITOASISTE"
+        },
+        method="GET"
+    )
+
+    try:
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=15
+        ) as respuesta:
+
+            if respuesta.status == 200:
+
+                return True, (
+                    "Conexión con GitHub establecida."
+                )
+
+            return False, (
+                f"GitHub respondió con código "
+                f"{respuesta.status}."
+            )
+
+    except urllib.error.HTTPError as error:
+
+        if error.code == 401:
+
+            return False, (
+                "GitHub rechazó el token."
+            )
+
+        if error.code == 403:
+
+            return False, (
+                "El token no tiene permisos suficientes."
+            )
+
+        if error.code == 404:
+
+            return False, (
+                "No se encontró el repositorio."
+            )
+
+        return False, (
+            f"Error de GitHub: {error.code}"
+        )
+
+    except Exception as error:
+
+        return False, (
+            f"No fue posible conectar con GitHub: {error}"
+        )
+
+
+github_ok, mensaje_github = comprobar_github()
+
+
+if github_ok:
+
+    st.success(
+        "✓ " + mensaje_github
+    )
+
+    st.success(
+        "✓ Almacenamiento permanente disponible."
+    )
+
+else:
+
+    st.error(
+        "✗ " + mensaje_github
+    )
+
+
+# ============================================================
+# 9. MENÚ
 # ============================================================
 
 st.divider()
@@ -133,7 +235,7 @@ opcion = st.radio(
 
 
 # ============================================================
-# 9. BANCO GENERAL
+# 10. BANCO GENERAL
 # ============================================================
 
 if opcion == "Banco General de Preguntas":
@@ -142,27 +244,33 @@ if opcion == "Banco General de Preguntas":
         "Banco General de Preguntas"
     )
 
-    st.info(
-        "Este módulo será construido por etapas."
-    )
+    if github_ok:
 
-    st.write(
-        "Primero validaremos la lectura de la matriz "
-        "y posteriormente la generación de preguntas."
-    )
+        st.info(
+            "La conexión está lista. "
+            "El siguiente paso será construir "
+            "el Banco General."
+        )
+
+    else:
+
+        st.warning(
+            "Primero debe estar disponible "
+            "la conexión con GitHub."
+        )
 
 
 # ============================================================
-# 10. BANCO DE PREGUNTAS ESPECIALES
+# 11. BANCO ESPECIAL
 # ============================================================
 
-if opcion == "Banco de Preguntas Especiales":
+elif opcion == "Banco de Preguntas Especiales":
 
     st.subheader(
         "Banco de Preguntas Especiales"
     )
 
     st.info(
-        "Este módulo se construirá después "
+        "Este banco se construirá después "
         "del Banco General."
     )
