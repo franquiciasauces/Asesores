@@ -228,9 +228,8 @@ st.dataframe(
     use_container_width=True
 )
 
-
 # ============================================================
-# 5.8 — ESTRUCTURA INICIAL DE NORMALIZACIÓN
+# 5.8 — NORMALIZACIÓN DE ACCIONES GENERALES
 # ============================================================
 
 def limpiar_texto(valor):
@@ -241,7 +240,26 @@ def limpiar_texto(valor):
     return str(valor).strip()
 
 
-registros_normalizacion = []
+def separar_elementos(valor):
+
+    texto = limpiar_texto(valor)
+
+    if not texto:
+        return []
+
+    texto = texto.replace("\r\n", "\n")
+    texto = texto.replace("\r", "\n")
+
+    partes = texto.split("\n")
+
+    return [
+        parte.strip()
+        for parte in partes
+        if parte.strip()
+    ]
+
+
+registros_acciones_generales = []
 
 
 for _, fila in df_trabajo.iterrows():
@@ -250,45 +268,42 @@ for _, fila in df_trabajo.iterrows():
         fila["Producto"]
     )
 
-    componentes = limpiar_texto(
-        fila["Componentes"]
-    )
-
-    acciones = limpiar_texto(
+    acciones = separar_elementos(
         fila["Acciones generales"]
     )
 
     if not producto:
         continue
 
-    registros_normalizacion.append(
-        {
-            "Producto": producto,
-            "Componentes_original": componentes,
-            "Acciones_originales": acciones
-        }
-    )
+    for accion in acciones:
+
+        registros_acciones_generales.append(
+            {
+                "Producto": producto,
+                "Accion_general": accion
+            }
+        )
 
 
-df_normalizacion_base = pd.DataFrame(
-    registros_normalizacion
+df_acciones_generales = pd.DataFrame(
+    registros_acciones_generales
 )
 
 
 # ============================================================
-# 5.9 — COMPROBACIÓN
+# 5.9 — MOSTRAR ACCIONES GENERALES
 # ============================================================
 
 st.subheader(
-    "Estructura inicial de normalización"
+    "Acciones generales normalizadas"
 )
 
 st.write(
-    f"Productos procesados: "
-    f"**{len(df_normalizacion_base)}**"
+    f"Registros: **{len(df_acciones_generales)}**"
 )
 
 st.dataframe(
-    df_normalizacion_base,
+    df_acciones_generales,
     use_container_width=True
 )
+# ============================================================
