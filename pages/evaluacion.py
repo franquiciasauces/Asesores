@@ -6199,641 +6199,259 @@ except Exception as e:
         f"🔴 5.11 ERROR: "
         f"{type(e).__name__}: {e}"
     )
-
 # ============================================================
-# 5.12 INTERPRETACIÓN COMPONENTE - ACCIÓN + APRENDIZAJE
+# 5.12 — CONSTRUCCIÓN DF2 PROVISIONAL
 #
 # FUENTE EXCLUSIVA:
 #   df_normalizado_componentes_511
 #
-# SALIDA:
-#   Código | Producto | Componente | Acción componente
+# 5.11 YA HIZO LA DEPURACIÓN Y ABSTRACCIÓN.
+# 5.12 NO VALIDA, NO APRENDE Y NO INVENTA RELACIONES.
 #
-# REGLAS:
-#
-# 1. RECIBE ÚNICAMENTE LOS CANDIDATOS GENERADOS POR 5.11.
-#
-# 2. NO GENERA CRUCES NUEVOS ENTRE COMPONENTES Y ACCIONES.
-#
-# 3. CADA CANDIDATO SE REVISA COMO RELACIÓN ESPECÍFICA:
-#      Producto + Componente + Acción
-#
-# 4. LOS CASOS NO RESUELTOS SE PRESENTAN EN TANDAS
-#    DE MÁXIMO 30.
-#
-# 5. UNA VEZ VALIDADO UN CASO:
-#      PERTENECE    -> entra al DF2.
-#      NO PERTENECE -> queda excluido del DF2.
-#
-# 6. LOS CASOS YA APRENDIDOS NO VUELVEN A APARECER
-#    EN EL PROCESO DE APRENDIZAJE.
-#
-# 7. EL APRENDIZAJE SE CONSERVA EN SESSION_STATE.
-#
-# 8. NO HAY PRODUCTOS FIJOS NI VALIDACIONES ESPECIALES.
-#
-# 9. DF2 TIENE ÚNICAMENTE:
-#      Código
-#      Producto
-#      Componente
-#      Acción componente
+# SALIDA EXACTA:
+#   Código
+#   Producto
+#   Componente
+#   Acción componente
 # ============================================================
 
-st.markdown(
-    "### 5.12 Interpretación componente - acción y aprendizaje"
-)
+st.markdown("### 5.12 — DF2 provisional componente-acción")
 
 try:
-
     import re
     import pandas as pd
 
-    # ========================================================
-    # 1. VALIDAR ENTRADA DE 5.11
-    # ========================================================
+    clave_512 = "df_normalizado_componentes_511"
 
-    if (
-        "df_normalizado_componentes_511"
-        not in st.session_state
-    ):
-
-        st.error(
-            "🔴 5.12 ERROR: No existe la salida de 5.11."
-        )
+    if clave_512 not in st.session_state:
+        st.error("🔴 5.12 ERROR: No existe la salida de 5.11.")
 
     else:
 
-        df_511 = (
-            st.session_state[
-                "df_normalizado_componentes_511"
-            ]
-            .copy()
-        )
+        df_511 = st.session_state[clave_512].copy()
 
-        if df_511.empty:
+        columnas_511 = [
+            "Producto",
+            "Componente",
+            "Acción candidata",
+            "Texto funcional"
+        ]
 
-            st.warning(
-                "⚠️ 5.12: 5.11 no produjo candidatos "
-                "componente-acción."
+        faltantes_512 = [
+            c for c in columnas_511
+            if c not in df_511.columns
+        ]
+
+        if faltantes_512:
+
+            st.error(
+                "🔴 5.12 ERROR: Faltan columnas de 5.11: "
+                + ", ".join(faltantes_512)
             )
 
         else:
 
             # =================================================
-            # 2. COLUMNAS OBLIGATORIAS
+            # 1. LIMPIEZA
             # =================================================
 
-            columnas_512 = [
-                "Producto",
-                "Componente",
-                "Acción candidata",
-                "Texto funcional"
-            ]
+            for c in columnas_511:
 
-            faltantes_512 = [
-                columna
-                for columna in columnas_512
-                if columna not in df_511.columns
-            ]
+                df_511[c] = (
+                    df_511[c]
+                    .fillna("")
+                    .astype(str)
+                    .str.strip()
+                )
 
-            if faltantes_512:
+            df_511 = df_511[
+                (df_511["Producto"] != "")
+                &
+                (df_511["Componente"] != "")
+                &
+                (df_511["Acción candidata"] != "")
+            ].copy()
 
-                st.error(
-                    "🔴 5.12 ERROR: Faltan columnas de 5.11: "
-                    + ", ".join(faltantes_512)
+            # =================================================
+            # 2. NORMALIZACIÓN SOLO PARA DETECTAR DUPLICADOS
+            #
+            # NO MODIFICA EL TEXTO FINAL.
+            # =================================================
+
+            def normalizar_512(valor):
+
+                texto = str(valor).strip().casefold()
+
+                texto = re.sub(
+                    r"\s+",
+                    " ",
+                    texto
+                )
+
+                return texto
+
+            def clave_relacion_512(
+                producto,
+                componente,
+                accion
+            ):
+
+                return (
+                    normalizar_512(producto)
+                    + "|||"
+                    + normalizar_512(componente)
+                    + "|||"
+                    + normalizar_512(accion)
+                )
+
+            # =================================================
+            # 3. CONSTRUIR RELACIONES
+            #
+            # CADA FILA DE 5.11 YA ES UNA RELACIÓN VÁLIDA.
+            #
+            # NO:
+            # - cruza componentes
+            # - valida
+            # - aprende
+            # - pregunta
+            # - inventa
+            # =================================================
+
+            registros_512 = []
+
+            claves_512 = set()
+
+            for _, fila in df_511.iterrows():
+
+                producto = fila[
+                    "Producto"
+                ]
+
+                componente = fila[
+                    "Componente"
+                ]
+
+                accion = fila[
+                    "Acción candidata"
+                ]
+
+                clave = clave_relacion_512(
+                    producto,
+                    componente,
+                    accion
+                )
+
+                if clave in claves_512:
+                    continue
+
+                claves_512.add(clave)
+
+                registros_512.append(
+                    {
+                        "Producto":
+                            producto,
+
+                        "Componente":
+                            componente,
+
+                        "Acción componente":
+                            accion
+                    }
+                )
+
+            # =================================================
+            # 4. CREAR DF2 PROVISIONAL
+            # =================================================
+
+            df2_provisional_512 = pd.DataFrame(
+                registros_512,
+                columns=[
+                    "Producto",
+                    "Componente",
+                    "Acción componente"
+                ]
+            )
+
+            # =================================================
+            # 5. CÓDIGO PROVISIONAL
+            #
+            # La permanencia real de códigos la controla 5.13.
+            # =================================================
+
+            if not df2_provisional_512.empty:
+
+                df2_provisional_512.insert(
+                    0,
+                    "Código",
+                    [
+                        f"CF{n:06d}"
+                        for n in range(
+                            1,
+                            len(df2_provisional_512) + 1
+                        )
+                    ]
                 )
 
             else:
 
-                # =============================================
-                # 3. LIMPIEZA
-                # =============================================
-
-                for columna in columnas_512:
-
-                    df_511[columna] = (
-                        df_511[columna]
-                        .fillna("")
-                        .astype(str)
-                        .str.strip()
-                    )
-
-                df_511 = (
-                    df_511[
-                        (df_511["Producto"] != "")
-                        &
-                        (df_511["Componente"] != "")
-                        &
-                        (df_511["Acción candidata"] != "")
-                    ]
-                    .drop_duplicates(
-                        subset=[
-                            "Producto",
-                            "Componente",
-                            "Acción candidata"
-                        ]
-                    )
-                    .reset_index(drop=True)
-                )
-
-                # =============================================
-                # 4. APRENDIZAJE ACUMULADO
-                # =============================================
-
-                if (
-                    "aprendizaje_df2_512"
-                    not in st.session_state
-                ):
-
-                    st.session_state[
-                        "aprendizaje_df2_512"
-                    ] = {}
-
-                aprendizaje_512 = (
-                    st.session_state[
-                        "aprendizaje_df2_512"
-                    ]
-                )
-
-                # =============================================
-                # 5. CLAVE ESTABLE
-                # =============================================
-
-                def normalizar_512(texto):
-
-                    texto = str(
-                        texto
-                    ).strip().lower()
-
-                    texto = re.sub(
-                        r"\s+",
-                        " ",
-                        texto
-                    )
-
-                    return texto
-
-                def clave_512(
-                    producto,
-                    componente,
-                    accion
-                ):
-
-                    return (
-                        normalizar_512(producto)
-                        + "|||"
-                        + normalizar_512(componente)
-                        + "|||"
-                        + normalizar_512(accion)
-                    )
-
-                # =============================================
-                # 6. ASEGURAR VALORES VÁLIDOS
-                # =============================================
-
-                decisiones_validas_512 = {
-                    "PERTENECE",
-                    "NO PERTENECE"
-                }
-
-                # =============================================
-                # 7. ELIMINAR DEL APRENDIZAJE CUALQUIER
-                #    VALOR ANTIGUO "DUDOSO"
-                #
-                # DUDOSO NO ES UNA DECISIÓN FINAL.
-                # =============================================
-
-                aprendizaje_limpio_512 = {}
-
-                for clave, decision in (
-                    aprendizaje_512.items()
-                ):
-
-                    if decision in decisiones_validas_512:
-
-                        aprendizaje_limpio_512[
-                            clave
-                        ] = decision
-
-                aprendizaje_512 = (
-                    aprendizaje_limpio_512
-                )
-
-                st.session_state[
-                    "aprendizaje_df2_512"
-                ] = aprendizaje_512
-
-                # =============================================
-                # 8. CONSTRUIR ESTADO COMPLETO
-                # =============================================
-
-                registros_estado_512 = []
-
-                for _, fila in df_511.iterrows():
-
-                    producto = fila[
-                        "Producto"
-                    ]
-
-                    componente = fila[
-                        "Componente"
-                    ]
-
-                    accion = fila[
-                        "Acción candidata"
-                    ]
-
-                    texto = fila[
-                        "Texto funcional"
-                    ]
-
-                    clave = clave_512(
-                        producto,
-                        componente,
-                        accion
-                    )
-
-                    decision = aprendizaje_512.get(
-                        clave,
-                        ""
-                    )
-
-                    registros_estado_512.append(
-                        {
-                            "Producto": producto,
-                            "Componente": componente,
-                            "Acción candidata": accion,
-                            "Texto funcional": texto,
-                            "Decisión": decision,
-                            "_clave": clave
-                        }
-                    )
-
-                df_estado_512 = pd.DataFrame(
-                    registros_estado_512
-                )
-
-                # =============================================
-                # 9. CASOS PENDIENTES
-                #
-                # SOLO ESTOS APARECEN PARA APRENDIZAJE.
-                # =============================================
-
-                df_pendientes_512 = (
-                    df_estado_512[
-                        df_estado_512[
-                            "Decisión"
-                        ] == ""
-                    ]
-                    .copy()
-                )
-
-                total_512 = len(
-                    df_estado_512
-                )
-
-                resueltos_512 = (
-                    total_512
-                    -
-                    len(df_pendientes_512)
-                )
-
-                pertenece_512 = int(
-                    (
-                        df_estado_512[
-                            "Decisión"
-                        ]
-                        == "PERTENECE"
-                    ).sum()
-                )
-
-                no_pertenece_512 = int(
-                    (
-                        df_estado_512[
-                            "Decisión"
-                        ]
-                        == "NO PERTENECE"
-                    ).sum()
-                )
-
-                pendientes_512 = len(
-                    df_pendientes_512
-                )
-
-                # =============================================
-                # 10. ESTADO
-                # =============================================
-
-                st.write(
-                    "### Estado de la interpretación"
-                )
-
-                st.info(
-                    f"Total candidatos: **{total_512}** | "
-                    f"Resueltos: **{resueltos_512}** | "
-                    f"Pendientes: **{pendientes_512}** | "
-                    f"PERTENECE: **{pertenece_512}** | "
-                    f"NO PERTENECE: **{no_pertenece_512}**"
-                )
-
-                # =============================================
-                # 11. APRENDIZAJE EN TANDAS DE 30
-                # =============================================
-
-                decisiones_nuevas_512 = {}
-
-                if pendientes_512 == 0:
-
-                    st.success(
-                        "🟢 No quedan candidatos pendientes "
-                        "de aprendizaje."
-                    )
-
-                else:
-
-                    st.write(
-                        "### Entrenamiento / aprendizaje"
-                    )
-
-                    st.info(
-                        f"Hay **{pendientes_512} candidatos "
-                        "pendientes. Se muestran máximo "
-                        "**30 por tanda**."
-                    )
-
-                    muestra_512 = (
-                        df_pendientes_512
-                        .head(30)
-                        .copy()
-                    )
-
-                    for posicion, (_, fila) in enumerate(
-                        muestra_512.iterrows()
-                    ):
-
-                        producto = fila[
-                            "Producto"
-                        ]
-
-                        componente = fila[
-                            "Componente"
-                        ]
-
-                        accion = fila[
-                            "Acción candidata"
-                        ]
-
-                        texto = fila[
-                            "Texto funcional"
-                        ]
-
-                        clave = fila[
-                            "_clave"
-                        ]
-
-                        st.markdown(
-                            f"**{posicion + 1}. {producto}**"
-                        )
-
-                        st.write(
-                            f"**Componente:** "
-                            f"{componente}"
-                        )
-
-                        st.write(
-                            f"**Acción candidata:** "
-                            f"{accion}"
-                        )
-
-                        if texto:
-
-                            st.caption(
-                                f"Texto funcional: {texto}"
-                            )
-
-                        decision_usuario = st.radio(
-                            "Clasificación",
-                            [
-                                "PERTENECE",
-                                "NO PERTENECE"
-                            ],
-                            index=None,
-                            key=(
-                                "decision_512_"
-                                + clave
-                            )
-                        )
-
-                        if (
-                            decision_usuario
-                            in decisiones_validas_512
-                        ):
-
-                            decisiones_nuevas_512[
-                                clave
-                            ] = decision_usuario
-
-                        st.divider()
-
-                    # =========================================
-                    # 12. GUARDAR DECISIONES
-                    # =========================================
-
-                    if st.button(
-                        "🧠 APRENDER Y ACTUALIZAR",
-                        key="aprender_actualizar_512"
-                    ):
-
-                        if not decisiones_nuevas_512:
-
-                            st.warning(
-                                "Seleccione al menos una "
-                                "clasificación."
-                            )
-
-                        else:
-
-                            for (
-                                clave,
-                                decision
-                            ) in (
-                                decisiones_nuevas_512
-                                .items()
-                            ):
-
-                                aprendizaje_512[
-                                    clave
-                                ] = decision
-
-                            st.session_state[
-                                "aprendizaje_df2_512"
-                            ] = aprendizaje_512
-
-                            st.success(
-                                f"🟢 Se actualizaron "
-                                f"**{len(decisiones_nuevas_512)}** "
-                                "relaciones."
-                            )
-
-                            st.rerun()
-
-                # =============================================
-                # 13. CONSTRUIR DF2 CON LAS RELACIONES
-                #    APROBADAS COMO PERTENECE
-                # =============================================
-
-                registros_df2_512 = []
-
-                for _, fila in df_511.iterrows():
-
-                    producto = fila[
-                        "Producto"
-                    ]
-
-                    componente = fila[
-                        "Componente"
-                    ]
-
-                    accion = fila[
-                        "Acción candidata"
-                    ]
-
-                    clave = clave_512(
-                        producto,
-                        componente,
-                        accion
-                    )
-
-                    decision = aprendizaje_512.get(
-                        clave,
-                        ""
-                    )
-
-                    if decision == "PERTENECE":
-
-                        registros_df2_512.append(
-                            {
-                                "Producto":
-                                    producto,
-
-                                "Componente":
-                                    componente,
-
-                                "Acción componente":
-                                    accion
-                            }
-                        )
-
-                # =============================================
-                # 14. DF2 PROVISIONAL
-                # =============================================
-
-                df2_512 = pd.DataFrame(
-                    registros_df2_512,
+                df2_provisional_512 = pd.DataFrame(
                     columns=[
+                        "Código",
                         "Producto",
                         "Componente",
                         "Acción componente"
                     ]
                 )
 
-                # =============================================
-                # 15. ELIMINAR DUPLICADOS
-                # =============================================
+            # =================================================
+            # 6. GUARDAR
+            # =================================================
 
-                if not df2_512.empty:
+            st.session_state[
+                "df2_provisional_512"
+            ] = (
+                df2_provisional_512.copy()
+            )
 
-                    df2_512 = (
-                        df2_512
-                        .drop_duplicates(
-                            subset=[
-                                "Producto",
-                                "Componente",
-                                "Acción componente"
-                            ]
-                        )
-                        .reset_index(drop=True)
-                    )
+            # Compatibilidad con bloques existentes
+            st.session_state[
+                "df2_componentes_acciones"
+            ] = (
+                df2_provisional_512.copy()
+            )
 
-                # =============================================
-                # 16. GENERAR CÓDIGOS
-                # =============================================
+            # =================================================
+            # 7. RESULTADO
+            # =================================================
 
-                if not df2_512.empty:
+            st.success(
+                "🟢 5.12 TERMINADO: "
+                f"{len(df2_provisional_512)} relaciones "
+                "componente-acción."
+            )
 
-                    df2_512.insert(
-                        0,
+            st.info(
+                "5.12 no realiza validación ni aprendizaje. "
+                "Solo conserva las relaciones que 5.11 "
+                "determinó con evidencia suficiente."
+            )
+
+            st.write(
+                "### DF2 provisional"
+            )
+
+            st.dataframe(
+                df2_provisional_512[
+                    [
                         "Código",
-                        [
-                            f"CF{numero:06d}"
-                            for numero in range(
-                                1,
-                                len(df2_512) + 1
-                            )
-                        ]
-                    )
-
-                # =============================================
-                # 17. GUARDAR DF2
-                # =============================================
-
-                st.session_state[
-                    "df2_componentes_acciones"
-                ] = df2_512.copy()
-
-                # =============================================
-                # 18. MOSTRAR DF2 PROVISIONAL
-                # =============================================
-
-                st.write(
-                    "### DF2 provisional"
-                )
-
-                st.success(
-                    "🟢 Relaciones componente-acción "
-                    f"aprobadas: **{len(df2_512)}**"
-                )
-
-                if not df2_512.empty:
-
-                    st.dataframe(
-                        df2_512[
-                            [
-                                "Código",
-                                "Producto",
-                                "Componente",
-                                "Acción componente"
-                            ]
-                        ],
-                        use_container_width=True,
-                        hide_index=True
-                    )
-
-                else:
-
-                    st.warning(
-                        "⚠️ Todavía no existen relaciones "
-                        "componente-acción aprobadas."
-                    )
-
-                # =============================================
-                # 19. RESUMEN DEL APRENDIZAJE
-                # =============================================
-
-                st.write(
-                    "### Aprendizaje acumulado"
-                )
-
-                st.info(
-                    f"Decisiones aprendidas: "
-                    f"**{len(aprendizaje_512)}**"
-                )
-
-                st.caption(
-                    "Los candidatos ya clasificados como "
-                    "PERTENECE o NO PERTENECE no vuelven a "
-                    "aparecer en las tandas de aprendizaje."
-                )
+                        "Producto",
+                        "Componente",
+                        "Acción componente"
+                    ]
+                ],
+                use_container_width=True,
+                hide_index=True
+            )
 
 except Exception as e:
 
@@ -6844,638 +6462,564 @@ except Exception as e:
 
 
 # ============================================================
-# 5.13 — DF2 PERMANENTE DE COMPONENTES Y ACCIONES
+# 5.13 — DF2 PERMANENTE CON PERMANENCIA
 #
-# FUENTE:
-#   df2_componentes_acciones
-#   generado por 5.12
+# FUENTE ACTUAL:
+#   df2_provisional_512
 #
-# OBJETIVO:
-#   Crear y mantener el DF2 permanente que alimentará
-#   posteriormente el Banco General de Preguntas.
+# ARCHIVO:
+#   DF2_COMPONENTES_ACCIONES.xlsx
 #
 # REGLA:
-#   NO depende de validación manual fila por fila.
-#   Conserva las relaciones que 5.12 ya determinó como
-#   pertenecientes.
+#   - Conserva relaciones existentes.
+#   - Agrega relaciones nuevas.
+#   - NO vuelve a validar.
+#   - NO depende de aprendizaje.
+#   - NO cambia códigos existentes.
+#   - Los nuevos códigos continúan desde el último CF.
 #
-# SALIDA EXCLUSIVA:
+# SALIDA EXACTA:
 #   Código
 #   Producto
 #   Componente
 #   Acción componente
-#
 # ============================================================
 
 st.markdown(
-    "### 5.13 DF2 permanente — componentes y acciones"
+    "### 5.13 — DF2 permanente componente-acción"
 )
 
 try:
 
-    import pandas as pd
     import re
     import io
+    import pandas as pd
+    from pathlib import Path
 
     # ========================================================
-    # 1. VALIDAR FUENTE DE 5.12
+    # 1. FUENTE DE 5.12
     # ========================================================
 
     if (
-        "df2_componentes_acciones"
+        "df2_provisional_512"
         not in st.session_state
     ):
 
         st.error(
-            "🔴 5.13 ERROR: No existe el DF2 generado "
-            "por 5.12."
+            "🔴 5.13 ERROR: No existe el DF2 provisional "
+            "generado por 5.12."
         )
 
     else:
 
-        df2_512 = (
+        df_nuevo_513 = (
             st.session_state[
-                "df2_componentes_acciones"
+                "df2_provisional_512"
             ]
             .copy()
         )
 
-        if df2_512 is None or df2_512.empty:
+        columnas_relacion_513 = [
+            "Producto",
+            "Componente",
+            "Acción componente"
+        ]
 
-            st.warning(
-                "⚠️ 5.13: 5.12 no produjo relaciones "
-                "componente–acción para conservar."
+        columnas_finales_513 = [
+            "Código",
+            "Producto",
+            "Componente",
+            "Acción componente"
+        ]
+
+        faltantes_513 = [
+            c
+            for c in columnas_relacion_513
+            if c not in df_nuevo_513.columns
+        ]
+
+        if faltantes_513:
+
+            st.error(
+                "🔴 5.13 ERROR: Faltan columnas de 5.12: "
+                + ", ".join(faltantes_513)
             )
 
         else:
 
             # =================================================
-            # 2. COLUMNAS OBLIGATORIAS DE LA FUENTE
+            # 2. LIMPIAR ENTRADA ACTUAL
             # =================================================
 
-            columnas_entrada_513 = [
-                "Producto",
-                "Componente",
-                "Acción componente"
-            ]
+            for c in columnas_relacion_513:
 
-            faltantes_513 = [
-                columna
-                for columna in columnas_entrada_513
-                if columna not in df2_512.columns
-            ]
+                df_nuevo_513[c] = (
+                    df_nuevo_513[c]
+                    .fillna("")
+                    .astype(str)
+                    .str.strip()
+                )
 
-            if faltantes_513:
+            df_nuevo_513 = df_nuevo_513[
+                (df_nuevo_513["Producto"] != "")
+                &
+                (df_nuevo_513["Componente"] != "")
+                &
+                (df_nuevo_513["Acción componente"] != "")
+            ].copy()
 
-                st.error(
-                    "🔴 5.13 ERROR: El DF2 de 5.12 "
-                    "no contiene las columnas requeridas: "
-                    +
-                    ", ".join(faltantes_513)
+            # =================================================
+            # 3. CLAVE ESTABLE
+            #
+            # SOLO PARA DETECTAR SI UNA RELACIÓN YA EXISTE.
+            # =================================================
+
+            def normalizar_513(valor):
+
+                texto = str(
+                    valor
+                ).strip().casefold()
+
+                texto = re.sub(
+                    r"\s+",
+                    " ",
+                    texto
+                )
+
+                return texto
+
+            def clave_relacion_513(
+                producto,
+                componente,
+                accion
+            ):
+
+                return (
+                    normalizar_513(producto)
+                    + "|||"
+                    + normalizar_513(componente)
+                    + "|||"
+                    + normalizar_513(accion)
+                )
+
+            # =================================================
+            # 4. DETERMINAR UBICACIÓN DEL ARCHIVO
+            # =================================================
+
+            if "BASE_DIR" not in globals():
+
+                BASE_DIR = Path(
+                    __file__
+                ).resolve().parent
+
+            archivo_513 = (
+                Path(BASE_DIR)
+                /
+                "DF2_COMPONENTES_ACCIONES.xlsx"
+            )
+
+            # =================================================
+            # 5. LEER DF2 PERMANENTE ANTERIOR
+            # =================================================
+
+            if archivo_513.exists():
+
+                try:
+
+                    df_anterior_513 = pd.read_excel(
+                        archivo_513,
+                        sheet_name="DF2"
+                    )
+
+                except Exception:
+
+                    df_anterior_513 = pd.DataFrame(
+                        columns=columnas_finales_513
+                    )
+
+            else:
+
+                df_anterior_513 = pd.DataFrame(
+                    columns=columnas_finales_513
+                )
+
+            # =================================================
+            # 6. GARANTIZAR ESTRUCTURA
+            # =================================================
+
+            if not all(
+                c in df_anterior_513.columns
+                for c in columnas_finales_513
+            ):
+
+                df_anterior_513 = pd.DataFrame(
+                    columns=columnas_finales_513
                 )
 
             else:
 
-                # =============================================
-                # 3. TOMAR EXCLUSIVAMENTE LAS 3 COLUMNAS
-                #    REALES DE LA RELACIÓN
-                #
-                #    El código se vuelve a generar aquí.
-                # =============================================
-
-                df2_nuevo_513 = df2_512[
-                    [
-                        "Producto",
-                        "Componente",
-                        "Acción componente"
+                df_anterior_513 = (
+                    df_anterior_513[
+                        columnas_finales_513
                     ]
-                ].copy()
+                    .copy()
+                )
 
-                # =============================================
-                # 4. LIMPIEZA
-                # =============================================
+            for c in columnas_finales_513:
 
-                for columna_513 in columnas_entrada_513:
+                df_anterior_513[c] = (
+                    df_anterior_513[c]
+                    .fillna("")
+                    .astype(str)
+                    .str.strip()
+                )
 
-                    df2_nuevo_513[
-                        columna_513
-                    ] = (
-                        df2_nuevo_513[
-                            columna_513
-                        ]
+            # =================================================
+            # 7. RECUPERAR PERMANENCIA
+            #
+            # NUNCA SE PIERDEN LAS RELACIONES EXISTENTES
+            # PORQUE UNA NUEVA EJECUCIÓN TENGA MENOS FILAS.
+            # =================================================
+
+            permanentes_513 = []
+
+            claves_existentes_513 = set()
+
+            codigos_usados_513 = set()
+
+            for _, fila in (
+                df_anterior_513.iterrows()
+            ):
+
+                producto = fila[
+                    "Producto"
+                ]
+
+                componente = fila[
+                    "Componente"
+                ]
+
+                accion = fila[
+                    "Acción componente"
+                ]
+
+                codigo = fila[
+                    "Código"
+                ]
+
+                if not (
+                    producto
+                    and componente
+                    and accion
+                ):
+
+                    continue
+
+                clave = clave_relacion_513(
+                    producto,
+                    componente,
+                    accion
+                )
+
+                if clave in claves_existentes_513:
+                    continue
+
+                # ---------------------------------------------
+                # Conservar código existente si es válido.
+                # ---------------------------------------------
+
+                if not re.fullmatch(
+                    r"CF\d{6}",
+                    codigo
+                ):
+
+                    codigo = ""
+
+                if codigo:
+
+                    codigos_usados_513.add(
+                        codigo
+                    )
+
+                permanentes_513.append(
+                    {
+                        "Código":
+                            codigo,
+
+                        "Producto":
+                            producto,
+
+                        "Componente":
+                            componente,
+
+                        "Acción componente":
+                            accion
+                    }
+                )
+
+                claves_existentes_513.add(
+                    clave
+                )
+
+            # =================================================
+            # 8. DETERMINAR SIGUIENTE CÓDIGO
+            # =================================================
+
+            numeros_codigos_513 = []
+
+            for codigo in codigos_usados_513:
+
+                try:
+
+                    numeros_codigos_513.append(
+                        int(codigo[2:])
+                    )
+
+                except (
+                    ValueError,
+                    TypeError
+                ):
+
+                    pass
+
+            siguiente_codigo_513 = (
+                max(
+                    numeros_codigos_513,
+                    default=0
+                )
+                + 1
+            )
+
+            # =================================================
+            # 9. AGREGAR RELACIONES NUEVAS
+            #
+            # NO REQUIEREN VALIDACIÓN.
+            # YA FUERON DETERMINADAS POR 5.11.
+            # =================================================
+
+            nuevas_513 = 0
+
+            for _, fila in (
+                df_nuevo_513.iterrows()
+            ):
+
+                producto = fila[
+                    "Producto"
+                ]
+
+                componente = fila[
+                    "Componente"
+                ]
+
+                accion = fila[
+                    "Acción componente"
+                ]
+
+                clave = clave_relacion_513(
+                    producto,
+                    componente,
+                    accion
+                )
+
+                if clave in claves_existentes_513:
+                    continue
+
+                # ---------------------------------------------
+                # Buscar siguiente CF libre.
+                # ---------------------------------------------
+
+                while (
+                    f"CF{siguiente_codigo_513:06d}"
+                    in codigos_usados_513
+                ):
+
+                    siguiente_codigo_513 += 1
+
+                codigo_nuevo = (
+                    f"CF{siguiente_codigo_513:06d}"
+                )
+
+                permanentes_513.append(
+                    {
+                        "Código":
+                            codigo_nuevo,
+
+                        "Producto":
+                            producto,
+
+                        "Componente":
+                            componente,
+
+                        "Acción componente":
+                            accion
+                    }
+                )
+
+                claves_existentes_513.add(
+                    clave
+                )
+
+                codigos_usados_513.add(
+                    codigo_nuevo
+                )
+
+                siguiente_codigo_513 += 1
+
+                nuevas_513 += 1
+
+            # =================================================
+            # 10. CONSTRUIR DF2 PERMANENTE
+            # =================================================
+
+            df2_permanente_513 = pd.DataFrame(
+                permanentes_513,
+                columns=columnas_finales_513
+            )
+
+            # =================================================
+            # 11. LIMPIEZA FINAL
+            # =================================================
+
+            if not df2_permanente_513.empty:
+
+                for c in columnas_finales_513:
+
+                    df2_permanente_513[c] = (
+                        df2_permanente_513[c]
                         .fillna("")
                         .astype(str)
                         .str.strip()
                     )
 
-                # =============================================
-                # 5. ELIMINAR REGISTROS INCOMPLETOS
-                # =============================================
-
-                df2_nuevo_513 = (
-                    df2_nuevo_513[
-                        (
-                            df2_nuevo_513[
-                                "Producto"
-                            ] != ""
-                        )
-                        &
-                        (
-                            df2_nuevo_513[
-                                "Componente"
-                            ] != ""
-                        )
-                        &
-                        (
-                            df2_nuevo_513[
-                                "Acción componente"
-                            ] != ""
-                        )
-                    ]
-                    .copy()
-                )
-
-                # =============================================
-                # 6. NORMALIZACIÓN DE CLAVE
-                #
-                # Solo para identificar duplicados.
-                # NO modifica el texto mostrado.
-                # =============================================
-
-                def clave_513(
-                    producto,
-                    componente,
-                    accion
-                ):
-
-                    def normalizar_513(texto):
-
-                        texto = str(
-                            texto
-                        ).strip().casefold()
-
-                        texto = re.sub(
-                            r"\s+",
-                            " ",
-                            texto
-                        )
-
-                        return texto
-
-                    return (
-                        normalizar_513(
-                            producto
-                        )
-                        + "|||"
-                        +
-                        normalizar_513(
-                            componente
-                        )
-                        + "|||"
-                        +
-                        normalizar_513(
-                            accion
-                        )
-                    )
-
-                # =============================================
-                # 7. ELIMINAR DUPLICADOS DEL RESULTADO
-                #    ACTUAL DE 5.12
-                # =============================================
-
-                df2_nuevo_513[
-                    "_clave_513"
-                ] = df2_nuevo_513.apply(
-                    lambda fila: clave_513(
-                        fila["Producto"],
-                        fila["Componente"],
-                        fila["Acción componente"]
-                    ),
-                    axis=1
-                )
-
-                df2_nuevo_513 = (
-                    df2_nuevo_513
+                df2_permanente_513 = (
+                    df2_permanente_513
                     .drop_duplicates(
                         subset=[
-                            "_clave_513"
-                        ]
-                    )
-                    .drop(
-                        columns=[
-                            "_clave_513"
-                        ]
+                            "Producto",
+                            "Componente",
+                            "Acción componente"
+                        ],
+                        keep="first"
                     )
                     .reset_index(
                         drop=True
                     )
                 )
 
-                # =================================================
-                # 8. ARCHIVO PERMANENTE
-                #
-                # Se mantiene localmente en la misma aplicación.
-                # =================================================
+            # =================================================
+            # 12. VALIDACIÓN ESTRICTA
+            #
+            # EXACTAMENTE 4 COLUMNAS.
+            # =================================================
 
-                ARCHIVO_DF2_PERMANENTE = (
-                    BASE_DIR
-                    /
+            if (
+                list(
+                    df2_permanente_513.columns
+                )
+                != columnas_finales_513
+            ):
+
+                raise ValueError(
+                    "La salida 5.13 no tiene exactamente "
+                    "las 4 columnas requeridas."
+                )
+
+            # =================================================
+            # 13. GUARDAR EN SESSION STATE
+            # =================================================
+
+            st.session_state[
+                "df2_permanente_513"
+            ] = (
+                df2_permanente_513.copy()
+            )
+
+            st.session_state[
+                "df2_componentes_acciones"
+            ] = (
+                df2_permanente_513.copy()
+            )
+
+            # =================================================
+            # 14. GUARDAR ARCHIVO PERMANENTE
+            # =================================================
+
+            with pd.ExcelWriter(
+                archivo_513,
+                engine="openpyxl"
+            ) as writer:
+
+                df2_permanente_513.to_excel(
+                    writer,
+                    sheet_name="DF2",
+                    index=False
+                )
+
+            # =================================================
+            # 15. RESULTADO
+            # =================================================
+
+            st.success(
+                "🟢 5.13 TERMINADO: "
+                "DF2 permanente actualizado."
+            )
+
+            st.info(
+                f"Relaciones permanentes: "
+                f"**{len(df2_permanente_513)}** | "
+                f"Nuevas incorporadas: "
+                f"**{nuevas_513}**"
+            )
+
+            # =================================================
+            # 16. MOSTRAR DF2
+            # =================================================
+
+            st.write(
+                "### DF2 permanente"
+            )
+
+            st.dataframe(
+                df2_permanente_513[
+                    columnas_finales_513
+                ],
+                use_container_width=True,
+                hide_index=True
+            )
+
+            # =================================================
+            # 17. DESCARGA
+            # =================================================
+
+            buffer_513 = io.BytesIO()
+
+            with pd.ExcelWriter(
+                buffer_513,
+                engine="openpyxl"
+            ) as writer:
+
+                df2_permanente_513.to_excel(
+                    writer,
+                    sheet_name="DF2",
+                    index=False
+                )
+
+            st.download_button(
+                label=(
+                    "⬇️ Descargar DF2 permanente"
+                ),
+                data=buffer_513.getvalue(),
+                file_name=(
                     "DF2_COMPONENTES_ACCIONES.xlsx"
+                ),
+                mime=(
+                    "application/vnd.openxmlformats-officedocument."
+                    "spreadsheetml.sheet"
+                ),
+                key=(
+                    "descargar_df2_permanente_513"
                 )
-
-                columnas_finales_513 = [
-                    "Código",
-                    "Producto",
-                    "Componente",
-                    "Acción componente"
-                ]
-
-                # =================================================
-                # 9. LEER PERMANENCIA ANTERIOR
-                # =================================================
-
-                if ARCHIVO_DF2_PERMANENTE.exists():
-
-                    try:
-
-                        df2_anterior_513 = pd.read_excel(
-                            ARCHIVO_DF2_PERMANENTE,
-                            sheet_name="DF2"
-                        )
-
-                    except Exception:
-
-                        df2_anterior_513 = pd.DataFrame(
-                            columns=columnas_finales_513
-                        )
-
-                else:
-
-                    df2_anterior_513 = pd.DataFrame(
-                        columns=columnas_finales_513
-                    )
-
-                # =================================================
-                # 10. VALIDAR ESTRUCTURA ANTERIOR
-                # =================================================
-
-                columnas_relacion_513 = [
-                    "Producto",
-                    "Componente",
-                    "Acción componente"
-                ]
-
-                if not all(
-                    columna in df2_anterior_513.columns
-                    for columna in columnas_relacion_513
-                ):
-
-                    df2_anterior_513 = pd.DataFrame(
-                        columns=columnas_finales_513
-                    )
-
-                else:
-
-                    df2_anterior_513 = (
-                        df2_anterior_513[
-                            columnas_finales_513
-                        ]
-                        .copy()
-                    )
-
-                # =================================================
-                # 11. LIMPIAR PERMANENCIA ANTERIOR
-                # =================================================
-
-                for columna_513 in columnas_relacion_513:
-
-                    df2_anterior_513[
-                        columna_513
-                    ] = (
-                        df2_anterior_513[
-                            columna_513
-                        ]
-                        .fillna("")
-                        .astype(str)
-                        .str.strip()
-                    )
-
-                # =================================================
-                # 12. CONSERVAR RELACIONES ANTERIORES
-                #
-                # La permanencia NO depende de que vuelvan a
-                # aparecer en la tanda actual de aprendizaje.
-                # =================================================
-
-                permanentes_513 = []
-
-                claves_permanentes_513 = set()
-
-                for _, fila_513 in (
-                    df2_anterior_513.iterrows()
-                ):
-
-                    producto_513 = fila_513[
-                        "Producto"
-                    ]
-
-                    componente_513 = fila_513[
-                        "Componente"
-                    ]
-
-                    accion_513 = fila_513[
-                        "Acción componente"
-                    ]
-
-                    if not (
-                        producto_513
-                        and componente_513
-                        and accion_513
-                    ):
-
-                        continue
-
-                    clave_actual_513 = clave_513(
-                        producto_513,
-                        componente_513,
-                        accion_513
-                    )
-
-                    if clave_actual_513 in (
-                        claves_permanentes_513
-                    ):
-
-                        continue
-
-                    permanentes_513.append(
-                        {
-                            "Producto":
-                                producto_513,
-
-                            "Componente":
-                                componente_513,
-
-                            "Acción componente":
-                                accion_513
-                        }
-                    )
-
-                    claves_permanentes_513.add(
-                        clave_actual_513
-                    )
-
-                # =================================================
-                # 13. AGREGAR NUEVAS RELACIONES DE 5.12
-                #
-                # NO exige validación manual.
-                # Si 5.12 la produjo como relación aceptada,
-                # entra automáticamente.
-                # =================================================
-
-                nuevas_513 = 0
-
-                for _, fila_513 in (
-                    df2_nuevo_513.iterrows()
-                ):
-
-                    producto_513 = fila_513[
-                        "Producto"
-                    ]
-
-                    componente_513 = fila_513[
-                        "Componente"
-                    ]
-
-                    accion_513 = fila_513[
-                        "Acción componente"
-                    ]
-
-                    clave_actual_513 = clave_513(
-                        producto_513,
-                        componente_513,
-                        accion_513
-                    )
-
-                    if clave_actual_513 in (
-                        claves_permanentes_513
-                    ):
-
-                        continue
-
-                    permanentes_513.append(
-                        {
-                            "Producto":
-                                producto_513,
-
-                            "Componente":
-                                componente_513,
-
-                            "Acción componente":
-                                accion_513
-                        }
-                    )
-
-                    claves_permanentes_513.add(
-                        clave_actual_513
-                    )
-
-                    nuevas_513 += 1
-
-                # =================================================
-                # 14. CONSTRUIR DF2 PERMANENTE
-                # =================================================
-
-                df2_permanente_513 = pd.DataFrame(
-                    permanentes_513,
-                    columns=[
-                        "Producto",
-                        "Componente",
-                        "Acción componente"
-                    ]
-                )
-
-                # =================================================
-                # 15. ORDEN ESTABLE
-                # =================================================
-
-                if not df2_permanente_513.empty:
-
-                    df2_permanente_513 = (
-                        df2_permanente_513
-                        .sort_values(
-                            by=[
-                                "Producto",
-                                "Componente",
-                                "Acción componente"
-                            ],
-                            kind="stable"
-                        )
-                        .reset_index(
-                            drop=True
-                        )
-                    )
-
-                # =================================================
-                # 16. GENERAR CÓDIGOS ESTABLES
-                # =================================================
-
-                if not df2_permanente_513.empty:
-
-                    df2_permanente_513.insert(
-                        0,
-                        "Código",
-                        [
-                            f"CF{numero:06d}"
-                            for numero in range(
-                                1,
-                                len(
-                                    df2_permanente_513
-                                ) + 1
-                            )
-                        ]
-                    )
-
-                else:
-
-                    df2_permanente_513 = pd.DataFrame(
-                        columns=columnas_finales_513
-                    )
-
-                # =================================================
-                # 17. GUARDAR EN SESSION STATE
-                # =================================================
-
-                st.session_state[
-                    "df2_componentes_acciones"
-                ] = (
-                    df2_permanente_513.copy()
-                )
-
-                st.session_state[
-                    "df2_permanente_513"
-                ] = (
-                    df2_permanente_513.copy()
-                )
-
-                # =================================================
-                # 18. GUARDAR ARCHIVO PERMANENTE
-                # =================================================
-
-                with pd.ExcelWriter(
-                    ARCHIVO_DF2_PERMANENTE,
-                    engine="openpyxl"
-                ) as writer:
-
-                    df2_permanente_513.to_excel(
-                        writer,
-                        sheet_name="DF2",
-                        index=False
-                    )
-
-                # =================================================
-                # 19. RESULTADO
-                # =================================================
-
-                st.success(
-                    "🟢 5.13 DF2 PERMANENTE ACTUALIZADO"
-                )
-
-                st.info(
-                    f"Relaciones permanentes: "
-                    f"**{len(df2_permanente_513)}** | "
-                    f"Nuevas incorporadas desde 5.12: "
-                    f"**{nuevas_513}**"
-                )
-
-                # =================================================
-                # 20. VALIDACIÓN DE COLUMNAS
-                # =================================================
-
-                columnas_reales_513 = (
-                    list(
-                        df2_permanente_513.columns
-                    )
-                )
-
-                if (
-                    columnas_reales_513
-                    != columnas_finales_513
-                ):
-
-                    st.error(
-                        "🔴 5.13 ERROR: La salida no tiene "
-                        "la estructura esperada."
-                    )
-
-                else:
-
-                    st.success(
-                        "✓ Estructura validada: "
-                        "Código | Producto | Componente | "
-                        "Acción componente"
-                    )
-
-                # =================================================
-                # 21. MOSTRAR DF2 PERMANENTE
-                # =================================================
-
-                st.write(
-                    "### DF2 permanente"
-                )
-
-                if df2_permanente_513.empty:
-
-                    st.warning(
-                        "⚠️ El DF2 permanente está vacío."
-                    )
-
-                else:
-
-                    st.dataframe(
-                        df2_permanente_513[
-                            [
-                                "Código",
-                                "Producto",
-                                "Componente",
-                                "Acción componente"
-                            ]
-                        ],
-                        use_container_width=True,
-                        hide_index=True
-                    )
-
-                # =================================================
-                # 22. DESCARGA
-                # =================================================
-
-                buffer_513 = io.BytesIO()
-
-                with pd.ExcelWriter(
-                    buffer_513,
-                    engine="openpyxl"
-                ) as writer:
-
-                    df2_permanente_513.to_excel(
-                        writer,
-                        sheet_name="DF2",
-                        index=False
-                    )
-
-                st.download_button(
-                    label=(
-                        "⬇️ Descargar "
-                        "DF2_COMPONENTES_ACCIONES.xlsx"
-                    ),
-                    data=buffer_513.getvalue(),
-                    file_name=(
-                        "DF2_COMPONENTES_ACCIONES.xlsx"
-                    ),
-                    mime=(
-                        "application/vnd.openxmlformats-officedocument."
-                        "spreadsheetml.sheet"
-                    ),
-                    key="descargar_df2_permanente_513"
-                )
+            )
 
 except Exception as e:
 
@@ -7483,3 +7027,4 @@ except Exception as e:
         f"🔴 5.13 ERROR: "
         f"{type(e).__name__}: {e}"
     )
+
