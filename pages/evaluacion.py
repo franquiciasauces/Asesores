@@ -29,24 +29,18 @@ st.set_page_config(
 # 2. UBICACIÓN DEL PROYECTO
 # ============================================================
 
-BASE_DIR = Path(__file__).resolve().parent
+from pathlib import Path
+
+# evaluacion.py está dentro de /pages.
+# La carpeta principal del proyecto es su carpeta padre.
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 # ============================================================
-# 3. CONFIGURACIÓN GITHUB
+# 3. ARCHIVOS DEL APLICATIVO
 # ============================================================
 
-GITHUB_USUARIO = "franquiciasauces"
-GITHUB_REPOSITORIO = "Asesores"
-
-
-try:
-
-    GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
-
-except Exception:
-
-    GITHUB_TOKEN = ""
+ARCHIVO_USUARIOS = BASE_DIR / "USUARIOS.xlsx"
 
 
 # ============================================================
