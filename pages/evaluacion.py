@@ -6199,3 +6199,645 @@ except Exception as e:
         f"🔴 5.11 ERROR: "
         f"{type(e).__name__}: {e}"
     )
+
+# ============================================================
+# 5.12 INTERPRETACIÓN COMPONENTE - ACCIÓN + APRENDIZAJE
+#
+# FUENTE EXCLUSIVA:
+#   df_normalizado_componentes_511
+#
+# SALIDA:
+#   Código | Producto | Componente | Acción componente
+#
+# REGLAS:
+#
+# 1. RECIBE ÚNICAMENTE LOS CANDIDATOS GENERADOS POR 5.11.
+#
+# 2. NO GENERA CRUCES NUEVOS ENTRE COMPONENTES Y ACCIONES.
+#
+# 3. CADA CANDIDATO SE REVISA COMO RELACIÓN ESPECÍFICA:
+#      Producto + Componente + Acción
+#
+# 4. LOS CASOS NO RESUELTOS SE PRESENTAN EN TANDAS
+#    DE MÁXIMO 30.
+#
+# 5. UNA VEZ VALIDADO UN CASO:
+#      PERTENECE    -> entra al DF2.
+#      NO PERTENECE -> queda excluido del DF2.
+#
+# 6. LOS CASOS YA APRENDIDOS NO VUELVEN A APARECER
+#    EN EL PROCESO DE APRENDIZAJE.
+#
+# 7. EL APRENDIZAJE SE CONSERVA EN SESSION_STATE.
+#
+# 8. NO HAY PRODUCTOS FIJOS NI VALIDACIONES ESPECIALES.
+#
+# 9. DF2 TIENE ÚNICAMENTE:
+#      Código
+#      Producto
+#      Componente
+#      Acción componente
+# ============================================================
+
+st.markdown(
+    "### 5.12 Interpretación componente - acción y aprendizaje"
+)
+
+try:
+
+    import re
+    import pandas as pd
+
+    # ========================================================
+    # 1. VALIDAR ENTRADA DE 5.11
+    # ========================================================
+
+    if (
+        "df_normalizado_componentes_511"
+        not in st.session_state
+    ):
+
+        st.error(
+            "🔴 5.12 ERROR: No existe la salida de 5.11."
+        )
+
+    else:
+
+        df_511 = (
+            st.session_state[
+                "df_normalizado_componentes_511"
+            ]
+            .copy()
+        )
+
+        if df_511.empty:
+
+            st.warning(
+                "⚠️ 5.12: 5.11 no produjo candidatos "
+                "componente-acción."
+            )
+
+        else:
+
+            # =================================================
+            # 2. COLUMNAS OBLIGATORIAS
+            # =================================================
+
+            columnas_512 = [
+                "Producto",
+                "Componente",
+                "Acción candidata",
+                "Texto funcional"
+            ]
+
+            faltantes_512 = [
+                columna
+                for columna in columnas_512
+                if columna not in df_511.columns
+            ]
+
+            if faltantes_512:
+
+                st.error(
+                    "🔴 5.12 ERROR: Faltan columnas de 5.11: "
+                    + ", ".join(faltantes_512)
+                )
+
+            else:
+
+                # =============================================
+                # 3. LIMPIEZA
+                # =============================================
+
+                for columna in columnas_512:
+
+                    df_511[columna] = (
+                        df_511[columna]
+                        .fillna("")
+                        .astype(str)
+                        .str.strip()
+                    )
+
+                df_511 = (
+                    df_511[
+                        (df_511["Producto"] != "")
+                        &
+                        (df_511["Componente"] != "")
+                        &
+                        (df_511["Acción candidata"] != "")
+                    ]
+                    .drop_duplicates(
+                        subset=[
+                            "Producto",
+                            "Componente",
+                            "Acción candidata"
+                        ]
+                    )
+                    .reset_index(drop=True)
+                )
+
+                # =============================================
+                # 4. APRENDIZAJE ACUMULADO
+                # =============================================
+
+                if (
+                    "aprendizaje_df2_512"
+                    not in st.session_state
+                ):
+
+                    st.session_state[
+                        "aprendizaje_df2_512"
+                    ] = {}
+
+                aprendizaje_512 = (
+                    st.session_state[
+                        "aprendizaje_df2_512"
+                    ]
+                )
+
+                # =============================================
+                # 5. CLAVE ESTABLE
+                # =============================================
+
+                def normalizar_512(texto):
+
+                    texto = str(
+                        texto
+                    ).strip().lower()
+
+                    texto = re.sub(
+                        r"\s+",
+                        " ",
+                        texto
+                    )
+
+                    return texto
+
+                def clave_512(
+                    producto,
+                    componente,
+                    accion
+                ):
+
+                    return (
+                        normalizar_512(producto)
+                        + "|||"
+                        + normalizar_512(componente)
+                        + "|||"
+                        + normalizar_512(accion)
+                    )
+
+                # =============================================
+                # 6. ASEGURAR VALORES VÁLIDOS
+                # =============================================
+
+                decisiones_validas_512 = {
+                    "PERTENECE",
+                    "NO PERTENECE"
+                }
+
+                # =============================================
+                # 7. ELIMINAR DEL APRENDIZAJE CUALQUIER
+                #    VALOR ANTIGUO "DUDOSO"
+                #
+                # DUDOSO NO ES UNA DECISIÓN FINAL.
+                # =============================================
+
+                aprendizaje_limpio_512 = {}
+
+                for clave, decision in (
+                    aprendizaje_512.items()
+                ):
+
+                    if decision in decisiones_validas_512:
+
+                        aprendizaje_limpio_512[
+                            clave
+                        ] = decision
+
+                aprendizaje_512 = (
+                    aprendizaje_limpio_512
+                )
+
+                st.session_state[
+                    "aprendizaje_df2_512"
+                ] = aprendizaje_512
+
+                # =============================================
+                # 8. CONSTRUIR ESTADO COMPLETO
+                # =============================================
+
+                registros_estado_512 = []
+
+                for _, fila in df_511.iterrows():
+
+                    producto = fila[
+                        "Producto"
+                    ]
+
+                    componente = fila[
+                        "Componente"
+                    ]
+
+                    accion = fila[
+                        "Acción candidata"
+                    ]
+
+                    texto = fila[
+                        "Texto funcional"
+                    ]
+
+                    clave = clave_512(
+                        producto,
+                        componente,
+                        accion
+                    )
+
+                    decision = aprendizaje_512.get(
+                        clave,
+                        ""
+                    )
+
+                    registros_estado_512.append(
+                        {
+                            "Producto": producto,
+                            "Componente": componente,
+                            "Acción candidata": accion,
+                            "Texto funcional": texto,
+                            "Decisión": decision,
+                            "_clave": clave
+                        }
+                    )
+
+                df_estado_512 = pd.DataFrame(
+                    registros_estado_512
+                )
+
+                # =============================================
+                # 9. CASOS PENDIENTES
+                #
+                # SOLO ESTOS APARECEN PARA APRENDIZAJE.
+                # =============================================
+
+                df_pendientes_512 = (
+                    df_estado_512[
+                        df_estado_512[
+                            "Decisión"
+                        ] == ""
+                    ]
+                    .copy()
+                )
+
+                total_512 = len(
+                    df_estado_512
+                )
+
+                resueltos_512 = (
+                    total_512
+                    -
+                    len(df_pendientes_512)
+                )
+
+                pertenece_512 = int(
+                    (
+                        df_estado_512[
+                            "Decisión"
+                        ]
+                        == "PERTENECE"
+                    ).sum()
+                )
+
+                no_pertenece_512 = int(
+                    (
+                        df_estado_512[
+                            "Decisión"
+                        ]
+                        == "NO PERTENECE"
+                    ).sum()
+                )
+
+                pendientes_512 = len(
+                    df_pendientes_512
+                )
+
+                # =============================================
+                # 10. ESTADO
+                # =============================================
+
+                st.write(
+                    "### Estado de la interpretación"
+                )
+
+                st.info(
+                    f"Total candidatos: **{total_512}** | "
+                    f"Resueltos: **{resueltos_512}** | "
+                    f"Pendientes: **{pendientes_512}** | "
+                    f"PERTENECE: **{pertenece_512}** | "
+                    f"NO PERTENECE: **{no_pertenece_512}**"
+                )
+
+                # =============================================
+                # 11. APRENDIZAJE EN TANDAS DE 30
+                # =============================================
+
+                decisiones_nuevas_512 = {}
+
+                if pendientes_512 == 0:
+
+                    st.success(
+                        "🟢 No quedan candidatos pendientes "
+                        "de aprendizaje."
+                    )
+
+                else:
+
+                    st.write(
+                        "### Entrenamiento / aprendizaje"
+                    )
+
+                    st.info(
+                        f"Hay **{pendientes_512} candidatos "
+                        "pendientes. Se muestran máximo "
+                        "**30 por tanda**."
+                    )
+
+                    muestra_512 = (
+                        df_pendientes_512
+                        .head(30)
+                        .copy()
+                    )
+
+                    for posicion, (_, fila) in enumerate(
+                        muestra_512.iterrows()
+                    ):
+
+                        producto = fila[
+                            "Producto"
+                        ]
+
+                        componente = fila[
+                            "Componente"
+                        ]
+
+                        accion = fila[
+                            "Acción candidata"
+                        ]
+
+                        texto = fila[
+                            "Texto funcional"
+                        ]
+
+                        clave = fila[
+                            "_clave"
+                        ]
+
+                        st.markdown(
+                            f"**{posicion + 1}. {producto}**"
+                        )
+
+                        st.write(
+                            f"**Componente:** "
+                            f"{componente}"
+                        )
+
+                        st.write(
+                            f"**Acción candidata:** "
+                            f"{accion}"
+                        )
+
+                        if texto:
+
+                            st.caption(
+                                f"Texto funcional: {texto}"
+                            )
+
+                        decision_usuario = st.radio(
+                            "Clasificación",
+                            [
+                                "PERTENECE",
+                                "NO PERTENECE"
+                            ],
+                            index=None,
+                            key=(
+                                "decision_512_"
+                                + clave
+                            )
+                        )
+
+                        if (
+                            decision_usuario
+                            in decisiones_validas_512
+                        ):
+
+                            decisiones_nuevas_512[
+                                clave
+                            ] = decision_usuario
+
+                        st.divider()
+
+                    # =========================================
+                    # 12. GUARDAR DECISIONES
+                    # =========================================
+
+                    if st.button(
+                        "🧠 APRENDER Y ACTUALIZAR",
+                        key="aprender_actualizar_512"
+                    ):
+
+                        if not decisiones_nuevas_512:
+
+                            st.warning(
+                                "Seleccione al menos una "
+                                "clasificación."
+                            )
+
+                        else:
+
+                            for (
+                                clave,
+                                decision
+                            ) in (
+                                decisiones_nuevas_512
+                                .items()
+                            ):
+
+                                aprendizaje_512[
+                                    clave
+                                ] = decision
+
+                            st.session_state[
+                                "aprendizaje_df2_512"
+                            ] = aprendizaje_512
+
+                            st.success(
+                                f"🟢 Se actualizaron "
+                                f"**{len(decisiones_nuevas_512)}** "
+                                "relaciones."
+                            )
+
+                            st.rerun()
+
+                # =============================================
+                # 13. CONSTRUIR DF2 CON LAS RELACIONES
+                #    APROBADAS COMO PERTENECE
+                # =============================================
+
+                registros_df2_512 = []
+
+                for _, fila in df_511.iterrows():
+
+                    producto = fila[
+                        "Producto"
+                    ]
+
+                    componente = fila[
+                        "Componente"
+                    ]
+
+                    accion = fila[
+                        "Acción candidata"
+                    ]
+
+                    clave = clave_512(
+                        producto,
+                        componente,
+                        accion
+                    )
+
+                    decision = aprendizaje_512.get(
+                        clave,
+                        ""
+                    )
+
+                    if decision == "PERTENECE":
+
+                        registros_df2_512.append(
+                            {
+                                "Producto":
+                                    producto,
+
+                                "Componente":
+                                    componente,
+
+                                "Acción componente":
+                                    accion
+                            }
+                        )
+
+                # =============================================
+                # 14. DF2 PROVISIONAL
+                # =============================================
+
+                df2_512 = pd.DataFrame(
+                    registros_df2_512,
+                    columns=[
+                        "Producto",
+                        "Componente",
+                        "Acción componente"
+                    ]
+                )
+
+                # =============================================
+                # 15. ELIMINAR DUPLICADOS
+                # =============================================
+
+                if not df2_512.empty:
+
+                    df2_512 = (
+                        df2_512
+                        .drop_duplicates(
+                            subset=[
+                                "Producto",
+                                "Componente",
+                                "Acción componente"
+                            ]
+                        )
+                        .reset_index(drop=True)
+                    )
+
+                # =============================================
+                # 16. GENERAR CÓDIGOS
+                # =============================================
+
+                if not df2_512.empty:
+
+                    df2_512.insert(
+                        0,
+                        "Código",
+                        [
+                            f"CF{numero:06d}"
+                            for numero in range(
+                                1,
+                                len(df2_512) + 1
+                            )
+                        ]
+                    )
+
+                # =============================================
+                # 17. GUARDAR DF2
+                # =============================================
+
+                st.session_state[
+                    "df2_componentes_acciones"
+                ] = df2_512.copy()
+
+                # =============================================
+                # 18. MOSTRAR DF2 PROVISIONAL
+                # =============================================
+
+                st.write(
+                    "### DF2 provisional"
+                )
+
+                st.success(
+                    "🟢 Relaciones componente-acción "
+                    f"aprobadas: **{len(df2_512)}**"
+                )
+
+                if not df2_512.empty:
+
+                    st.dataframe(
+                        df2_512[
+                            [
+                                "Código",
+                                "Producto",
+                                "Componente",
+                                "Acción componente"
+                            ]
+                        ],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+                else:
+
+                    st.warning(
+                        "⚠️ Todavía no existen relaciones "
+                        "componente-acción aprobadas."
+                    )
+
+                # =============================================
+                # 19. RESUMEN DEL APRENDIZAJE
+                # =============================================
+
+                st.write(
+                    "### Aprendizaje acumulado"
+                )
+
+                st.info(
+                    f"Decisiones aprendidas: "
+                    f"**{len(aprendizaje_512)}**"
+                )
+
+                st.caption(
+                    "Los candidatos ya clasificados como "
+                    "PERTENECE o NO PERTENECE no vuelven a "
+                    "aparecer en las tandas de aprendizaje."
+                )
+
+except Exception as e:
+
+    st.error(
+        f"🔴 5.12 ERROR: "
+        f"{type(e).__name__}: {e}"
+    )
