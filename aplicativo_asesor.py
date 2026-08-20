@@ -5708,1003 +5708,453 @@ if (
         "Todavía no se generan preguntas ni se "
         "modifican archivos permanentes."
     )
+```python
 # ========================================================
-# 7.5.2 — EXTRACCIÓN Y NORMALIZACIÓN ESTRUCTURAL
+# 7.5.2 — CONSTRUCCIÓN DEL DATAFRAME ESTRUCTURAL
 # ========================================================
 #
 # OBJETIVO:
-# Construir las relaciones iniciales a partir de la fuente,
-# conservando exactamente el contenido original.
+# Construir el DataFrame permanente de trabajo a partir
+# de la información disponible en dataframe_fuente_75.
 #
 # ESTE BLOQUE:
-# - NO modifica Base_Productos.
-# - NO hace abstracción semántica.
-# - NO cambia verbos por otros.
-# - NO elimina componentes.
+# - NO modifica la matriz original.
 # - NO genera preguntas.
+# - NO genera respuestas.
 # - NO genera distractores.
+# - NO hace abstracción semántica.
+# - NO sustituye verbos.
+# - NO impone funciones predeterminadas.
+# - CONSERVA la relación producto / acción / componente.
 #
-# PREPARA:
+# ESTRUCTURA:
+#
 # Producto
-# Acción original
+# Accion_Original
+# Accion_General
+# Accion_General_Normalizada
 # Componente
-# Acción del componente original
+# Accion_Componente_Original
+# Accion_Componente
+# Accion_Componente_Normalizada
+# Nivel_Informacion
+# Origen_Informacion
+# Firma_General
+# Firma_Componente
+#
+# IMPORTANTE:
+# Un mismo componente puede tener una función diferente
+# según el producto. Por eso TODA información de componente
+# queda vinculada al producto correspondiente.
 #
 # ========================================================
 
-    # ====================================================
-    # 7.5.2.1 FUNCIONES DE LIMPIEZA
-    # ====================================================
 
-    def limpiar_texto_75_2(valor):
+# ========================================================
+# 7.5.2.1 VALIDACIÓN DE LA FUENTE
+# ========================================================
+
+if "dataframe_fuente_75" not in globals():
+
+    st.error(
+        "❌ 7.5.2 — No existe dataframe_fuente_75. "
+        "No es posible construir el DataFrame de trabajo."
+    )
+
+    st.stop()
+
+
+if not isinstance(dataframe_fuente_75, pd.DataFrame):
+
+    st.error(
+        "❌ 7.5.2 — dataframe_fuente_75 no es un "
+        "DataFrame de pandas."
+    )
+
+    st.stop()
+
+
+if dataframe_fuente_75.empty:
+
+    st.error(
+        "❌ 7.5.2 — dataframe_fuente_75 está vacío."
+    )
+
+    st.stop()
+
+
+# ========================================================
+# 7.5.2.2 VALIDAR COLUMNAS DISPONIBLES
+# ========================================================
+
+columnas_requeridas_75_2 = [
+    "Producto",
+    "Acciones generales"
+]
+
+columnas_faltantes_75_2 = [
+    columna_75_2
+    for columna_75_2 in columnas_requeridas_75_2
+    if columna_75_2 not in dataframe_fuente_75.columns
+]
+
+
+if columnas_faltantes_75_2:
+
+    st.error(
+        "❌ 7.5.2 — Faltan columnas obligatorias "
+        f"en dataframe_fuente_75: "
+        f"{', '.join(columnas_faltantes_75_2)}"
+    )
+
+    st.stop()
+
+
+# ========================================================
+# 7.5.2.3 DETECTAR COLUMNA DE COMPONENTES
+# ========================================================
+
+columna_componentes_75_2 = None
+
+for candidato_75_2 in [
+    "Componentes",
+    "Componente",
+    "Componentes del producto",
+    "Componentes producto"
+]:
+
+    if candidato_75_2 in dataframe_fuente_75.columns:
+
+        columna_componentes_75_2 = candidato_75_2
+
+        break
+
+
+tiene_componentes_75_2 = (
+    columna_componentes_75_2 is not None
+)
+
+
+# ========================================================
+# 7.5.2.4 FUNCIONES BÁSICAS DE LIMPIEZA
+# ========================================================
+
+def limpiar_texto_75_2(valor):
+
+    if valor is None:
+
+        return ""
+
+    try:
 
         if pd.isna(valor):
+
             return ""
 
-        texto_75_2 = str(
-            valor
-        )
+    except Exception:
 
-        texto_75_2 = (
-            texto_75_2
-            .replace("\r", " ")
-            .replace("\n", " ")
-            .replace("\t", " ")
-        )
+        pass
 
-        return " ".join(
-            texto_75_2.split()
-        ).strip()
+    texto_75_2 = str(valor)
 
-
-    def separar_elementos_75_2(valor):
-
-        texto_75_2 = (
-            limpiar_texto_75_2(
-                valor
-            )
-        )
-
-        if not texto_75_2:
-            return []
-
-        elementos_75_2 = []
-
-        for elemento_75_2 in (
-            texto_75_2.split(";")
-        ):
-
-            elemento_75_2 = (
-                limpiar_texto_75_2(
-                    elemento_75_2
-                )
-            )
-
-            if elemento_75_2:
-
-                elementos_75_2.append(
-                    elemento_75_2
-                )
-
-        return elementos_75_2
-
-
-    def quitar_duplicados_75_2(
-        elementos_75_2
-    ):
-
-        resultado_75_2 = []
-        vistos_75_2 = set()
-
-        for elemento_75_2 in (
-            elementos_75_2
-        ):
-
-            firma_75_2 = (
-                limpiar_texto_75_2(
-                    elemento_75_2
-                ).casefold()
-            )
-
-            if (
-                firma_75_2
-                and
-                firma_75_2
-                not in vistos_75_2
-            ):
-
-                vistos_75_2.add(
-                    firma_75_2
-                )
-
-                resultado_75_2.append(
-                    elemento_75_2
-                )
-
-        return resultado_75_2
-
-
-    # ====================================================
-    # 7.5.2.2 CONSTRUIR RELACIONES DE TRABAJO
-    # ====================================================
-
-    registros_75_2 = []
-
-    for _, fila_75_2 in (
-        dataframe_fuente_75.iterrows()
-    ):
-
-        producto_75_2 = (
-            limpiar_texto_75_2(
-                fila_75_2[
-                    "Producto"
-                ]
-            )
-        )
-
-        if not producto_75_2:
-
-            continue
-
-
-        # ------------------------------------------------
-        # ACCIONES GENERALES
-        # ------------------------------------------------
-
-        acciones_generales_75_2 = (
-            separar_elementos_75_2(
-                fila_75_2[
-                    "Acciones generales"
-                ]
-            )
-        )
-
-        acciones_generales_75_2 = (
-            quitar_duplicados_75_2(
-                acciones_generales_75_2
-            )
-        )
-
-
-        # ------------------------------------------------
-        # COMPONENTES
-        # ------------------------------------------------
-
-        componentes_75_2 = []
-
-        if tiene_componentes_75:
-
-            componentes_75_2 = (
-                separar_elementos_75_2(
-                    fila_75_2[
-                        "Componentes"
-                    ]
-                )
-            )
-
-            componentes_75_2 = (
-                quitar_duplicados_75_2(
-                    componentes_75_2
-                )
-            )
-
-
-        # ------------------------------------------------
-        # REGISTRAR ACCIONES GENERALES
-        # ------------------------------------------------
-
-        for accion_75_2 in (
-            acciones_generales_75_2
-        ):
-
-            registros_75_2.append({
-
-                "Producto":
-                    producto_75_2,
-
-                "Accion_Original":
-                    accion_75_2,
-
-                "Accion_General":
-                    "",
-
-                "Accion_General_Normalizada":
-                    "",
-
-                "Componente":
-                    "",
-
-                "Accion_Componente_Original":
-                    "",
-
-                "Accion_Componente":
-                    "",
-
-                "Accion_Componente_Normalizada":
-                    "",
-
-                "Firma_General":
-                    "",
-
-                "Firma_Componente":
-                    ""
-
-            })
-
-
-        # ------------------------------------------------
-        # PREPARAR COMPONENTES
-        #
-        # En este bloque todavía NO asignamos acciones
-        # a componentes porque eso requiere analizar la
-        # información específica de la matriz.
-        # ------------------------------------------------
-
-        for componente_75_2 in (
-            componentes_75_2
-        ):
-
-            registros_75_2.append({
-
-                "Producto":
-                    producto_75_2,
-
-                "Accion_Original":
-                    "",
-
-                "Accion_General":
-                    "",
-
-                "Accion_General_Normalizada":
-                    "",
-
-                "Componente":
-                    componente_75_2,
-
-                "Accion_Componente_Original":
-                    "",
-
-                "Accion_Componente":
-                    "",
-
-                "Accion_Componente_Normalizada":
-                    "",
-
-                "Firma_General":
-                    "",
-
-                "Firma_Componente":
-                    ""
-
-            })
-
-
-    # ====================================================
-    # 7.5.2.3 CREAR DATAFRAME ESTRUCTURAL
-    # ====================================================
-
-    dataframe_trabajo_75 = pd.DataFrame(
-        registros_75_2,
-        columns=columnas_trabajo_75
-    )
-
-
-    # ====================================================
-    # 7.5.2.4 LIMPIEZA FINAL
-    # ====================================================
-
-    if not dataframe_trabajo_75.empty:
-
-        dataframe_trabajo_75 = (
-            dataframe_trabajo_75
-            .drop_duplicates()
-            .reset_index(drop=True)
-        )
-
-
-    # ====================================================
-    # 7.5.2.5 ESTADÍSTICAS DE CONTROL
-    # ====================================================
-
-    total_registros_75_2 = (
-        len(
-            dataframe_trabajo_75
-        )
-    )
-
-    total_productos_75_2 = (
-        dataframe_trabajo_75[
-            "Producto"
-        ]
-        .replace("", np.nan)
-        .nunique()
-    )
-
-    total_acciones_75_2 = (
-        dataframe_trabajo_75[
-            "Accion_Original"
-        ]
-        .replace("", np.nan)
-        .count()
-    )
-
-    total_componentes_75_2 = (
-        dataframe_trabajo_75[
-            "Componente"
-        ]
-        .replace("", np.nan)
-        .count()
-    )
-
-
-    # ====================================================
-    # 7.5.2.6 MOSTRAR RESULTADO
-    # ====================================================
-
-    st.success(
-        "🟢 7.5.2 FUNCIONA — Extracción estructural "
-        "realizada correctamente."
-    )
-
-    st.write(
-        f"Productos identificados: "
-        f"**{total_productos_75_2:,}**"
-    )
-
-    st.write(
-        f"Acciones generales extraídas: "
-        f"**{total_acciones_75_2:,}**"
-    )
-
-    st.write(
-        f"Componentes identificados: "
-        f"**{total_componentes_75_2:,}**"
-    )
-
-    st.write(
-        f"Registros de trabajo creados: "
-        f"**{total_registros_75_2:,}**"
-    )
-
-
-    # ====================================================
-    # 7.5.2.7 MUESTRA DE CONTROL
-    # ====================================================
-
-    if not dataframe_trabajo_75.empty:
-
-        st.subheader(
-            "Ejemplo del DataFrame de trabajo"
-        )
-
-        st.dataframe(
-            dataframe_trabajo_75[
-                [
-                    "Producto",
-                    "Accion_Original",
-                    "Componente"
-                ]
-            ].head(15),
-            use_container_width=True,
-            hide_index=True
-        )
-
-
-    # ====================================================
-    # 7.5.2.8 VALIDACIÓN DEL BLOQUE
-    # ====================================================
-
-    if (
-        total_registros_75_2 > 0
-        and
-        total_productos_75_2 > 0
-    ):
-
-        st.success(
-            "✅ 7.5.2 VALIDADO — El DataFrame contiene "
-            "productos y relaciones estructurales "
-            "listas para la siguiente etapa."
-        )
-
-    else:
-
-        st.warning(
-            "⚠️ 7.5.2 — No se encontraron relaciones "
-            "estructurales suficientes para continuar."
-        )
-# ========================================================
-# 7.5.3 — NORMALIZACIÓN DE LA REDACCIÓN
-# ACCIONES GENERALES
-# ========================================================
-#
-# OBJETIVO:
-# Homogeneizar la FORMA VERBAL de las acciones generales.
-#
-# NO cambia el verbo por un sinónimo.
-# NO hace todavía la abstracción semántica.
-# NO modifica la matriz original.
-# NO genera preguntas.
-# ========================================================
-
-
-# ========================================================
-# 7.5.3.1 FUNCIÓN SEGURA DE NORMALIZACIÓN
-# ========================================================
-
-def normalizar_accion_general_75_3(
-    accion_75_3
-):
-
-    # ----------------------------------------------------
-    # Convertir siempre la entrada a texto seguro
-    # ----------------------------------------------------
-
-    if pd.isna(accion_75_3):
-
-        return ""
-
-    texto_75_3 = str(
-        accion_75_3
-    ).strip()
-
-    if not texto_75_3:
-
-        return ""
-
-
-    # ----------------------------------------------------
-    # LIMPIEZA BÁSICA
-    # ----------------------------------------------------
-
-    texto_75_3 = (
-        texto_75_3
+    texto_75_2 = (
+        texto_75_2
         .replace("\r", " ")
         .replace("\n", " ")
         .replace("\t", " ")
     )
 
-    texto_75_3 = " ".join(
-        texto_75_3.split()
+    return " ".join(
+        texto_75_2.split()
     ).strip()
 
 
-    if not texto_75_3:
+def separar_elementos_75_2(valor):
 
-        return ""
+    texto_75_2 = limpiar_texto_75_2(valor)
 
+    if not texto_75_2:
 
-    # ----------------------------------------------------
-    # ELIMINAR ENCABEZADOS SOLO SI APARECEN
-    # AL INICIO DEL TEXTO
-    # ----------------------------------------------------
+        return []
 
-    try:
+    elementos_75_2 = []
 
-        texto_75_3 = re.sub(
-            r"^\s*(acción|accion|función|funcion)\s*:\s*",
-            "",
-            texto_75_3,
-            count=1,
-            flags=re.IGNORECASE
-        ).strip()
+    for elemento_75_2 in texto_75_2.split(";"):
 
-    except Exception:
+        elemento_75_2 = limpiar_texto_75_2(
+            elemento_75_2
+        )
 
-        # Si algo inesperado ocurre, conservar
-        # exactamente el texto limpio.
+        if elemento_75_2:
 
-        return texto_75_3
-
-
-    if not texto_75_3:
-
-        return ""
-
-
-    # ====================================================
-    # NORMALIZACIONES VERBALES SEGURAS
-    # ====================================================
-    #
-    # Solo cambia conjugación.
-    # NO sustituye un verbo por otro.
-    #
-    # Ejemplo:
-    #
-    # refuerza → reforzar
-    #
-    # pero:
-    #
-    # refuerza ≠ fortalecer
-    #
-    # ====================================================
-
-    patrones_75_3 = [
-
-        (r"^refuerza\b", "reforzar"),
-        (r"^refuerzan\b", "reforzar"),
-
-        (r"^fortalece\b", "fortalecer"),
-        (r"^fortalecen\b", "fortalecer"),
-
-        (r"^favorece\b", "favorecer"),
-        (r"^favorecen\b", "favorecer"),
-
-        (r"^apoya\b", "apoyar"),
-        (r"^apoyan\b", "apoyar"),
-
-        (r"^contribuye\b", "contribuir"),
-        (r"^contribuyen\b", "contribuir"),
-
-        (r"^promueve\b", "promover"),
-        (r"^promueven\b", "promover"),
-
-        (r"^estimula\b", "estimular"),
-        (r"^estimulan\b", "estimular"),
-
-        (r"^mejora\b", "mejorar"),
-        (r"^mejoran\b", "mejorar"),
-
-        (r"^mantiene\b", "mantener"),
-        (r"^mantienen\b", "mantener"),
-
-        (r"^protege\b", "proteger"),
-        (r"^protegen\b", "proteger"),
-
-        (r"^facilita\b", "facilitar"),
-        (r"^facilitan\b", "facilitar"),
-
-        (r"^regula\b", "regular"),
-        (r"^regulan\b", "regular")
-
-    ]
-
-
-    # ====================================================
-    # APLICAR ÚNICAMENTE UNA NORMALIZACIÓN
-    # ====================================================
-
-    for (
-        patron_75_3,
-        reemplazo_75_3
-    ) in patrones_75_3:
-
-        try:
-
-            texto_nuevo_75_3 = re.sub(
-                patron_75_3,
-                reemplazo_75_3,
-                texto_75_3,
-                count=1,
-                flags=re.IGNORECASE
+            elementos_75_2.append(
+                elemento_75_2
             )
 
-        except Exception:
+    return elementos_75_2
 
-            return texto_75_3
 
+def quitar_duplicados_75_2(elementos_75_2):
+
+    resultado_75_2 = []
+    vistos_75_2 = set()
+
+    for elemento_75_2 in elementos_75_2:
+
+        texto_75_2 = limpiar_texto_75_2(
+            elemento_75_2
+        )
+
+        firma_75_2 = texto_75_2.casefold()
 
         if (
-            texto_nuevo_75_3
-            != texto_75_3
+            firma_75_2
+            and
+            firma_75_2 not in vistos_75_2
         ):
 
-            texto_75_3 = (
-                texto_nuevo_75_3
+            vistos_75_2.add(
+                firma_75_2
             )
 
-            break
+            resultado_75_2.append(
+                texto_75_2
+            )
 
+    return resultado_75_2
+
+
+def firma_local_75_2(valor):
+
+    texto_75_2 = limpiar_texto_75_2(valor)
 
     return (
-        str(
-            texto_75_3
-        ).strip()
+        texto_75_2
+        .casefold()
+        .replace(" ", " ")
     )
 
 
 # ========================================================
-# 7.5.3.2 VERIFICAR DATAFRAME
+# 7.5.2.5 CONSTRUIR REGISTROS
 # ========================================================
-
-if (
-    "dataframe_trabajo_75"
-    not in globals()
-):
-
-    st.error(
-        "❌ 7.5.3 — No existe "
-        "dataframe_trabajo_75."
-    )
-
-    st.stop()
-
-
-if dataframe_trabajo_75.empty:
-
-    st.warning(
-        "⚠️ 7.5.3 — No existen registros "
-        "para normalizar."
-    )
-
-else:
-
-    # ====================================================
-    # 7.5.3.3 APLICAR NORMALIZACIÓN
-    # ====================================================
-
-    mascara_acciones_75_3 = (
-
-        dataframe_trabajo_75[
-            "Accion_Original"
-        ]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .ne("")
-
-    )
-
-
-    dataframe_trabajo_75.loc[
-        mascara_acciones_75_3,
-        "Accion_General"
-    ] = (
-
-        dataframe_trabajo_75.loc[
-            mascara_acciones_75_3,
-            "Accion_Original"
-        ]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-
-    )
-
-
-    dataframe_trabajo_75.loc[
-        mascara_acciones_75_3,
-        "Accion_General_Normalizada"
-    ] = (
-
-        dataframe_trabajo_75.loc[
-            mascara_acciones_75_3,
-            "Accion_Original"
-        ]
-        .fillna("")
-        .astype(str)
-        .apply(
-            normalizar_accion_general_75_3
-        )
-
-    )
-
-
-    # ====================================================
-    # 7.5.3.4 MUESTRA DE CONTROL
-    # ====================================================
-
-    muestra_75_3 = (
-
-        dataframe_trabajo_75.loc[
-            mascara_acciones_75_3,
-            [
-                "Producto",
-                "Accion_Original",
-                "Accion_General_Normalizada"
-            ]
-        ]
-        .head(15)
-
-    )
-
-
-    st.subheader(
-        "7.5.3 — Ejemplo de normalización"
-    )
-
-
-    if muestra_75_3.empty:
-
-        st.warning(
-            "No hay acciones generales "
-            "para mostrar."
-        )
-
-    else:
-
-        st.dataframe(
-            muestra_75_3,
-            use_container_width=True,
-            hide_index=True
-        )
-
-
-    # ====================================================
-    # 7.5.3.5 VALIDACIÓN
-    # ====================================================
-
-    total_originales_75_3 = int(
-        mascara_acciones_75_3.sum()
-    )
-
-
-    total_normalizadas_75_3 = int(
-
-        dataframe_trabajo_75.loc[
-            mascara_acciones_75_3,
-            "Accion_General_Normalizada"
-        ]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .ne("")
-        .sum()
-
-    )
-
-
-    if (
-        total_originales_75_3 > 0
-        and
-        total_normalizadas_75_3
-        == total_originales_75_3
-    ):
-
-        st.success(
-            "🟢 7.5.3 FUNCIONA — "
-            f"{total_normalizadas_75_3:,} acciones "
-            "generales procesadas correctamente."
-        )
-
-        st.info(
-            "La normalización solo modifica la "
-            "forma verbal cuando existe una "
-            "correspondencia explícita. "
-            "El verbo y el significado no se "
-            "sustituyen."
-        )
-
-    else:
-
-        st.warning(
-            "⚠️ 7.5.3 — Algunas acciones requieren "
-            "revisión."
-        )
-
-
-# ========================================================
-# 7.5.4 — ABSTRACCIÓN DE ACCIONES GENERALES
-# ========================================================
-#
-# OBJETIVO:
-# Obtener una descripción funcional y general de la acción
-# del producto a partir de la acción original.
-#
-# REGLAS:
-# - Trabajar SOLO sobre dataframe_trabajo_75.
-# - NO modificar Base_Productos.
-# - Conservar siempre Accion_Original.
-# - No mencionar componentes.
-# - No incluir frases comerciales.
-# - No incluir recomendaciones.
-# - No incluir combinaciones con otros productos.
-# - No sustituir arbitrariamente un verbo por un sinónimo.
-# - No inventar funciones que no estén respaldadas por
-#   la descripción original.
 #
 # IMPORTANTE:
-# La abstracción no significa simplemente cortar texto.
-# Debe conservar la función expresada por la descripción,
-# pero eliminar detalles innecesarios para identificar
-# la acción general del producto.
+#
+# Cada acción general se conserva como registro propio.
+#
+# Cada componente se conserva como registro propio.
+#
+# Las dos estructuras quedan vinculadas mediante Producto.
+#
+# NO se inventa una acción de componente.
+#
+# Si la fuente todavía no proporciona explícitamente
+# la acción específica del componente, esa columna queda
+# vacía para ser resuelta posteriormente.
+#
 # ========================================================
 
+registros_75_2 = []
 
-# ========================================================
-# 7.5.4.1 VERIFICAR DATAFRAME
-# ========================================================
 
-if (
-    "dataframe_trabajo_75"
-    not in globals()
-):
+for _, fila_75_2 in dataframe_fuente_75.iterrows():
 
-    st.error(
-        "❌ 7.5.4 — No existe "
-        "dataframe_trabajo_75."
+    producto_75_2 = limpiar_texto_75_2(
+        fila_75_2.get("Producto", "")
     )
 
-    st.stop()
+    if not producto_75_2:
+
+        continue
 
 
-if dataframe_trabajo_75.empty:
+    # ----------------------------------------------------
+    # ACCIONES GENERALES
+    # ----------------------------------------------------
 
-    st.warning(
-        "⚠️ 7.5.4 — El DataFrame de trabajo "
-        "está vacío."
+    acciones_generales_75_2 = (
+        separar_elementos_75_2(
+            fila_75_2.get(
+                "Acciones generales",
+                ""
+            )
+        )
     )
 
-else:
-
-    # ====================================================
-    # 7.5.4.2 FUNCIÓN DE ABSTRACCIÓN
-    # ====================================================
-    #
-    # Esta primera versión realiza una abstracción
-    # conservadora.
-    #
-    # NO intenta convertir automáticamente una función
-    # en otra.
-    #
-    # La descripción original sigue siendo la fuente
-    # principal de conocimiento.
-    # ====================================================
-
-    def abstraer_accion_general_75_4(
-        accion_original_75_4
-    ):
-
-        if pd.isna(
-            accion_original_75_4
-        ):
-
-            return ""
-
-        texto_75_4 = str(
-            accion_original_75_4
-        ).strip()
+    acciones_generales_75_2 = (
+        quitar_duplicados_75_2(
+            acciones_generales_75_2
+        )
+    )
 
 
-        if not texto_75_4:
+    # ----------------------------------------------------
+    # COMPONENTES
+    # ----------------------------------------------------
 
-            return ""
+    componentes_75_2 = []
 
+    if tiene_componentes_75_2:
 
-        # ------------------------------------------------
-        # LIMPIEZA BÁSICA
-        # ------------------------------------------------
-
-        texto_75_4 = (
-            texto_75_4
-            .replace("\r", " ")
-            .replace("\n", " ")
-            .replace("\t", " ")
+        componentes_75_2 = (
+            separar_elementos_75_2(
+                fila_75_2.get(
+                    columna_componentes_75_2,
+                    ""
+                )
+            )
         )
 
-        texto_75_4 = " ".join(
-            texto_75_4.split()
-        ).strip()
-
-
-        # ------------------------------------------------
-        # ELIMINAR ENCABEZADOS TÉCNICOS
-        # ------------------------------------------------
-
-        texto_75_4 = re.sub(
-            r"^\s*(acción|accion|función|funcion)\s*:\s*",
-            "",
-            texto_75_4,
-            count=1,
-            flags=re.IGNORECASE
-        ).strip()
-
-
-        # ------------------------------------------------
-        # ELIMINAR CONTENIDO COMERCIAL O DE VENTA
-        #
-        # Solo se eliminan segmentos explícitamente
-        # identificados como comerciales.
-        # ------------------------------------------------
-
-        marcadores_comerciales_75_4 = [
-
-            r"\bfrase\s+de\s+venta\s*:",
-            r"\bfrase\s+comercial\s*:",
-            r"\brecomendación\s*:",
-            r"\brecomendacion\s*:",
-            r"\bmodo\s+de\s+uso\s*:",
-            r"\bmodo\s+de\s+accion\s*:",
-            r"\bmodo\s+de\s+acción\s*:",
-            r"\bcombinaciones\s*:"
-        ]
-
-
-        posiciones_75_4 = []
-
-
-        for marcador_75_4 in (
-            marcadores_comerciales_75_4
-        ):
-
-            coincidencia_75_4 = re.search(
-                marcador_75_4,
-                texto_75_4,
-                flags=re.IGNORECASE
+        componentes_75_2 = (
+            quitar_duplicados_75_2(
+                componentes_75_2
             )
-
-            if coincidencia_75_4:
-
-                posiciones_75_4.append(
-                    coincidencia_75_4.start()
-                )
-
-
-        if posiciones_75_4:
-
-            texto_75_4 = (
-                texto_75_4[
-                    :min(
-                        posiciones_75_4
-                    )
-                ]
-                .strip(
-                    " .;:-"
-                )
-            )
-
-
-        # ------------------------------------------------
-        # ELIMINAR FRASES COMERCIALES AL FINAL
-        # CUANDO ESTÉN EXPLÍCITAMENTE MARCADAS
-        # ------------------------------------------------
-
-        texto_75_4 = re.sub(
-            r"\s*\(?\s*frase\s+de\s+venta.*$",
-            "",
-            texto_75_4,
-            flags=re.IGNORECASE
-        ).strip()
-
-
-        texto_75_4 = re.sub(
-            r"\s*\(?\s*frase\s+comercial.*$",
-            "",
-            texto_75_4,
-            flags=re.IGNORECASE
-        ).strip()
-
-
-        # ------------------------------------------------
-        # LIMPIEZA FINAL
-        # ------------------------------------------------
-
-        texto_75_4 = " ".join(
-            texto_75_4.split()
-        ).strip(
-            " .;:-"
         )
 
 
-        if not texto_75_4:
+    # ----------------------------------------------------
+    # REGISTROS DE ACCIONES GENERALES
+    # ----------------------------------------------------
 
-            return ""
+    for accion_75_2 in acciones_generales_75_2:
+
+        registros_75_2.append({
+
+            "Producto":
+                producto_75_2,
+
+            "Accion_Original":
+                accion_75_2,
+
+            "Accion_General":
+                "",
+
+            "Accion_General_Normalizada":
+                "",
+
+            "Componente":
+                "",
+
+            "Accion_Componente_Original":
+                "",
+
+            "Accion_Componente":
+                "",
+
+            "Accion_Componente_Normalizada":
+                "",
+
+            "Nivel_Informacion":
+                "GENERAL",
+
+            "Origen_Informacion":
+                "MATRIZ",
+
+            "Firma_General":
+                "",
+
+            "Firma_Componente":
+                ""
+
+        })
 
 
-        # ------------------------------------------------
-        # NO SE HACEN SUSTITUCIONES SEMÁNTICAS
-        #
-        # Ejemplo:
-        #
-        # "reforzar las defensas"
-        #
-        # NO se convierte automáticamente en:
-        #
-        # "fortalecer el sistema inmunológico"
-        #
-        # porque eso requeriría una interpretación
-        # semántica que no necesariamente está expresada
-        # en la fuente.
-        # ------------------------------------------------
+    # ----------------------------------------------------
+    # REGISTROS DE COMPONENTES
+    # ----------------------------------------------------
 
-        return texto_75_4
+    for componente_75_2 in componentes_75_2:
+
+        registros_75_2.append({
+
+            "Producto":
+                producto_75_2,
+
+            "Accion_Original":
+                "",
+
+            "Accion_General":
+                "",
+
+            "Accion_General_Normalizada":
+                "",
+
+            "Componente":
+                componente_75_2,
+
+            "Accion_Componente_Original":
+                "",
+
+            "Accion_Componente":
+                "",
+
+            "Accion_Componente_Normalizada":
+                "",
+
+            "Nivel_Informacion":
+                "COMPONENTE",
+
+            "Origen_Informacion":
+                "MATRIZ",
+
+            "Firma_General":
+                "",
+
+            "Firma_Componente":
+                ""
+
+        })
 
 
-    # ====================================================
-    # 7.5.4.3 APLICAR ABSTRACCIÓN
-    # ====================================================
+# ========================================================
+# 7.5.2.6 CREAR DATAFRAME
+# ========================================================
 
-    mascara_generales_75_4 = (
+columnas_trabajo_75 = [
 
+    "Producto",
+    "Accion_Original",
+    "Accion_General",
+    "Accion_General_Normalizada",
+    "Componente",
+    "Accion_Componente_Original",
+    "Accion_Componente",
+    "Accion_Componente_Normalizada",
+    "Nivel_Informacion",
+    "Origen_Informacion",
+    "Firma_General",
+    "Firma_Componente"
+
+]
+
+
+dataframe_trabajo_75 = pd.DataFrame(
+    registros_75_2,
+    columns=columnas_trabajo_75
+)
+
+
+# ========================================================
+# 7.5.2.7 LIMPIEZA Y DEDUPLICACIÓN
+# ========================================================
+
+if not dataframe_trabajo_75.empty:
+
+    dataframe_trabajo_75 = (
+        dataframe_trabajo_75
+        .drop_duplicates()
+        .reset_index(drop=True)
+    )
+
+
+# ========================================================
+# 7.5.2.8 CREAR FIRMAS ESTRUCTURALES
+# ========================================================
+
+if not dataframe_trabajo_75.empty:
+
+    mascara_general_75_2 = (
         dataframe_trabajo_75[
             "Accion_Original"
         ]
@@ -6712,60 +6162,37 @@ else:
         .astype(str)
         .str.strip()
         .ne("")
+    )
 
+    mascara_componente_75_2 = (
+        dataframe_trabajo_75[
+            "Componente"
+        ]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+        .ne("")
     )
 
 
-    if mascara_generales_75_4.any():
-
-        dataframe_trabajo_75.loc[
-            mascara_generales_75_4,
-            "Accion_General"
-        ] = (
-
-            dataframe_trabajo_75.loc[
-                mascara_generales_75_4,
-                "Accion_General_Normalizada"
-            ]
-            .fillna("")
-            .astype(str)
-            .apply(
-                abstraer_accion_general_75_4
-            )
-
-        )
-
-
-    # ====================================================
-    # 7.5.4.4 CREAR FIRMA DE LA ACCIÓN GENERAL
-    # ====================================================
-
     dataframe_trabajo_75.loc[
-        mascara_generales_75_4,
+        mascara_general_75_2,
         "Firma_General"
     ] = (
 
         dataframe_trabajo_75.loc[
-            mascara_generales_75_4,
-            [
-                "Producto",
-                "Accion_General"
-            ]
+            mascara_general_75_2
         ]
         .apply(
-            lambda fila_75_4:
+            lambda fila_75_2:
             (
-                firma_texto_75_2(
-                    fila_75_4[
-                        "Producto"
-                    ]
+                firma_local_75_2(
+                    fila_75_2["Producto"]
                 )
                 + "||"
                 +
-                firma_texto_75_2(
-                    fila_75_4[
-                        "Accion_General"
-                    ]
+                firma_local_75_2(
+                    fila_75_2["Accion_Original"]
                 )
             ),
             axis=1
@@ -6774,243 +6201,239 @@ else:
     )
 
 
-    # ====================================================
-    # 7.5.4.5 MUESTRA ORIGINAL → ABSTRACCIÓN
-    # ====================================================
-
-    muestra_abstraccion_75_4 = (
+    dataframe_trabajo_75.loc[
+        mascara_componente_75_2,
+        "Firma_Componente"
+    ] = (
 
         dataframe_trabajo_75.loc[
-            mascara_generales_75_4,
+            mascara_componente_75_2
+        ]
+        .apply(
+            lambda fila_75_2:
+            (
+                firma_local_75_2(
+                    fila_75_2["Producto"]
+                )
+                + "||"
+                +
+                firma_local_75_2(
+                    fila_75_2["Componente"]
+                )
+            ),
+            axis=1
+        )
+
+    )
+
+
+# ========================================================
+# 7.5.2.9 ESTADÍSTICAS
+# ========================================================
+
+total_registros_75_2 = int(
+    len(dataframe_trabajo_75)
+)
+
+
+total_productos_75_2 = int(
+    dataframe_trabajo_75[
+        "Producto"
+    ]
+    .replace("", np.nan)
+    .nunique()
+)
+
+
+total_acciones_75_2 = int(
+    dataframe_trabajo_75[
+        "Accion_Original"
+    ]
+    .replace("", np.nan)
+    .count()
+)
+
+
+total_componentes_75_2 = int(
+    dataframe_trabajo_75[
+        "Componente"
+    ]
+    .replace("", np.nan)
+    .count()
+)
+
+
+# ========================================================
+# 7.5.2.10 MOSTRAR RESULTADO
+# ========================================================
+
+st.success(
+    "🟢 7.5.2 EJECUTADO — DataFrame estructural "
+    "construido correctamente."
+)
+
+st.write(
+    f"Productos: **{total_productos_75_2:,}**"
+)
+
+st.write(
+    f"Registros de acciones generales: "
+    f"**{total_acciones_75_2:,}**"
+)
+
+st.write(
+    f"Registros de componentes: "
+    f"**{total_componentes_75_2:,}**"
+)
+
+st.write(
+    f"Total de registros estructurales: "
+    f"**{total_registros_75_2:,}**"
+)
+
+
+# ========================================================
+# 7.5.2.11 MOSTRAR DATAFRAME
+# ========================================================
+
+if not dataframe_trabajo_75.empty:
+
+    st.subheader(
+        "7.5.2 — DataFrame estructural de trabajo"
+    )
+
+    st.dataframe(
+        dataframe_trabajo_75[
             [
                 "Producto",
                 "Accion_Original",
-                "Accion_General_Normalizada",
-                "Accion_General"
+                "Componente",
+                "Accion_Componente_Original",
+                "Nivel_Informacion",
+                "Origen_Informacion"
             ]
-        ]
-        .head(15)
-
+        ].head(30),
+        use_container_width=True,
+        hide_index=True
     )
 
+
+# ========================================================
+# 7.5.2.12 PRUEBA ESPECÍFICA PROSTENFIT
+# ========================================================
+
+productos_prostenfit_75_2 = (
+    dataframe_trabajo_75[
+        dataframe_trabajo_75[
+            "Producto"
+        ]
+        .astype(str)
+        .str.casefold()
+        .str.contains(
+            "prostenfit",
+            na=False
+        )
+    ]
+)
+
+
+if not productos_prostenfit_75_2.empty:
 
     st.subheader(
-        "7.5.4 — Ejemplo de abstracción"
+        "Prueba de control — PROSTENFIT"
     )
 
-
-    if muestra_abstraccion_75_4.empty:
-
-        st.warning(
-            "⚠️ No existen acciones generales "
-            "para mostrar."
-        )
-
-    else:
-
-        st.dataframe(
-            muestra_abstraccion_75_4,
-            use_container_width=True,
-            hide_index=True
-        )
-
-
-    # ====================================================
-    # 7.5.4.6 CONTROL DE COMPONENTES
-    # ====================================================
-    #
-    # Esta comprobación evita que la abstracción general
-    # termine incorporando nombres de componentes.
-    #
-    # NO elimina automáticamente texto.
-    # Solo informa para revisión.
-    # ====================================================
-
-    filas_con_componentes_en_accion_75_4 = []
-
-
-    if tiene_componentes_75:
-
-        for indice_75_4, fila_75_4 in (
-            dataframe_trabajo_75.loc[
-                mascara_generales_75_4
-            ].iterrows()
-        ):
-
-            producto_75_4 = str(
-                fila_75_4[
-                    "Producto"
-                ]
-            ).strip()
-
-
-            accion_75_4 = str(
-                fila_75_4[
-                    "Accion_General"
-                ]
-            ).strip()
-
-
-            fila_fuente_75_4 = (
-                dataframe_fuente_75[
-                    dataframe_fuente_75[
-                        "Producto"
-                    ]
-                    .astype(str)
-                    .str.strip()
-                    .str.casefold()
-                    ==
-                    producto_75_4.casefold()
-                ]
-            )
-
-
-            if fila_fuente_75_4.empty:
-
-                continue
-
-
-            componentes_producto_75_4 = []
-
-
-            for valor_75_4 in (
-                fila_fuente_75_4[
-                    "Componentes"
-                ]
-            ):
-
-                componentes_producto_75_4.extend(
-                    separar_elementos_75_2(
-                        valor_75_4
-                    )
-                )
-
-
-            componentes_producto_75_4 = (
-                quitar_duplicados_75_2(
-                    componentes_producto_75_4
-                )
-            )
-
-
-            for componente_75_4 in (
-                componentes_producto_75_4
-            ):
-
-                if (
-                    componente_75_4.casefold()
-                    in
-                    accion_75_4.casefold()
-                ):
-
-                    filas_con_componentes_en_accion_75_4.append(
-                        indice_75_4
-                    )
-
-                    break
-
-
-    # ====================================================
-    # 7.5.4.7 RESULTADO DE CONTROL
-    # ====================================================
-
-    if filas_con_componentes_en_accion_75_4:
-
-        st.warning(
-            "⚠️ 7.5.4 — Se detectaron posibles "
-            "nombres de componentes dentro de "
-            "algunas acciones generales."
-        )
-
-        st.write(
-            "Registros para revisión:"
-        )
-
-        st.write(
+    st.dataframe(
+        productos_prostenfit_75_2[
             [
-                int(valor_75_4)
-                for valor_75_4
-                in filas_con_componentes_en_accion_75_4[
-                    :10
-                ]
+                "Producto",
+                "Accion_Original",
+                "Componente",
+                "Accion_Componente_Original"
             ]
-        )
+        ],
+        use_container_width=True,
+        hide_index=True
+    )
 
-        st.info(
-            "No se eliminaron automáticamente. "
-            "La información debe revisarse antes "
-            "de continuar."
-        )
-
-    else:
-
-        st.success(
-            "✓ No se detectaron nombres de "
-            "componentes dentro de las acciones "
-            "generales procesadas."
-        )
-
-
-    # ====================================================
-    # 7.5.4.8 VALIDACIÓN GENERAL
-    # ====================================================
-
-    total_acciones_75_4 = int(
-        mascara_generales_75_4.sum()
+    st.info(
+        "Esta prueba permite comprobar que las acciones "
+        "generales y los componentes de PROSTENFIT se "
+        "conservaron sin mezclarlos ni eliminarlos."
     )
 
 
-    total_abstraidas_75_4 = int(
+# ========================================================
+# 7.5.2.13 VALIDACIÓN FINAL
+# ========================================================
 
-        dataframe_trabajo_75.loc[
-            mascara_generales_75_4,
-            "Accion_General"
-        ]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .ne("")
-        .sum()
+errores_estructurales_75_2 = []
 
+
+if "Producto" not in dataframe_trabajo_75.columns:
+
+    errores_estructurales_75_2.append(
+        "Falta la columna Producto."
     )
 
 
-    if (
-        total_acciones_75_4 > 0
-        and
-        total_abstraidas_75_4
-        == total_acciones_75_4
-        and
-        not filas_con_componentes_en_accion_75_4
-    ):
+if "Accion_Original" not in dataframe_trabajo_75.columns:
 
-        st.success(
-            "🟢 7.5.4 FUNCIONA — "
-            f"{total_abstraidas_75_4:,} acciones generales "
-            "procesadas y almacenadas en el DataFrame "
-            "de trabajo."
+    errores_estructurales_75_2.append(
+        "Falta la columna Accion_Original."
+    )
+
+
+if "Componente" not in dataframe_trabajo_75.columns:
+
+    errores_estructurales_75_2.append(
+        "Falta la columna Componente."
+    )
+
+
+if (
+    total_productos_75_2 == 0
+):
+
+    errores_estructurales_75_2.append(
+        "No se identificaron productos."
+    )
+
+
+if (
+    total_registros_75_2 == 0
+):
+
+    errores_estructurales_75_2.append(
+        "No se generaron registros."
+    )
+
+
+if errores_estructurales_75_2:
+
+    st.error(
+        "❌ 7.5.2 NO VALIDADO"
+    )
+
+    for error_75_2 in errores_estructurales_75_2:
+
+        st.write(
+            f"• {error_75_2}"
         )
 
-    elif (
-        total_acciones_75_4 > 0
-        and
-        total_abstraidas_75_4
-        == total_acciones_75_4
-    ):
+else:
 
-        st.warning(
-            "🟡 7.5.4 — Las acciones fueron procesadas, "
-            "pero existen registros que requieren "
-            "revisión por posible presencia de "
-            "componentes."
-        )
+    st.success(
+        "✅ 7.5.2 VALIDADO — La estructura de trabajo "
+        "se construyó sin errores estructurales."
+    )
 
-    else:
+    st.info(
+        "Siguiente etapa: 7.5.3. No avance a ese bloque "
+        "hasta comprobar visualmente este DataFrame."
+    )
+```
 
-        st.error(
-            "❌ 7.5.4 — No todas las acciones generales "
-            "pudieron procesarse."
-        )
 # ============================================================
 # 8. PIE DE APLICACIÓN
 # ============================================================
