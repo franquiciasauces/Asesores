@@ -2640,3 +2640,862 @@ except Exception as e:
     st.error(
         f"🔴 5.6 ERROR: {type(e).__name__}: {e}"
     )
+
+# ============================================================
+# 5.7 APRENDIZAJE ACTIVO REAL
+# ============================================================
+
+st.markdown("### 5.7 Aprendizaje activo y reducción de ambigüedad")
+
+try:
+
+    import numpy as np
+    import pandas as pd
+
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
+
+    # ========================================================
+    # CONFIGURACIÓN
+    # ========================================================
+
+    CATEGORIAS_57 = [
+        "ACCIÓN GENERAL",
+        "COMPONENTE + FUNCIÓN",
+        "RECOMENDACIÓN / COMPLEMENTO",
+        "USO / POSOLOGÍA / PRECAUCIÓN",
+        "COMERCIAL"
+    ]
+
+    MAX_ENTRENAMIENTO_57 = 100
+    CASOS_POR_CICLO_57 = 10
+
+    # ========================================================
+    # 1. RECUPERAR LA MATRIZ MÁS RECIENTE
+    # ========================================================
+
+    if (
+        "df_resultado_56" in st.session_state
+        and not st.session_state[
+            "df_resultado_56"
+        ].empty
+    ):
+
+        df_57 = (
+            st.session_state[
+                "df_resultado_56"
+            ].copy()
+        )
+
+    elif (
+        "df_resultado_55" in st.session_state
+        and not st.session_state[
+            "df_resultado_55"
+        ].empty
+    ):
+
+        df_57 = (
+            st.session_state[
+                "df_resultado_55"
+            ].copy()
+        )
+
+    elif (
+        "df_resultado_54" in st.session_state
+        and not st.session_state[
+            "df_resultado_54"
+        ].empty
+    ):
+
+        df_57 = (
+            st.session_state[
+                "df_resultado_54"
+            ].copy()
+        )
+
+    else:
+
+        st.error(
+            "🔴 5.7 ERROR: No existe una matriz "
+            "proveniente de 5.4, 5.5 o 5.6."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 2. VALIDAR COLUMNAS
+    # ========================================================
+
+    columnas_requeridas_57 = [
+        "Código",
+        "Nombre del producto",
+        "Acción"
+    ]
+
+    faltantes_57 = [
+        c
+        for c in columnas_requeridas_57
+        if c not in df_57.columns
+    ]
+
+    if faltantes_57:
+
+        st.error(
+            "🔴 5.7 ERROR: Faltan columnas: "
+            + ", ".join(faltantes_57)
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 3. NORMALIZAR TEXTO DEL MODELO
+    # ========================================================
+
+    df_57["Código"] = (
+        df_57["Código"]
+        .astype(str)
+        .str.strip()
+    )
+
+    df_57["Nombre del producto"] = (
+        df_57["Nombre del producto"]
+        .astype(str)
+        .str.strip()
+    )
+
+    df_57["Acción"] = (
+        df_57["Acción"]
+        .astype(str)
+        .str.strip()
+    )
+
+    df_57["Texto_57"] = (
+        "PRODUCTO: "
+        + df_57[
+            "Nombre del producto"
+        ]
+        + " | INFORMACIÓN: "
+        + df_57[
+            "Acción"
+        ]
+    )
+
+    # ========================================================
+    # 4. RECUPERAR TODO EL APRENDIZAJE ANTERIOR
+    # ========================================================
+
+    aprendizaje_total_57 = {}
+
+    # --------------------------------
+    # 5.4
+    # --------------------------------
+
+    if "entrenamiento_54" in st.session_state:
+
+        aprendizaje_total_57.update(
+            st.session_state.entrenamiento_54
+        )
+
+    # --------------------------------
+    # 5.5
+    # --------------------------------
+
+    if "aprendizaje_activo_55" in st.session_state:
+
+        aprendizaje_total_57.update(
+            st.session_state.aprendizaje_activo_55
+        )
+
+    # --------------------------------
+    # 5.6
+    # --------------------------------
+
+    if "aprendizaje_56" in st.session_state:
+
+        aprendizaje_total_57.update(
+            st.session_state.aprendizaje_56
+        )
+
+    # ========================================================
+    # 5.7: MEMORIA PROPIA
+    # ========================================================
+
+    if "aprendizaje_57" not in st.session_state:
+
+        st.session_state.aprendizaje_57 = {}
+
+    aprendizaje_57 = (
+        st.session_state.aprendizaje_57
+    )
+
+    aprendizaje_total_57.update(
+        aprendizaje_57
+    )
+
+    # ========================================================
+    # 6. LIMPIAR ETIQUETAS INVÁLIDAS
+    # ========================================================
+
+    aprendizaje_total_57 = {
+        str(codigo): categoria
+        for codigo, categoria
+        in aprendizaje_total_57.items()
+        if categoria in CATEGORIAS_57
+    }
+
+    # ========================================================
+    # 7. MÁXIMO DE ENTRENAMIENTO
+    # ========================================================
+
+    if (
+        len(aprendizaje_total_57)
+        > MAX_ENTRENAMIENTO_57
+    ):
+
+        # Se conservan los primeros ejemplos
+        # ya aprendidos y no se eliminan dentro
+        # de esta sesión.
+
+        claves = list(
+            aprendizaje_total_57.keys()
+        )[
+            :MAX_ENTRENAMIENTO_57
+        ]
+
+        aprendizaje_total_57 = {
+            codigo:
+            aprendizaje_total_57[codigo]
+            for codigo in claves
+        }
+
+    # ========================================================
+    # 8. CREAR ENTRENAMIENTO
+    # ========================================================
+
+    df_train_57 = df_57[
+        df_57["Código"].isin(
+            aprendizaje_total_57.keys()
+        )
+    ].copy()
+
+    df_train_57["Etiqueta_57"] = (
+        df_train_57["Código"]
+        .map(
+            aprendizaje_total_57
+        )
+    )
+
+    df_train_57 = df_train_57[
+        df_train_57[
+            "Etiqueta_57"
+        ].isin(
+            CATEGORIAS_57
+        )
+    ].copy()
+
+    # ========================================================
+    # 9. ESTADO DEL ENTRENAMIENTO
+    # ========================================================
+
+    st.info(
+        f"🧠 Ejemplos acumulados: "
+        f"**{len(df_train_57)}/{MAX_ENTRENAMIENTO_57}**"
+    )
+
+    clases_disponibles_57 = (
+        df_train_57[
+            "Etiqueta_57"
+        ]
+        .nunique()
+    )
+
+    if (
+        len(df_train_57) < 10
+        or clases_disponibles_57 < 2
+    ):
+
+        st.warning(
+            "⚠️ Todavía no hay suficientes ejemplos "
+            "diversos para entrenar el modelo."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 10. ENTRENAR DESDE CERO CON TODO EL HISTÓRICO
+    # ========================================================
+
+    modelo_57 = Pipeline(
+        [
+            (
+                "tfidf",
+                TfidfVectorizer(
+                    lowercase=True,
+                    strip_accents="unicode",
+                    ngram_range=(1, 2),
+                    max_features=15000,
+                    sublinear_tf=True
+                )
+            ),
+            (
+                "clasificador",
+                LogisticRegression(
+                    max_iter=5000,
+                    class_weight="balanced"
+                )
+            )
+        ]
+    )
+
+    modelo_57.fit(
+        df_train_57[
+            "Texto_57"
+        ],
+        df_train_57[
+            "Etiqueta_57"
+        ]
+    )
+
+    # ========================================================
+    # 11. CLASIFICAR TODA LA MATRIZ
+    # ========================================================
+
+    probabilidades_57 = (
+        modelo_57.predict_proba(
+            df_57[
+                "Texto_57"
+            ]
+        )
+    )
+
+    predicciones_57 = (
+        modelo_57.predict(
+            df_57[
+                "Texto_57"
+            ]
+        )
+    )
+
+    clases_57 = (
+        modelo_57
+        .named_steps[
+            "clasificador"
+        ]
+        .classes_
+    )
+
+    # ========================================================
+    # 12. CALCULAR INCERTIDUMBRE
+    # ========================================================
+
+    orden_57 = np.argsort(
+        probabilidades_57,
+        axis=1
+    )
+
+    mejor_57 = orden_57[:, -1]
+    segunda_57 = orden_57[:, -2]
+
+    prob_mejor_57 = (
+        probabilidades_57[
+            np.arange(
+                len(probabilidades_57)
+            ),
+            mejor_57
+        ]
+    )
+
+    prob_segunda_57 = (
+        probabilidades_57[
+            np.arange(
+                len(probabilidades_57)
+            ),
+            segunda_57
+        ]
+    )
+
+    diferencia_57 = (
+        prob_mejor_57
+        - prob_segunda_57
+    )
+
+    segunda_categoria_57 = [
+        clases_57[i]
+        for i in segunda_57
+    ]
+
+    # ========================================================
+    # 13. ENTROPÍA
+    #
+    # Mide qué tan distribuida está la duda del modelo.
+    # No depende solamente de un umbral de confianza.
+    # ========================================================
+
+    probabilidades_seguras_57 = np.clip(
+        probabilidades_57,
+        1e-12,
+        1
+    )
+
+    entropia_57 = -np.sum(
+        probabilidades_seguras_57
+        * np.log(
+            probabilidades_seguras_57
+        ),
+        axis=1
+    )
+
+    # ========================================================
+    # 14. RESULTADO
+    # ========================================================
+
+    df_57["Clasificación IA"] = (
+        predicciones_57
+    )
+
+    df_57["Confianza IA"] = (
+        prob_mejor_57
+    )
+
+    df_57["Segunda opción IA"] = (
+        segunda_categoria_57
+    )
+
+    df_57["Confianza segunda"] = (
+        prob_segunda_57
+    )
+
+    df_57["Diferencia IA"] = (
+        diferencia_57
+    )
+
+    df_57["Entropía IA"] = (
+        entropia_57
+    )
+
+    # ========================================================
+    # 15. PUNTAJE DE AMBIGÜEDAD
+    #
+    # Combina:
+    # - baja diferencia entre opciones
+    # - baja confianza
+    # - alta entropía
+    # ========================================================
+
+    max_entropia = np.log(
+        len(clases_57)
+    )
+
+    entropia_normalizada = (
+        entropia_57
+        / max_entropia
+    )
+
+    incertidumbre_57 = (
+        (
+            1
+            - diferencia_57
+        )
+        * 0.45
+        +
+        (
+            1
+            - prob_mejor_57
+        )
+        * 0.35
+        +
+        entropia_normalizada
+        * 0.20
+    )
+
+    df_57[
+        "Incertidumbre IA"
+    ] = incertidumbre_57
+
+    # ========================================================
+    # 16. EXCLUIR LO YA APRENDIDO
+    # ========================================================
+
+    df_57[
+        "Ya aprendido"
+    ] = (
+        df_57["Código"]
+        .isin(
+            aprendizaje_total_57.keys()
+        )
+    )
+
+    # ========================================================
+    # 17. CASOS AMBIGUOS
+    # ========================================================
+
+    df_candidatos_57 = df_57[
+        ~df_57[
+            "Ya aprendido"
+        ]
+    ].copy()
+
+    # ========================================================
+    # 18. ORDENAR POR INFORMACIÓN
+    #
+    # Los primeros son los casos donde el modelo
+    # tiene mayor incertidumbre.
+    # ========================================================
+
+    df_candidatos_57 = (
+        df_candidatos_57
+        .sort_values(
+            [
+                "Incertidumbre IA",
+                "Entropía IA"
+            ],
+            ascending=False
+        )
+        .copy()
+    )
+
+    total_ambiguos_57 = len(
+        df_candidatos_57
+    )
+
+    # ========================================================
+    # 19. CONTADOR DE CICLO
+    # ========================================================
+
+    if "ciclo_57" not in st.session_state:
+
+        st.session_state.ciclo_57 = 1
+
+    ciclo_57 = (
+        st.session_state.ciclo_57
+    )
+
+    # ========================================================
+    # 20. ESTADO VISIBLE
+    # ========================================================
+
+    st.markdown(
+        f"## 🔄 Ciclo {ciclo_57}"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Total analizado",
+            len(df_57)
+        )
+
+    with col2:
+
+        st.metric(
+            "Entrenamiento",
+            f"{len(df_train_57)}/100"
+        )
+
+    with col3:
+
+        st.metric(
+            "Casos pendientes",
+            total_ambiguos_57
+        )
+
+    # ========================================================
+    # 21. GUARDAR NÚMERO ANTERIOR
+    # ========================================================
+
+    if (
+        "ambiguos_anteriores_57"
+        not in st.session_state
+    ):
+
+        st.session_state[
+            "ambiguos_anteriores_57"
+        ] = total_ambiguos_57
+
+    # ========================================================
+    # 22. MOSTRAR REDUCCIÓN
+    # ========================================================
+
+    anterior_57 = (
+        st.session_state[
+            "ambiguos_anteriores_57"
+        ]
+    )
+
+    diferencia_reduccion_57 = (
+        anterior_57
+        - total_ambiguos_57
+    )
+
+    if ciclo_57 > 1:
+
+        if diferencia_reduccion_57 > 0:
+
+            st.success(
+                f"📉 Reducción de ambigüedad: "
+                f"**{diferencia_reduccion_57} casos**"
+            )
+
+        elif diferencia_reduccion_57 == 0:
+
+            st.info(
+                "El número de ambiguos "
+                "se mantuvo igual en este ciclo."
+            )
+
+        else:
+
+            st.warning(
+                "El número de casos ambiguos aumentó. "
+                "Esto puede ocurrir cuando el modelo "
+                "encuentra nuevas fronteras entre categorías."
+            )
+
+    # ========================================================
+    # 23. MOSTRAR 10 CASOS
+    # ========================================================
+
+    if not df_candidatos_57.empty:
+
+        muestra_57 = (
+            df_candidatos_57
+            .head(
+                CASOS_POR_CICLO_57
+            )
+            .copy()
+        )
+
+        st.markdown(
+            "### 🎯 Seleccione la categoría correcta"
+        )
+
+        st.warning(
+            f"El modelo tiene **{total_ambiguos_57} "
+            f"casos candidatos**. "
+            f"En este ciclo debe revisar solamente "
+            f"**{len(muestra_57)}**."
+        )
+
+        for _, fila in (
+            muestra_57.iterrows()
+        ):
+
+            codigo = str(
+                fila["Código"]
+            )
+
+            producto = str(
+                fila[
+                    "Nombre del producto"
+                ]
+            )
+
+            accion = str(
+                fila["Acción"]
+            )
+
+            propuesta = str(
+                fila[
+                    "Clasificación IA"
+                ]
+            )
+
+            segunda = str(
+                fila[
+                    "Segunda opción IA"
+                ]
+            )
+
+            confianza = float(
+                fila[
+                    "Confianza IA"
+                ]
+            )
+
+            confianza_2 = float(
+                fila[
+                    "Confianza segunda"
+                ]
+            )
+
+            st.markdown(
+                f"**{codigo} — {producto}**"
+            )
+
+            st.write(
+                f"**Información:** {accion}"
+            )
+
+            st.write(
+                f"**IA propone:** {propuesta} "
+                f"({confianza:.1%})"
+            )
+
+            st.write(
+                f"**Segunda posibilidad:** "
+                f"{segunda} "
+                f"({confianza_2:.1%})"
+            )
+
+            decision = st.selectbox(
+                "¿En qué categoría debe quedar?",
+                [
+                    "Seleccione...",
+                    *CATEGORIAS_57
+                ],
+                key=(
+                    "decision_57_"
+                    + codigo
+                )
+            )
+
+            if decision != "Seleccione...":
+
+                aprendizaje_57[
+                    codigo
+                ] = decision
+
+            st.divider()
+
+        # ====================================================
+        # 24. BOTÓN DE APRENDIZAJE
+        # ====================================================
+
+        decisiones_57 = len(
+            aprendizaje_57
+        )
+
+        st.write(
+            f"Decisiones nuevas: "
+            f"**{decisiones_57}/{len(muestra_57)}**"
+        )
+
+        if (
+            decisiones_57
+            == len(muestra_57)
+        ):
+
+            if st.button(
+                "🧠 APRENDER LOS 10 Y RECLASIFICAR TODA LA MATRIZ",
+                key="boton_aprender_57"
+            ):
+
+                # Guardar el número actual
+                # para comparar con el siguiente ciclo
+
+                st.session_state[
+                    "ambiguos_anteriores_57"
+                ] = total_ambiguos_57
+
+                # Nuevo ciclo
+
+                st.session_state[
+                    "ciclo_57"
+                ] += 1
+
+                st.rerun()
+
+        else:
+
+            st.info(
+                "Clasifique los casos mostrados "
+                "antes de continuar."
+            )
+
+    else:
+
+        st.success(
+            "🎉 No quedan casos pendientes "
+            "para revisión."
+        )
+
+    # ========================================================
+    # 25. RESULTADO FINAL
+    # ========================================================
+
+    st.markdown(
+        "### 📋 Resultado actual"
+    )
+
+    df_salida_57 = df_57[
+        [
+            "Código",
+            "Nombre del producto",
+            "Acción",
+            "Clasificación IA",
+            "Confianza IA"
+        ]
+    ].copy()
+
+    st.dataframe(
+        df_salida_57,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    # ========================================================
+    # 26. ACCIONES GENERALES
+    # ========================================================
+
+    df_acciones_57 = df_57[
+        df_57[
+            "Clasificación IA"
+        ]
+        == "ACCIÓN GENERAL"
+    ][
+        [
+            "Código",
+            "Nombre del producto",
+            "Acción"
+        ]
+    ].copy()
+
+    st.session_state[
+        "df_normalizacion_final"
+    ] = df_acciones_57.copy()
+
+    st.success(
+        f"Acciones generales identificadas: "
+        f"**{len(df_acciones_57)}**"
+    )
+
+    # ========================================================
+    # 27. DISTRIBUCIÓN
+    # ========================================================
+
+    st.markdown(
+        "### Distribución por categoría"
+    )
+
+    for categoria in CATEGORIAS_57:
+
+        cantidad = int(
+            (
+                df_57[
+                    "Clasificación IA"
+                ]
+                == categoria
+            ).sum()
+        )
+
+        st.write(
+            f"- {categoria}: **{cantidad}**"
+        )
+
+    # ========================================================
+    # 28. GUARDAR APRENDIZAJE
+    # ========================================================
+
+    st.session_state[
+        "aprendizaje_total_57"
+    ] = aprendizaje_total_57.copy()
+
+except Exception as e:
+
+    st.error(
+        f"🔴 5.7 ERROR: "
+        f"{type(e).__name__}: {e}"
+    )
