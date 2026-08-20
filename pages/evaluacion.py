@@ -158,94 +158,191 @@ except Exception as e:
         f"🔴 5.1 ERROR al leer la matriz: {type(e).__name__}: {e}"
     )
 # ============================================================
-# 5.2 IDENTIFICACIÓN DE COLUMNAS REALES
+# 5.2 SEPARACIÓN DE PRODUCTO, ACCIONES Y GENERACIÓN DE CÓDIGO
 # ============================================================
 
-st.markdown("### 5.2 Identificación de columnas")
+st.markdown("### 5.2 Separación de productos y acciones")
 
 try:
 
     if "df_fuente" not in locals():
-        st.error("🔴 5.2 ERROR: No está disponible la matriz cargada en 5.1.")
+
+        st.error(
+            "🔴 5.2 ERROR: No se encuentra la matriz cargada "
+            "por el bloque 5.1."
+        )
+
     else:
 
-        columnas = list(df_fuente.columns)
-
-        st.write("**Columnas que está utilizando el código:**")
-
-        for i, columna in enumerate(columnas, start=1):
-            st.write(f"{i}. `{columna}`")
+        registros_normalizados = []
 
         # ----------------------------------------------------
-        # Buscar producto y acción usando SOLO los encabezados
-        # reales que ya existen en la matriz.
+        # Recorrer cada fila de la matriz original
         # ----------------------------------------------------
 
-        producto_encontrado = None
-        accion_encontrada = None
+        for _, fila in df_fuente.iterrows():
 
-        for columna in columnas:
+            valores = []
 
-            nombre = str(columna).strip().lower()
+            for valor in fila.tolist():
 
-            if (
-                producto_encontrado is None
-                and "producto" in nombre
-            ):
-                producto_encontrado = columna
+                if pd.isna(valor):
+                    continue
 
-            if (
-                accion_encontrada is None
-                and "accion" in nombre
-            ):
-                accion_encontrada = columna
+                texto = str(valor).strip()
+
+                if texto == "":
+                    continue
+
+                valores.append(texto)
+
+            if not valores:
+                continue
+
+            # ------------------------------------------------
+            # La primera celda puede contener:
+            #
+            # PRODUCTO,PRIMERA ACCIÓN
+            #
+            # ------------------------------------------------
+
+            primera_celda = valores[0]
+
+            if "," in primera_celda:
+
+                producto, primera_accion = (
+                    primera_celda.split(",", 1)
+                )
+
+                producto = producto.strip()
+                primera_accion = primera_accion.strip()
+
+                if primera_accion:
+                    acciones = [primera_accion]
+                else:
+                    acciones = []
+
+            else:
+
+                producto = primera_celda.strip()
+                acciones = []
+
+            # ------------------------------------------------
+            # Las demás columnas contienen acciones adicionales
+            # ------------------------------------------------
+
+            for valor in valores[1:]:
+
+                accion = str(valor).strip()
+
+                if accion:
+                    acciones.append(accion)
+
+            # ------------------------------------------------
+            # Una acción = una fila
+            # ------------------------------------------------
+
+            for accion in acciones:
+
+                if accion.strip():
+
+                    registros_normalizados.append(
+                        {
+                            "Nombre del producto": producto,
+                            "Acción": accion.strip()
+                        }
+                    )
+
+        # ----------------------------------------------------
+        # Crear DataFrame temporal
+        # ----------------------------------------------------
+
+        df_normalizado = pd.DataFrame(
+            registros_normalizados
+        )
+
+        # ----------------------------------------------------
+        # Generar código automático
+        # ----------------------------------------------------
+
+        if not df_normalizado.empty:
+
+            df_normalizado.insert(
+                0,
+                "Código",
+                [
+                    f"AG{numero:06d}"
+                    for numero in range(
+                        1,
+                        len(df_normalizado) + 1
+                    )
+                ]
+            )
 
         # ----------------------------------------------------
         # Mostrar resultado
         # ----------------------------------------------------
 
-        if producto_encontrado is not None:
-            st.success(
-                f"🟢 Producto detectado: **{producto_encontrado}**"
-            )
-        else:
+        if df_normalizado.empty:
+
             st.error(
-                "🔴 No se encontró automáticamente una columna "
-                "relacionada con producto."
+                "🔴 5.2 ERROR: No se pudieron extraer acciones "
+                "de la matriz."
             )
 
-        if accion_encontrada is not None:
-            st.success(
-                f"🟢 Acción detectada: **{accion_encontrada}**"
-            )
         else:
-            st.error(
-                "🔴 No se encontró automáticamente una columna "
-                "relacionada con acción."
+
+            st.success(
+                f"🟢 5.2 OK: Se generaron "
+                f"**{len(df_normalizado)} registros de acciones** "
+                f"a partir de **{df_normalizado['Nombre del producto'].nunique()} productos**."
             )
 
-        # ----------------------------------------------------
-        # Mostrar ejemplo REAL
-        # ----------------------------------------------------
-
-        if producto_encontrado is not None and accion_encontrada is not None:
-
-            ejemplo = df_fuente[
-                [producto_encontrado, accion_encontrada]
-            ].dropna(how="all").head(10)
-
-            st.write("### Ejemplo detectado")
+            st.write(
+                "### Matriz normalizada provisional"
+            )
 
             st.dataframe(
-                ejemplo,
+                df_normalizado.head(50),
                 use_container_width=True,
                 hide_index=True
             )
 
-            st.success(
-                "✅ 5.2 TERMINADO: Las columnas fueron identificadas. "
-                "No se ha modificado ni normalizado ninguna información."
+            # ------------------------------------------------
+            # Ejemplo específico para comprobar múltiples
+            # acciones de un mismo producto
+            # ------------------------------------------------
+
+            producto_ejemplo = (
+                "FITO PROSTENFIT x 60 CAP"
             )
+
+            ejemplo = df_normalizado[
+                df_normalizado[
+                    "Nombre del producto"
+                ].str.upper()
+                == producto_ejemplo.upper()
+            ]
+
+            if not ejemplo.empty:
+
+                st.success(
+                    "🟢 Ejemplo PROSTENFIT: "
+                    f"se encontraron **{len(ejemplo)} acciones independientes**."
+                )
+
+                st.dataframe(
+                    ejemplo,
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+            else:
+
+                st.info(
+                    "ℹ️ No se encontró PROSTENFIT con ese nombre "
+                    "exacto en los registros procesados."
+                )
 
 except Exception as e:
 
