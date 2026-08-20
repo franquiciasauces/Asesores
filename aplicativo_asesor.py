@@ -6112,6 +6112,399 @@ if (
             "⚠️ 7.5.2 — No se encontraron relaciones "
             "estructurales suficientes para continuar."
         )
+# ========================================================
+# 7.5.3 — NORMALIZACIÓN DE LA REDACCIÓN
+# ACCIONES GENERALES
+# ========================================================
+#
+# OBJETIVO:
+# Homogeneizar la forma verbal de las acciones generales
+# sin cambiar su significado ni sustituir el verbo.
+#
+# EJEMPLOS:
+#
+# "refuerza el sistema inmunológico"
+#        ↓
+# "reforzar el sistema inmunológico"
+#
+# "favorece la digestión"
+#        ↓
+# "favorecer la digestión"
+#
+# "contribuye al fortalecimiento..."
+#        ↓
+# "contribuir al fortalecimiento..."
+#
+# IMPORTANTE:
+# - NO modifica la matriz.
+# - NO cambia un verbo por otro.
+# - NO inventa funciones.
+# - NO elimina información.
+# - NO genera preguntas.
+# - NO trabaja todavía la acción por componente.
+# ========================================================
+
+
+# ========================================================
+# 7.5.3.1 FUNCIÓN DE NORMALIZACIÓN VERBAL
+# ========================================================
+
+def normalizar_accion_general_75_3(
+    accion_75_3
+):
+
+    texto_75_3 = limpiar_texto_75_2(
+        accion_75_3
+    )
+
+    if not texto_75_3:
+
+        return ""
+
+
+    # ----------------------------------------------------
+    # SEPARAR POSIBLES ENCABEZADOS
+    # ----------------------------------------------------
+
+    texto_75_3 = re.sub(
+        r"^\s*(acción|accion|función|funcion)\s*:\s*",
+        "",
+        texto_75_3,
+        flags=re.IGNORECASE
+    ).strip()
+
+
+    # ----------------------------------------------------
+    # CONVERSIONES VERBALES SEGURAS
+    #
+    # Solo se aplican cuando existe una correspondencia
+    # gramatical clara.
+    #
+    # NO se sustituyen verbos por sinónimos.
+    # ----------------------------------------------------
+
+    patrones_75_3 = [
+
+        (
+            r"^refuerza\b",
+            "reforzar"
+        ),
+
+        (
+            r"^fortalece\b",
+            "fortalecer"
+        ),
+
+        (
+            r"^favorece\b",
+            "favorecer"
+        ),
+
+        (
+            r"^apoya\b",
+            "apoyar"
+        ),
+
+        (
+            r"^ayuda\s+a\b",
+            "ayudar a"
+        ),
+
+        (
+            r"^contribuye\b",
+            "contribuir"
+        ),
+
+        (
+            r"^promueve\b",
+            "promover"
+        ),
+
+        (
+            r"^estimula\b",
+            "estimular"
+        ),
+
+        (
+            r"^mejora\b",
+            "mejorar"
+        ),
+
+        (
+            r"^mantiene\b",
+            "mantener"
+        ),
+
+        (
+            r"^protege\b",
+            "proteger"
+        ),
+
+        (
+            r"^facilita\b",
+            "facilitar"
+        ),
+
+        (
+            r"^regula\b",
+            "regular"
+        ),
+
+        (
+            r"^favorecen\b",
+            "favorecer"
+        ),
+
+        (
+            r"^refuerzan\b",
+            "reforzar"
+        ),
+
+        (
+            r"^fortalecen\b",
+            "fortalecer"
+        ),
+
+        (
+            r"^apoyan\b",
+            "apoyar"
+        ),
+
+        (
+            r"^promueven\b",
+            "promover"
+        ),
+
+        (
+            r"^estimulan\b",
+            "estimular"
+        ),
+
+        (
+            r"^mejoran\b",
+            "mejorar"
+        ),
+
+        (
+            r"^mantienen\b",
+            "mantener"
+        ),
+
+        (
+            r"^protegen\b",
+            "proteger"
+        ),
+
+        (
+            r"^facilitan\b",
+            "facilitar"
+        ),
+
+        (
+            r"^regulan\b",
+            "regular"
+        )
+
+    ]
+
+
+    texto_normalizado_75_3 = (
+        texto_75_3
+    )
+
+
+    for (
+        patron_75_3,
+        reemplazo_75_3
+    ) in patrones_75_3:
+
+        texto_normalizado_75_3 = re.sub(
+            patron_75_3,
+            reemplazo_75_3,
+            texto_normalizado_75_3,
+            count=1,
+            flags=re.IGNORECASE
+        )
+
+        if (
+            texto_normalizado_75_3
+            != texto_75_3
+        ):
+
+            break
+
+
+    return (
+        limpiar_texto_75_2(
+            texto_normalizado_75_3
+        )
+    )
+
+
+# ========================================================
+# 7.5.3.2 APLICAR NORMALIZACIÓN
+# ========================================================
+
+if dataframe_trabajo_75.empty:
+
+    st.warning(
+        "⚠️ 7.5.3 — No existen acciones generales "
+        "para normalizar."
+    )
+
+else:
+
+    mascara_acciones_75_3 = (
+        dataframe_trabajo_75[
+            "Accion_Original"
+        ]
+        .astype(str)
+        .str.strip()
+        != ""
+    )
+
+
+    dataframe_trabajo_75.loc[
+        mascara_acciones_75_3,
+        "Accion_General_Normalizada"
+    ] = (
+
+        dataframe_trabajo_75.loc[
+            mascara_acciones_75_3,
+            "Accion_Original"
+        ]
+        .apply(
+            normalizar_accion_general_75_3
+        )
+
+    )
+
+
+    # ====================================================
+    # 7.5.3.3 POR AHORA CONSERVAMOS LA ACCIÓN
+    # ORIGINAL COMO BASE DE LA ABSTRACCIÓN
+    # ====================================================
+
+    dataframe_trabajo_75.loc[
+        mascara_acciones_75_3,
+        "Accion_General"
+    ] = (
+
+        dataframe_trabajo_75.loc[
+            mascara_acciones_75_3,
+            "Accion_Original"
+        ]
+        .astype(str)
+        .apply(
+            limpiar_texto_75_2
+        )
+
+    )
+
+
+# ========================================================
+# 7.5.3.4 MUESTRA DE CONTROL
+# ========================================================
+
+if dataframe_trabajo_75.empty:
+
+    st.warning(
+        "No hay información para mostrar."
+    )
+
+else:
+
+    muestra_75_3 = (
+        dataframe_trabajo_75[
+            dataframe_trabajo_75[
+                "Accion_Original"
+            ].astype(str).str.strip() != ""
+        ][
+            [
+                "Producto",
+                "Accion_Original",
+                "Accion_General",
+                "Accion_General_Normalizada"
+            ]
+        ]
+        .head(15)
+    )
+
+
+    if muestra_75_3.empty:
+
+        st.warning(
+            "No se encontraron acciones generales "
+            "para mostrar."
+        )
+
+    else:
+
+        st.subheader(
+            "7.5.3 — Control de normalización"
+        )
+
+        st.dataframe(
+            muestra_75_3,
+            use_container_width=True,
+            hide_index=True
+        )
+
+
+# ========================================================
+# 7.5.3.5 VALIDACIÓN
+# ========================================================
+
+acciones_con_normalizacion_75_3 = (
+    dataframe_trabajo_75[
+        dataframe_trabajo_75[
+            "Accion_Original"
+        ].astype(str).str.strip() != ""
+    ][
+        "Accion_General_Normalizada"
+    ]
+    .astype(str)
+    .str.strip()
+    .ne("")
+    .sum()
+)
+
+
+acciones_originales_75_3 = (
+    dataframe_trabajo_75[
+        "Accion_Original"
+    ]
+    .astype(str)
+    .str.strip()
+    .ne("")
+    .sum()
+)
+
+
+if (
+    acciones_originales_75_3 > 0
+    and
+    acciones_con_normalizacion_75_3
+    == acciones_originales_75_3
+):
+
+    st.success(
+        "🟢 7.5.3 FUNCIONA — Las acciones generales "
+        "fueron normalizadas conservando su contenido."
+    )
+
+    st.info(
+        f"Acciones procesadas: "
+        f"{acciones_con_normalizacion_75_3:,}"
+    )
+
+else:
+
+    st.warning(
+        "⚠️ 7.5.3 — Hay acciones que todavía "
+        "requieren revisión."
+    )
+
 
 # ============================================================
 # 8. PIE DE APLICACIÓN
