@@ -427,3 +427,353 @@ except Exception as e:
     st.error(
         f"🔴 5.2 ERROR: {type(e).__name__}: {e}"
     )
+
+# ============================================================
+# 5.3 DEPURACIÓN FINAL DE ACCIONES
+# Trabaja exclusivamente sobre df_normalizado generado en 5.2
+# ============================================================
+
+st.markdown("### 5.3 Depuración final de acciones")
+
+try:
+
+    if "df_normalizado" not in locals() or df_normalizado.empty:
+
+        st.error(
+            "🔴 5.3 ERROR: No existe una matriz normalizada "
+            "provisional válida proveniente del 5.2."
+        )
+
+    else:
+
+        # ----------------------------------------------------
+        # MARCADORES QUE INDICAN QUE TERMINÓ LA ACCIÓN
+        # Y COMIENZA INFORMACIÓN QUE NO DEBE PERTENECER
+        # A LA ACCIÓN GENERAL.
+        # ----------------------------------------------------
+
+        marcadores_corte = [
+            "COMBINACIONES:",
+            "COMBINACION:",
+            "FRASE DE VENTA:",
+            "FRASE VENTA:",
+            "MODO DE ACCIÓN:",
+            "MODO DE ACCION:",
+            "RECOMENDACIÓN:",
+            "RECOMENDACIONES:",
+            "RECOMENDACION:",
+            "RECOMENDACIONES:",
+            "POSOLOGÍA:",
+            "POSOLOGIA:",
+            "DOSIS:",
+            "FORMA DE USO:",
+            "MODO DE USO:",
+            "INSTRUCCIONES DE USO:"
+        ]
+
+        # ----------------------------------------------------
+        # MARCADORES DE TEXTO COMERCIAL / EXPLICATIVO
+        # ----------------------------------------------------
+
+        frases_comerciales = [
+            "ideal para",
+            "perfecto para",
+            "perfecta para",
+            "excelente para",
+            "una excelente opción",
+            "una excelente opcion",
+            "recomendado para",
+            "recomendada para",
+            "te ayuda a",
+            "ayuda a",
+            "disfruta de",
+            "descubre",
+            "conoce",
+            "lleva tu",
+            "potencia tu",
+            "cuida tu",
+            "obtén",
+            "obten",
+            "logra",
+            "consigue"
+        ]
+
+        # ----------------------------------------------------
+        # FUNCIÓN DE DEPURACIÓN
+        # ----------------------------------------------------
+
+        def depurar_accion(texto):
+
+            if texto is None:
+                return ""
+
+            accion_original = str(texto).strip()
+
+            if not accion_original:
+                return ""
+
+            accion = accion_original
+
+            # ------------------------------------------------
+            # 1. Cortar todo lo que aparezca después de
+            #    cualquier marcador estructural.
+            # ------------------------------------------------
+
+            posiciones = []
+
+            accion_mayusculas = accion.upper()
+
+            for marcador in marcadores_corte:
+
+                posicion = accion_mayusculas.find(
+                    marcador.upper()
+                )
+
+                if posicion >= 0:
+                    posiciones.append(posicion)
+
+            if posiciones:
+
+                accion = accion[:min(posiciones)].strip()
+
+            # ------------------------------------------------
+            # 2. Eliminar espacios repetidos.
+            # ------------------------------------------------
+
+            accion = " ".join(
+                accion.split()
+            ).strip()
+
+            # ------------------------------------------------
+            # 3. Eliminar puntos o separadores sobrantes
+            #    al final.
+            # ------------------------------------------------
+
+            while accion.endswith((".", ";", "|", "-", ":", ",")):
+
+                accion = accion[:-1].strip()
+
+            # ------------------------------------------------
+            # 4. Si queda una frase claramente comercial,
+            #    intentar conservar únicamente el texto anterior.
+            #
+            #    NO se elimina toda la acción automáticamente.
+            # ------------------------------------------------
+
+            accion_minusculas = accion.lower()
+
+            posiciones_comerciales = []
+
+            for frase in frases_comerciales:
+
+                posicion = accion_minusculas.find(
+                    frase.lower()
+                )
+
+                if posicion > 0:
+
+                    posiciones_comerciales.append(
+                        posicion
+                    )
+
+            if posiciones_comerciales:
+
+                accion_cortada = accion[
+                    :min(posiciones_comerciales)
+                ].strip()
+
+                if len(accion_cortada) >= 8:
+
+                    accion = accion_cortada
+
+            # ------------------------------------------------
+            # 5. Limpieza final.
+            # ------------------------------------------------
+
+            accion = " ".join(
+                accion.split()
+            ).strip()
+
+            while accion.endswith((".", ";", "|", "-", ":", ",")):
+
+                accion = accion[:-1].strip()
+
+            return accion
+
+        # ----------------------------------------------------
+        # PROCESAR TODAS LAS ACCIONES DEL 5.2
+        # ----------------------------------------------------
+
+        df_depurado = df_normalizado.copy()
+
+        df_depurado["Acción original"] = (
+            df_depurado["Acción"]
+        )
+
+        df_depurado["Acción"] = (
+            df_depurado["Acción"]
+            .apply(depurar_accion)
+        )
+
+        # ----------------------------------------------------
+        # IDENTIFICAR CAMBIOS
+        # ----------------------------------------------------
+
+        df_depurado["_cambio"] = (
+            df_depurado["Acción original"].astype(str).str.strip()
+            !=
+            df_depurado["Acción"].astype(str).str.strip()
+        )
+
+        cantidad_total = len(
+            df_depurado
+        )
+
+        cantidad_modificadas = int(
+            df_depurado["_cambio"].sum()
+        )
+
+        cantidad_sin_cambio = (
+            cantidad_total
+            - cantidad_modificadas
+        )
+
+        # ----------------------------------------------------
+        # NO CONSERVAR ACCIONES VACÍAS
+        # ----------------------------------------------------
+
+        df_depurado = df_depurado[
+            df_depurado["Acción"].astype(str).str.strip() != ""
+        ].copy()
+
+        cantidad_eliminadas = (
+            cantidad_total
+            - len(df_depurado)
+        )
+
+        # ----------------------------------------------------
+        # REGENERAR CÓDIGOS
+        # ----------------------------------------------------
+
+        df_depurado = df_depurado[
+            [
+                "Nombre del producto",
+                "Acción"
+            ]
+        ].copy()
+
+        df_depurado.insert(
+            0,
+            "Código",
+            [
+                f"AG{numero:06d}"
+                for numero in range(
+                    1,
+                    len(df_depurado) + 1
+                )
+            ]
+        )
+
+        # ----------------------------------------------------
+        # RESULTADO
+        # ----------------------------------------------------
+
+        st.success(
+            f"🟢 5.3 TERMINADO: "
+            f"**{len(df_depurado)} acciones procesadas**."
+        )
+
+        st.info(
+            f"Sin cambios: **{cantidad_sin_cambio}** | "
+            f"Depuradas: **{cantidad_modificadas}** | "
+            f"Eliminadas por quedar vacías: **{cantidad_eliminadas}**"
+        )
+
+        # ----------------------------------------------------
+        # MOSTRAR MATRIZ FINAL DE ESTA ETAPA
+        # ----------------------------------------------------
+
+        st.write(
+            "### Matriz después de la depuración"
+        )
+
+        st.dataframe(
+            df_depurado,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        # ----------------------------------------------------
+        # MOSTRAR SOLO UNA MUESTRA DE LOS CAMBIOS
+        # NO SE REVISA UNA POR UNA.
+        # ----------------------------------------------------
+
+        cambios = df_normalizado.copy()
+
+        cambios["Acción depurada"] = (
+            df_depurado["Acción"]
+            if len(df_depurado) == len(df_normalizado)
+            else ""
+        )
+
+        # Crear nuevamente la comparación directamente
+        cambios["Acción depurada"] = (
+            cambios["Acción"]
+            .apply(depurar_accion)
+        )
+
+        cambios = cambios[
+            cambios["Acción"].astype(str).str.strip()
+            !=
+            cambios["Acción depurada"].astype(str).str.strip()
+        ]
+
+        if not cambios.empty:
+
+            st.write(
+                "### Muestra automática de acciones modificadas"
+            )
+
+            muestra = cambios[
+                [
+                    "Nombre del producto",
+                    "Acción",
+                    "Acción depurada"
+                ]
+            ].head(15).copy()
+
+            muestra.columns = [
+                "Producto",
+                "Antes",
+                "Después"
+            ]
+
+            st.dataframe(
+                muestra,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        else:
+
+            st.info(
+                "ℹ️ No se detectaron modificaciones "
+                "en esta etapa de depuración."
+            )
+
+        st.success(
+            "✅ La depuración se realizó automáticamente "
+            "sobre todas las acciones generadas por 5.2. "
+            "No se modificó la matriz original."
+        )
+
+        st.info(
+            "ℹ️ Esta etapa trabaja exclusivamente sobre "
+            "Código | Nombre del producto | Acción."
+        )
+
+except Exception as e:
+
+    st.error(
+        f"🔴 5.3 ERROR: {type(e).__name__}: {e}"
+    )
