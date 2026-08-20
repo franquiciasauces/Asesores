@@ -158,142 +158,93 @@ except Exception as e:
         f"🔴 5.1 ERROR al leer la matriz: {type(e).__name__}: {e}"
     )
 # ============================================================
-# 5.2 IDENTIFICACIÓN AUTOMÁTICA DE PRODUCTO Y ACCIONES
+# 5.2 IDENTIFICACIÓN DE COLUMNAS REALES
 # ============================================================
 
-st.markdown("### 5.2 Identificación de producto y acciones")
+st.markdown("### 5.2 Identificación de columnas")
 
 try:
-    columnas = list(df_fuente.columns)
 
-    if len(columnas) == 0:
-        st.error(
-            "🔴 5.2 ERROR: La hoja no contiene columnas."
-        )
+    if "df_fuente" not in locals():
+        st.error("🔴 5.2 ERROR: No está disponible la matriz cargada en 5.1.")
     else:
 
-        # ----------------------------------------------------
-        # Normalización temporal SOLO para analizar encabezados
-        # ----------------------------------------------------
-        def normalizar_encabezado(valor):
-            texto = str(valor).strip().lower()
+        columnas = list(df_fuente.columns)
 
-            reemplazos = {
-                "á": "a",
-                "é": "e",
-                "í": "i",
-                "ó": "o",
-                "ú": "u",
-                "ü": "u",
-                "ñ": "n"
-            }
+        st.write("**Columnas que está utilizando el código:**")
 
-            for origen, destino in reemplazos.items():
-                texto = texto.replace(origen, destino)
-
-            texto = " ".join(texto.split())
-
-            return texto
-
-        columnas_normalizadas = {
-            columna: normalizar_encabezado(columna)
-            for columna in columnas
-        }
+        for i, columna in enumerate(columnas, start=1):
+            st.write(f"{i}. `{columna}`")
 
         # ----------------------------------------------------
-        # Palabras orientadoras.
-        # NO cambian los nombres reales de las columnas.
+        # Buscar producto y acción usando SOLO los encabezados
+        # reales que ya existen en la matriz.
         # ----------------------------------------------------
-        indicadores_producto = [
-            "producto",
-            "nombre producto",
-            "nombre del producto",
-            "producto nombre"
-        ]
 
-        indicadores_accion = [
-            "accion",
-            "acciones",
-            "accion general",
-            "acciones generales",
-            "accion_general",
-            "acciones_generales"
-        ]
+        producto_encontrado = None
+        accion_encontrada = None
 
-        columna_producto = None
-        columna_accion = None
+        for columna in columnas:
 
-        # ----------------------------------------------------
-        # Buscar coincidencia exacta primero
-        # ----------------------------------------------------
-        for columna, nombre_normalizado in columnas_normalizadas.items():
+            nombre = str(columna).strip().lower()
 
-            if nombre_normalizado in indicadores_producto:
-                columna_producto = columna
-                break
+            if (
+                producto_encontrado is None
+                and "producto" in nombre
+            ):
+                producto_encontrado = columna
 
-        for columna, nombre_normalizado in columnas_normalizadas.items():
-
-            if nombre_normalizado in indicadores_accion:
-                columna_accion = columna
-                break
+            if (
+                accion_encontrada is None
+                and "accion" in nombre
+            ):
+                accion_encontrada = columna
 
         # ----------------------------------------------------
-        # Mostrar resultado del análisis
+        # Mostrar resultado
         # ----------------------------------------------------
-        if columna_producto is not None:
+
+        if producto_encontrado is not None:
             st.success(
-                f"🟢 Producto identificado: **{columna_producto}**"
+                f"🟢 Producto detectado: **{producto_encontrado}**"
             )
         else:
-            st.warning(
-                "🟡 No se identificó automáticamente una columna "
-                "de producto."
+            st.error(
+                "🔴 No se encontró automáticamente una columna "
+                "relacionada con producto."
             )
 
-        if columna_accion is not None:
+        if accion_encontrada is not None:
             st.success(
-                f"🟢 Acciones identificadas: **{columna_accion}**"
+                f"🟢 Acción detectada: **{accion_encontrada}**"
             )
         else:
-            st.warning(
-                "🟡 No se identificó automáticamente una columna "
-                "de acciones."
+            st.error(
+                "🔴 No se encontró automáticamente una columna "
+                "relacionada con acción."
             )
 
         # ----------------------------------------------------
-        # Si ambas fueron identificadas, mostrar ejemplos
+        # Mostrar ejemplo REAL
         # ----------------------------------------------------
-        if columna_producto is not None and columna_accion is not None:
 
-            df_ejemplo = df_fuente[
-                [columna_producto, columna_accion]
-            ].copy()
+        if producto_encontrado is not None and accion_encontrada is not None:
 
-            df_ejemplo = df_ejemplo.dropna(
-                how="all"
-            )
+            ejemplo = df_fuente[
+                [producto_encontrado, accion_encontrada]
+            ].dropna(how="all").head(10)
 
-            st.write("### Ejemplo de información identificada")
+            st.write("### Ejemplo detectado")
 
             st.dataframe(
-                df_ejemplo.head(15),
+                ejemplo,
                 use_container_width=True,
                 hide_index=True
             )
 
             st.success(
-                "🟢 5.2 TERMINADO: Producto y acciones fueron "
-                "identificados. Todavía NO se ha separado ni "
-                "normalizado ninguna acción."
-            )
-
-        else:
-
-            st.error(
-                "🔴 5.2 DETENIDO: No se continuará con la "
-                "normalización hasta identificar correctamente "
-                "las columnas necesarias."
+                "✅ 5.2 TERMINADO: Las columnas fueron identificadas. "
+                "No se ha modificado ni normalizado ninguna información."
             )
 
 except Exception as e:
