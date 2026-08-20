@@ -229,8 +229,11 @@ st.dataframe(
 )
 
 # ============================================================
-# 5.8 — NORMALIZACIÓN DE ACCIONES GENERALES
+# 5.8 — LIMPIEZA DE ACCIONES GENERALES
 # ============================================================
+
+import re
+
 
 def limpiar_texto(valor):
 
@@ -240,24 +243,92 @@ def limpiar_texto(valor):
     return str(valor).strip()
 
 
-def separar_elementos(valor):
+def limpiar_acciones_generales(valor):
 
     texto = limpiar_texto(valor)
 
     if not texto:
         return []
 
+    # Normalizar saltos de línea
     texto = texto.replace("\r\n", "\n")
     texto = texto.replace("\r", "\n")
 
-    partes = texto.split("\n")
+    # --------------------------------------------------------
+    # ELIMINAR SECCIONES QUE NO SON ACCIONES
+    # --------------------------------------------------------
 
-    return [
-        parte.strip()
-        for parte in partes
-        if parte.strip()
-    ]
+    # MODO DE ACCIÓN no es una acción
+    texto = re.sub(
+        r"(?i)\bMODO\s+DE\s+ACCI[ÓO]N\s*:?",
+        "",
+        texto
+    )
 
+    # COMBINAR CON y todo lo que sigue no pertenece
+    # al DataFrame de acciones generales
+    texto = re.split(
+        r"(?i)\bCOMBINAR\s+CON\s*:?",
+        texto,
+        maxsplit=1
+    )[0]
+
+    # FRASE DE VENTA y todo lo que sigue no pertenece
+    # al DataFrame de acciones generales
+    texto = re.split(
+        r"(?i)\bFRASE\s+DE\s+VENTA\s*:?",
+        texto,
+        maxsplit=1
+    )[0]
+
+    # --------------------------------------------------------
+    # SEPARAR REGISTROS
+    # --------------------------------------------------------
+
+    partes = re.split(
+        r"\n+",
+        texto
+    )
+
+    acciones = []
+
+    for parte in partes:
+
+        parte = parte.strip()
+
+        if not parte:
+            continue
+
+        # ----------------------------------------------------
+        # DESCARTAR ENCABEZADOS AISLADOS
+        # ----------------------------------------------------
+
+        if re.fullmatch(
+            r"(?i)MODO\s+DE\s+ACCI[ÓO]N\s*:?",
+            parte
+        ):
+            continue
+
+        if re.fullmatch(
+            r"(?i)COMBINAR\s+CON\s*:?",
+            parte
+        ):
+            continue
+
+        if re.fullmatch(
+            r"(?i)FRASE\s+DE\s+VENTA\s*:?",
+            parte
+        ):
+            continue
+
+        acciones.append(parte)
+
+    return acciones
+
+
+# ============================================================
+# 5.9 — CONSTRUIR DATAFRAME DE ACCIONES GENERALES
+# ============================================================
 
 registros_acciones_generales = []
 
@@ -268,34 +339,54 @@ for _, fila in df_trabajo.iterrows():
         fila["Producto"]
     )
 
-    acciones = separar_elementos(
-        fila["Acciones generales"]
-    )
-
     if not producto:
         continue
+
+    acciones = limpiar_acciones_generales(
+        fila["Acciones generales"]
+    )
 
     for accion in acciones:
 
         registros_acciones_generales.append(
             {
                 "Producto": producto,
-                "Accion_general": accion
+                "Acción general": accion
             }
         )
 
 
 df_acciones_generales = pd.DataFrame(
-    registros_acciones_generales
+    registros_acciones_generales,
+    columns=[
+        "Producto",
+        "Acción general"
+    ]
 )
 
 
 # ============================================================
-# 5.9 — MOSTRAR ACCIONES GENERALES
+# 5.10 — ELIMINAR DUPLICADOS EXACTOS
+# ============================================================
+
+df_acciones_generales = (
+    df_acciones_generales
+    .drop_duplicates(
+        subset=[
+            "Producto",
+            "Acción general"
+        ]
+    )
+    .reset_index(drop=True)
+)
+
+
+# ============================================================
+# 5.11 — MOSTRAR DATAFRAME
 # ============================================================
 
 st.subheader(
-    "Acciones generales normalizadas"
+    "DataFrame — Acciones Generales"
 )
 
 st.write(
@@ -306,4 +397,24 @@ st.dataframe(
     df_acciones_generales,
     use_container_width=True
 )
+
+
 # ============================================================
+# 5.12 — DESCARGAR
+# ============================================================
+
+csv_acciones_generales = (
+    df_acciones_generales
+    .to_csv(
+        index=False,
+        encoding="utf-8-sig"
+    )
+)
+
+st.download_button(
+    label="⬇️ Descargar Acciones Generales",
+    data=csv_acciones_generales,
+    file_name="ACCIONES_GENERALES.csv",
+    mime="text/csv",
+    key="descargar_acciones_generales"
+)
