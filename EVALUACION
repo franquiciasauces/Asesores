@@ -1,18 +1,13 @@
 # ============================================================
 # FITOASISTE
-# APLICATIVO EVALUACION
-# ============================================================
-# Aplicativo independiente para la construcción y administración
-# del sistema de evaluación.
-#
-# IMPORTANTE:
-# - Este archivo NO modifica aplicativo_asesor.py
-# - CONSULTA y ASESORÍA permanecen independientes
-# - El acceso está restringido a ADMINISTRADOR
-# - Utiliza el mismo USUARIOS.xlsx del proyecto
+# APLICATIVO INDEPENDIENTE DE EVALUACIÓN
 # ============================================================
 
 from pathlib import Path
+import base64
+import json
+import urllib.request
+import urllib.error
 
 import streamlit as st
 import pandas as pd
@@ -38,12 +33,25 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 # ============================================================
-# 3. ARCHIVOS PRINCIPALES
+# 3. CONFIGURACIÓN GITHUB
 # ============================================================
 
-ARCHIVO_USUARIOS = (
-    BASE_DIR / "USUARIOS.xlsx"
-)
+GITHUB_USUARIO = "franquiciasauces"
+GITHUB_REPOSITORIO = "Asesores"
+
+
+try:
+
+    GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
+
+except Exception:
+
+    GITHUB_TOKEN = ""
+
+
+# ============================================================
+# 4. ARCHIVO DE MATRIZ
+# ============================================================
 
 ARCHIVO_MATRIZ = (
     BASE_DIR / "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
@@ -51,76 +59,11 @@ ARCHIVO_MATRIZ = (
 
 
 # ============================================================
-# 4. COLUMNAS DE USUARIOS
-# ============================================================
-
-COLUMNAS_USUARIOS = [
-    "Usuario_ID",
-    "Nombre",
-    "Documento_ID",
-    "Nombre_Usuario",
-    "Clave",
-    "Correo",
-    "Rol",
-    "Estado"
-]
-
-
-# ============================================================
-# 5. CARGAR USUARIOS
-# ============================================================
-
-def cargar_usuarios():
-
-    if not ARCHIVO_USUARIOS.exists():
-
-        return pd.DataFrame(
-            columns=COLUMNAS_USUARIOS
-        )
-
-    try:
-
-        usuarios = pd.read_excel(
-            ARCHIVO_USUARIOS,
-            dtype=str
-        )
-
-        usuarios = usuarios.fillna("")
-
-        for columna in COLUMNAS_USUARIOS:
-
-            if columna not in usuarios.columns:
-
-                usuarios[columna] = ""
-
-        usuarios = usuarios[
-            COLUMNAS_USUARIOS
-        ].copy()
-
-        return usuarios
-
-    except Exception as error:
-
-        st.error(
-            "No fue posible cargar "
-            "USUARIOS.xlsx."
-        )
-
-        st.code(
-            str(error)
-        )
-
-        return pd.DataFrame(
-            columns=COLUMNAS_USUARIOS
-        )
-
-
-# ============================================================
-# 6. ESTADO DE SESIÓN
+# 5. ESTADO DE SESIÓN
 # ============================================================
 
 st.session_state.setdefault(
-    "evaluacion_autenticada",
+    "evaluacion_autenticado",
     False
 )
 
@@ -136,28 +79,60 @@ st.session_state.setdefault(
 
 
 # ============================================================
-# 7. PANTALLA DE ACCESO
+# 6. FUNCIÓN PARA CARGAR USUARIOS
+# ============================================================
+
+def cargar_usuarios():
+
+    ruta_usuarios = (
+        BASE_DIR / "USUARIOS.xlsx"
+    )
+
+    if not ruta_usuarios.exists():
+
+        return pd.DataFrame(
+            columns=[
+                "Usuario_ID",
+                "Nombre",
+                "Documento_ID",
+                "Nombre_Usuario",
+                "Clave",
+                "Correo",
+                "Rol",
+                "Estado"
+            ]
+        )
+
+    usuarios = pd.read_excel(
+        ruta_usuarios,
+        dtype=str
+    )
+
+    usuarios = usuarios.fillna("")
+
+    return usuarios
+
+
+# ============================================================
+# 7. PANTALLA DE INGRESO
 # ============================================================
 
 if not st.session_state[
-    "evaluacion_autenticada"
+    "evaluacion_autenticado"
 ]:
 
     st.title(
-        "FITOASISTE — EVALUACIÓN"
+        "📝 FITOASISTE — EVALUACIÓN"
     )
 
     st.subheader(
-        "Acceso administrativo"
+        "Aplicativo independiente de evaluación"
     )
 
     st.write(
-        "Este aplicativo está destinado "
-        "exclusivamente al usuario con "
-        "rol ADMINISTRADOR."
+        "Ingrese sus credenciales para acceder "
+        "al módulo de evaluación."
     )
-
-    st.divider()
 
     usuario_ingresado = st.text_input(
         "Nombre de usuario",
@@ -170,12 +145,12 @@ if not st.session_state[
         key="evaluacion_login_clave"
     )
 
-    ingresar = st.button(
+    if st.button(
         "Ingresar",
         key="evaluacion_boton_ingresar"
-    )
+    ):
 
-    if ingresar:
+        usuarios = cargar_usuarios()
 
         usuario_normalizado = (
             usuario_ingresado
@@ -188,31 +163,42 @@ if not st.session_state[
             .strip()
         )
 
-        usuarios = cargar_usuarios()
+        coincidencias = usuarios[
+            usuarios[
+                "Nombre_Usuario"
+            ]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+            ==
+            usuario_normalizado
+        ]
 
-        if usuarios.empty:
+        if coincidencias.empty:
 
             st.error(
-                "No existe información de usuarios "
-                "disponible para validar el acceso."
+                "Usuario o contraseña incorrectos."
             )
 
         else:
 
-            coincidencias = (
-                usuarios[
-                    usuarios[
-                        "Nombre_Usuario"
-                    ]
-                    .astype(str)
-                    .str.strip()
-                    .str.upper()
-                    ==
-                    usuario_normalizado
-                ]
-            )
+            usuario = coincidencias.iloc[0]
 
-            if coincidencias.empty:
+            clave_guardada = str(
+                usuario["Clave"]
+            ).strip()
+
+            estado = str(
+                usuario["Estado"]
+            ).strip().upper()
+
+            if estado != "ACTIVO":
+
+                st.error(
+                    "El usuario se encuentra inactivo."
+                )
+
+            elif clave_guardada != clave_normalizada:
 
                 st.error(
                     "Usuario o contraseña incorrectos."
@@ -220,71 +206,37 @@ if not st.session_state[
 
             else:
 
-                usuario = (
-                    coincidencias.iloc[0]
-                )
+                st.session_state[
+                    "evaluacion_autenticado"
+                ] = True
 
-                clave_guardada = str(
-                    usuario["Clave"]
-                ).strip()
+                st.session_state[
+                    "evaluacion_usuario"
+                ] = usuario_normalizado
 
-                rol = str(
+                st.session_state[
+                    "evaluacion_rol"
+                ] = str(
                     usuario["Rol"]
                 ).strip().upper()
 
-                estado = str(
-                    usuario["Estado"]
-                ).strip().upper()
-
-                if estado != "ACTIVO":
-
-                    st.error(
-                        "El usuario se encuentra "
-                        "INACTIVO."
-                    )
-
-                elif clave_guardada != clave_normalizada:
-
-                    st.error(
-                        "Usuario o contraseña incorrectos."
-                    )
-
-                elif rol != "ADMINISTRADOR":
-
-                    st.error(
-                        "Acceso denegado. "
-                        "El aplicativo de Evaluación "
-                        "es exclusivo para ADMINISTRADORES."
-                    )
-
-                else:
-
-                    st.session_state[
-                        "evaluacion_autenticada"
-                    ] = True
-
-                    st.session_state[
-                        "evaluacion_usuario"
-                    ] = usuario_normalizado
-
-                    st.session_state[
-                        "evaluacion_rol"
-                    ] = rol
-
-                    st.success(
-                        "Acceso administrativo autorizado."
-                    )
-
-                    st.rerun()
+                st.rerun()
 
     st.stop()
 
 
 # ============================================================
-# 8. VALIDACIÓN FINAL DE SEGURIDAD
+# 8. DATOS DEL USUARIO ACTUAL
 # ============================================================
 
-ROL_EVALUACION = (
+USUARIO_ACTUAL = (
+    st.session_state.get(
+        "evaluacion_usuario",
+        ""
+    )
+)
+
+ROL_ACTUAL = (
     st.session_state.get(
         "evaluacion_rol",
         ""
@@ -294,14 +246,279 @@ ROL_EVALUACION = (
 )
 
 
-if ROL_EVALUACION != "ADMINISTRADOR":
+# ============================================================
+# 9. ENCABEZADO
+# ============================================================
 
-    st.error(
-        "Acceso denegado."
+st.title(
+    "📝 FITOASISTE — EVALUACIÓN"
+)
+
+st.write(
+    f"Usuario: **{USUARIO_ACTUAL}**"
+)
+
+st.write(
+    f"Rol: **{ROL_ACTUAL}**"
+)
+
+
+# ============================================================
+# 10. VALIDACIÓN DE ADMINISTRADOR
+# ============================================================
+
+ES_ADMINISTRADOR = (
+    ROL_ACTUAL == "ADMINISTRADOR"
+)
+
+
+if ES_ADMINISTRADOR:
+
+    st.success(
+        "Acceso de ADMINISTRADOR habilitado."
     )
 
+else:
+
+    st.info(
+        "Acceso de usuario asesor habilitado."
+    )
+
+
+# ============================================================
+# 11. MENÚ PRINCIPAL
+# ============================================================
+
+st.divider()
+
+st.header(
+    "Menú de Evaluación"
+)
+
+
+if ES_ADMINISTRADOR:
+
+    opciones_menu = [
+        "Inicio",
+        "Banco General de Preguntas",
+        "Banco de Preguntas Especiales",
+        "Generador de Evaluaciones",
+        "Evaluaciones",
+        "Historial"
+    ]
+
+else:
+
+    opciones_menu = [
+        "Inicio",
+        "Evaluaciones",
+        "Historial"
+    ]
+
+
+opcion = st.selectbox(
+    "Seleccione una opción",
+    opciones_menu,
+    key="evaluacion_menu_principal"
+)
+
+
+# ============================================================
+# 12. INICIO
+# ============================================================
+
+if opcion == "Inicio":
+
+    st.subheader(
+        "Aplicativo independiente de EVALUACIÓN"
+    )
+
+    st.write(
+        "Este aplicativo está separado de "
+        "aplicativo_asesor.py."
+    )
+
+    st.write(
+        "Aquí se construirá y administrará "
+        "el sistema de evaluación."
+    )
+
+    if ES_ADMINISTRADOR:
+
+        st.success(
+            "El administrador tiene habilitadas "
+            "las herramientas de construcción."
+        )
+
+    else:
+
+        st.info(
+            "Las herramientas de construcción "
+            "están reservadas para el administrador."
+        )
+
+
+# ============================================================
+# 13. BANCO GENERAL
+# ============================================================
+
+elif opcion == "Banco General de Preguntas":
+
+    if not ES_ADMINISTRADOR:
+
+        st.error(
+            "Esta sección está disponible "
+            "únicamente para el ADMINISTRADOR."
+        )
+
+        st.stop()
+
+    st.header(
+        "Banco General de Preguntas"
+    )
+
+    st.info(
+        "Módulo preparado para construir "
+        "el Banco General de Preguntas."
+    )
+
+    if ARCHIVO_MATRIZ.exists():
+
+        st.success(
+            "✓ MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx "
+            "encontrado."
+        )
+
+    else:
+
+        st.error(
+            "✗ No se encontró "
+            "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
+        )
+
+
+# ============================================================
+# 14. BANCO DE PREGUNTAS ESPECIALES
+# ============================================================
+
+elif opcion == "Banco de Preguntas Especiales":
+
+    if not ES_ADMINISTRADOR:
+
+        st.error(
+            "Esta sección está disponible "
+            "únicamente para el ADMINISTRADOR."
+        )
+
+    else:
+
+        st.header(
+            "Banco de Preguntas Especiales"
+        )
+
+        st.info(
+            "Módulo reservado para preguntas especiales."
+        )
+
+
+# ============================================================
+# 15. GENERADOR DE EVALUACIONES
+# ============================================================
+
+elif opcion == "Generador de Evaluaciones":
+
+    if not ES_ADMINISTRADOR:
+
+        st.error(
+            "Esta sección está disponible "
+            "únicamente para el ADMINISTRADOR."
+        )
+
+    else:
+
+        st.header(
+            "Generador de Evaluaciones"
+        )
+
+        st.info(
+            "Aquí se construirá el generador "
+            "de evaluaciones."
+        )
+
+
+# ============================================================
+# 16. EVALUACIONES
+# ============================================================
+
+elif opcion == "Evaluaciones":
+
+    st.header(
+        "Evaluaciones"
+    )
+
+    st.info(
+        "Aquí aparecerán las evaluaciones "
+        "disponibles para los usuarios."
+    )
+
+
+# ============================================================
+# 17. HISTORIAL
+# ============================================================
+
+elif opcion == "Historial":
+
+    st.header(
+        "Historial de Evaluaciones"
+    )
+
+    st.info(
+        "Aquí se visualizará el historial "
+        "de evaluaciones."
+    )
+
+
+# ============================================================
+# 18. INFORMACIÓN DE CONEXIÓN
+# ============================================================
+
+st.sidebar.divider()
+
+st.sidebar.subheader(
+    "Estado del aplicativo"
+)
+
+if GITHUB_TOKEN:
+
+    st.sidebar.success(
+        "✓ GITHUB_TOKEN disponible"
+    )
+
+else:
+
+    st.sidebar.error(
+        "✗ GITHUB_TOKEN no encontrado"
+    )
+
+st.sidebar.write(
+    f"Repositorio: "
+    f"{GITHUB_USUARIO}/{GITHUB_REPOSITORIO}"
+)
+
+
+# ============================================================
+# 19. CERRAR SESIÓN
+# ============================================================
+
+st.sidebar.divider()
+
+if st.sidebar.button(
+    "Cerrar sesión",
+    key="evaluacion_cerrar_sesion"
+):
+
     st.session_state[
-        "evaluacion_autenticada"
+        "evaluacion_autenticado"
     ] = False
 
     st.session_state[
@@ -312,128 +529,4 @@ if ROL_EVALUACION != "ADMINISTRADOR":
         "evaluacion_rol"
     ] = ""
 
-    st.stop()
-
-
-# ============================================================
-# 9. ENCABEZADO DEL APLICATIVO
-# ============================================================
-
-st.title(
-    "FITOASISTE — EVALUACIÓN"
-)
-
-st.write(
-    "Aplicativo administrativo para la "
-    "construcción y gestión del sistema "
-    "de evaluación."
-)
-
-st.caption(
-    f"Usuario: "
-    f"{st.session_state['evaluacion_usuario']} "
-    f"| Rol: ADMINISTRADOR"
-)
-
-
-# ============================================================
-# 10. MENÚ PRINCIPAL DE EVALUACIÓN
-# ============================================================
-
-st.sidebar.title(
-    "Menú de Evaluación"
-)
-
-opcion_evaluacion = st.sidebar.radio(
-    "Seleccione una opción:",
-    [
-        "Inicio",
-        "Banco General de Preguntas",
-        "Generador de Evaluaciones",
-        "Evaluaciones Controladas",
-        "Gestión de Evaluaciones"
-    ],
-    key="menu_principal_evaluacion"
-)
-
-
-# ============================================================
-# 11. INICIO
-# ============================================================
-
-if opcion_evaluacion == "Inicio":
-
-    st.header(
-        "Inicio"
-    )
-
-    st.info(
-        "Desde este aplicativo se construirá "
-        "y administrará el sistema de evaluación "
-        "de FITOASISTE."
-    )
-
-
-# ============================================================
-# 12. BANCO GENERAL DE PREGUNTAS
-# ============================================================
-
-elif opcion_evaluacion == "Banco General de Preguntas":
-
-    st.header(
-        "Banco General de Preguntas"
-    )
-
-    st.info(
-        "Módulo destinado a la construcción, "
-        "revisión, aprobación y conservación "
-        "del Banco General de Preguntas."
-    )
-
-
-# ============================================================
-# 13. GENERADOR DE EVALUACIONES
-# ============================================================
-
-elif opcion_evaluacion == "Generador de Evaluaciones":
-
-    st.header(
-        "Generador de Evaluaciones"
-    )
-
-    st.info(
-        "Módulo para construir evaluaciones "
-        "a partir de preguntas aprobadas."
-    )
-
-
-# ============================================================
-# 14. EVALUACIONES CONTROLADAS
-# ============================================================
-
-elif opcion_evaluacion == "Evaluaciones Controladas":
-
-    st.header(
-        "Evaluaciones Controladas"
-    )
-
-    st.info(
-        "Módulo para preparar y administrar "
-        "evaluaciones controladas."
-    )
-
-
-# ============================================================
-# 15. GESTIÓN DE EVALUACIONES
-# ============================================================
-
-elif opcion_evaluacion == "Gestión de Evaluaciones":
-
-    st.header(
-        "Gestión de Evaluaciones"
-    )
-
-    st.info(
-        "Módulo administrativo para gestionar "
-        "las evaluaciones construidas."
-    )
+    st.rerun()
