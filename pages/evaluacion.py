@@ -114,7 +114,7 @@ st.success(
 COL_PRODUCTO = "Producto"
 COL_CATEGORIA_PRINCIPAL = "Categoría principal"
 COL_CATEGORIAS_COMPLEMENTARIAS = "Categorías complementarias"
-COL_COMPONENTES = "componentes"
+COL_COMPONENTES = "Componentes"
 COL_ACCIONES_GENERALES = "Acciones generales"
 COL_PRECIO = "Precio público"
 COL_FOTO = "Foto"
@@ -164,7 +164,7 @@ st.success(
 df_trabajo = df_base_productos[
     [
         "Producto",
-        "componentes",
+        "Componentes",
         "Acciones generales"
     ]
 ].copy()
@@ -181,8 +181,8 @@ df_trabajo["Producto"] = (
     .str.strip()
 )
 
-df_trabajo["componentes"] = (
-    df_trabajo["componentes"]
+df_trabajo["Componentes"] = (
+    df_trabajo["Componentes"]
     .fillna("")
     .astype(str)
     .str.strip()
@@ -221,7 +221,7 @@ st.dataframe(
     df_trabajo[
         [
             "Producto",
-            "componentes",
+            "Componentes",
             "Acciones generales"
         ]
     ],
