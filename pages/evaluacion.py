@@ -780,12 +780,16 @@ except Exception as e:
 
 # ============================================================
 # 5.4 ENTRENAMIENTO SEMÁNTICO INICIAL
-# Clasificador específico para ACCIONES GENERALES
 # ============================================================
 
 st.markdown("### 5.4 Entrenamiento del clasificador de acciones")
 
 try:
+
+    import numpy as np
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.pipeline import Pipeline
 
     if "df_depurado" not in locals() or df_depurado.empty:
 
@@ -796,15 +800,7 @@ try:
     else:
 
         # ----------------------------------------------------
-        # IMPORTACIONES LOCALES
-        # ----------------------------------------------------
-
-        from sklearn.feature_extraction.text import TfidfVectorizer
-        from sklearn.linear_model import LogisticRegression
-        from sklearn.pipeline import Pipeline
-
-        # ----------------------------------------------------
-        # PREPARAR DATOS
+        # PREPARAR INFORMACIÓN DEL 5.3
         # ----------------------------------------------------
 
         df_ml = df_depurado[
@@ -815,6 +811,18 @@ try:
             ]
         ].copy()
 
+        df_ml["Código"] = (
+            df_ml["Código"]
+            .astype(str)
+            .str.strip()
+        )
+
+        df_ml["Nombre del producto"] = (
+            df_ml["Nombre del producto"]
+            .astype(str)
+            .str.strip()
+        )
+
         df_ml["Acción"] = (
             df_ml["Acción"]
             .astype(str)
@@ -823,52 +831,47 @@ try:
 
         df_ml = df_ml[
             df_ml["Acción"] != ""
-        ].copy()
+        ].drop_duplicates(
+            subset=["Código"]
+        ).reset_index(drop=True)
 
         # ----------------------------------------------------
-        # ESTADO DEL ENTRENAMIENTO
-        # Se conserva durante la sesión de Streamlit
+        # MEMORIA DEL ENTRENAMIENTO
         # ----------------------------------------------------
 
         if "entrenamiento_acciones" not in st.session_state:
 
             st.session_state.entrenamiento_acciones = {}
 
-        # ----------------------------------------------------
-        # SELECCIONAR MUESTRA INICIAL
-        # MÁXIMO 50
-        # ----------------------------------------------------
-
-        etiquetados = (
-            st.session_state
-            .entrenamiento_acciones
+        etiquetas = (
+            st.session_state.entrenamiento_acciones
         )
 
+        # ----------------------------------------------------
+        # CASOS AÚN NO CLASIFICADOS
+        # ----------------------------------------------------
+
         pendientes = df_ml[
-            ~df_ml["Código"].astype(str).isin(
-                etiquetados.keys()
+            ~df_ml["Código"].isin(
+                etiquetas.keys()
             )
         ].copy()
 
         # ----------------------------------------------------
-        # SELECCIÓN REPRESENTATIVA
-        #
-        # Se distribuyen los ejemplos a lo largo del
-        # conjunto, en lugar de tomar simplemente los
-        # primeros 50.
+        # MÁXIMO 50 EJEMPLOS
         # ----------------------------------------------------
 
-        limite_muestra = min(
+        cantidad_muestra = min(
             50,
             len(pendientes)
         )
 
-        if limite_muestra > 0:
+        if cantidad_muestra > 0:
 
             posiciones = np.linspace(
                 0,
                 len(pendientes) - 1,
-                limite_muestra,
+                cantidad_muestra,
                 dtype=int
             )
 
@@ -878,7 +881,6 @@ try:
                 .drop_duplicates(
                     subset=["Código"]
                 )
-                .copy()
             )
 
         else:
@@ -886,45 +888,32 @@ try:
             muestra = pd.DataFrame()
 
         # ----------------------------------------------------
-        # INTERFAZ DE ETIQUETADO
+        # INTERFAZ DE CLASIFICACIÓN
         # ----------------------------------------------------
 
         st.write(
-            "El sistema selecciona hasta **50 ejemplos** "
-            "para construir el entrenamiento inicial."
-        )
-
-        st.info(
-            "Clasifique solamente los ejemplos mostrados. "
-            "No necesita revisar las ~500 acciones."
+            "Clasifique hasta **50 ejemplos**. "
+            "El sistema utilizará estas decisiones "
+            "para entrenar el clasificador."
         )
 
         if not muestra.empty:
 
             for _, fila in muestra.iterrows():
 
-                codigo = str(
-                    fila["Código"]
-                )
-
-                accion = str(
-                    fila["Acción"]
-                )
-
-                producto = str(
-                    fila["Nombre del producto"]
-                )
+                codigo = fila["Código"]
 
                 st.markdown(
-                    f"**{codigo} — {producto}**"
+                    f"**{codigo} — "
+                    f"{fila['Nombre del producto']}**"
                 )
 
                 st.write(
-                    f"Acción: **{accion}**"
+                    f"Acción: **{fila['Acción']}**"
                 )
 
                 opcion = st.radio(
-                    "Clasificación",
+                    "¿Es una acción general del producto?",
                     [
                         "Acción general",
                         "No es acción"
@@ -946,7 +935,7 @@ try:
                 st.divider()
 
         # ----------------------------------------------------
-        # ESTADO ACTUAL
+        # ESTADÍSTICAS DEL ENTRENAMIENTO
         # ----------------------------------------------------
 
         total_etiquetados = len(
@@ -954,65 +943,58 @@ try:
         )
 
         positivos = sum(
-            1
+            valor == 1
             for valor
             in st.session_state.entrenamiento_acciones.values()
-            if valor == 1
         )
 
-        negativos = (
-            total_etiquetados
-            - positivos
+        negativos = sum(
+            valor == 0
+            for valor
+            in st.session_state.entrenamiento_acciones.values()
         )
 
-        st.write(
-            f"**Ejemplos clasificados:** "
-            f"{total_etiquetados}/50"
-        )
-
-        st.write(
+        st.info(
+            f"Ejemplos clasificados: "
+            f"**{total_etiquetados}/50** | "
             f"Acción general: **{positivos}** | "
             f"No es acción: **{negativos}**"
         )
 
         # ----------------------------------------------------
-        # ENTRENAR CUANDO HAYA SUFICIENTES EJEMPLOS
+        # ENTRENAMIENTO
         # ----------------------------------------------------
 
         if total_etiquetados >= 20:
 
-            codigos_entrenamiento = list(
+            codigos = list(
                 st.session_state
                 .entrenamiento_acciones
                 .keys()
             )
 
             df_entrenamiento = df_ml[
-                df_ml["Código"].astype(str).isin(
-                    codigos_entrenamiento
-                )
+                df_ml["Código"].isin(codigos)
             ].copy()
 
             df_entrenamiento["Etiqueta"] = (
                 df_entrenamiento["Código"]
-                .astype(str)
                 .map(
                     st.session_state
                     .entrenamiento_acciones
                 )
             )
 
-            clases = (
+            if (
                 df_entrenamiento["Etiqueta"]
                 .nunique()
-            )
-
-            if clases < 2:
+                < 2
+            ):
 
                 st.warning(
-                    "⚠️ El entrenamiento necesita ejemplos "
-                    "de las dos clases: Acción general y "
-                    "No es acción."
+                    "⚠️ Necesitamos ejemplos de las "
+                    "dos categorías: Acción general "
+                    "y No es acción."
                 )
 
             else:
@@ -1024,12 +1006,11 @@ try:
                 modelo_acciones = Pipeline(
                     [
                         (
-                            "vectorizador",
+                            "tfidf",
                             TfidfVectorizer(
                                 lowercase=True,
                                 strip_accents="unicode",
                                 ngram_range=(1, 2),
-                                min_df=1,
                                 max_features=5000
                             )
                         ),
@@ -1049,18 +1030,17 @@ try:
                 )
 
                 # --------------------------------------------
-                # PREDICCIÓN SOBRE TODAS LAS ACCIONES
+                # PROCESAR TODAS LAS ACCIONES
                 # --------------------------------------------
 
-                df_resultado_ml = df_ml.copy()
-
                 probabilidades = (
-                    modelo_acciones.predict_proba(
-                        df_resultado_ml["Acción"]
+                    modelo_acciones
+                    .predict_proba(
+                        df_ml["Acción"]
                     )
                 )
 
-                clases_modelo = (
+                clases = (
                     modelo_acciones
                     .named_steps[
                         "clasificador"
@@ -1068,18 +1048,18 @@ try:
                     .classes_
                 )
 
-                indice_positivo = list(
-                    clases_modelo
+                indice_accion_general = list(
+                    clases
                 ).index(1)
+
+                df_resultado_ml = df_ml.copy()
 
                 df_resultado_ml[
                     "Confianza acción general"
-                ] = (
-                    probabilidades[
-                        :,
-                        indice_positivo
-                    ]
-                )
+                ] = probabilidades[
+                    :,
+                    indice_accion_general
+                ]
 
                 df_resultado_ml[
                     "Clasificación IA"
@@ -1092,7 +1072,7 @@ try:
                 )
 
                 # --------------------------------------------
-                # GUARDAR RESULTADO EN SESIÓN
+                # GUARDAR RESULTADO
                 # --------------------------------------------
 
                 st.session_state[
@@ -1122,26 +1102,21 @@ try:
                 )
 
                 st.success(
-                    "🟢 Modelo entrenado y aplicado."
+                    "🟢 Modelo entrenado correctamente."
                 )
 
                 st.info(
-                    f"Acciones procesadas: **{len(df_resultado_ml)}** | "
+                    f"Total procesado: **{len(df_resultado_ml)}** | "
                     f"Alta confianza: **{alta_confianza}** | "
-                    f"Para revisar: **{revisar}**"
+                    f"Revisar: **{revisar}**"
                 )
 
                 # --------------------------------------------
-                # MOSTRAR SOLO CASOS DE REVISIÓN
+                # CASOS DE MENOR CONFIANZA
                 # --------------------------------------------
 
                 df_revision = (
-                    df_resultado_ml[
-                        df_resultado_ml[
-                            "Clasificación IA"
-                        ]
-                        == "Revisar"
-                    ]
+                    df_resultado_ml
                     .sort_values(
                         "Confianza acción general"
                     )
@@ -1149,34 +1124,29 @@ try:
                     .copy()
                 )
 
-                if not df_revision.empty:
+                st.write(
+                    "### Casos de menor confianza"
+                )
 
-                    st.warning(
-                        f"⚠️ Se muestran los "
-                        f"{len(df_revision)} casos "
-                        "de menor confianza."
-                    )
-
-                    st.dataframe(
-                        df_revision[
-                            [
-                                "Código",
-                                "Nombre del producto",
-                                "Acción",
-                                "Confianza acción general"
-                            ]
-                        ],
-                        use_container_width=True,
-                        hide_index=True
-                    )
+                st.dataframe(
+                    df_revision[
+                        [
+                            "Código",
+                            "Nombre del producto",
+                            "Acción",
+                            "Confianza acción general"
+                        ]
+                    ],
+                    use_container_width=True,
+                    hide_index=True
+                )
 
                 # --------------------------------------------
-                # MATRIZ FINAL PROVISIONAL
-                # SOLO LAS 3 COLUMNAS REQUERIDAS
+                # RESULTADO FINAL DEL 5.4
                 # --------------------------------------------
 
                 st.write(
-                    "### Resultado del clasificador"
+                    "### Matriz resultante"
                 )
 
                 st.dataframe(
@@ -1193,13 +1163,10 @@ try:
 
         else:
 
-            faltan = (
-                20 - total_etiquetados
-            )
-
             st.warning(
-                f"⚠️ Faltan **{faltan}** ejemplos "
-                "clasificados para entrenar el primer modelo."
+                f"⚠️ Clasifique al menos "
+                f"{20 - total_etiquetados} ejemplos más "
+                "para entrenar el primer modelo."
             )
 
 except Exception as e:
@@ -1207,3 +1174,4 @@ except Exception as e:
     st.error(
         f"🔴 5.4 ERROR: {type(e).__name__}: {e}"
     )
+
