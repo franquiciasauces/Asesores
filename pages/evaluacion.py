@@ -777,3 +777,564 @@ except Exception as e:
     st.error(
         f"🔴 5.3 ERROR: {type(e).__name__}: {e}"
     )
+# ============================================================
+# 5.4 DEPURACIÓN CONTEXTUAL Y CONTROL DE CALIDAD
+# Trabaja exclusivamente sobre df_depurado del 5.3
+# ============================================================
+
+st.markdown("### 5.4 Depuración contextual de acciones")
+
+try:
+
+    if "df_depurado" not in locals() or df_depurado.empty:
+
+        st.error(
+            "🔴 5.4 ERROR: No existe una matriz depurada "
+            "proveniente del 5.3."
+        )
+
+    else:
+
+        # ----------------------------------------------------
+        # FUNCIONES GENERALES DE LIMPIEZA
+        # ----------------------------------------------------
+
+        def limpiar_espacios(texto):
+
+            if texto is None:
+                return ""
+
+            texto = str(texto)
+
+            texto = " ".join(
+                texto.split()
+            )
+
+            return texto.strip()
+
+        def quitar_puntuacion_final(texto):
+
+            texto = limpiar_espacios(texto)
+
+            while texto.endswith(
+                (".", ",", ";", ":", "-", "|")
+            ):
+                texto = texto[:-1].strip()
+
+            return texto
+
+        # ----------------------------------------------------
+        # PATRONES LINGÜÍSTICOS DE INFORMACIÓN ACCESORIA
+        #
+        # No dependen de nombres concretos de productos,
+        # componentes o marcas.
+        # ----------------------------------------------------
+
+        patrones_accesorios = [
+
+            # Recomendaciones / complementos
+            "como complemento",
+            "como complemento de",
+            "complemento de",
+            "complementar con",
+            "se puede complementar",
+            "puede complementar",
+            "acompañar con",
+            "acompañado de",
+            "acompañada de",
+            "adicionalmente",
+
+            # Precauciones / restricciones
+            "por posible fotosensibilidad",
+            "por fotosensibilidad",
+            "posible fotosensibilidad",
+            "por sensibilidad solar",
+            "evitar exposición solar",
+            "evitar exposicion solar",
+            "evitar el sol",
+            "uso nocturno",
+            "uso nocturno por",
+            "no usar durante",
+
+            # Uso / administración
+            "modo de uso",
+            "forma de uso",
+            "forma de empleo",
+            "forma de tomar",
+            "forma de aplicación",
+            "forma de aplicacion",
+            "aplicar",
+            "tomar",
+            "consumir",
+            "ingerir",
+
+            # Posología
+            "una cápsula al día",
+            "una capsula al dia",
+            "dos cápsulas al día",
+            "dos capsulas al dia",
+            "por día",
+            "por dia",
+            "cada día",
+            "cada dia",
+            "antes de las comidas",
+            "después de las comidas",
+            "despues de las comidas",
+
+            # Comercial
+            "ideal para",
+            "perfecto para",
+            "perfecta para",
+            "excelente opción",
+            "excelente opcion",
+            "una excelente opción",
+            "una excelente opcion",
+            "recomendado para",
+            "recomendada para",
+            "te ayuda a",
+            "ayuda a descubrir",
+            "descubre",
+            "conoce",
+            "disfruta",
+            "lleva tu",
+            "potencia tu",
+            "cuida tu",
+            "obtén",
+            "obten",
+            "consigue"
+        ]
+
+        # ----------------------------------------------------
+        # Detectar si una frase parece información accesoria
+        # ----------------------------------------------------
+
+        def detectar_accesorio(texto):
+
+            texto_minus = limpiar_espacios(
+                texto
+            ).lower()
+
+            for patron in patrones_accesorios:
+
+                if patron in texto_minus:
+
+                    return True
+
+            return False
+
+        # ----------------------------------------------------
+        # Detectar estructuras que suelen describir
+        # componentes o información complementaria.
+        #
+        # NO elimina por sí solo.
+        # Solo aumenta el nivel de revisión.
+        # ----------------------------------------------------
+
+        def estructura_componentes(texto):
+
+            texto_minus = limpiar_espacios(
+                texto
+            ).lower()
+
+            indicadores = [
+                " + ",
+                " y ",
+                "con ",
+                "contenido de ",
+                "contiene ",
+                "a base de ",
+                "a base de:",
+                "extracto de ",
+                "extractos de ",
+                "vitamina ",
+                "vitaminas ",
+                "mineral ",
+                "minerales ",
+                "aminoácido ",
+                "aminoacidos ",
+                "ácido ",
+                "acido "
+            ]
+
+            cantidad = 0
+
+            for indicador in indicadores:
+
+                if indicador in texto_minus:
+                    cantidad += 1
+
+            return cantidad >= 1
+
+        # ----------------------------------------------------
+        # Detectar texto entre paréntesis que parece ser
+        # explicación adicional y no parte del núcleo.
+        # ----------------------------------------------------
+
+        def parentesis_accesorio(texto):
+
+            texto = limpiar_espacios(
+                texto
+            )
+
+            if "(" not in texto or ")" not in texto:
+                return False
+
+            inicio = texto.find("(")
+            fin = texto.find(")", inicio + 1)
+
+            if fin < 0:
+                return False
+
+            contenido = texto[
+                inicio + 1:fin
+            ].strip()
+
+            if not contenido:
+                return False
+
+            contenido_minus = contenido.lower()
+
+            indicadores = [
+                "+",
+                "cabello",
+                "uñas",
+                "unas",
+                "articulaciones",
+                "inmunológico",
+                "inmunologico",
+                "energía",
+                "energia",
+                "piel",
+                "huesos",
+                "músculo",
+                "musculo"
+            ]
+
+            coincidencias = 0
+
+            for indicador in indicadores:
+
+                if indicador in contenido_minus:
+                    coincidencias += 1
+
+            return coincidencias >= 1
+
+        # ----------------------------------------------------
+        # DEPURACIÓN CONSERVADORA
+        # ----------------------------------------------------
+
+        resultados = []
+
+        for _, fila in df_depurado.iterrows():
+
+            producto = limpiar_espacios(
+                fila["Nombre del producto"]
+            )
+
+            accion_original = limpiar_espacios(
+                fila["Acción"]
+            )
+
+            accion = accion_original
+
+            requiere_revision = False
+            motivo_revision = ""
+
+            # ------------------------------------------------
+            # 1. Eliminar texto posterior a una instrucción
+            # claramente accesoria.
+            # ------------------------------------------------
+
+            posiciones = []
+
+            texto_minus = accion.lower()
+
+            for patron in patrones_accesorios:
+
+                posicion = texto_minus.find(
+                    patron.lower()
+                )
+
+                if posicion > 0:
+
+                    posiciones.append(
+                        posicion
+                    )
+
+            if posiciones:
+
+                posicion_corte = min(
+                    posiciones
+                )
+
+                texto_anterior = accion[
+                    :posicion_corte
+                ].strip()
+
+                if len(texto_anterior) >= 8:
+
+                    accion = texto_anterior
+
+            # ------------------------------------------------
+            # 2. Si parece contener estructura de componente,
+            # NO eliminar automáticamente.
+            # ------------------------------------------------
+
+            if estructura_componentes(
+                accion
+            ):
+
+                requiere_revision = True
+
+                motivo_revision = (
+                    "Posible referencia a componente "
+                    "o estructura complementaria"
+                )
+
+            # ------------------------------------------------
+            # 3. Si contiene paréntesis con posible explicación
+            # complementaria, conservar pero marcar.
+            # ------------------------------------------------
+
+            if parentesis_accesorio(
+                accion
+            ):
+
+                requiere_revision = True
+
+                if motivo_revision:
+
+                    motivo_revision += "; "
+
+                motivo_revision += (
+                    "Posible explicación asociada"
+                )
+
+            # ------------------------------------------------
+            # 4. Limpieza final
+            # ------------------------------------------------
+
+            accion = limpiar_espacios(
+                accion
+            )
+
+            accion = quitar_puntuacion_final(
+                accion
+            )
+
+            # ------------------------------------------------
+            # 5. No permitir acciones vacías.
+            # ------------------------------------------------
+
+            if not accion:
+
+                continue
+
+            resultados.append(
+                {
+                    "Código": fila["Código"],
+                    "Nombre del producto": producto,
+                    "Acción": accion,
+                    "_accion_original": accion_original,
+                    "_modificada": (
+                        accion_original != accion
+                    ),
+                    "_revision": requiere_revision,
+                    "_motivo": motivo_revision
+                }
+            )
+
+        # ----------------------------------------------------
+        # DATAFRAME INTERNO
+        # ----------------------------------------------------
+
+        df_5_4_interno = pd.DataFrame(
+            resultados
+        )
+
+        if df_5_4_interno.empty:
+
+            st.error(
+                "🔴 5.4 ERROR: No quedaron acciones "
+                "después de la depuración."
+            )
+
+        else:
+
+            # ------------------------------------------------
+            # ESTADÍSTICAS
+            # ------------------------------------------------
+
+            total = len(
+                df_5_4_interno
+            )
+
+            modificadas = int(
+                df_5_4_interno[
+                    "_modificada"
+                ].sum()
+            )
+
+            revisiones = int(
+                df_5_4_interno[
+                    "_revision"
+                ].sum()
+            )
+
+            sin_cambio = (
+                total
+                - modificadas
+            )
+
+            st.success(
+                f"🟢 5.4 TERMINADO: "
+                f"{total} acciones procesadas."
+            )
+
+            st.info(
+                f"Sin cambios: **{sin_cambio}** | "
+                f"Depuradas: **{modificadas}** | "
+                f"Marcadas para control: **{revisiones}**"
+            )
+
+            # ------------------------------------------------
+            # MATRIZ DE SALIDA: SOLO 3 COLUMNAS
+            # ------------------------------------------------
+
+            df_normalizacion_final = (
+                df_5_4_interno[
+                    [
+                        "Código",
+                        "Nombre del producto",
+                        "Acción"
+                    ]
+                ].copy()
+            )
+
+            st.write(
+                "### Matriz de normalización"
+            )
+
+            st.dataframe(
+                df_normalizacion_final,
+                use_container_width=True,
+                hide_index=True
+            )
+
+            # ------------------------------------------------
+            # MUESTRA AUTOMÁTICA DE CAMBIOS
+            # ------------------------------------------------
+
+            cambios = df_5_4_interno[
+                df_5_4_interno[
+                    "_modificada"
+                ]
+            ].copy()
+
+            if not cambios.empty:
+
+                st.write(
+                    "### Muestra automática de depuración"
+                )
+
+                muestra = cambios[
+                    [
+                        "_accion_original",
+                        "Acción"
+                    ]
+                ].head(15).copy()
+
+                muestra.columns = [
+                    "Antes",
+                    "Después"
+                ]
+
+                st.dataframe(
+                    muestra,
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+            # ------------------------------------------------
+            # MUESTRA DE CASOS QUE EL SISTEMA NO ELIMINÓ
+            # SINO QUE CONSERVÓ PARA CONTROL INTERNO.
+            # ------------------------------------------------
+
+            casos_revision = df_5_4_interno[
+                df_5_4_interno[
+                    "_revision"
+                ]
+            ].copy()
+
+            if not casos_revision.empty:
+
+                st.warning(
+                    f"⚠️ Se conservaron "
+                    f"{len(casos_revision)} acciones "
+                    f"que presentan estructuras que "
+                    f"requieren control semántico."
+                )
+
+                muestra_revision = (
+                    casos_revision[
+                        [
+                            "Nombre del producto",
+                            "_accion_original",
+                            "Acción",
+                            "_motivo"
+                        ]
+                    ]
+                    .head(15)
+                    .copy()
+                )
+
+                muestra_revision.columns = [
+                    "Producto",
+                    "Original",
+                    "Resultado",
+                    "Motivo"
+                ]
+
+                st.dataframe(
+                    muestra_revision,
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+            # ------------------------------------------------
+            # VALIDACIONES
+            # ------------------------------------------------
+
+            columnas_finales = list(
+                df_normalizacion_final.columns
+            )
+
+            if columnas_finales == [
+                "Código",
+                "Nombre del producto",
+                "Acción"
+            ]:
+
+                st.success(
+                    "✅ Estructura final correcta: "
+                    "Código | Nombre del producto | Acción"
+                )
+
+            else:
+
+                st.error(
+                    "🔴 ERROR: La matriz final no tiene "
+                    "las tres columnas requeridas."
+                )
+
+            st.success(
+                "✅ 5.4 procesó automáticamente todas las "
+                "acciones. Los casos dudosos se conservaron "
+                "en lugar de eliminarlos."
+            )
+
+except Exception as e:
+
+    st.error(
+        f"🔴 5.4 ERROR: {type(e).__name__}: {e}"
+    )
