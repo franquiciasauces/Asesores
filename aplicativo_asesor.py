@@ -5571,319 +5571,220 @@ if (
         "7.5.2 ✓ Funciones de limpieza preparadas."
     )  
 
-       # ====================================================
-    # 7.5.3 NORMALIZACIÓN, ABSTRACCIÓN Y DATAFRAME CENTRAL
+     # ====================================================
+    # 7.5.3 NORMALIZACIÓN Y ABSTRACCIÓN ÚNICA
     # ====================================================
 
-    columnas_75 = [
-        "Producto",
-        "Acciones generales"
-    ]
-
-    if "Componentes" in Base_Productos.columns:
-
-        columnas_75.append(
-            "Componentes"
-        )
-
-    faltantes_75 = [
-        columna_75
-        for columna_75 in (
-            "Producto",
-            "Acciones generales"
-        )
-        if columna_75 not in Base_Productos.columns
-    ]
-
-    if faltantes_75:
-
-        st.error(
-            "Faltan columnas necesarias en Base_Productos: "
-            + ", ".join(faltantes_75)
-        )
-
-        st.stop()
-
-
-    fuente_75 = (
-        Base_Productos[
-            columnas_75
-        ]
-        .copy()
-        .fillna("")
-    )
-
-
-    # ====================================================
-    # MARCADORES QUE NO FORMAN PARTE DE LA ACCIÓN
-    # ====================================================
-
-    marcadores_fin_75 = [
-        "COMBINACIONES:",
-        "COMBINACIONES",
-        "FRASE DE VENTA:",
-        "FRASE DE VENTA",
-        "NOTA:",
-        "NOTA",
-        "ADVERTENCIAS:",
-        "ADVERTENCIAS",
-        "MENSAJE CLAVE:",
-        "MENSAJE CLAVE",
-        "PATOLOGÍAS CLAVE:",
-        "PATOLOGIAS CLAVE:",
-        "PATOLOGÍAS CLAVE",
-        "PATOLOGIAS CLAVE"
-    ]
-
-
-    # ====================================================
-    # ABSTRACCIÓN DE UNA ACCIÓN
-    # ====================================================
-
-    def abstraer_accion_75(
-        accion_75,
-        componentes_75
+    def normalizar_accion_75(
+        accion_original_75,
+        componentes_75=None
     ):
 
         texto_75 = limpiar_texto_75(
-            accion_75
+            accion_original_75
         )
 
         if not texto_75:
-
-            return []
-
+            return ""
 
         # ------------------------------------------------
-        # ELIMINAR ENCABEZADO MODO DE ACCIÓN
+        # UNIFICAR ESPACIOS Y SIGNOS
         # ------------------------------------------------
 
         texto_75 = re.sub(
-            r"^\s*MODO\s+DE\s+ACCI[ÓO]N\s*:\s*",
-            "",
-            texto_75,
-            flags=re.IGNORECASE
+            r"\s+",
+            " ",
+            texto_75
         ).strip()
 
-
         # ------------------------------------------------
-        # CORTAR INFORMACIÓN POSTERIOR
+        # ELIMINAR FRASES COMERCIALES / DE VENTA
         # ------------------------------------------------
 
-        texto_mayusculas_75 = (
-            texto_75.upper()
-        )
+        frases_venta_75 = [
+            r"\bideal para\b",
+            r"\brecomendado para\b",
+            r"\brecomendada para\b",
+            r"\bperfecto para\b",
+            r"\bperfecta para\b",
+            r"\bexcelente para\b",
+            r"\bayuda a\b",
+            r"\bayuda al\b",
+            r"\bayuda con\b",
+            r"\bcontribuye a\b",
+            r"\bpuede ayudar a\b",
+            r"\bpuede contribuir a\b",
+            r"\bapoya\b",
+            r"\baporta\b",
+            r"\bfavorece\b",
+            r"\bfavorecer\b",
+            r"\bpromueve\b",
+            r"\bpromover\b",
+            r"\bfortalece\b",
+            r"\bfortalecer\b",
+            r"\bbeneficia\b",
+            r"\bbeneficiar\b",
+            r"\bmantiene\b",
+            r"\bmantener\b",
+            r"\bpermite\b",
+            r"\bbrinda\b",
+            r"\bproporciona\b",
+            r"\bofrece\b",
+            r"\bpara ayudar a\b",
+            r"\bpara contribuir a\b"
+        ]
 
-        posiciones_75 = []
+        for patron_75 in frases_venta_75:
 
-        for marcador_75 in (
-            marcadores_fin_75
-        ):
-
-            posicion_75 = (
-                texto_mayusculas_75.find(
-                    marcador_75
-                )
+            texto_75 = re.sub(
+                patron_75,
+                "",
+                texto_75,
+                flags=re.IGNORECASE
             )
 
-            if posicion_75 >= 0:
-
-                posiciones_75.append(
-                    posicion_75
-                )
-
-        if posiciones_75:
-
-            texto_75 = texto_75[
-                :min(posiciones_75)
-            ].strip()
-
-
-        if not texto_75:
-
-            return []
-
-
         # ------------------------------------------------
-        # SEPARAR ACCIONES INDEPENDIENTES
+        # ELIMINAR REFERENCIAS EXPLÍCITAS A COMPONENTES
         # ------------------------------------------------
 
-        partes_75 = (
-            separar_lista_75(
-                texto_75
-            )
-        )
+        if componentes_75:
 
+            for componente_75 in componentes_75:
 
-        acciones_75 = []
-
-
-        # ------------------------------------------------
-        # COMPONENTES MÁS LARGOS PRIMERO
-        # ------------------------------------------------
-
-        componentes_limpios_75 = (
-            quitar_duplicados_75(
-                componentes_75
-            )
-        )
-
-        componentes_limpios_75.sort(
-            key=len,
-            reverse=True
-        )
-
-
-        for parte_75 in partes_75:
-
-            texto_parte_75 = (
-                limpiar_texto_75(
-                    parte_75
-                )
-            )
-
-            if not texto_parte_75:
-
-                continue
-
-
-            texto_minusculas_75 = (
-                texto_parte_75.casefold()
-            )
-
-
-            # ------------------------------------------------
-            # ABSTRACCIÓN POR CONECTOR FUNCIONAL
-            #
-            # Ejemplo:
-            # "Eucalipto con efecto descongestionante"
-            #
-            # Resultado:
-            # "efecto descongestionante"
-            # ------------------------------------------------
-
-            conectores_75 = [
-                " que ayuda a ",
-                " que contribuye a ",
-                " que favorece ",
-                " que aporta ",
-                " por su ",
-                " mediante ",
-                " con efecto ",
-                " con ",
-                " como "
-            ]
-
-            candidatos_conector_75 = []
-
-            for conector_75 in (
-                conectores_75
-            ):
-
-                posicion_75 = (
-                    texto_minusculas_75.find(
-                        conector_75
-                    )
-                )
-
-                if posicion_75 > 0:
-
-                    candidatos_conector_75.append(
-                        (
-                            posicion_75,
-                            conector_75
-                        )
-                    )
-
-            if candidatos_conector_75:
-
-                posicion_75, conector_75 = min(
-                    candidatos_conector_75,
-                    key=lambda elemento_75:
-                    elemento_75[0]
-                )
-
-                texto_parte_75 = (
-                    texto_parte_75[
-                        posicion_75
-                        + len(conector_75):
-                    ].strip()
-                )
-
-
-            # ------------------------------------------------
-            # ELIMINAR COMPONENTES CONOCIDOS
-            #
-            # SOLO SI TODAVÍA APARECEN EN EL TEXTO.
-            # ------------------------------------------------
-
-            for componente_75 in (
-                componentes_limpios_75
-            ):
-
-                patron_75 = (
-                    r"(?<!\w)"
-                    + re.escape(
+                componente_75 = (
+                    limpiar_texto_75(
                         componente_75
                     )
-                    + r"(?!\w)"
                 )
 
-                texto_parte_75 = re.sub(
-                    patron_75,
+                if not componente_75:
+                    continue
+
+                texto_75 = re.sub(
+                    re.escape(
+                        componente_75
+                    ),
                     "",
-                    texto_parte_75,
+                    texto_75,
                     flags=re.IGNORECASE
                 )
 
+        # ------------------------------------------------
+        # LIMPIEZA DE CONECTORES COMERCIALES
+        # ------------------------------------------------
 
-            # ------------------------------------------------
-            # LIMPIEZA FINAL
-            # ------------------------------------------------
+        texto_75 = re.sub(
+            r"\bdel producto\b",
+            "",
+            texto_75,
+            flags=re.IGNORECASE
+        )
 
-            texto_parte_75 = re.sub(
-                r"\s{2,}",
-                " ",
-                texto_parte_75
-            ).strip(
-                " .;,:-"
-            ).strip()
+        texto_75 = re.sub(
+            r"\bdel suplemento\b",
+            "",
+            texto_75,
+            flags=re.IGNORECASE
+        )
 
+        texto_75 = re.sub(
+            r"\bmediante\b.*$",
+            "",
+            texto_75,
+            flags=re.IGNORECASE
+        )
 
-            if not texto_parte_75:
+        texto_75 = re.sub(
+            r"\bgracias a\b.*$",
+            "",
+            texto_75,
+            flags=re.IGNORECASE
+        )
 
-                continue
+        texto_75 = re.sub(
+            r"\s+",
+            " ",
+            texto_75
+        ).strip(" ,.;:-")
 
+        if not texto_75:
+            return ""
 
-            # ------------------------------------------------
-            # DESCARTAR CONECTORES AISLADOS
-            # ------------------------------------------------
+        # ------------------------------------------------
+        # CONVERTIR INICIO VERBAL A FUNCIÓN GENERAL
+        # ------------------------------------------------
 
-            if firma_texto_75(
-                texto_parte_75
-            ) in {
-                "con",
-                "como",
-                "para",
-                "mediante",
-                "y"
-            }:
+        equivalencias_75 = {
 
-                continue
+            "favorecer": "favorecer",
+            "favorece": "favorecer",
 
+            "ayudar": "ayudar",
+            "ayuda": "ayudar",
 
-            acciones_75.append(
-                texto_parte_75
+            "contribuir": "contribuir",
+            "contribuye": "contribuir",
+
+            "apoyar": "apoyar",
+            "apoya": "apoyar",
+
+            "promover": "promover",
+            "promueve": "promover",
+
+            "fortalecer": "fortalecer",
+            "fortalece": "fortalecer",
+
+            "mantener": "mantener",
+            "mantiene": "mantener",
+
+            "mejorar": "mejorar",
+            "mejora": "mejorar",
+
+            "regular": "regular",
+            "regula": "regular",
+
+            "proteger": "proteger",
+            "protege": "proteger",
+
+            "estimular": "estimular",
+            "estimula": "estimular",
+
+            "aportar": "aportar",
+            "aporta": "aportar"
+        }
+
+        palabras_75 = texto_75.split()
+
+        if palabras_75:
+
+            primera_75 = (
+                palabras_75[0]
+                .lower()
             )
 
+            if primera_75 in equivalencias_75:
+
+                palabras_75[0] = (
+                    equivalencias_75[
+                        primera_75
+                    ]
+                )
+
+                texto_75 = " ".join(
+                    palabras_75
+                )
 
         # ------------------------------------------------
-        # ELIMINAR DUPLICADOS
+        # LIMPIEZA FINAL
         # ------------------------------------------------
 
-        return quitar_duplicados_75(
-            acciones_75
-        )
+        texto_75 = re.sub(
+            r"\s+",
+            " ",
+            texto_75
+        ).strip(" ,.;:-")
+
+        return texto_75
 
 
     # ====================================================
@@ -5892,7 +5793,6 @@ if (
 
     registros_normalizados_75 = []
 
-
     for _, fila_75 in fuente_75.iterrows():
 
         producto_75 = limpiar_texto_75(
@@ -5900,9 +5800,7 @@ if (
         )
 
         if not producto_75:
-
             continue
-
 
         acciones_originales_75 = (
             separar_lista_75(
@@ -5912,12 +5810,9 @@ if (
             )
         )
 
-
         componentes_75 = []
 
-        if "Componentes" in (
-            fuente_75.columns
-        ):
+        if "Componentes" in fuente_75.columns:
 
             componentes_75 = (
                 separar_lista_75(
@@ -5927,56 +5822,43 @@ if (
                 )
             )
 
-
-        acciones_abstraidas_75 = []
-
-
         for accion_original_75 in (
             acciones_originales_75
         ):
 
-            acciones_resultado_75 = (
-                abstraer_accion_75(
+            accion_abstraida_75 = (
+                normalizar_accion_75(
                     accion_original_75,
                     componentes_75
                 )
             )
 
-            acciones_abstraidas_75.extend(
-                acciones_resultado_75
+            if not accion_abstraida_75:
+                continue
+
+            firma_75 = (
+                firma_texto_75(
+                    producto_75
+                )
+                + "||"
+                + firma_texto_75(
+                    accion_abstraida_75
+                )
             )
-
-
-        acciones_abstraidas_75 = (
-            quitar_duplicados_75(
-                acciones_abstraidas_75
-            )
-        )
-
-
-        for accion_75 in (
-            acciones_abstraidas_75
-        ):
 
             registros_normalizados_75.append({
 
                 "Producto":
                     producto_75,
 
+                "Accion_Original":
+                    accion_original_75,
+
                 "Accion_General":
-                    accion_75,
+                    accion_abstraida_75,
 
                 "Firma":
-                    (
-                        firma_texto_75(
-                            producto_75
-                        )
-                        + "||"
-                        + firma_texto_75(
-                            accion_75
-                        )
-                    )
-
+                    firma_75
             })
 
 
@@ -5984,6 +5866,7 @@ if (
         registros_normalizados_75,
         columns=[
             "Producto",
+            "Accion_Original",
             "Accion_General",
             "Firma"
         ]
@@ -6013,15 +5896,16 @@ if (
         f"Relaciones: "
         f"{len(dataframe_normalizado_75)}"
     )
+
+
     # ====================================================
-    # 7.5.4 VERIFICACIÓN DEL DATAFRAME NORMALIZADO
+    # 7.5.4 VERIFICACIÓN
     # ====================================================
 
     if dataframe_normalizado_75.empty:
 
         st.warning(
-            "7.5.4 — No existen relaciones disponibles "
-            "para generar preguntas."
+            "7.5.4 — No existen relaciones disponibles."
         )
 
     else:
@@ -6029,8 +5913,7 @@ if (
         productos_nivel_1_75 = (
             dataframe_normalizado_75[
                 "Producto"
-            ]
-            .nunique()
+            ].nunique()
         )
 
         productos_nivel_2_75 = (
@@ -6055,6 +5938,7 @@ if (
             "7.5.4 ✓ DataFrame normalizado verificado."
         )
 
+
     # ====================================================
     # 7.5.5 RELACIONES YA REGISTRADAS
     # ====================================================
@@ -6077,7 +5961,6 @@ if (
                 "APROBADA",
                 "RECHAZADA"
             }:
-
                 continue
 
             nivel_75 = limpiar_texto_75(
@@ -6094,10 +5977,7 @@ if (
                 )
             )
 
-            if (
-                nivel_75
-                and fuente_75
-            ):
+            if nivel_75 and fuente_75:
 
                 relaciones_bloqueadas_75.add(
                     (
@@ -6106,13 +5986,16 @@ if (
                     )
                 )
 
+
     st.success(
         "7.5.5 ✓ Relaciones existentes identificadas. "
-        f"Bloqueadas: {len(relaciones_bloqueadas_75)}"
+        f"Bloqueadas: "
+        f"{len(relaciones_bloqueadas_75)}"
     )
 
+
     # ====================================================
-    # 7.5.5A MUESTRA DE NORMALIZACIÓN Y ABSTRACCIÓN
+    # 7.5.5A MUESTRA DE NORMALIZACIÓN
     # ====================================================
 
     st.subheader(
@@ -6122,7 +6005,7 @@ if (
     if dataframe_normalizado_75.empty:
 
         st.warning(
-            "No hay registros normalizados para mostrar."
+            "No hay registros normalizados."
         )
 
     else:
@@ -6131,10 +6014,11 @@ if (
             dataframe_normalizado_75[
                 [
                     "Producto",
+                    "Accion_Original",
                     "Accion_General"
                 ]
             ]
-            .head(5)
+            .head(10)
         )
 
         st.dataframe(
@@ -6144,11 +6028,12 @@ if (
         )
 
         st.success(
-            "7.5.5A ✓ Muestra de normalización disponible."
+            "7.5.5A ✓ Muestra disponible."
         )
 
+
     # ====================================================
-    # 7.5.6 SELECCIÓN DEL NIVEL DE GENERACIÓN
+    # 7.5.6 SELECCIÓN DEL NIVEL
     # ====================================================
 
     st.divider()
@@ -6164,8 +6049,9 @@ if (
         key="modo_generacion_75"
     )
 
+
     # ====================================================
-    # 7.5.7 CANTIDAD MÁXIMA DE PREGUNTAS
+    # 7.5.7 CANTIDAD MÁXIMA
     # ====================================================
 
     cantidad_maxima_75 = st.number_input(
@@ -6178,81 +6064,198 @@ if (
     )
 
     st.caption(
-        "Es un máximo global. No se fuerza una cantidad "
-        "de preguntas por producto ni se repiten relaciones."
+        "Es un máximo global. El sistema no obliga "
+        "a ningún producto a generar una cantidad "
+        "determinada de preguntas."
     )
 
+
     # ====================================================
-    # 7.5.8 PREPARAR CANDIDATOS Y GENERAR
+    # 7.5.8 PREPARAR CANDIDATOS
     # ====================================================
 
     candidatos_75 = []
 
-    niveles_75 = (
-        ["Nivel 1"]
-        if modo_generacion_75 == "Nivel 1"
-        else
-        ["Nivel 2"]
-        if modo_generacion_75 == "Nivel 2"
-        else
-        ["Nivel 1", "Nivel 2"]
-    )
-
     acciones_por_producto_75 = (
         dataframe_normalizado_75
-        .groupby("Producto")["Accion_General"]
-        .apply(list)
+        .groupby("Producto")[
+            "Accion_General"
+        ]
+        .apply(
+            lambda valores: list(
+                dict.fromkeys(
+                    valores
+                )
+            )
+        )
         .to_dict()
     )
 
-    for _, fila_75 in dataframe_normalizado_75.iterrows():
+    if modo_generacion_75 == "Nivel 1":
 
-        producto_75 = fila_75["Producto"]
-        accion_75 = fila_75["Accion_General"]
-        firma_75 = fila_75["Firma"]
+        niveles_75 = [
+            "Nivel 1"
+        ]
 
-        for nivel_75 in niveles_75:
+    elif modo_generacion_75 == "Nivel 2":
 
-            if (
-                nivel_75 == "Nivel 2"
-                and
-                len(
-                    acciones_por_producto_75.get(
-                        producto_75,
-                        []
+        niveles_75 = [
+            "Nivel 2"
+        ]
+
+    else:
+
+        niveles_75 = [
+            "Nivel 1",
+            "Nivel 2"
+        ]
+
+
+    for producto_75, acciones_75 in (
+        acciones_por_producto_75.items()
+    ):
+
+        # -----------------------------------------------
+        # NIVEL 1
+        # UNA ACCIÓN GENERAL REAL
+        # -----------------------------------------------
+
+        if "Nivel 1" in niveles_75:
+
+            for accion_75 in acciones_75:
+
+                firma_75 = (
+                    firma_texto_75(
+                        producto_75
                     )
-                ) < 2
+                    + "||"
+                    + firma_texto_75(
+                        accion_75
+                    )
+                )
+
+                fuente_75 = (
+                    "N1||"
+                    + firma_75
+                )
+
+                relacion_75 = (
+                    "Nivel 1".casefold(),
+                    fuente_75.casefold()
+                )
+
+                if relacion_75 in (
+                    relaciones_bloqueadas_75
+                ):
+                    continue
+
+                candidatos_75.append({
+
+                    "Producto":
+                        producto_75,
+
+                    "Accion_1":
+                        accion_75,
+
+                    "Accion_2":
+                        "",
+
+                    "Nivel":
+                        "Nivel 1",
+
+                    "Fuente_ID":
+                        fuente_75
+                })
+
+
+        # -----------------------------------------------
+        # NIVEL 2
+        # DOS ACCIONES GENERALES DEL MISMO PRODUCTO
+        # -----------------------------------------------
+
+        if (
+            "Nivel 2" in niveles_75
+            and len(acciones_75) >= 2
+        ):
+
+            for indice_1_75 in range(
+                len(acciones_75)
             ):
-                continue
 
-            prefijo_75 = (
-                "N1||"
-                if nivel_75 == "Nivel 1"
-                else "N2||"
-            )
+                for indice_2_75 in range(
+                    indice_1_75 + 1,
+                    len(acciones_75)
+                ):
 
-            fuente_75 = (
-                prefijo_75 + firma_75
-            )
+                    accion_1_75 = (
+                        acciones_75[
+                            indice_1_75
+                        ]
+                    )
 
-            if (
-                nivel_75.casefold(),
-                fuente_75.casefold()
-            ) in relaciones_bloqueadas_75:
-                continue
+                    accion_2_75 = (
+                        acciones_75[
+                            indice_2_75
+                        ]
+                    )
 
-            candidatos_75.append({
-                "Producto": producto_75,
-                "Accion_General": accion_75,
-                "Nivel": nivel_75,
-                "Fuente_ID": fuente_75
-            })
+                    firma_75 = (
+                        firma_texto_75(
+                            producto_75
+                        )
+                        + "||"
+                        + firma_texto_75(
+                            accion_1_75
+                        )
+                        + "||"
+                        + firma_texto_75(
+                            accion_2_75
+                        )
+                    )
+
+                    fuente_75 = (
+                        "N2||"
+                        + firma_75
+                    )
+
+                    relacion_75 = (
+                        "Nivel 2".casefold(),
+                        fuente_75.casefold()
+                    )
+
+                    if relacion_75 in (
+                        relaciones_bloqueadas_75
+                    ):
+                        continue
+
+                    candidatos_75.append({
+
+                        "Producto":
+                            producto_75,
+
+                        "Accion_1":
+                            accion_1_75,
+
+                        "Accion_2":
+                            accion_2_75,
+
+                        "Nivel":
+                            "Nivel 2",
+
+                        "Fuente_ID":
+                            fuente_75
+                    })
 
 
     st.info(
-        f"Candidatos disponibles: {len(candidatos_75)}"
+        f"Candidatos disponibles: "
+        f"{len(candidatos_75)}"
     )
 
+
+    # ====================================================
+    # 7.5.8 GENERAR
+    # ====================================================
 
     generar_preguntas_75 = st.button(
         "GENERAR PREGUNTAS",
@@ -6260,113 +6263,210 @@ if (
         key="generar_preguntas_75"
     )
 
-    if generar_preguntas_75:
-
-        st.success(
-            "7.5.8 ✓ Generación iniciada."
-        )
-    # ====================================================
-    # 7.5.9 GENERAR PREGUNTAS
-    # ====================================================
 
     if generar_preguntas_75:
 
         preguntas_generadas_75 = []
 
-        np.random.shuffle(
-            candidatos_75
+        candidatos_trabajo_75 = (
+            candidatos_75.copy()
         )
 
-        for candidato_75 in candidatos_75:
+        np.random.shuffle(
+            candidatos_trabajo_75
+        )
+
+        # =================================================
+        # FUNCIONES PARA DISTRACTORES
+        # =================================================
+
+        todas_acciones_75 = (
+            dataframe_normalizado_75[
+                "Accion_General"
+            ]
+            .dropna()
+            .astype(str)
+            .map(
+                limpiar_texto_75
+            )
+            .tolist()
+        )
+
+        todas_acciones_75 = list(
+            dict.fromkeys(
+                todas_acciones_75
+            )
+        )
+
+
+        for candidato_75 in (
+            candidatos_trabajo_75
+        ):
 
             if (
                 len(preguntas_generadas_75)
-                >= int(cantidad_maxima_75)
+                >= int(
+                    cantidad_maxima_75
+                )
             ):
                 break
+
 
             producto_75 = candidato_75[
                 "Producto"
             ]
 
-            accion_correcta_75 = candidato_75[
-                "Accion_General"
+            accion_1_75 = candidato_75[
+                "Accion_1"
+            ]
+
+            accion_2_75 = candidato_75[
+                "Accion_2"
             ]
 
             nivel_75 = candidato_75[
                 "Nivel"
             ]
 
-            acciones_75 = (
-                acciones_por_producto_75.get(
-                    producto_75,
-                    []
-                )
-            )
 
-            distractores_75 = []
+            # ---------------------------------------------
+            # NIVEL 1
+            # ---------------------------------------------
 
-            if nivel_75 == "Nivel 2":
+            if nivel_75 == "Nivel 1":
 
                 distractores_75 = [
                     accion_75
-                    for accion_75 in acciones_75
-                    if firma_texto_75(
-                        accion_75
-                    )
-                    != firma_texto_75(
-                        accion_correcta_75
+                    for accion_75
+                    in todas_acciones_75
+                    if (
+                        firma_texto_75(
+                            accion_75
+                        )
+                        !=
+                        firma_texto_75(
+                            accion_1_75
+                        )
                     )
                 ]
 
-            if len(distractores_75) < 3:
+                if len(
+                    distractores_75
+                ) < 3:
 
-                distractores_75.extend(
-                    dataframe_normalizado_75[
-                        "Accion_General"
-                    ].tolist()
-                )
+                    continue
 
-            distractores_75 = [
-                accion_75
-                for accion_75 in quitar_duplicados_75(
+                np.random.shuffle(
                     distractores_75
                 )
-                if firma_texto_75(
+
+                opciones_75 = [
+                    accion_1_75,
+                    distractores_75[0],
+                    distractores_75[1],
+                    distractores_75[2]
+                ]
+
+                np.random.shuffle(
+                    opciones_75
+                )
+
+                posiciones_correctas_75 = [
+                    str(
+                        opciones_75.index(
+                            accion_1_75
+                        ) + 1
+                    )
+                ]
+
+                pregunta_75 = (
+                    f"¿Cuál de las siguientes "
+                    f"acciones generales corresponde "
+                    f"al producto {producto_75}?"
+                )
+
+
+            # ---------------------------------------------
+            # NIVEL 2
+            # DOS ACCIONES CORRECTAS
+            # ---------------------------------------------
+
+            else:
+
+                distractores_75 = [
                     accion_75
+                    for accion_75
+                    in todas_acciones_75
+                    if (
+                        firma_texto_75(
+                            accion_75
+                        )
+                        not in {
+                            firma_texto_75(
+                                accion_1_75
+                            ),
+                            firma_texto_75(
+                                accion_2_75
+                            )
+                        }
+                    )
+                ]
+
+                if len(
+                    distractores_75
+                ) < 2:
+
+                    continue
+
+                np.random.shuffle(
+                    distractores_75
                 )
-                != firma_texto_75(
-                    accion_correcta_75
+
+                opciones_75 = [
+                    accion_1_75,
+                    accion_2_75,
+                    distractores_75[0],
+                    distractores_75[1]
+                ]
+
+                np.random.shuffle(
+                    opciones_75
                 )
-            ]
 
-            if len(distractores_75) < 3:
-                continue
+                posiciones_correctas_75 = [
 
-            distractores_75 = list(
-                np.random.choice(
-                    distractores_75,
-                    3,
-                    replace=False
+                    str(
+                        indice_75 + 1
+                    )
+
+                    for indice_75,
+                    opcion_75
+                    in enumerate(
+                        opciones_75
+                    )
+
+                    if (
+                        firma_texto_75(
+                            opcion_75
+                        )
+                        in {
+                            firma_texto_75(
+                                accion_1_75
+                            ),
+                            firma_texto_75(
+                                accion_2_75
+                            )
+                        }
+                    )
+                ]
+
+                pregunta_75 = (
+                    f"¿Cuáles de las siguientes "
+                    f"acciones generales corresponden "
+                    f"al producto {producto_75}? "
+                    f"Seleccione las dos opciones correctas."
                 )
-            )
 
-            opciones_75 = [
-                accion_correcta_75,
-                *distractores_75
-            ]
-
-            np.random.shuffle(
-                opciones_75
-            )
-
-            pregunta_75 = (
-                f"Considere el producto "
-                f"{producto_75}. "
-                f"¿Cuál de las siguientes "
-                f"acciones generales corresponde "
-                f"a este producto?"
-            )
 
             preguntas_generadas_75.append({
 
@@ -6387,7 +6487,7 @@ if (
                         "Producto_AccionGeneral"
                         if nivel_75 == "Nivel 1"
                         else
-                        "Producto_AccionGeneral_N2"
+                        "Producto_AccionGeneral_Nivel2"
                     ),
 
                 "Pregunta":
@@ -6406,10 +6506,8 @@ if (
                     opciones_75[3],
 
                 "Respuesta_Correcta":
-                    str(
-                        opciones_75.index(
-                            accion_correcta_75
-                        ) + 1
+                    ",".join(
+                        posiciones_correctas_75
                     ),
 
                 "Estado":
@@ -6429,15 +6527,19 @@ if (
                     ]
             })
 
+
         st.success(
             "7.5.9 ✓ Preguntas generadas: "
             f"{len(preguntas_generadas_75)}"
         )
 
+
         if preguntas_generadas_75:
 
-            dataframe_preguntas_75 = pd.DataFrame(
-                preguntas_generadas_75
+            dataframe_preguntas_75 = (
+                pd.DataFrame(
+                    preguntas_generadas_75
+                )
             )
 
             st.dataframe(
@@ -6445,7 +6547,6 @@ if (
                 use_container_width=True,
                 hide_index=True
             )
-
     # ====================================================
     # 7.5.10 VALIDACIÓN DE PREGUNTAS GENERADAS
     # ====================================================
