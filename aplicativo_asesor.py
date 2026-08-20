@@ -5424,1475 +5424,290 @@ if (
 # ========================================================
 
 # ========================================================
+
 # ========================================================
-# 7.5 BANCO GENERAL — PRODUCTO + ACCIÓN GENERAL
+# 7.5 BANCO GENERAL — PRODUCTO + ACCIONES
+# CONSTRUCCIÓN DESDE CERO
 # ========================================================
 #
-# 7.5.1 VERIFICACIÓN Y CARGA DEL BANCO GENERAL
+# 7.5.1 CARGA Y PREPARACIÓN DE LA FUENTE DE TRABAJO
 #
-# SOLO ADMINISTRADOR
+# OBJETIVO:
+# Preparar una copia independiente de la información de
+# productos, acciones y componentes.
+#
+# IMPORTANTE:
+# - NO modifica la matriz original.
+# - NO genera preguntas.
+# - NO abstrae todavía.
+# - NO genera distractores.
+# - NO modifica el Banco General.
+# - Prepara la estructura para los siguientes bloques.
 # ========================================================
 
 if (
     ROL_ACTUAL == "ADMINISTRADOR"
-    and globals().get(
-        "opcion_evaluacion"
+    and
+    globals().get(
+        "opcion_evaluacion",
+        ""
     ) == "Banco general de preguntas"
 ):
 
-    import re
-    import base64
-    import json
-    import urllib.request
-
     st.subheader(
-        "Banco General de Preguntas — Producto + Acción General"
+        "7.5 — Producto + Acciones"
+    )
+
+    st.write(
+        "Preparación del DataFrame de trabajo para "
+        "normalización y abstracción de acciones."
     )
 
     # ====================================================
-    # 7.5.1 VERIFICACIÓN Y CARGA DEL BANCO GENERAL
+    # 7.5.1.1 VERIFICAR FUENTE
     # ====================================================
 
-    if not RUTA_BANCO_GENERAL.exists():
+    if "Base_Productos" not in globals():
 
         st.error(
-            "No existe el archivo "
-            "BANCO_PREGUNTAS_GENERALES.xlsx."
+            "❌ 7.5.1 — No se encontró "
+            "Base_Productos."
         )
 
         st.stop()
+
+    # ====================================================
+    # 7.5.1.2 CREAR COPIA DE TRABAJO
+    # ====================================================
 
     try:
 
-        banco_general_75 = pd.read_excel(
-            RUTA_BANCO_GENERAL,
-            dtype=str
-        ).fillna("")
+        dataframe_fuente_75 = (
+            Base_Productos
+            .copy()
+            .fillna("")
+        )
 
-    except Exception as error_banco_75:
+    except Exception as error_fuente_75:
 
         st.error(
-            "No fue posible cargar el Banco General."
+            "❌ 7.5.1 — No fue posible crear "
+            "el DataFrame de trabajo."
         )
 
         st.code(
-            str(error_banco_75)
+            str(error_fuente_75)
         )
 
         st.stop()
 
-    st.success(
-        "7.5.1 ✓ Banco General cargado correctamente."
-    )
     # ====================================================
-    # 7.5.2 FUNCIONES BÁSICAS DE LIMPIEZA Y NORMALIZACIÓN
+    # 7.5.1.3 VERIFICAR COLUMNAS
     # ====================================================
 
-    def limpiar_texto_75(valor):
+    columnas_base_75 = [
+        "Producto",
+        "Acciones generales"
+    ]
 
-        if pd.isna(valor):
-            return ""
+    columnas_faltantes_75 = [
 
-        return " ".join(
-            str(valor)
-            .replace("\r", " ")
-            .replace("\n", " ")
-            .replace("\t", " ")
-            .split()
-        ).strip()
+        columna_75
 
+        for columna_75
+        in columnas_base_75
 
-    def firma_texto_75(valor):
+        if columna_75
+        not in dataframe_fuente_75.columns
 
-        texto_75 = limpiar_texto_75(
-            valor
-        )
+    ]
 
-        return texto_75.casefold().strip(
-            " .;,:"
-        )
+    if columnas_faltantes_75:
 
-
-    def separar_lista_75(valor):
-
-        texto_75 = limpiar_texto_75(
-            valor
-        )
-
-        if not texto_75:
-            return []
-
-        resultado_75 = []
-
-        for elemento_75 in texto_75.split(";"):
-
-            elemento_75 = limpiar_texto_75(
-                elemento_75
-            )
-
-            if elemento_75:
-                resultado_75.append(
-                    elemento_75
-                )
-
-        return resultado_75
-
-
-    def quitar_duplicados_75(elementos_75):
-
-        resultado_75 = []
-        vistos_75 = set()
-
-        for elemento_75 in elementos_75:
-
-            firma_75 = firma_texto_75(
-                elemento_75
-            )
-
-            if (
-                firma_75
-                and firma_75 not in vistos_75
-            ):
-
-                vistos_75.add(
-                    firma_75
-                )
-
-                resultado_75.append(
-                    limpiar_texto_75(
-                        elemento_75
-                    )
-                )
-
-        return resultado_75
-
-
-    st.success(
-        "7.5.2 ✓ Funciones de limpieza preparadas."
-    )  
-
-    # ====================================================
-    # 7.5.3 DATAFRAME NUEVO — NORMALIZACIÓN Y ABSTRACCIÓN
-    # NO MODIFICA LA MATRIZ ORIGINAL
-    # ====================================================
-
-    registros_normalizados_75 = []
-
-    for _, fila_75 in fuente_75.iterrows():
-
-        producto_75 = limpiar_texto_75(
-            fila_75["Producto"]
-        )
-
-        if not producto_75:
-            continue
-
-        acciones_originales_75 = (
-            separar_lista_75(
-                fila_75["Acciones generales"]
-            )
-        )
-
-        componentes_75 = []
-
-        if "Componentes" in fuente_75.columns:
-
-            componentes_75 = separar_lista_75(
-                fila_75["Componentes"]
-            )
-
-        for accion_original_75 in acciones_originales_75:
-
-            accion_original_75 = limpiar_texto_75(
-                accion_original_75
-            )
-
-            if not accion_original_75:
-                continue
-
-            # --------------------------------------------
-            # LA ABSTRACCIÓN SE HACE SOBRE UNA COPIA
-            # --------------------------------------------
-
-            accion_abstraida_75 = (
-                abstraer_accion_75(
-                    accion_original_75,
-                    componentes_75
-                )
-            )
-
-            if isinstance(
-                accion_abstraida_75,
-                str
-            ):
-
-                acciones_resultado_75 = [
-                    accion_abstraida_75
-                ]
-
-            else:
-
-                acciones_resultado_75 = (
-                    accion_abstraida_75
-                )
-
-            for accion_general_75 in (
-                acciones_resultado_75
-            ):
-
-                accion_general_75 = (
-                    limpiar_texto_75(
-                        accion_general_75
-                    )
-                )
-
-                if not accion_general_75:
-                    continue
-
-                firma_75 = (
-                    firma_texto_75(
-                        producto_75
-                    )
-                    + "||"
-                    + firma_texto_75(
-                        accion_general_75
-                    )
-                )
-
-                registros_normalizados_75.append({
-
-                    "Producto":
-                        producto_75,
-
-                    "Accion_Original":
-                        accion_original_75,
-
-                    "Accion_General":
-                        accion_general_75,
-
-                    "Firma":
-                        firma_75
-                })
-
-
-    # ====================================================
-    # DATAFRAME NUEVO
-    # ====================================================
-
-    dataframe_normalizado_75 = pd.DataFrame(
-        registros_normalizados_75,
-        columns=[
-            "Producto",
-            "Accion_Original",
-            "Accion_General",
-            "Firma"
-        ]
-    )
-
-
-    # ====================================================
-    # ELIMINAR DUPLICADOS SOLO DEL DATAFRAME NUEVO
-    # ====================================================
-
-    if not dataframe_normalizado_75.empty:
-
-        dataframe_normalizado_75 = (
-            dataframe_normalizado_75
-            .drop_duplicates(
-                subset=["Firma"]
-            )
-            .reset_index(
-                drop=True
-            )
-        )
-
-
-    st.success(
-        "7.5.3 ✓ DataFrame nuevo de "
-        "normalización y abstracción creado. "
-        f"Relaciones: "
-        f"{len(dataframe_normalizado_75)}"
-    )
-
-
-    # ====================================================
-    # MUESTRA PARA VERIFICAR LA ABSTRACCIÓN
-    # ====================================================
-
-    if not dataframe_normalizado_75.empty:
-
-        st.subheader(
-            "Ejemplo de normalización y abstracción"
-        )
-
-        st.dataframe(
-            dataframe_normalizado_75[
-                [
-                    "Producto",
-                    "Accion_Original",
-                    "Accion_General"
-                ]
-            ].head(10),
-            use_container_width=True,
-            hide_index=True
-        )
-
-        st.info(
-            "La matriz original permanece intacta. "
-            "La normalización y abstracción se realizan "
-            "exclusivamente en el DataFrame nuevo."
-        )
-
-
-    # ====================================================
-    # 7.5.4 VERIFICACIÓN
-    # ====================================================
-
-    if dataframe_normalizado_75.empty:
-
-        st.warning(
-            "7.5.4 — No existen relaciones disponibles."
-        )
-
-    else:
-
-        productos_nivel_1_75 = (
-            dataframe_normalizado_75[
-                "Producto"
-            ].nunique()
-        )
-
-        productos_nivel_2_75 = (
-            dataframe_normalizado_75
-            .groupby("Producto")
-            .size()
-            .ge(2)
-            .sum()
-        )
-
-        st.info(
-            f"Productos aptos para Nivel 1: "
-            f"{productos_nivel_1_75}"
-        )
-
-        st.info(
-            f"Productos aptos para Nivel 2: "
-            f"{productos_nivel_2_75}"
-        )
-
-        st.success(
-            "7.5.4 ✓ DataFrame normalizado verificado."
-        )
-
-
-    # ====================================================
-    # 7.5.5 RELACIONES YA REGISTRADAS
-    # ====================================================
-
-    relaciones_bloqueadas_75 = set()
-
-    if not banco_general_75.empty:
-
-        for _, fila_75 in banco_general_75.iterrows():
-
-            estado_75 = firma_texto_75(
-                fila_75.get(
-                    "Estado",
-                    ""
-                )
-            ).upper()
-
-            if estado_75 not in {
-                "PENDIENTE",
-                "APROBADA",
-                "RECHAZADA"
-            }:
-                continue
-
-            nivel_75 = limpiar_texto_75(
-                fila_75.get(
-                    "Nivel",
-                    ""
-                )
-            )
-
-            fuente_75 = limpiar_texto_75(
-                fila_75.get(
-                    "Fuente_ID",
-                    ""
-                )
-            )
-
-            if nivel_75 and fuente_75:
-
-                relaciones_bloqueadas_75.add(
-                    (
-                        nivel_75.casefold(),
-                        fuente_75.casefold()
-                    )
-                )
-
-
-    st.success(
-        "7.5.5 ✓ Relaciones existentes identificadas. "
-        f"Bloqueadas: "
-        f"{len(relaciones_bloqueadas_75)}"
-    )
-
-
-    # ====================================================
-    # 7.5.5A MUESTRA DE NORMALIZACIÓN
-    # ====================================================
-
-    st.subheader(
-        "Ejemplo de normalización y abstracción"
-    )
-
-    if dataframe_normalizado_75.empty:
-
-        st.warning(
-            "No hay registros normalizados."
-        )
-
-    else:
-
-        muestra_normalizada_75 = (
-            dataframe_normalizado_75[
-                [
-                    "Producto",
-                    "Accion_Original",
-                    "Accion_General"
-                ]
-            ]
-            .head(10)
-        )
-
-        st.dataframe(
-            muestra_normalizada_75,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        st.success(
-            "7.5.5A ✓ Muestra disponible."
-        )
-
-
-    # ====================================================
-    # 7.5.6 SELECCIÓN DEL NIVEL
-    # ====================================================
-
-    st.divider()
-
-    modo_generacion_75 = st.radio(
-        "¿Qué desea generar?",
-        [
-            "Nivel 1",
-            "Nivel 2",
-            "Nivel 1 y Nivel 2"
-        ],
-        horizontal=True,
-        key="modo_generacion_75"
-    )
-
-
-    # ====================================================
-    # 7.5.7 CANTIDAD MÁXIMA
-    # ====================================================
-
-    cantidad_maxima_75 = st.number_input(
-        "Cantidad máxima de preguntas",
-        min_value=1,
-        max_value=100,
-        value=10,
-        step=1,
-        key="cantidad_maxima_75"
-    )
-
-    st.caption(
-        "Es un máximo global. El sistema no obliga "
-        "a ningún producto a generar una cantidad "
-        "determinada de preguntas."
-    )
-
-
-    # ====================================================
-    # 7.5.8 PREPARAR CANDIDATOS
-    # ====================================================
-
-    candidatos_75 = []
-
-    acciones_por_producto_75 = (
-        dataframe_normalizado_75
-        .groupby("Producto")[
-            "Accion_General"
-        ]
-        .apply(
-            lambda valores: list(
-                dict.fromkeys(
-                    valores
-                )
-            )
-        )
-        .to_dict()
-    )
-
-    if modo_generacion_75 == "Nivel 1":
-
-        niveles_75 = [
-            "Nivel 1"
-        ]
-
-    elif modo_generacion_75 == "Nivel 2":
-
-        niveles_75 = [
-            "Nivel 2"
-        ]
-
-    else:
-
-        niveles_75 = [
-            "Nivel 1",
-            "Nivel 2"
-        ]
-
-
-    for producto_75, acciones_75 in (
-        acciones_por_producto_75.items()
-    ):
-
-        # -----------------------------------------------
-        # NIVEL 1
-        # UNA ACCIÓN GENERAL REAL
-        # -----------------------------------------------
-
-        if "Nivel 1" in niveles_75:
-
-            for accion_75 in acciones_75:
-
-                firma_75 = (
-                    firma_texto_75(
-                        producto_75
-                    )
-                    + "||"
-                    + firma_texto_75(
-                        accion_75
-                    )
-                )
-
-                fuente_75 = (
-                    "N1||"
-                    + firma_75
-                )
-
-                relacion_75 = (
-                    "Nivel 1".casefold(),
-                    fuente_75.casefold()
-                )
-
-                if relacion_75 in (
-                    relaciones_bloqueadas_75
-                ):
-                    continue
-
-                candidatos_75.append({
-
-                    "Producto":
-                        producto_75,
-
-                    "Accion_1":
-                        accion_75,
-
-                    "Accion_2":
-                        "",
-
-                    "Nivel":
-                        "Nivel 1",
-
-                    "Fuente_ID":
-                        fuente_75
-                })
-
-
-        # -----------------------------------------------
-        # NIVEL 2
-        # DOS ACCIONES GENERALES DEL MISMO PRODUCTO
-        # -----------------------------------------------
-
-        if (
-            "Nivel 2" in niveles_75
-            and len(acciones_75) >= 2
-        ):
-
-            for indice_1_75 in range(
-                len(acciones_75)
-            ):
-
-                for indice_2_75 in range(
-                    indice_1_75 + 1,
-                    len(acciones_75)
-                ):
-
-                    accion_1_75 = (
-                        acciones_75[
-                            indice_1_75
-                        ]
-                    )
-
-                    accion_2_75 = (
-                        acciones_75[
-                            indice_2_75
-                        ]
-                    )
-
-                    firma_75 = (
-                        firma_texto_75(
-                            producto_75
-                        )
-                        + "||"
-                        + firma_texto_75(
-                            accion_1_75
-                        )
-                        + "||"
-                        + firma_texto_75(
-                            accion_2_75
-                        )
-                    )
-
-                    fuente_75 = (
-                        "N2||"
-                        + firma_75
-                    )
-
-                    relacion_75 = (
-                        "Nivel 2".casefold(),
-                        fuente_75.casefold()
-                    )
-
-                    if relacion_75 in (
-                        relaciones_bloqueadas_75
-                    ):
-                        continue
-
-                    candidatos_75.append({
-
-                        "Producto":
-                            producto_75,
-
-                        "Accion_1":
-                            accion_1_75,
-
-                        "Accion_2":
-                            accion_2_75,
-
-                        "Nivel":
-                            "Nivel 2",
-
-                        "Fuente_ID":
-                            fuente_75
-                    })
-
-
-    st.info(
-        f"Candidatos disponibles: "
-        f"{len(candidatos_75)}"
-    )
-
-
-    # ====================================================
-    # 7.5.8 GENERAR
-    # ====================================================
-
-    generar_preguntas_75 = st.button(
-        "GENERAR PREGUNTAS",
-        type="primary",
-        key="generar_preguntas_75"
-    )
-
-
-    if generar_preguntas_75:
-
-        preguntas_generadas_75 = []
-
-        candidatos_trabajo_75 = (
-            candidatos_75.copy()
-        )
-
-        np.random.shuffle(
-            candidatos_trabajo_75
-        )
-
-        # =================================================
-        # FUNCIONES PARA DISTRACTORES
-        # =================================================
-
-        todas_acciones_75 = (
-            dataframe_normalizado_75[
-                "Accion_General"
-            ]
-            .dropna()
-            .astype(str)
-            .map(
-                limpiar_texto_75
-            )
-            .tolist()
-        )
-
-        todas_acciones_75 = list(
-            dict.fromkeys(
-                todas_acciones_75
-            )
-        )
-
-
-        for candidato_75 in (
-            candidatos_trabajo_75
-        ):
-
-            if (
-                len(preguntas_generadas_75)
-                >= int(
-                    cantidad_maxima_75
-                )
-            ):
-                break
-
-
-            producto_75 = candidato_75[
-                "Producto"
-            ]
-
-            accion_1_75 = candidato_75[
-                "Accion_1"
-            ]
-
-            accion_2_75 = candidato_75[
-                "Accion_2"
-            ]
-
-            nivel_75 = candidato_75[
-                "Nivel"
-            ]
-
-
-            # ---------------------------------------------
-            # NIVEL 1
-            # ---------------------------------------------
-
-            if nivel_75 == "Nivel 1":
-
-                distractores_75 = [
-                    accion_75
-                    for accion_75
-                    in todas_acciones_75
-                    if (
-                        firma_texto_75(
-                            accion_75
-                        )
-                        !=
-                        firma_texto_75(
-                            accion_1_75
-                        )
-                    )
-                ]
-
-                if len(
-                    distractores_75
-                ) < 3:
-
-                    continue
-
-                np.random.shuffle(
-                    distractores_75
-                )
-
-                opciones_75 = [
-                    accion_1_75,
-                    distractores_75[0],
-                    distractores_75[1],
-                    distractores_75[2]
-                ]
-
-                np.random.shuffle(
-                    opciones_75
-                )
-
-                posiciones_correctas_75 = [
-                    str(
-                        opciones_75.index(
-                            accion_1_75
-                        ) + 1
-                    )
-                ]
-
-                pregunta_75 = (
-                    f"¿Cuál de las siguientes "
-                    f"acciones generales corresponde "
-                    f"al producto {producto_75}?"
-                )
-
-
-            # ---------------------------------------------
-            # NIVEL 2
-            # DOS ACCIONES CORRECTAS
-            # ---------------------------------------------
-
-            else:
-
-                distractores_75 = [
-                    accion_75
-                    for accion_75
-                    in todas_acciones_75
-                    if (
-                        firma_texto_75(
-                            accion_75
-                        )
-                        not in {
-                            firma_texto_75(
-                                accion_1_75
-                            ),
-                            firma_texto_75(
-                                accion_2_75
-                            )
-                        }
-                    )
-                ]
-
-                if len(
-                    distractores_75
-                ) < 2:
-
-                    continue
-
-                np.random.shuffle(
-                    distractores_75
-                )
-
-                opciones_75 = [
-                    accion_1_75,
-                    accion_2_75,
-                    distractores_75[0],
-                    distractores_75[1]
-                ]
-
-                np.random.shuffle(
-                    opciones_75
-                )
-
-                posiciones_correctas_75 = [
-
-                    str(
-                        indice_75 + 1
-                    )
-
-                    for indice_75,
-                    opcion_75
-                    in enumerate(
-                        opciones_75
-                    )
-
-                    if (
-                        firma_texto_75(
-                            opcion_75
-                        )
-                        in {
-                            firma_texto_75(
-                                accion_1_75
-                            ),
-                            firma_texto_75(
-                                accion_2_75
-                            )
-                        }
-                    )
-                ]
-
-                pregunta_75 = (
-                    f"¿Cuáles de las siguientes "
-                    f"acciones generales corresponden "
-                    f"al producto {producto_75}? "
-                    f"Seleccione las dos opciones correctas."
-                )
-
-
-            preguntas_generadas_75.append({
-
-                "Pregunta_ID":
-                    None,
-
-                "Modulo":
-                    "Productos",
-
-                "Tema":
-                    producto_75,
-
-                "Nivel":
-                    nivel_75,
-
-                "Tipo_Relacion":
-                    (
-                        "Producto_AccionGeneral"
-                        if nivel_75 == "Nivel 1"
-                        else
-                        "Producto_AccionGeneral_Nivel2"
-                    ),
-
-                "Pregunta":
-                    pregunta_75,
-
-                "Respuesta_1":
-                    opciones_75[0],
-
-                "Respuesta_2":
-                    opciones_75[1],
-
-                "Respuesta_3":
-                    opciones_75[2],
-
-                "Respuesta_4":
-                    opciones_75[3],
-
-                "Respuesta_Correcta":
-                    ",".join(
-                        posiciones_correctas_75
-                    ),
-
-                "Estado":
-                    "PENDIENTE",
-
-                "Observacion_Administrador":
-                    "",
-
-                "Fecha_Generacion":
-                    pd.Timestamp.now().strftime(
-                        "%Y-%m-%d %H:%M:%S"
-                    ),
-
-                "Fuente_ID":
-                    candidato_75[
-                        "Fuente_ID"
-                    ]
-            })
-
-
-        st.success(
-            "7.5.9 ✓ Preguntas generadas: "
-            f"{len(preguntas_generadas_75)}"
-        )
-
-
-        if preguntas_generadas_75:
-
-            dataframe_preguntas_75 = (
-                pd.DataFrame(
-                    preguntas_generadas_75
-                )
-            )
-
-            st.dataframe(
-                dataframe_preguntas_75,
-                use_container_width=True,
-                hide_index=True
-            )
-    # ====================================================
-    # 7.5.10 VALIDACIÓN DE PREGUNTAS GENERADAS
-    # ====================================================
-
-    if (
-        generar_preguntas_75
-        and preguntas_generadas_75
-    ):
-
-        st.divider()
-
-        st.subheader(
-            "Validación de preguntas generadas"
+        st.error(
+            "❌ 7.5.1 — Faltan columnas obligatorias "
+            "en Base_Productos:"
         )
 
         st.write(
-            "Revise cada pregunta y seleccione su estado."
+            columnas_faltantes_75
         )
 
-        validar_bloque_75 = st.radio(
-            "Acción para este bloque:",
-            [
-                "Validar individualmente",
-                "Aprobar todo el bloque",
-                "Rechazar todo el bloque"
-            ],
-            horizontal=True,
-            key="validar_bloque_75"
-        )
+        st.stop()
 
-        if validar_bloque_75 == (
-            "Aprobar todo el bloque"
-        ):
+    # ====================================================
+    # 7.5.1.4 DETECTAR COMPONENTES
+    # ====================================================
 
-            for pregunta_75 in (
-                preguntas_generadas_75
-            ):
+    tiene_componentes_75 = (
+        "Componentes"
+        in dataframe_fuente_75.columns
+    )
 
-                pregunta_75[
-                    "Estado"
-                ] = "APROBADA"
-
-            st.success(
-                "7.5.10 ✓ Todo el bloque quedó "
-                "marcado como APROBADA."
-            )
-
-        elif validar_bloque_75 == (
-            "Rechazar todo el bloque"
-        ):
-
-            for pregunta_75 in (
-                preguntas_generadas_75
-            ):
-
-                pregunta_75[
-                    "Estado"
-                ] = "RECHAZADA"
-
-            st.warning(
-                "7.5.10 ✓ Todo el bloque quedó "
-                "marcado como RECHAZADA."
-            )
-
-        else:
-
-            for indice_75, pregunta_75 in enumerate(
-                preguntas_generadas_75
-            ):
-
-                st.markdown(
-                    f"**Pregunta {indice_75 + 1} — "
-                    f"{pregunta_75['Nivel']} — "
-                    f"{pregunta_75['Tema']}**"
-                )
-
-                st.write(
-                    pregunta_75["Pregunta"]
-                )
-
-                st.write(
-                    f"1. {pregunta_75['Respuesta_1']}"
-                )
-
-                st.write(
-                    f"2. {pregunta_75['Respuesta_2']}"
-                )
-
-                st.write(
-                    f"3. {pregunta_75['Respuesta_3']}"
-                )
-
-                st.write(
-                    f"4. {pregunta_75['Respuesta_4']}"
-                )
-
-                estado_75 = st.selectbox(
-                    "Estado:",
-                    [
-                        "PENDIENTE",
-                        "APROBADA",
-                        "RECHAZADA"
-                    ],
-                    key=f"estado_75_{indice_75}"
-                )
-
-                pregunta_75[
-                    "Estado"
-                ] = estado_75
-
-                st.divider()
+    if tiene_componentes_75:
 
         st.success(
-            "7.5.10 ✓ Validación preparada."
-        )
-
-    # ====================================================
-    # 7.5.11 GUARDAR VALIDACIÓN EN EL BANCO GENERAL
-    # ====================================================
-
-    if (
-        generar_preguntas_75
-        and preguntas_generadas_75
-    ):
-
-        try:
-
-            banco_75 = pd.read_excel(
-                RUTA_BANCO_GENERAL,
-                dtype=str
-            ).fillna("")
-
-            columnas_banco_75 = [
-                "Pregunta_ID",
-                "Modulo",
-                "Tema",
-                "Nivel",
-                "Tipo_Relacion",
-                "Pregunta",
-                "Respuesta_1",
-                "Respuesta_2",
-                "Respuesta_3",
-                "Respuesta_4",
-                "Respuesta_Correcta",
-                "Estado",
-                "Observacion_Administrador",
-                "Fecha_Generacion",
-                "Fuente_ID"
-            ]
-
-            for columna_75 in columnas_banco_75:
-
-                if columna_75 not in banco_75.columns:
-
-                    banco_75[columna_75] = ""
-
-            banco_75 = banco_75[
-                columnas_banco_75
-            ]
-
-            nuevas_75 = pd.DataFrame(
-                preguntas_generadas_75
-            )
-
-            numeros_75 = []
-
-            for valor_75 in banco_75[
-                "Pregunta_ID"
-            ]:
-
-                texto_75 = str(
-                    valor_75
-                ).strip()
-
-                if texto_75.startswith("PROD_"):
-
-                    try:
-
-                        numeros_75.append(
-                            int(texto_75[5:])
-                        )
-
-                    except ValueError:
-
-                        pass
-
-            siguiente_id_75 = (
-                max(numeros_75) + 1
-                if numeros_75
-                else 1
-            )
-
-            for indice_75 in nuevas_75.index:
-
-                nuevas_75.at[
-                    indice_75,
-                    "Pregunta_ID"
-                ] = (
-                    f"PROD_{siguiente_id_75:05d}"
-                )
-
-                siguiente_id_75 += 1
-
-            banco_75 = pd.concat(
-                [
-                    banco_75,
-                    nuevas_75
-                ],
-                ignore_index=True
-            )
-
-            banco_75.to_excel(
-                RUTA_BANCO_GENERAL,
-                index=False
-            )
-
-            st.success(
-                "7.5.11 ✓ Validación guardada "
-                "en el Banco General."
-            )
-
-        except Exception as error_75:
-
-            st.error(
-                "7.5.11 ✗ Error al guardar "
-                "el Banco General."
-            )
-
-            st.code(
-                str(error_75)
-            )
-
-    # ====================================================
-    # 7.5.12 SINCRONIZACIÓN FINAL
-    # ====================================================
-
-    if (
-        generar_preguntas_75
-        and preguntas_generadas_75
-    ):
-
-        st.divider()
-
-        st.subheader(
-            "Sincronización"
-        )
-
-        sincronizar_75 = st.button(
-            "SINCRONIZAR CON GITHUB",
-            type="primary",
-            key="sincronizar_75"
-        )
-
-        if sincronizar_75:
-
-            st.info(
-                "7.5.12 ✓ Iniciando sincronización "
-                "del Banco General."
-            )
-# ========================================================
-# 7.10 PRODUCTOS — VALIDACIÓN
-# PRODUCTO → CATEGORÍA PRINCIPAL + COMPLEMENTARIAS
-# NIVEL 2 ....OJOOOOOOO
-# ========================================================
-
-if (
-    ROL_ACTUAL == "ADMINISTRADOR"
-    and opcion_evaluacion == "Banco general de preguntas"
-):
-
-    st.subheader(
-        "Validación — Producto → Categorías — Nivel 2"
-    )
-
-    RUTA_BANCO_710 = (
-        BASE_DIR
-        / "BANCO_PREGUNTAS_GENERALES.xlsx"
-    )
-
-    if not RUTA_BANCO_710.exists():
-
-        st.warning(
-            "No existe el Banco General de Preguntas."
+            "✓ Columna 'Componentes' encontrada."
         )
 
     else:
 
-        banco_710 = pd.read_excel(
-            RUTA_BANCO_710,
-            dtype=str
-        ).fillna("")
+        st.warning(
+            "⚠️ No existe la columna 'Componentes'. "
+            "La estructura continuará funcionando "
+            "para acciones generales y la información "
+            "de componentes podrá incorporarse "
+            "posteriormente si existe en la matriz."
+        )
 
-        # ----------------------------------------------------
-        # BUSCAR SOLO NIVEL 2 PENDIENTE
-        # ----------------------------------------------------
+    # ====================================================
+    # 7.5.1.5 CREAR DATAFRAME DE TRABAJO
+    # ====================================================
+    #
+    # Esta estructura es INDEPENDIENTE de la matriz.
+    #
+    # Las columnas de conocimiento se crean aquí,
+    # pero todavía NO se llenan con abstracciones.
+    # ====================================================
 
-        pendientes_710 = banco_710[
-            (
-                banco_710["Tipo_Relacion"]
-                .astype(str)
-                .str.strip()
-                .str.lower()
-                ==
-                "producto_categoria_nivel2"
-            )
-            &
-            (
-                banco_710["Nivel"]
-                .astype(str)
-                .str.strip()
-                .str.lower()
-                ==
-                "nivel 2"
-            )
-            &
-            (
-                banco_710["Estado"]
-                .astype(str)
-                .str.strip()
-                .str.upper()
-                ==
-                "PENDIENTE"
-            )
-        ].copy()
+    columnas_trabajo_75 = [
 
-        # ----------------------------------------------------
-        # MÁXIMO 5
-        # ----------------------------------------------------
+        "Producto",
 
-        pendientes_710 = pendientes_710.head(5)
+        "Accion_Original",
 
-        if pendientes_710.empty:
+        "Accion_General",
 
-            st.info(
-                "No hay preguntas pendientes "
-                "de Producto → Categorías Nivel 2."
-            )
+        "Accion_General_Normalizada",
 
-        else:
+        "Componente",
 
-            st.write(
-                f"Preguntas para validar: "
-                f"**{len(pendientes_710)}**"
-            )
+        "Accion_Componente_Original",
 
-            # ------------------------------------------------
-            # DECISIÓN PARA TODO EL BLOQUE
-            # ------------------------------------------------
+        "Accion_Componente",
 
-            decision_bloque_710 = st.radio(
-                "Decisión para todo el bloque",
-                [
-                    "Mantener pendiente",
-                    "Aprobar todo",
-                    "Rechazar todo"
-                ],
-                index=0,
-                horizontal=True,
-                key="decision_bloque_producto_710"
-            )
+        "Accion_Componente_Normalizada",
 
-            decisiones_710 = {}
+        "Firma_General",
 
-            # ------------------------------------------------
-            # MOSTRAR PREGUNTAS
-            # ------------------------------------------------
+        "Firma_Componente"
 
-            for numero_710, (
-                indice_710,
-                fila_710
-            ) in enumerate(
-                pendientes_710.iterrows(),
-                start=1
-            ):
+    ]
 
-                pregunta_id_710 = str(
-                    fila_710["Pregunta_ID"]
-                )
+    dataframe_trabajo_75 = pd.DataFrame(
+        columns=columnas_trabajo_75
+    )
 
-                st.markdown(
-                    f"### Pregunta {numero_710}"
-                )
+    # ====================================================
+    # 7.5.1.6 INFORMACIÓN DE CONTROL
+    # ====================================================
 
-                st.caption(
-                    f"ID: {pregunta_id_710}"
-                )
+    st.success(
+        "✅ 7.5.1 — DataFrame de trabajo creado "
+        "correctamente."
+    )
 
-                st.write(
-                    f"**Producto:** "
-                    f"{fila_710['Fuente_ID']}"
-                )
+    st.info(
+        f"Filas en la fuente original: "
+        f"{len(dataframe_fuente_75):,}"
+    )
 
-                st.write(
-                    f"**Pregunta:** "
-                    f"{fila_710['Pregunta']}"
-                )
+    st.info(
+        f"Columnas detectadas: "
+        f"{len(dataframe_fuente_75.columns)}"
+    )
 
-                st.write(
-                    f"1. {fila_710['Respuesta_1']}"
-                )
+    st.info(
+        f"Columnas preparadas para el DataFrame "
+        f"de trabajo: "
+        f"{len(dataframe_trabajo_75.columns)}"
+    )
 
-                st.write(
-                    f"2. {fila_710['Respuesta_2']}"
-                )
+    # ====================================================
+    # 7.5.1.7 MOSTRAR ESTRUCTURA
+    # ====================================================
 
-                st.write(
-                    f"3. {fila_710['Respuesta_3']}"
-                )
+    st.write(
+        "**Estructura preparada:**"
+    )
 
-                st.write(
-                    f"4. {fila_710['Respuesta_4']}"
-                )
+    st.dataframe(
+        pd.DataFrame({
+            "Columna": columnas_trabajo_75,
+            "Uso": [
 
-                st.write(
-                    f"**Respuestas correctas:** "
-                    f"{fila_710['Respuesta_Correcta']}"
-                )
+                "Producto",
 
-                decision_individual_710 = st.radio(
-                    "Estado",
-                    [
-                        "PENDIENTE",
-                        "APROBADA",
-                        "RECHAZADA"
-                    ],
-                    index=0,
-                    horizontal=True,
-                    key=(
-                        f"estado_producto_710_"
-                        f"{pregunta_id_710}"
-                    )
-                )
+                "Texto original de la acción",
 
-                decisiones_710[indice_710] = (
-                    decision_individual_710
-                )
+                "Abstracción funcional del producto",
 
-                st.divider()
+                "Forma verbal normalizada",
 
-            # ------------------------------------------------
-            # GUARDAR
-            # ------------------------------------------------
+                "Componente asociado al producto",
 
-            if st.button(
-                "GUARDAR VALIDACIÓN",
-                type="primary",
-                key="guardar_producto_710"
-            ):
+                "Texto original de la acción del componente",
 
-                for indice_710, decision_710 in (
-                    decisiones_710.items()
-                ):
+                "Abstracción funcional contextual",
 
-                    if (
-                        decision_bloque_710
-                        ==
-                        "Aprobar todo"
-                    ):
+                "Forma verbal normalizada",
 
-                        banco_710.loc[
-                            indice_710,
-                            "Estado"
-                        ] = "APROBADA"
+                "Firma única de la relación general",
 
-                    elif (
-                        decision_bloque_710
-                        ==
-                        "Rechazar todo"
-                    ):
+                "Firma única Producto + Componente + Acción"
 
-                        banco_710.loc[
-                            indice_710,
-                            "Estado"
-                        ] = "RECHAZADA"
+            ]
+        }),
+        use_container_width=True,
+        hide_index=True
+    )
 
-                    else:
+    # ====================================================
+    # 7.5.1.8 EJEMPLO DE LA FUENTE
+    # ====================================================
 
-                        banco_710.loc[
-                            indice_710,
-                            "Estado"
-                        ] = decision_710
+    columnas_muestra_75 = [
+        columna_75
+        for columna_75 in [
+            "Producto",
+            "Acciones generales",
+            "Componentes"
+        ]
+        if columna_75
+        in dataframe_fuente_75.columns
+    ]
 
-                # ------------------------------------------------
-                # GUARDAR EXCEL
-                # ------------------------------------------------
+    if columnas_muestra_75:
 
-                banco_710.to_excel(
-                    RUTA_BANCO_710,
-                    index=False,
-                    sheet_name="Banco_General"
-                )
+        st.write(
+            "**Ejemplo de información que será "
+            "procesada:**"
+        )
 
-                st.success(
-                    "✓ Estados guardados correctamente."
-                )
+        st.dataframe(
+            dataframe_fuente_75[
+                columnas_muestra_75
+            ].head(5),
+            use_container_width=True,
+            hide_index=True
+        )
 
-                st.rerun()
+    # ====================================================
+    # 7.5.1.9 CONFIRMACIÓN FINAL
+    # ====================================================
 
+    st.success(
+        "🟢 7.5.1 FUNCIONA — La fuente fue cargada, "
+        "la matriz permanece intacta y el DataFrame "
+        "de trabajo quedó preparado."
+    )
 
-
+    st.caption(
+        "El siguiente bloque podrá trabajar sobre "
+        "dataframe_fuente_75 y dataframe_trabajo_75. "
+        "Todavía no se generan preguntas ni se "
+        "modifican archivos permanentes."
+    )
 
 # ============================================================
 # 8. PIE DE APLICACIÓN
