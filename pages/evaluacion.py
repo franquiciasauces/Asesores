@@ -6199,276 +6199,275 @@ except Exception as e:
         f"🔴 5.11 ERROR: "
         f"{type(e).__name__}: {e}"
     )
-# ============================================================
-# 5.12 — CONSTRUCCIÓN DF2 PROVISIONAL
-#
-# FUENTE EXCLUSIVA:
-#   df_normalizado_componentes_511
-#
-# 5.11 YA HIZO LA DEPURACIÓN Y ABSTRACCIÓN.
-# 5.12 NO VALIDA, NO APRENDE Y NO INVENTA RELACIONES.
-#
-# SALIDA EXACTA:
-#   Código
-#   Producto
-#   Componente
-#   Acción componente
-# ============================================================
+    # ============================================================
+    # 5.12 — CONSTRUCCIÓN DF2 PROVISIONAL
+    #
+    # FUENTE EXCLUSIVA:
+    #     df_normalizado_componentes_511
+    #
+    # 5.11 YA HIZO LA DEPURACIÓN Y ABSTRACCIÓN.
+    # 5.12 NO VALIDA, NO APRENDE Y NO INVENTA RELACIONES.
+    #
+    # SALIDA EXACTA:
+    #     Código
+    #     Producto
+    #     Componente
+    #     Acción componente
+    # ============================================================
 
-st.markdown("### 5.12 — DF2 provisional componente-acción")
+    st.markdown(
+        "### 5.12 — DF2 provisional componente-acción"
+    )
 
-try:
-    import re
-    import pandas as pd
+    try:
+        import re
+        import pandas as pd
 
-    clave_512 = "df_normalizado_componentes_511"
+        clave_512 = "df_normalizado_componentes_511"
 
-    if clave_512 not in st.session_state:
-        st.error("🔴 5.12 ERROR: No existe la salida de 5.11.")
-
-    else:
-
-        df_511 = st.session_state[clave_512].copy()
-
-        columnas_511 = [
-            "Producto",
-            "Componente",
-            "Acción candidata",
-            "Texto funcional"
-        ]
-
-        faltantes_512 = [
-            c for c in columnas_511
-            if c not in df_511.columns
-        ]
-
-        if faltantes_512:
+        if clave_512 not in st.session_state:
 
             st.error(
-                "🔴 5.12 ERROR: Faltan columnas de 5.11: "
-                + ", ".join(faltantes_512)
+                "🔴 5.12 ERROR: "
+                "No existe la salida de 5.11."
             )
 
         else:
 
-            # =================================================
-            # 1. LIMPIEZA
-            # =================================================
-
-            for c in columnas_511:
-
-                df_511[c] = (
-                    df_511[c]
-                    .fillna("")
-                    .astype(str)
-                    .str.strip()
-                )
-
-            df_511 = df_511[
-                (df_511["Producto"] != "")
-                &
-                (df_511["Componente"] != "")
-                &
-                (df_511["Acción candidata"] != "")
-            ].copy()
-
-            # =================================================
-            # 2. NORMALIZACIÓN SOLO PARA DETECTAR DUPLICADOS
-            #
-            # NO MODIFICA EL TEXTO FINAL.
-            # =================================================
-
-            def normalizar_512(valor):
-
-                texto = str(valor).strip().casefold()
-
-                texto = re.sub(
-                    r"\s+",
-                    " ",
-                    texto
-                )
-
-                return texto
-
-            def clave_relacion_512(
-                producto,
-                componente,
-                accion
-            ):
-
-                return (
-                    normalizar_512(producto)
-                    + "|||"
-                    + normalizar_512(componente)
-                    + "|||"
-                    + normalizar_512(accion)
-                )
-
-            # =================================================
-            # 3. CONSTRUIR RELACIONES
-            #
-            # CADA FILA DE 5.11 YA ES UNA RELACIÓN VÁLIDA.
-            #
-            # NO:
-            # - cruza componentes
-            # - valida
-            # - aprende
-            # - pregunta
-            # - inventa
-            # =================================================
-
-            registros_512 = []
-
-            claves_512 = set()
-
-            for _, fila in df_511.iterrows():
-
-                producto = fila[
-                    "Producto"
-                ]
-
-                componente = fila[
-                    "Componente"
-                ]
-
-                accion = fila[
-                    "Acción candidata"
-                ]
-
-                clave = clave_relacion_512(
-                    producto,
-                    componente,
-                    accion
-                )
-
-                if clave in claves_512:
-                    continue
-
-                claves_512.add(clave)
-
-                registros_512.append(
-                    {
-                        "Producto":
-                            producto,
-
-                        "Componente":
-                            componente,
-
-                        "Acción componente":
-                            accion
-                    }
-                )
-
-            # =================================================
-            # 4. CREAR DF2 PROVISIONAL
-            # =================================================
-
-            df2_provisional_512 = pd.DataFrame(
-                registros_512,
-                columns=[
-                    "Producto",
-                    "Componente",
-                    "Acción componente"
-                ]
+            df_511 = (
+                st.session_state[
+                    clave_512
+                ].copy()
             )
 
-            # =================================================
-            # 5. CÓDIGO PROVISIONAL
-            #
-            # La permanencia real de códigos la controla 5.13.
-            # =================================================
+            columnas_511 = [
+                "Producto",
+                "Componente",
+                "Acción candidata",
+                "Texto funcional"
+            ]
 
-            if not df2_provisional_512.empty:
+            faltantes_512 = [
+                c
+                for c in columnas_511
+                if c not in df_511.columns
+            ]
 
-                df2_provisional_512.insert(
-                    0,
-                    "Código",
-                    [
-                        f"CF{n:06d}"
-                        for n in range(
-                            1,
-                            len(df2_provisional_512) + 1
-                        )
-                    ]
+            if faltantes_512:
+
+                st.error(
+                    "🔴 5.12 ERROR: "
+                    "Faltan columnas de 5.11: "
+                    + ", ".join(faltantes_512)
                 )
 
             else:
 
+                # =================================================
+                # 1. LIMPIEZA
+                # =================================================
+
+                for c in columnas_511:
+
+                    df_511[c] = (
+                        df_511[c]
+                        .fillna("")
+                        .astype(str)
+                        .str.strip()
+                    )
+
+                df_511 = df_511[
+                    (df_511["Producto"] != "")
+                    &
+                    (df_511["Componente"] != "")
+                    &
+                    (df_511["Acción candidata"] != "")
+                ].copy()
+
+                # =================================================
+                # 2. NORMALIZACIÓN SOLO PARA DETECTAR DUPLICADOS
+                #
+                # NO MODIFICA EL TEXTO FINAL.
+                # =================================================
+
+                def normalizar_512(valor):
+
+                    texto = (
+                        str(valor)
+                        .strip()
+                        .casefold()
+                    )
+
+                    texto = re.sub(
+                        r"\s+",
+                        " ",
+                        texto
+                    )
+
+                    return texto
+
+                def clave_relacion_512(
+                    producto,
+                    componente,
+                    accion
+                ):
+
+                    return (
+                        normalizar_512(producto)
+                        + "|||"
+                        + normalizar_512(componente)
+                        + "|||"
+                        + normalizar_512(accion)
+                    )
+
+                # =================================================
+                # 3. CONSTRUIR RELACIONES
+                #
+                # CADA FILA DE 5.11 YA ES UNA RELACIÓN VÁLIDA.
+                #
+                # NO:
+                # - cruza componentes
+                # - valida
+                # - aprende
+                # - pregunta
+                # - inventa
+                # =================================================
+
+                registros_512 = []
+
+                claves_512 = set()
+
+                for _, fila in df_511.iterrows():
+
+                    producto = fila[
+                        "Producto"
+                    ]
+
+                    componente = fila[
+                        "Componente"
+                    ]
+
+                    accion = fila[
+                        "Acción candidata"
+                    ]
+
+                    clave = clave_relacion_512(
+                        producto,
+                        componente,
+                        accion
+                    )
+
+                    if clave in claves_512:
+                        continue
+
+                    claves_512.add(clave)
+
+                    registros_512.append(
+                        {
+                            "Producto": producto,
+                            "Componente": componente,
+                            "Acción componente": accion
+                        }
+                    )
+
+                # =================================================
+                # 4. CREAR DF2 PROVISIONAL
+                # =================================================
+
                 df2_provisional_512 = pd.DataFrame(
+                    registros_512,
                     columns=[
-                        "Código",
                         "Producto",
                         "Componente",
                         "Acción componente"
                     ]
                 )
-# =================================================
-# 6. GUARDAR
-# =================================================
 
-st.session_state[
-    "df2_provisional_512"
-] = (
-    df2_provisional_512.copy()
-)
+                # =================================================
+                # 5. CÓDIGO PROVISIONAL
+                #
+                # La permanencia real de códigos la controla 5.13.
+                # =================================================
 
-# Compatibilidad con bloques existentes
-st.session_state[
-    "df2_componentes_acciones"
-] = (
-    df2_provisional_512.copy()
-)
+                if not df2_provisional_512.empty:
 
-# =================================================
-# 6.1 SINCRONIZAR DF2_COMPONENTES_ACCIONES
-# =================================================
+                    df2_provisional_512.insert(
+                        0,
+                        "Código",
+                        [
+                            f"CF{n:06d}"
+                            for n in range(
+                                1,
+                                len(df2_provisional_512) + 1
+                            )
+                        ]
+                    )
 
-exito_sync, mensaje_sync = sincronizar_df2_componentes_acciones_github(
-    df2_provisional_512
-)
+                else:
 
-if exito_sync:
-    st.success(
-        "🟢 DF2_COMPONENTES_ACCIONES "
-        "sincronizado correctamente con GitHub."
-    )
-else:
-    st.warning(
-        "⚠️ DF2 generado correctamente, "
-        "pero no fue posible sincronizarlo con GitHub: "
-        f"{mensaje_sync}"
-    )
+                    df2_provisional_512 = pd.DataFrame(
+                        columns=[
+                            "Código",
+                            "Producto",
+                            "Componente",
+                            "Acción componente"
+                        ]
+                    )
 
-# =================================================
-# 7. RESULTADO
-# =================================================
+                # =================================================
+                # 6. GUARDAR
+                # =================================================
 
-st.success(
-    "🟢 5.12 TERMINADO: "
-    f"{len(df2_provisional_512)} relaciones "
-    "componente-acción."
-)
+                st.session_state[
+                    "df2_provisional_512"
+                ] = (
+                    df2_provisional_512.copy()
+                )
 
-st.info(
-    "5.12 no realiza validación ni aprendizaje. "
-    "Solo conserva las relaciones que 5.11 "
-    "determinó con evidencia suficiente."
-)
+                # Compatibilidad con bloques existentes
+                st.session_state[
+                    "df2_componentes_acciones"
+                ] = (
+                    df2_provisional_512.copy()
+                )
 
-st.write(
-    "### DF2 provisional"
-)
+                # =================================================
+                # 7. RESULTADO
+                # =================================================
 
-st.dataframe(
-    df2_provisional_512[
-        [
-            "Código",
-            "Producto",
-            "Componente",
-            "Acción componente"
-        ]
-    ],
-    use_container_width=True,
-    hide_index=True
-)
-            
+                st.success(
+                    "🟢 5.12 TERMINADO: "
+                    f"{len(df2_provisional_512)} relaciones "
+                    "componente-acción."
+                )
+
+                st.info(
+                    "5.12 no realiza validación ni aprendizaje. "
+                    "Solo conserva las relaciones que 5.11 "
+                    "determinó con evidencia suficiente."
+                )
+
+                st.write(
+                    "### DF2 provisional"
+                )
+
+                st.dataframe(
+                    df2_provisional_512[
+                        [
+                            "Código",
+                            "Producto",
+                            "Componente",
+                            "Acción componente"
+                        ]
+                    ],
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+    except Exception as e:
+
+        st.error(
+            f"🔴 5.12 ERROR: "
+            f"{type(e).__name__}: {e}"
+        )
+
