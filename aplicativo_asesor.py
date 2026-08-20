@@ -6447,7 +6447,7 @@ if (
             )
 
     # ====================================================
-    # 7.5.10 PREPARAR PREGUNTAS PARA EL BANCO
+    # 7.5.10 VALIDACIÓN DE PREGUNTAS GENERADAS
     # ====================================================
 
     if (
@@ -6455,136 +6455,112 @@ if (
         and preguntas_generadas_75
     ):
 
-        st.success(
-            "7.5.10 ✓ Preguntas listas para guardar "
-            "en el Banco General."
+        st.divider()
+
+        st.subheader(
+            "Validación de preguntas generadas"
         )
-    # ====================================================
-    # 7.5.11 GUARDAR PREGUNTAS EN EL BANCO GENERAL
-    # ====================================================
 
-    if (
-        generar_preguntas_75
-        and preguntas_generadas_75
-    ):
+        st.write(
+            "Revise cada pregunta y seleccione su estado."
+        )
 
-        try:
+        validar_bloque_75 = st.radio(
+            "Acción para este bloque:",
+            [
+                "Validar individualmente",
+                "Aprobar todo el bloque",
+                "Rechazar todo el bloque"
+            ],
+            horizontal=True,
+            key="validar_bloque_75"
+        )
 
-            banco_guardado_75 = pd.read_excel(
-                RUTA_BANCO_GENERAL,
-                dtype=str
-            ).fillna("")
+        if validar_bloque_75 == (
+            "Aprobar todo el bloque"
+        ):
 
-            columnas_banco_75 = [
-                "Pregunta_ID",
-                "Modulo",
-                "Tema",
-                "Nivel",
-                "Tipo_Relacion",
-                "Pregunta",
-                "Respuesta_1",
-                "Respuesta_2",
-                "Respuesta_3",
-                "Respuesta_4",
-                "Respuesta_Correcta",
-                "Estado",
-                "Observacion_Administrador",
-                "Fecha_Generacion",
-                "Fuente_ID"
-            ]
-
-            for columna_75 in columnas_banco_75:
-
-                if columna_75 not in banco_guardado_75.columns:
-
-                    banco_guardado_75[
-                        columna_75
-                    ] = ""
-
-            banco_guardado_75 = banco_guardado_75[
-                columnas_banco_75
-            ]
-
-            nuevas_preguntas_75 = pd.DataFrame(
+            for pregunta_75 in (
                 preguntas_generadas_75
-            )
-
-            numeros_75 = []
-
-            for valor_id_75 in (
-                banco_guardado_75["Pregunta_ID"]
             ):
 
-                texto_id_75 = str(
-                    valor_id_75
-                ).strip()
-
-                if texto_id_75.startswith(
-                    "PROD_"
-                ):
-
-                    try:
-
-                        numeros_75.append(
-                            int(
-                                texto_id_75[5:]
-                            )
-                        )
-
-                    except ValueError:
-
-                        pass
-
-            siguiente_id_75 = (
-                max(numeros_75) + 1
-                if numeros_75
-                else 1
-            )
-
-            for indice_75 in (
-                nuevas_preguntas_75.index
-            ):
-
-                nuevas_preguntas_75.at[
-                    indice_75,
-                    "Pregunta_ID"
-                ] = (
-                    f"PROD_"
-                    f"{siguiente_id_75:05d}"
-                )
-
-                siguiente_id_75 += 1
-
-            banco_guardado_75 = pd.concat(
-                [
-                    banco_guardado_75,
-                    nuevas_preguntas_75
-                ],
-                ignore_index=True
-            )
-
-            banco_guardado_75.to_excel(
-                RUTA_BANCO_GENERAL,
-                index=False
-            )
+                pregunta_75[
+                    "Estado"
+                ] = "APROBADA"
 
             st.success(
-                "7.5.11 ✓ Preguntas guardadas "
-                "en el Banco General."
+                "7.5.10 ✓ Todo el bloque quedó "
+                "marcado como APROBADA."
             )
 
-        except Exception as error_guardado_75:
+        elif validar_bloque_75 == (
+            "Rechazar todo el bloque"
+        ):
 
-            st.error(
-                "7.5.11 ✗ No fue posible guardar "
-                "las preguntas."
+            for pregunta_75 in (
+                preguntas_generadas_75
+            ):
+
+                pregunta_75[
+                    "Estado"
+                ] = "RECHAZADA"
+
+            st.warning(
+                "7.5.10 ✓ Todo el bloque quedó "
+                "marcado como RECHAZADA."
             )
 
-            st.code(
-                str(error_guardado_75)
-            )
+        else:
 
+            for indice_75, pregunta_75 in enumerate(
+                preguntas_generadas_75
+            ):
 
+                st.markdown(
+                    f"**Pregunta {indice_75 + 1} — "
+                    f"{pregunta_75['Nivel']} — "
+                    f"{pregunta_75['Tema']}**"
+                )
+
+                st.write(
+                    pregunta_75["Pregunta"]
+                )
+
+                st.write(
+                    f"1. {pregunta_75['Respuesta_1']}"
+                )
+
+                st.write(
+                    f"2. {pregunta_75['Respuesta_2']}"
+                )
+
+                st.write(
+                    f"3. {pregunta_75['Respuesta_3']}"
+                )
+
+                st.write(
+                    f"4. {pregunta_75['Respuesta_4']}"
+                )
+
+                estado_75 = st.selectbox(
+                    "Estado:",
+                    [
+                        "PENDIENTE",
+                        "APROBADA",
+                        "RECHAZADA"
+                    ],
+                    key=f"estado_75_{indice_75}"
+                )
+
+                pregunta_75[
+                    "Estado"
+                ] = estado_75
+
+                st.divider()
+
+        st.success(
+            "7.5.10 ✓ Validación preparada."
+        )
 
 
 # ========================================================
