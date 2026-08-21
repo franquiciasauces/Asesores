@@ -6855,3 +6855,167 @@ except Exception as e:
         "PRODUCTO → ACCIÓN GENERAL: "
         f"{type(e).__name__}: {e}"
     )
+
+# ============================================================
+# BANCO GENERAL — 3.1 CONTROL DE COBERTURA
+#
+# FUENTE:
+#     ACCIONES_GENERALES.xlsx
+# ============================================================
+
+st.markdown(
+    "### Control de cobertura — Acciones generales"
+)
+
+try:
+
+    df_acciones_generales = st.session_state[
+        "fuente_acciones_generales"
+    ].copy()
+
+    df_producto_accion = st.session_state[
+        "df_producto_accion_generador"
+    ].copy()
+
+    # ========================================================
+    # PRODUCTOS ÚNICOS
+    # ========================================================
+
+    productos_unicos = (
+        df_acciones_generales[
+            "Nombre del producto"
+        ]
+        .dropna()
+        .astype(str)
+        .str.strip()
+    )
+
+    productos_unicos = (
+        productos_unicos[
+            productos_unicos != ""
+        ]
+        .drop_duplicates()
+        .tolist()
+    )
+
+    # ========================================================
+    # ACCIONES GENERALES ÚNICAS
+    # ========================================================
+
+    acciones_unicas = (
+        df_acciones_generales[
+            "Acción general"
+        ]
+        .dropna()
+        .astype(str)
+        .str.strip()
+    )
+
+    acciones_unicas = (
+        acciones_unicas[
+            acciones_unicas != ""
+        ]
+        .drop_duplicates()
+        .tolist()
+    )
+
+    # ========================================================
+    # RELACIONES
+    # ========================================================
+
+    total_registros = len(
+        df_acciones_generales
+    )
+
+    total_productos = len(
+        productos_unicos
+    )
+
+    total_acciones = len(
+        acciones_unicas
+    )
+
+    total_relaciones = len(
+        df_producto_accion
+    )
+
+    # ========================================================
+    # MOSTRAR
+    # ========================================================
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+
+        st.metric(
+            "Registros archivo",
+            total_registros
+        )
+
+    with col2:
+
+        st.metric(
+            "Productos únicos",
+            total_productos
+        )
+
+    with col3:
+
+        st.metric(
+            "Acciones generales únicas",
+            total_acciones
+        )
+
+    with col4:
+
+        st.metric(
+            "Relaciones únicas",
+            total_relaciones
+        )
+
+    # ========================================================
+    # ALERTA DE COBERTURA
+    # ========================================================
+
+    if total_productos < 70:
+
+        st.warning(
+            "⚠️ ACCIONES_GENERALES contiene "
+            f"{total_productos} productos únicos. "
+            "Se esperaba aproximadamente 70 o más. "
+            "Revise el archivo antes de continuar."
+        )
+
+    else:
+
+        st.success(
+            "🟢 La fuente contiene "
+            f"{total_productos} productos únicos."
+        )
+
+    # ========================================================
+    # LISTADO COMPLETO DE PRODUCTOS
+    # ========================================================
+
+    st.write(
+        "### Productos encontrados"
+    )
+
+    df_control_productos = pd.DataFrame(
+        {
+            "Producto": productos_unicos
+        }
+    )
+
+    st.dataframe(
+        df_control_productos,
+        use_container_width=True,
+        hide_index=True
+    )
+
+except Exception as e:
+
+    st.error(
+        "🔴 ERROR EN CONTROL DE COBERTURA: "
+        f"{type(e).__name__}: {e}"
+    )
