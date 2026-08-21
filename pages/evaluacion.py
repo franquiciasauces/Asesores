@@ -270,14 +270,31 @@ except Exception as e:
     )
 
 # ============================================================
-# 5.3 CLASIFICACIÓN FIJA (CON BLOQUEO DE ESTADO)
+# 5.3 CLASIFICACIÓN FINAL Y SINCRONIZACIÓN (TODO EN UNO)
 # ============================================================
 st.markdown("### 5.3 Clasificación Manual")
+
+# --- FUNCIÓN INTERNA (Para evitar el error de NameError) ---
+def ejecutar_sync_local(csv_str):
+    try:
+        token = st.secrets["GITHUB_TOKEN"]
+        repo_nombre = st.secrets["GITHUB_REPO"]
+        g = Github(token)
+        repo = g.get_repo(repo_nombre)
+        try:
+            contents = repo.get_contents("RELACIONES_PRODUCTO_ACCION_GENERAL.csv")
+            repo.update_file(contents.path, "Actualización manual", csv_str, contents.sha)
+            return True, "Archivo actualizado exitosamente."
+        except:
+            repo.create_file("RELACIONES_PRODUCTO_ACCION_GENERAL.csv", "Creación automática", csv_str)
+            return True, "Archivo creado exitosamente."
+    except Exception as e:
+        return False, str(e)
 
 if "df_acciones_52" not in st.session_state:
     st.error("❌ Primero ejecuta la sección 5.2.")
 else:
-    # --- INICIALIZACIÓN ---
+    # --- INICIALIZACIÓN DE ESTADO ---
     if "finalizado_53" not in st.session_state:
         st.session_state["finalizado_53"] = False
     
@@ -289,11 +306,9 @@ else:
         })
 
     # --- LÓGICA DE BLOQUEO ---
-    # Si NO está finalizado, mostramos el editor
     if not st.session_state["finalizado_53"]:
-        st.info("💡 Edita la lista y presiona 'Finalizar Validación' para bloquearla.")
+        st.info("💡 Edita y presiona 'Finalizar Validación'.")
         
-        # Editor
         st.session_state["df_maestro_acciones"] = st.data_editor(
             st.session_state["df_maestro_acciones"], 
             use_container_width=True, 
@@ -301,7 +316,6 @@ else:
         )
 
         if st.button("✅ Finalizar Validación"):
-            # Generamos el limpio y bloqueamos
             mask = st.session_state["df_maestro_acciones"]["¿Es General?"] == True
             acciones_validas = st.session_state["df_maestro_acciones"][mask]["Acción general"].tolist()
             st.session_state["df_limpio"] = st.session_state["df_acciones_52"][st.session_state["df_acciones_52"]["Acción general"].isin(acciones_validas)].copy()
@@ -309,14 +323,11 @@ else:
             st.session_state["finalizado_53"] = True
             st.rerun()
 
-    # Si YA está finalizado, mostramos solo resultados
     else:
-        st.success("🔒 **VALIDACIÓN FINALIZADA Y BLOQUEADA.**")
+        st.success("🔒 **VALIDACIÓN FINALIZADA.**")
         st.dataframe(st.session_state["df_limpio"], use_container_width=True)
         
-        # Botones finales
         col1, col2 = st.columns(2)
-        
         with col1:
             csv_csv = st.session_state["df_limpio"].to_csv(index=False).encode('utf-8')
             st.download_button("📥 Descargar CSV", csv_csv, "RELACIONES_PRODUCTO_ACCION_GENERAL.csv", "text/csv")
@@ -326,11 +337,10 @@ else:
                 st.rerun()
 
         with col2:
-            # ESTO SOLO SE EJECUTA SI PRESIONAS EL BOTÓN
             if st.button("🚀 Sincronizar con GitHub"):
                 csv_str = st.session_state["df_limpio"].to_csv(index=False)
                 with st.spinner("Subiendo..."):
-                    exito, mensaje = ejecutar_sync(csv_str)
+                    exito, mensaje = ejecutar_sync_local(csv_str)
                     if exito:
                         st.success(mensaje)
                     else:
