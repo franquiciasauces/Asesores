@@ -270,99 +270,84 @@ except Exception as e:
     )
 
 # ============================================================
-# 5.3A CLASIFICACIÓN DETERMINISTA (LISTA MAESTRA)
+# 5.3A CLASIFICACIÓN DETERMINISTA (LISTA MAESTRA) Y SINCRONIZACIÓN
 # ============================================================
 st.markdown("### 5.3 Clasificación Manual (Lista Maestra)")
 
-# 1. Obtener lista de acciones únicas para clasificar
-if "df_acciones_52" in st.session_state:
+# Asegurarse de que tenemos la data de la sección 5.2
+if "df_acciones_52" not in st.session_state:
+    st.error("❌ Primero debes ejecutar la sección 5.2 para tener datos que clasificar.")
+else:
     df_acciones = st.session_state["df_acciones_52"]
     
-    # Extraer acciones únicas para que solo clasifiques cada una una vez
+    # 1. Configuración inicial del editor (solo si no existe)
     if "df_maestro_acciones" not in st.session_state:
         acciones_unicas = df_acciones["Acción general"].unique()
         st.session_state["df_maestro_acciones"] = pd.DataFrame({
             "Acción general": acciones_unicas,
-            "¿Es General?": True  # Por defecto todo es True, tú desmarcas lo que no sirva
+            "¿Es General?": True 
         })
 
-    st.info("💡 **Definición Maestra:** Marca con un check las que SÍ son Acciones Generales. El sistema solo usará las marcadas.")
-
-    # 2. Editor para definir la verdad absoluta
+    st.info("💡 **Definición Maestra:** Marca con un check las que SÍ son Acciones Generales.")
+    
+    # 2. Editor interactivo
     df_maestro = st.data_editor(
-        st.session_state["df_maestro_acciones"],
-        use_container_width=True,
+        st.session_state["df_maestro_acciones"], 
+        use_container_width=True, 
         hide_index=True
     )
+    # Guardamos cambios en el editor inmediatamente
     st.session_state["df_maestro_acciones"] = df_maestro
 
-    # 3. Filtrar y procesar
-    if st.button("🚀 Generar archivo limpio final"):
-        # Obtener las acciones que tú confirmaste como "General"
+    # 3. Botón para Finalizar Validación (Procesa la data)
+    if st.button("✅ Finalizar Validación y Generar Archivo"):
         acciones_validas = df_maestro[df_maestro["¿Es General?"] == True]["Acción general"].tolist()
-        
-        # Filtrar el dataframe original
         df_limpio = df_acciones[df_acciones["Acción general"].isin(acciones_validas)].copy()
         
-        st.success(f"✅ Se han filtrado {len(df_limpio)} relaciones usando tu lista maestra.")
-        
-        # Mostrar el resultado final
-        st.dataframe(df_limpio, use_container_width=True)
-        
-        # 4. Descarga
-        csv = df_limpio.to_csv(index=False).encode('utf-8')
+        # Guardamos en sesión para que NO se pierda nunca
+        st.session_state["df_limpio"] = df_limpio
+        st.success(f"✅ Validación lista: {len(df_limpio)} relaciones procesadas.")
+
+    # 4. Zona de Sincronización (Solo aparece si la validación fue finalizada)
+    if "df_limpio" in st.session_state:
+        st.write("---")
+        st.write("### 📋 Vista previa del resultado:")
+        st.dataframe(st.session_state["df_limpio"], use_container_width=True)
+
+        # Botón de Descarga
+        csv_csv = st.session_state["df_limpio"].to_csv(index=False).encode('utf-8')
         st.download_button(
             label="📥 Descargar CSV Normalizado",
-            data=csv,
+            data=csv_csv,
             file_name="RELACIONES_PRODUCTO_ACCION_GENERAL.csv",
             mime="text/csv"
         )
-else:
-    st.error("❌ Primero debes ejecutar la sección 5.2")
-from github import Github
-import streamlit as st
 
-def sincronizar_con_github(csv_string, nombre_archivo):
-    # Obtener credenciales de los secretos
-    token = st.secrets["github"]["token"]
-    repo_full_name = st.secrets["github"]["repo_name"]
-    
-    try:
-        g = Github(token)
-        repo = g.get_repo(repo_full_name)
-        
-        # Intentar obtener el archivo si ya existe para actualizarlo
-        try:
-            contents = repo.get_contents(nombre_archivo)
-            repo.update_file(
-                path=contents.path,
-                message="Actualización automática desde Streamlit",
-                content=csv_string,
-                sha=contents.sha
-            )
-            return True, "Archivo actualizado exitosamente."
-        except:
-            # Si no existe, crearlo
-            repo.create_file(
-                path=nombre_archivo,
-                message="Creación automática desde Streamlit",
-                content=csv_string
-            )
-            return True, "Archivo creado exitosamente."
+        # Botón de Sincronización con GitHub
+        if st.button("🚀 Guardar y Sincronizar con GitHub"):
             
-    except Exception as e:
-        return False, str(e)
+            # Definimos la función de sync dentro del botón para evitar problemas de alcance
+            def ejecutar_sync():
+                csv_str = st.session_state["df_limpio"].to_csv(index=False)
+                try:
+                    token = st.secrets["github"]["token"]
+                    repo_full_name = st.secrets["github"]["repo_name"]
+                    g = Github(token)
+                    repo = g.get_repo(repo_full_name)
+                    
+                    try:
+                        contents = repo.get_contents("RELACIONES_PRODUCTO_ACCION_GENERAL.csv")
+                        repo.update_file(contents.path, "Actualización automática", csv_str, contents.sha)
+                        return True, "Archivo actualizado exitosamente."
+                    except:
+                        repo.create_file("RELACIONES_PRODUCTO_ACCION_GENERAL.csv", "Creación automática", csv_str)
+                        return True, "Archivo creado exitosamente."
+                except Exception as e:
+                    return False, str(e)
 
-# --- Integración en botón de la sección 5.3 ---
-if st.button("🚀 Guardar y Sincronizar con GitHub"):
-    # 1. Generar el contenido del CSV
-    csv_data = df_limpio.to_csv(index=False)
-    
-    # 2. Llamar a la función de sincronización
-    with st.spinner("Sincronizando con GitHub..."):
-        exito, mensaje = sincronizar_con_github(csv_data, "RELACIONES_PRODUCTO_ACCION_GENERAL.csv")
-        
-        if exito:
-            st.success(f"✅ Sincronización exitosa: {mensaje}")
-        else:
-            st.error(f"❌ Error al sincronizar: {mensaje}")
+            with st.spinner("Sincronizando con GitHub..."):
+                exito, mensaje = ejecutar_sync()
+                if exito:
+                    st.success(f"✅ {mensaje}")
+                else:
+                    st.error(f"❌ Error: {mensaje}")
