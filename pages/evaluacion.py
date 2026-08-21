@@ -270,89 +270,79 @@ except Exception as e:
     )
 
 # ============================================================
-# 5.3A CLASIFICACIÓN DETERMINISTA (LISTA MAESTRA) - VERSIÓN FINAL
+# 5.3A CLASIFICACIÓN MANUAL - MODO FIJO (CERRADO)
 # ============================================================
 st.markdown("### 5.3 Clasificación Manual (Lista Maestra)")
 
 if "df_acciones_52" not in st.session_state:
-    st.error("❌ Primero debes ejecutar la sección 5.2 para cargar los datos.")
+    st.error("❌ Primero ejecuta la sección 5.2.")
 else:
-    df_acciones = st.session_state["df_acciones_52"]
-
-    # --- Lógica de Estado: ¿Ya finalizamos? ---
-    # Si 'df_limpio' NO existe en sesión, mostramos el editor.
-    # Si 'df_limpio' SÍ existe, saltamos directo al resultado para evitar re-procesar.
+    # --- INICIALIZACIÓN DE ESTADOS ---
+    if "validacion_fija" not in st.session_state:
+        st.session_state["validacion_fija"] = False
     
-    if "df_limpio" not in st.session_state:
-        # MODO EDICIÓN
-        if "df_maestro_acciones" not in st.session_state:
-            acciones_unicas = df_acciones["Acción general"].unique()
-            st.session_state["df_maestro_acciones"] = pd.DataFrame({
-                "Acción general": acciones_unicas,
-                "¿Es General?": True 
-            })
+    # Preparamos el editor solo si no hemos validado aún
+    if "df_maestro_acciones" not in st.session_state:
+        acciones_unicas = st.session_state["df_acciones_52"]["Acción general"].unique()
+        st.session_state["df_maestro_acciones"] = pd.DataFrame({
+            "Acción general": acciones_unicas,
+            "¿Es General?": True 
+        })
 
-        st.info("💡 **Definición Maestra:** Marca con un check las que SÍ son Acciones Generales.")
+    # --- FLUJO LÓGICO ---
+    # Si NO está validado (Modo Edición Abierto)
+    if not st.session_state["validacion_fija"]:
+        st.info("💡 **Modo Edición:** Marca las que son Generales y pulsa 'Finalizar Validación'.")
         
-        df_maestro = st.data_editor(
+        # El usuario edita aquí
+        st.session_state["df_maestro_acciones"] = st.data_editor(
             st.session_state["df_maestro_acciones"], 
             use_container_width=True, 
             hide_index=True
         )
-        st.session_state["df_maestro_acciones"] = df_maestro
 
-        if st.button("✅ Finalizar Validación"):
-            # Procesamiento único
-            acciones_validas = df_maestro[df_maestro["¿Es General?"] == True]["Acción general"].tolist()
-            st.session_state["df_limpio"] = df_acciones[df_acciones["Acción general"].isin(acciones_validas)].copy()
-            st.rerun() # Recargamos para que el código detecte que ya existe df_limpio
-
-    else:
-        # MODO FINALIZADO (Datos ya guardados)
-        st.success(f"✅ Datos validados y listos ({len(st.session_state['df_limpio'])} registros).")
-        
-        # Botón para volver a editar si te equivocaste
-        if st.button("✏️ Volver a editar/clasificar"):
-            del st.session_state["df_limpio"]
+        if st.button("✅ Finalizar Validación Manual"):
+            # Procesamos el limpio AHORA y lo fijamos
+            acciones_validas = st.session_state["df_maestro_acciones"][st.session_state["df_maestro_acciones"]["¿Es General?"] == True]["Acción general"].tolist()
+            st.session_state["df_limpio"] = st.session_state["df_acciones_52"][st.session_state["df_acciones_52"]["Acción general"].isin(acciones_validas)].copy()
+            
+            # ACTIVAMOS EL CERROJO
+            st.session_state["validacion_fija"] = True
             st.rerun()
 
-        st.write("---")
-        st.write("### 📋 Vista previa del resultado:")
+    # Si YA está validado (Modo Lectura/Sync)
+    else:
+        st.success("🔒 **Estado: Validación Finalizada y Lista Fija.**")
+        
+        # Mostrar el resultado fijo
         st.dataframe(st.session_state["df_limpio"], use_container_width=True)
 
-        # Botón de Descarga
-        csv_csv = st.session_state["df_limpio"].to_csv(index=False).encode('utf-8')
-        st.download_button(
-            label="📥 Descargar CSV Normalizado",
-            data=csv_csv,
-            file_name="RELACIONES_PRODUCTO_ACCION_GENERAL.csv",
-            mime="text/csv"
-        )
-
-        # Botón de Sincronización
-        if st.button("🚀 Guardar y Sincronizar con GitHub"):
-            
-            def ejecutar_sync():
+        # Botones de Acción (Sync y Descarga)
+        col1, col2 = st.columns(2)
+        with col1:
+            csv_csv = st.session_state["df_limpio"].to_csv(index=False).encode('utf-8')
+            st.download_button("📥 Descargar CSV", csv_csv, "RELACIONES_PRODUCTO_ACCION_GENERAL.csv", "text/csv")
+        
+        with col2:
+            if st.button("🚀 Guardar y Sincronizar en GitHub"):
+                # Función interna para no tener dependencias externas
                 csv_str = st.session_state["df_limpio"].to_csv(index=False)
                 try:
                     token = st.secrets["github"]["token"]
                     repo_full_name = st.secrets["github"]["repo_name"]
-                    g = Github(token)
-                    repo = g.get_repo(repo_full_name)
+                    repo = Github(token).get_repo(repo_full_name)
                     
                     try:
                         contents = repo.get_contents("RELACIONES_PRODUCTO_ACCION_GENERAL.csv")
-                        repo.update_file(contents.path, "Actualización automática", csv_str, contents.sha)
-                        return True, "Archivo actualizado exitosamente."
+                        repo.update_file(contents.path, "Actualización manual desde app", csv_str, contents.sha)
+                        st.success("✅ Sincronizado!")
                     except:
-                        repo.create_file("RELACIONES_PRODUCTO_ACCION_GENERAL.csv", "Creación automática", csv_str)
-                        return True, "Archivo creado exitosamente."
+                        repo.create_file("RELACIONES_PRODUCTO_ACCION_GENERAL.csv", "Creación desde app", csv_str)
+                        st.success("✅ Creado en GitHub!")
                 except Exception as e:
-                    return False, str(e)
+                    st.error(f"Error: {e}")
 
-            with st.spinner("Sincronizando con GitHub..."):
-                exito, mensaje = ejecutar_sync()
-                if exito:
-                    st.success(f"✅ {mensaje}")
-                else:
-                    st.error(f"❌ Error: {mensaje}")
+        # BOTÓN DE SEGURIDAD PARA EDITAR
+        if st.button("✏️ Desbloquear para editar de nuevo"):
+            st.session_state["validacion_fija"] = False
+            st.rerun()
