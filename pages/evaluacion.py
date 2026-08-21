@@ -269,13 +269,18 @@ except Exception as e:
         f"{type(e).__name__}: {e}"
     )
 # ============================================================
-# 5.3 CLASIFICAR ACCIONES SEGÚN LA INFORMACIÓN DE LA MATRIZ
+# 5.3 CLASIFICAR ACCIONES
 # ============================================================
 
 st.markdown("### 5.3 Clasificación de acciones")
 
 try:
     import re
+    import unicodedata
+
+    if "df_acciones_52" not in st.session_state:
+        st.error("❌ 5.3 ERROR: No existe el resultado de 5.2.")
+        st.stop()
 
     requeridas_53 = [
         "Producto",
@@ -283,19 +288,20 @@ try:
     ]
 
     faltantes_53 = [
-        c
-        for c in requeridas_53
+        c for c in requeridas_53
         if c not in df_fuente.columns
     ]
 
     if faltantes_53:
         st.error(
-            "❌ 5.3 ERROR: Faltan columnas reales: "
+            "❌ 5.3 ERROR: Faltan columnas: "
             + ", ".join(faltantes_53)
         )
         st.stop()
 
-    df_53 = df_acciones_52.copy()
+    df_53 = st.session_state[
+        "df_acciones_52"
+    ].copy()
 
     componentes_53 = df_fuente[
         [
@@ -304,11 +310,23 @@ try:
         ]
     ].copy()
 
+    componentes_53["Producto"] = (
+        componentes_53["Producto"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    componentes_53["Componentes"] = (
+        componentes_53["Componentes"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
     componentes_53 = (
         componentes_53
-        .drop_duplicates(
-            subset=["Producto"]
-        )
+        .drop_duplicates("Producto")
     )
 
     df_53 = df_53.merge(
@@ -318,40 +336,37 @@ try:
     )
 
     def normalizar_53(texto):
-        texto = str(texto).lower().strip()
-        texto = re.sub(
+        texto = str(texto).lower()
+
+        texto = unicodedata.normalize(
+            "NFD",
+            texto
+        )
+
+        texto = "".join(
+            c for c in texto
+            if unicodedata.category(c) != "Mn"
+        )
+
+        return re.sub(
             r"\s+",
             " ",
             texto
-        )
-        return texto
+        ).strip()
 
-    def componentes_reales_53(texto):
-        texto = str(texto)
-
+    def listar_componentes_53(texto):
         partes = re.split(
             r";|,|\n",
-            texto
+            str(texto)
         )
 
         resultado = []
 
         for parte in partes:
-            parte = parte.strip()
-
-            if not parte:
-                continue
-
-            parte = re.sub(
-                r"\([^)]*\)",
-                "",
-                parte
-            ).strip()
+            parte = normalizar_53(parte)
 
             if parte:
-                resultado.append(
-                    normalizar_53(parte)
-                )
+                resultado.append(parte)
 
         return resultado
 
@@ -361,16 +376,8 @@ try:
             fila["Acción general"]
         )
 
-        componentes = componentes_reales_53(
-            fila["Componentes"]
-        )
-
         if not accion:
             return "ELIMINAR"
-
-        # ----------------------------------------------------
-        # FRASE COMERCIAL
-        # ----------------------------------------------------
 
         if (
             "frase comercial" in accion
@@ -378,47 +385,30 @@ try:
         ):
             return "ELIMINAR"
 
-        # ----------------------------------------------------
-        # RESTRICCIÓN / CONTRAINDICACIÓN
-        # ----------------------------------------------------
-
         if any(
-            termino in accion
-            for termino in [
-                "contraindicación",
+            palabra in accion
+            for palabra in [
                 "contraindicacion",
-                "restricción",
                 "restriccion"
             ]
         ):
             return "RESTRICCIÓN / CONTRAINDICACIÓN"
 
-        # ----------------------------------------------------
-        # USO / POSOLOGÍA / PRECAUCIÓN
-        # ----------------------------------------------------
-
         if any(
-            termino in accion
-            for termino in [
-                "posología",
+            palabra in accion
+            for palabra in [
                 "posologia",
                 "dosis",
                 "modo de uso",
                 "modo de empleo",
-                "precaución",
                 "precaucion"
             ]
         ):
             return "USO / POSOLOGÍA / PRECAUCIÓN"
 
-        # ----------------------------------------------------
-        # RECOMENDACIÓN / COMPLEMENTO
-        # ----------------------------------------------------
-
         if any(
-            termino in accion
-            for termino in [
-                "recomendación",
+            palabra in accion
+            for palabra in [
                 "recomendacion",
                 "complemento",
                 "complementario",
@@ -427,32 +417,27 @@ try:
         ):
             return "RECOMENDACIÓN / COMPLEMENTO"
 
-        # ----------------------------------------------------
-        # COMPONENTE + FUNCIÓN
-        #
-        # Solo cuando el componente está explícitamente
-        # identificado dentro de la acción.
-        # ----------------------------------------------------
+        componentes = listar_componentes_53(
+            fila["Componentes"]
+        )
 
         for componente in componentes:
 
-            if not componente:
-                continue
-
-            if componente in accion:
+            if re.search(
+                r"\b"
+                + re.escape(componente)
+                + r"\b",
+                accion
+            ):
                 return "COMPONENTE + FUNCIÓN"
-
-        # ----------------------------------------------------
-        # ACCIÓN GENERAL
-        # ----------------------------------------------------
 
         return "ACCIÓN GENERAL"
 
-    df_53[
-        "Clasificación"
-    ] = df_53.apply(
-        clasificar_53,
-        axis=1
+    df_53["Clasificación"] = (
+        df_53.apply(
+            clasificar_53,
+            axis=1
+        )
     )
 
     df_53 = df_53[
@@ -483,4 +468,3 @@ except Exception as e:
         f"🔴 5.3 ERROR: "
         f"{type(e).__name__}: {e}"
     )
-
