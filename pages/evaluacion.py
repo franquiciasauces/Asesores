@@ -268,404 +268,54 @@ except Exception as e:
         f"🔴 5.2 ERROR: "
         f"{type(e).__name__}: {e}"
     )
+
 # ============================================================
+# 5.3A CLASIFICACIÓN DETERMINISTA (LISTA MAESTRA)
 # ============================================================
-# 5.3 CLASIFICACIÓN DE CADA ACCIÓN GENERAL
-# ============================================================
-
-st.markdown("### 5.3 Clasificación de acciones generales")
-
-try:
-    import re
-    import unicodedata
-
-    # --------------------------------------------------------
-    # 1. RECUPERAR RESULTADO DE 5.2
-    # --------------------------------------------------------
-
-    df_acciones_52 = st.session_state.get(
-        "df_acciones_52"
-    )
-
-    if (
-        df_acciones_52 is None
-        or not isinstance(df_acciones_52, pd.DataFrame)
-        or df_acciones_52.empty
-    ):
-        st.error(
-            "❌ 5.3 ERROR: No existe el resultado de 5.2."
-        )
-        st.stop()
-
-    # --------------------------------------------------------
-    # 2. VALIDAR COLUMNAS DE 5.2 Y MATRIZ
-    # --------------------------------------------------------
-
-    requeridas_53 = [
-        "Producto",
-        "Acción general"
-    ]
-
-    faltantes_53 = [
-        columna
-        for columna in requeridas_53
-        if columna not in df_acciones_52.columns
-    ]
-
-    if faltantes_53:
-        st.error(
-            "❌ 5.3 ERROR: Faltan columnas de 5.2: "
-            + ", ".join(faltantes_53)
-        )
-        st.stop()
-
-    if "Componentes" not in df_fuente.columns:
-        st.error(
-            "❌ 5.3 ERROR: La matriz no contiene "
-            "la columna real 'Componentes'."
-        )
-        st.stop()
-
-    # --------------------------------------------------------
-    # 3. FUNCIONES DE NORMALIZACIÓN
-    # --------------------------------------------------------
-
-    def normalizar_53(texto):
-        texto = str(texto).strip().lower()
-
-        texto = unicodedata.normalize(
-            "NFD",
-            texto
-        )
-
-        texto = "".join(
-            caracter
-            for caracter in texto
-            if unicodedata.category(caracter) != "Mn"
-        )
-
-        texto = re.sub(
-            r"[^a-z0-9]+",
-            " ",
-            texto
-        )
-
-        return re.sub(
-            r"\s+",
-            " ",
-            texto
-        ).strip()
-
-    def contiene_termino_53(texto, termino):
-        texto_n = normalizar_53(texto)
-        termino_n = normalizar_53(termino)
-
-        if not termino_n:
-            return False
-
-        patron = (
-            r"(?<![a-z0-9])"
-            + re.escape(termino_n)
-            + r"(?![a-z0-9])"
-        )
-
-        return re.search(
-            patron,
-            texto_n
-        ) is not None
-
-    # --------------------------------------------------------
-    # 4. CREAR COMPONENTES PROPIOS DE CADA PRODUCTO
-    # --------------------------------------------------------
-
-    componentes_producto_53 = {}
-
-    for _, fila in df_fuente[
-        [
-            "Producto",
-            "Componentes"
-        ]
-    ].fillna("").iterrows():
-
-        producto = str(
-            fila["Producto"]
-        ).strip()
-
-        componentes = str(
-            fila["Componentes"]
-        ).strip()
-
-        if not producto:
-            continue
-
-        partes = re.split(
-            r"\s*;\s*|\s*,\s*",
-            componentes
-        )
-
-        componentes_limpios = []
-
-        for componente in partes:
-            componente = componente.strip()
-
-            if componente:
-                componentes_limpios.append(
-                    componente
-                )
-
-        componentes_producto_53[
-            normalizar_53(producto)
-        ] = componentes_limpios
-
-    # --------------------------------------------------------
-    # 5. COMPONENTES DE TODA LA MATRIZ
-    # --------------------------------------------------------
-
-    componentes_globales_53 = set()
-
-    for lista_componentes in (
-        componentes_producto_53.values()
-    ):
-        for componente in lista_componentes:
-            componente_n = normalizar_53(
-                componente
-            )
-
-            if componente_n:
-                componentes_globales_53.add(
-                    componente_n
-                )
-
-    # --------------------------------------------------------
-    # 6. PRODUCTOS DE TODA LA MATRIZ
-    # --------------------------------------------------------
-
-    productos_globales_53 = []
-
-    for producto in df_fuente[
-        "Producto"
-    ].dropna().astype(str):
-
-        producto = producto.strip()
-
-        if producto:
-            productos_globales_53.append(
-                producto
-            )
-
-    # --------------------------------------------------------
-    # 7. REGLAS EXPLÍCITAS DE CLASIFICACIÓN
-    # --------------------------------------------------------
-
-    patrones_eliminar_53 = [
-        "frase comercial",
-        "frase de venta",
-        "frase venta"
-    ]
-
-    patrones_combinacion_53 = [
-        "combinaciones",
-        "combinacion",
-        "se puede combinar",
-        "puede combinarse",
-        "combinar con"
-    ]
-
-    patrones_restriccion_53 = [
-        "contraindicacion",
-        "contraindicaciones",
-        "restriccion",
-        "restricciones",
-        "no usar",
-        "no recomendado",
-        "no recomendada",
-        "precaucion",
-        "precauciones"
-    ]
-
-    patrones_uso_53 = [
-        "posologia",
-        "dosis",
-        "modo de uso",
-        "forma de uso",
-        "uso externo",
-        "uso topico",
-        "aplicacion"
-    ]
-
-    # --------------------------------------------------------
-    # 8. CLASIFICAR
-    # --------------------------------------------------------
-
-    def clasificar_accion_53(fila):
-
-        producto = str(
-            fila["Producto"]
-        ).strip()
-
-        accion = str(
-            fila["Acción general"]
-        ).strip()
-
-        accion_n = normalizar_53(
-            accion
-        )
-
-        producto_n = normalizar_53(
-            producto
-        )
-
-        # --------------------------------------------
-        # FRASE COMERCIAL
-        # --------------------------------------------
-
-        for patron in patrones_eliminar_53:
-            if contiene_termino_53(
-                accion_n,
-                patron
-            ):
-                return "ELIMINAR"
-
-        # --------------------------------------------
-        # COMBINACIONES
-        # --------------------------------------------
-
-        for patron in patrones_combinacion_53:
-            if contiene_termino_53(
-                accion_n,
-                patron
-            ):
-                return "RECOMENDACIÓN / COMPLEMENTO"
-
-        # --------------------------------------------
-        # RESTRICCIONES
-        # --------------------------------------------
-
-        for patron in patrones_restriccion_53:
-            if contiene_termino_53(
-                accion_n,
-                patron
-            ):
-                return "RESTRICCIÓN / CONTRAINDICACIÓN"
-
-        # --------------------------------------------
-        # USO / POSOLOGÍA
-        # --------------------------------------------
-
-        for patron in patrones_uso_53:
-            if contiene_termino_53(
-                accion_n,
-                patron
-            ):
-                return "USO / POSOLOGÍA / PRECAUCIÓN"
-
-        # --------------------------------------------
-        # COMPONENTES PROPIOS DEL PRODUCTO
-        # --------------------------------------------
-
-        componentes_propios = (
-            componentes_producto_53.get(
-                producto_n,
-                []
-            )
-        )
-
-        componente_propio_encontrado = False
-
-        for componente in componentes_propios:
-            if contiene_termino_53(
-                accion_n,
-                componente
-            ):
-                componente_propio_encontrado = True
-                break
-
-        if componente_propio_encontrado:
-            return "COMPONENTE + FUNCIÓN"
-
-        # --------------------------------------------
-        # OTRO COMPONENTE
-        #
-        # Si aparece un componente que NO pertenece
-        # al producto actual, es una posible
-        # recomendación/complemento.
-        # --------------------------------------------
-
-        for componente_global in componentes_globales_53:
-
-            if contiene_termino_53(
-                accion_n,
-                componente_global
-            ):
-                return "RECOMENDACIÓN / COMPLEMENTO"
-
-        # --------------------------------------------
-        # OTRO PRODUCTO
-        # --------------------------------------------
-
-        for otro_producto in productos_globales_53:
-
-            otro_n = normalizar_53(
-                otro_producto
-            )
-
-            if not otro_n:
-                continue
-
-            if otro_n == producto_n:
-                continue
-
-            if contiene_termino_53(
-                accion_n,
-                otro_producto
-            ):
-                return "RECOMENDACIÓN / COMPLEMENTO"
-
-        # --------------------------------------------
-        # ACCIÓN GENERAL
-        # --------------------------------------------
-
-        return "ACCIÓN GENERAL"
-
-    # --------------------------------------------------------
-    # 9. EJECUTAR CLASIFICACIÓN
-    # --------------------------------------------------------
-
-    df_clasificacion_53 = df_acciones_52.copy()
-
-    df_clasificacion_53[
-        "Clasificación"
-    ] = df_clasificacion_53.apply(
-        clasificar_accion_53,
-        axis=1
-    )
-
-    # --------------------------------------------------------
-    # 10. GUARDAR RESULTADO
-    # --------------------------------------------------------
-
-    st.session_state[
-        "df_clasificacion_53"
-    ] = df_clasificacion_53.copy()
-
-    # --------------------------------------------------------
-    # 11. MOSTRAR RESULTADO
-    # --------------------------------------------------------
-
-    st.success(
-        f"🟢 5.3 TERMINADO: "
-        f"{len(df_clasificacion_53)} relaciones clasificadas."
-    )
-
-    st.dataframe(
-        df_clasificacion_53,
+st.markdown("### 5.3 Clasificación Manual (Lista Maestra)")
+
+# 1. Obtener lista de acciones únicas para clasificar
+if "df_acciones_52" in st.session_state:
+    df_acciones = st.session_state["df_acciones_52"]
+    
+    # Extraer acciones únicas para que solo clasifiques cada una una vez
+    if "df_maestro_acciones" not in st.session_state:
+        acciones_unicas = df_acciones["Acción general"].unique()
+        st.session_state["df_maestro_acciones"] = pd.DataFrame({
+            "Acción general": acciones_unicas,
+            "¿Es General?": True  # Por defecto todo es True, tú desmarcas lo que no sirva
+        })
+
+    st.info("💡 **Definición Maestra:** Marca con un check las que SÍ son Acciones Generales. El sistema solo usará las marcadas.")
+
+    # 2. Editor para definir la verdad absoluta
+    df_maestro = st.data_editor(
+        st.session_state["df_maestro_acciones"],
         use_container_width=True,
         hide_index=True
     )
+    st.session_state["df_maestro_acciones"] = df_maestro
 
-except Exception as e:
-
-    st.error(
-        f"🔴 5.3 ERROR: "
-        f"{type(e).__name__}: {e}"
-    )
+    # 3. Filtrar y procesar
+    if st.button("🚀 Generar archivo limpio final"):
+        # Obtener las acciones que tú confirmaste como "General"
+        acciones_validas = df_maestro[df_maestro["¿Es General?"] == True]["Acción general"].tolist()
+        
+        # Filtrar el dataframe original
+        df_limpio = df_acciones[df_acciones["Acción general"].isin(acciones_validas)].copy()
+        
+        st.success(f"✅ Se han filtrado {len(df_limpio)} relaciones usando tu lista maestra.")
+        
+        # Mostrar el resultado final
+        st.dataframe(df_limpio, use_container_width=True)
+        
+        # 4. Descarga
+        csv = df_limpio.to_csv(index=False).encode('utf-8')
+        st.download_button(
+            label="📥 Descargar CSV Normalizado",
+            data=csv,
+            file_name="RELACIONES_PRODUCTO_ACCION_GENERAL.csv",
+            mime="text/csv"
+        )
+else:
+    st.error("❌ Primero debes ejecutar la sección 5.2")
