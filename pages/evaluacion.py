@@ -159,3 +159,112 @@ except Exception as e:
         f"🔴 5.1 ERROR al leer la matriz: "
         f"{type(e).__name__}: {e}"
     )
+
+# ============================================================
+# 5.2 SEPARAR ACCIONES GENERALES
+# ============================================================
+
+st.markdown("### 5.2 Separación de acciones generales")
+
+try:
+    import re
+
+    requeridas_52 = [
+        "Producto",
+        "Acciones generales"
+    ]
+
+    faltantes_52 = [
+        columna
+        for columna in requeridas_52
+        if columna not in df_fuente.columns
+    ]
+
+    if faltantes_52:
+        st.error(
+            "❌ 5.2 ERROR: Faltan columnas: "
+            + ", ".join(faltantes_52)
+        )
+        st.stop()
+
+    df_acciones_52 = df_fuente[
+        requeridas_52
+    ].copy()
+
+    df_acciones_52 = df_acciones_52.fillna("")
+
+    def separar_acciones_52(texto):
+        texto = str(texto).strip()
+
+        if not texto:
+            return []
+
+        partes = re.split(
+            r"\s*;\s*|\s*,\s*|(?<=\.)\s+(?=[A-ZÁÉÍÓÚÑ])",
+            texto
+        )
+
+        return [
+            parte.strip(" ;,.")
+            for parte in partes
+            if parte.strip(" ;,.")
+        ]
+
+    df_acciones_52[
+        "Acción general"
+    ] = df_acciones_52[
+        "Acciones generales"
+    ].apply(separar_acciones_52)
+
+    df_acciones_52 = (
+        df_acciones_52
+        .explode("Acción general")
+        .reset_index(drop=True)
+    )
+
+    df_acciones_52["Producto"] = (
+        df_acciones_52["Producto"]
+        .astype(str)
+        .str.strip()
+    )
+
+    df_acciones_52["Acción general"] = (
+        df_acciones_52["Acción general"]
+        .astype(str)
+        .str.strip()
+    )
+
+    df_acciones_52 = df_acciones_52[
+        (df_acciones_52["Producto"] != "")
+        &
+        (df_acciones_52["Acción general"] != "")
+    ].copy()
+
+    df_acciones_52 = df_acciones_52[
+        [
+            "Producto",
+            "Acción general"
+        ]
+    ]
+
+    st.session_state[
+        "df_acciones_52"
+    ] = df_acciones_52.copy()
+
+    st.success(
+        f"🟢 5.2 TERMINADO: "
+        f"{len(df_fuente)} registros originales → "
+        f"{len(df_acciones_52)} relaciones Producto–Acción."
+    )
+
+    st.dataframe(
+        df_acciones_52,
+        use_container_width=True,
+        hide_index=True
+    )
+
+except Exception as e:
+    st.error(
+        f"🔴 5.2 ERROR: "
+        f"{type(e).__name__}: {e}"
+    )
