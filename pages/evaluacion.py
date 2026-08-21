@@ -6471,3 +6471,900 @@ except Exception as e:
             f"{type(e).__name__}: {e}"
         )
 
+    # ============================================================
+    # GENERADOR PRODUCTO → ACCIÓN GENERAL
+    #
+    # FUENTE:
+    #     ACCIONES_GENERALES
+    #
+    # NIVEL 1:
+    #     1 acción correcta + 3 falsas
+    #
+    # NIVEL 2:
+    #     2 acciones correctas + 2 falsas
+    #
+    # REGLA:
+    #     Si un producto tiene solamente 1 acción general,
+    #     NO puede generar preguntas de Nivel 2.
+    #
+    # NO:
+    #     - inventa acciones
+    #     - duplica acciones
+    #     - fuerza preguntas
+    #     - modifica las acciones originales
+    # ============================================================
+
+    st.markdown(
+        "### Generador — Producto → Acción general"
+    )
+
+    try:
+
+        import random
+        import pandas as pd
+
+        # ========================================================
+        # 1. OBTENER ACCIONES_GENERALES CARGADO PREVIAMENTE
+        # ========================================================
+
+        df_acciones = None
+
+        posibles_claves_acciones = [
+            "df_acciones_generales",
+            "acciones_generales",
+            "df_acciones_generales_productos"
+        ]
+
+        for clave_acciones in posibles_claves_acciones:
+
+            if clave_acciones in st.session_state:
+
+                objeto_acciones = (
+                    st.session_state[
+                        clave_acciones
+                    ]
+                )
+
+                if isinstance(
+                    objeto_acciones,
+                    pd.DataFrame
+                ):
+
+                    df_acciones = (
+                        objeto_acciones.copy()
+                    )
+
+                    break
+
+        if df_acciones is None:
+
+            st.error(
+                "🔴 GENERADOR PRODUCTO → ACCIÓN GENERAL: "
+                "No está cargado el DataFrame ACCIONES_GENERALES. "
+                "Debe cargarse una sola vez en el bloque inicial "
+                "de fuentes."
+            )
+
+        else:
+
+            # ====================================================
+            # 2. IDENTIFICAR COLUMNAS
+            # ====================================================
+
+            def normalizar_nombre_columna(valor):
+
+                return (
+                    str(valor)
+                    .strip()
+                    .casefold()
+                    .replace("_", " ")
+                    .replace("-", " ")
+                )
+
+            mapa_columnas = {
+                normalizar_nombre_columna(c): c
+                for c in df_acciones.columns
+            }
+
+            columna_producto = None
+            columna_accion = None
+            columna_fuente = None
+
+            candidatos_producto = [
+                "producto",
+                "nombre producto"
+            ]
+
+            candidatos_accion = [
+                "accion general",
+                "acción general",
+                "accion",
+                "acción"
+            ]
+
+            candidatos_fuente = [
+                "codigo",
+                "código",
+                "producto_id",
+                "producto id",
+                "fuente_id",
+                "fuente id"
+            ]
+
+            for candidato in candidatos_producto:
+
+                clave = normalizar_nombre_columna(
+                    candidato
+                )
+
+                if clave in mapa_columnas:
+
+                    columna_producto = (
+                        mapa_columnas[clave]
+                    )
+
+                    break
+
+            for candidato in candidatos_accion:
+
+                clave = normalizar_nombre_columna(
+                    candidato
+                )
+
+                if clave in mapa_columnas:
+
+                    columna_accion = (
+                        mapa_columnas[clave]
+                    )
+
+                    break
+
+            for candidato in candidatos_fuente:
+
+                clave = normalizar_nombre_columna(
+                    candidato
+                )
+
+                if clave in mapa_columnas:
+
+                    columna_fuente = (
+                        mapa_columnas[clave]
+                    )
+
+                    break
+
+            columnas_faltantes = []
+
+            if columna_producto is None:
+                columnas_faltantes.append(
+                    "Producto"
+                )
+
+            if columna_accion is None:
+                columnas_faltantes.append(
+                    "Acción general"
+                )
+
+            if columnas_faltantes:
+
+                st.error(
+                    "🔴 GENERADOR PRODUCTO → ACCIÓN GENERAL: "
+                    "No se encontraron las columnas necesarias: "
+                    + ", ".join(columnas_faltantes)
+                )
+
+            else:
+
+                # =================================================
+                # 3. LIMPIEZA
+                # =================================================
+
+                df_generador = (
+                    df_acciones[
+                        [
+                            columna_producto,
+                            columna_accion
+                        ]
+                    ]
+                    .copy()
+                )
+
+                df_generador.columns = [
+                    "Producto",
+                    "Acción general"
+                ]
+
+                df_generador[
+                    "Producto"
+                ] = (
+                    df_generador[
+                        "Producto"
+                    ]
+                    .fillna("")
+                    .astype(str)
+                    .str.strip()
+                )
+
+                df_generador[
+                    "Acción general"
+                ] = (
+                    df_generador[
+                        "Acción general"
+                    ]
+                    .fillna("")
+                    .astype(str)
+                    .str.strip()
+                )
+
+                df_generador = df_generador[
+                    (df_generador["Producto"] != "")
+                    &
+                    (df_generador["Acción general"] != "")
+                ].copy()
+
+                # =================================================
+                # 4. NORMALIZACIÓN SOLO PARA COMPARAR
+                #
+                # NO MODIFICA EL TEXTO QUE APARECERÁ
+                # EN LAS PREGUNTAS.
+                # =================================================
+
+                def normalizar_texto_producto_accion(
+                    valor
+                ):
+
+                    return (
+                        str(valor)
+                        .strip()
+                        .casefold()
+                    )
+
+                df_generador[
+                    "_producto_key"
+                ] = (
+                    df_generador[
+                        "Producto"
+                    ]
+                    .map(
+                        normalizar_texto_producto_accion
+                    )
+                )
+
+                df_generador[
+                    "_accion_key"
+                ] = (
+                    df_generador[
+                        "Acción general"
+                    ]
+                    .map(
+                        normalizar_texto_producto_accion
+                    )
+                )
+
+                # =================================================
+                # 5. ELIMINAR DUPLICADOS REALES
+                # =================================================
+
+                df_generador = (
+                    df_generador
+                    .drop_duplicates(
+                        subset=[
+                            "_producto_key",
+                            "_accion_key"
+                        ]
+                    )
+                    .copy()
+                )
+
+                # =================================================
+                # 6. CONSTRUIR DICCIONARIO PRODUCTO → ACCIONES
+                # =================================================
+
+                acciones_por_producto = {}
+
+                for _, fila in df_generador.iterrows():
+
+                    producto_key = (
+                        fila["_producto_key"]
+                    )
+
+                    accion_key = (
+                        fila["_accion_key"]
+                    )
+
+                    if producto_key not in (
+                        acciones_por_producto
+                    ):
+
+                        acciones_por_producto[
+                            producto_key
+                        ] = {
+                            "producto":
+                                fila["Producto"],
+                            "acciones": {}
+                        }
+
+                    acciones_por_producto[
+                        producto_key
+                    ][
+                        "acciones"
+                    ][
+                        accion_key
+                    ] = fila["Acción general"]
+
+                # =================================================
+                # 7. LISTA GLOBAL DE ACCIONES
+                #
+                # SE USA EXCLUSIVAMENTE PARA CONSTRUIR
+                # DISTRACTORES QUE NO PERTENEZCAN AL PRODUCTO.
+                # =================================================
+
+                acciones_globales = {}
+
+                for _, fila in df_generador.iterrows():
+
+                    accion_key = (
+                        fila["_accion_key"]
+                    )
+
+                    if accion_key not in acciones_globales:
+
+                        acciones_globales[
+                            accion_key
+                        ] = fila["Acción general"]
+
+                # =================================================
+                # 8. INTERFAZ DEL GENERADOR
+                # =================================================
+
+                nivel_generador = st.selectbox(
+                    "Nivel de pregunta",
+                    [
+                        "Nivel 1",
+                        "Nivel 2",
+                        "Nivel 1 y Nivel 2"
+                    ],
+                    key="generador_producto_accion_nivel"
+                )
+
+                cantidad_generador = st.number_input(
+                    "Cantidad máxima de preguntas",
+                    min_value=1,
+                    max_value=1000,
+                    value=10,
+                    step=1,
+                    key="generador_producto_accion_cantidad"
+                )
+
+                generar_producto_accion = st.button(
+                    "🟢 Generar preguntas",
+                    key="btn_generar_producto_accion"
+                )
+
+                if generar_producto_accion:
+
+                    # =============================================
+                    # 9. DETERMINAR NIVELES SOLICITADOS
+                    # =============================================
+
+                    if nivel_generador == "Nivel 1":
+
+                        niveles_solicitados = [
+                            1
+                        ]
+
+                    elif nivel_generador == "Nivel 2":
+
+                        niveles_solicitados = [
+                            2
+                        ]
+
+                    else:
+
+                        niveles_solicitados = [
+                            1,
+                            2
+                        ]
+
+                    # =============================================
+                    # 10. CANDIDATOS
+                    # =============================================
+
+                    candidatos_nivel_1 = []
+
+                    candidatos_nivel_2 = []
+
+                    for producto_key, datos in (
+                        acciones_por_producto.items()
+                    ):
+
+                        acciones_producto = list(
+                            datos["acciones"].items()
+                        )
+
+                        cantidad_acciones = len(
+                            acciones_producto
+                        )
+
+                        # -----------------------------------------
+                        # NIVEL 1
+                        #
+                        # Se necesita al menos 1 acción real.
+                        # -----------------------------------------
+
+                        if 1 in niveles_solicitados:
+
+                            if cantidad_acciones >= 1:
+
+                                candidatos_nivel_1.append(
+                                    (
+                                        producto_key,
+                                        datos
+                                    )
+                                )
+
+                        # -----------------------------------------
+                        # NIVEL 2
+                        #
+                        # REGLA FUNDAMENTAL:
+                        # mínimo 2 acciones DIFERENTES.
+                        # -----------------------------------------
+
+                        if 2 in niveles_solicitados:
+
+                            if cantidad_acciones >= 2:
+
+                                candidatos_nivel_2.append(
+                                    (
+                                        producto_key,
+                                        datos
+                                    )
+                                )
+
+                    # =============================================
+                    # 11. MEZCLAR CANDIDATOS
+                    # =============================================
+
+                    random.shuffle(
+                        candidatos_nivel_1
+                    )
+
+                    random.shuffle(
+                        candidatos_nivel_2
+                    )
+
+                    preguntas_generadas = []
+
+                    firmas_preguntas = set()
+
+                    # =============================================
+                    # 12. GENERADOR DE NIVEL 1
+                    #
+                    # 1 CORRECTA + 3 FALSAS
+                    # =============================================
+
+                    def generar_nivel_1(
+                        producto_key,
+                        datos
+                    ):
+
+                        acciones_reales = list(
+                            datos["acciones"].items()
+                        )
+
+                        if not acciones_reales:
+                            return None
+
+                        accion_correcta_key, accion_correcta = (
+                            random.choice(
+                                acciones_reales
+                            )
+                        )
+
+                        acciones_falsas = [
+                            texto
+                            for clave, texto
+                            in acciones_globales.items()
+                            if clave not in datos["acciones"]
+                        ]
+
+                        acciones_falsas = list(
+                            dict.fromkeys(
+                                acciones_falsas
+                            )
+                        )
+
+                        if len(acciones_falsas) < 3:
+                            return None
+
+                        falsas = random.sample(
+                            acciones_falsas,
+                            3
+                        )
+
+                        opciones = [
+                            accion_correcta,
+                            falsas[0],
+                            falsas[1],
+                            falsas[2]
+                        ]
+
+                        random.shuffle(
+                            opciones
+                        )
+
+                        respuesta_correcta = (
+                            opciones.index(
+                                accion_correcta
+                            ) + 1
+                        )
+
+                        pregunta = (
+                            "Seleccione la afirmación "
+                            "que corresponde correctamente "
+                            f"a la acción general de "
+                            f"{datos['producto']}."
+                        )
+
+                        firma = (
+                            "PRODUCTO_ACCION|1|"
+                            + producto_key
+                            + "|"
+                            + accion_correcta_key
+                        )
+
+                        if firma in firmas_preguntas:
+                            return None
+
+                        firmas_preguntas.add(
+                            firma
+                        )
+
+                        return {
+                            "Modulo":
+                                "Productos",
+                            "Tema":
+                                datos["producto"],
+                            "Nivel":
+                                "Nivel 1",
+                            "Tipo_Relacion":
+                                "Producto_Accion_General",
+                            "Pregunta":
+                                pregunta,
+                            "Respuesta_1":
+                                opciones[0],
+                            "Respuesta_2":
+                                opciones[1],
+                            "Respuesta_3":
+                                opciones[2],
+                            "Respuesta_4":
+                                opciones[3],
+                            "Respuesta_Correcta":
+                                str(
+                                    respuesta_correcta
+                                ),
+                            "Estado":
+                                "PENDIENTE",
+                            "Observacion_Administrador":
+                                "",
+                            "Fecha_Generacion":
+                                pd.Timestamp.now(),
+                            "Fuente_ID":
+                                (
+                                    str(
+                                        datos["producto"]
+                                    )
+                                )
+                        }
+
+                    # =============================================
+                    # 13. GENERADOR DE NIVEL 2
+                    #
+                    # 2 CORRECTAS + 2 FALSAS
+                    # =============================================
+
+                    def generar_nivel_2(
+                        producto_key,
+                        datos
+                    ):
+
+                        acciones_reales = list(
+                            datos["acciones"].items()
+                        )
+
+                        if len(acciones_reales) < 2:
+                            return None
+
+                        correctas = random.sample(
+                            acciones_reales,
+                            2
+                        )
+
+                        correctas_keys = {
+                            correctas[0][0],
+                            correctas[1][0]
+                        }
+
+                        acciones_falsas = [
+                            texto
+                            for clave, texto
+                            in acciones_globales.items()
+                            if clave not in datos["acciones"]
+                        ]
+
+                        acciones_falsas = list(
+                            dict.fromkeys(
+                                acciones_falsas
+                            )
+                        )
+
+                        if len(acciones_falsas) < 2:
+                            return None
+
+                        falsas = random.sample(
+                            acciones_falsas,
+                            2
+                        )
+
+                        opciones = [
+                            correctas[0][1],
+                            correctas[1][1],
+                            falsas[0],
+                            falsas[1]
+                        ]
+
+                        random.shuffle(
+                            opciones
+                        )
+
+                        posiciones_correctas = [
+                            str(
+                                opciones.index(
+                                    correctas[0][1]
+                                ) + 1
+                            ),
+                            str(
+                                opciones.index(
+                                    correctas[1][1]
+                                ) + 1
+                            )
+                        ]
+
+                        posiciones_correctas.sort(
+                            key=int
+                        )
+
+                        pregunta = (
+                            "Seleccione las DOS afirmaciones "
+                            "que corresponden correctamente "
+                            f"a las acciones generales de "
+                            f"{datos['producto']}."
+                        )
+
+                        firma = (
+                            "PRODUCTO_ACCION|2|"
+                            + producto_key
+                            + "|"
+                            + "|".join(
+                                sorted(
+                                    correctas_keys
+                                )
+                            )
+                        )
+
+                        if firma in firmas_preguntas:
+                            return None
+
+                        firmas_preguntas.add(
+                            firma
+                        )
+
+                        return {
+                            "Modulo":
+                                "Productos",
+                            "Tema":
+                                datos["producto"],
+                            "Nivel":
+                                "Nivel 2",
+                            "Tipo_Relacion":
+                                "Producto_Accion_General",
+                            "Pregunta":
+                                pregunta,
+                            "Respuesta_1":
+                                opciones[0],
+                            "Respuesta_2":
+                                opciones[1],
+                            "Respuesta_3":
+                                opciones[2],
+                            "Respuesta_4":
+                                opciones[3],
+                            "Respuesta_Correcta":
+                                ",".join(
+                                    posiciones_correctas
+                                ),
+                            "Estado":
+                                "PENDIENTE",
+                            "Observacion_Administrador":
+                                "",
+                            "Fecha_Generacion":
+                                pd.Timestamp.now(),
+                            "Fuente_ID":
+                                (
+                                    str(
+                                        datos["producto"]
+                                    )
+                                )
+                        }
+
+                    # =============================================
+                    # 14. GENERAR SEGÚN NIVEL
+                    # =============================================
+
+                    maximo = int(
+                        cantidad_generador
+                    )
+
+                    # ---------------------------------------------
+                    # Nivel 1
+                    # ---------------------------------------------
+
+                    if 1 in niveles_solicitados:
+
+                        for producto_key, datos in (
+                            candidatos_nivel_1
+                        ):
+
+                            if len(
+                                preguntas_generadas
+                            ) >= maximo:
+
+                                break
+
+                            pregunta_generada = (
+                                generar_nivel_1(
+                                    producto_key,
+                                    datos
+                                )
+                            )
+
+                            if pregunta_generada is not None:
+
+                                preguntas_generadas.append(
+                                    pregunta_generada
+                                )
+
+                    # ---------------------------------------------
+                    # Nivel 2
+                    # ---------------------------------------------
+
+                    if (
+                        2 in niveles_solicitados
+                        and len(
+                            preguntas_generadas
+                        ) < maximo
+                    ):
+
+                        for producto_key, datos in (
+                            candidatos_nivel_2
+                        ):
+
+                            if len(
+                                preguntas_generadas
+                            ) >= maximo:
+
+                                break
+
+                            pregunta_generada = (
+                                generar_nivel_2(
+                                    producto_key,
+                                    datos
+                                )
+                            )
+
+                            if pregunta_generada is not None:
+
+                                preguntas_generadas.append(
+                                    pregunta_generada
+                                )
+
+                    # =============================================
+                    # 15. CREAR DATAFRAME DE RESULTADO
+                    # =============================================
+
+                    columnas_banco = [
+                        "Modulo",
+                        "Tema",
+                        "Nivel",
+                        "Tipo_Relacion",
+                        "Pregunta",
+                        "Respuesta_1",
+                        "Respuesta_2",
+                        "Respuesta_3",
+                        "Respuesta_4",
+                        "Respuesta_Correcta",
+                        "Estado",
+                        "Observacion_Administrador",
+                        "Fecha_Generacion",
+                        "Fuente_ID"
+                    ]
+
+                    df_preguntas_producto_accion = (
+                        pd.DataFrame(
+                            preguntas_generadas,
+                            columns=columnas_banco
+                        )
+                    )
+
+                    # =============================================
+                    # 16. ASIGNAR ID PROVISIONAL
+                    #
+                    # La integración con el Banco General
+                    # asignará el ID permanente.
+                    # =============================================
+
+                    if not df_preguntas_producto_accion.empty:
+
+                        prefijo = "PROD"
+
+                        df_preguntas_producto_accion.insert(
+                            0,
+                            "Pregunta_ID",
+                            [
+                                (
+                                    f"{prefijo}_{n:05d}"
+                                )
+                                for n in range(
+                                    1,
+                                    len(
+                                        df_preguntas_producto_accion
+                                    ) + 1
+                                )
+                            ]
+                        )
+
+                    # =============================================
+                    # 17. GUARDAR EN SESSION_STATE
+                    # =============================================
+
+                    st.session_state[
+                        "preguntas_producto_accion_generadas"
+                    ] = (
+                        df_preguntas_producto_accion.copy()
+                    )
+
+                    # =============================================
+                    # 18. RESULTADO
+                    # =============================================
+
+                    if (
+                        df_preguntas_producto_accion.empty
+                    ):
+
+                        st.warning(
+                            "⚠️ No fue posible generar "
+                            "preguntas diferentes con "
+                            "los datos disponibles. "
+                            "No se forzaron preguntas."
+                        )
+
+                    else:
+
+                        st.success(
+                            "🟢 Generación terminada: "
+                            f"{len(df_preguntas_producto_accion)} "
+                            "preguntas."
+                        )
+
+                        st.dataframe(
+                            df_preguntas_producto_accion,
+                            use_container_width=True,
+                            hide_index=True
+                        )
+
+    except Exception as e:
+
+        st.error(
+            "🔴 GENERADOR PRODUCTO → ACCIÓN GENERAL ERROR: "
+            f"{type(e).__name__}: {e}"
+        )
+
