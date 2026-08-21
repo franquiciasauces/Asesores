@@ -76,6 +76,9 @@ st.write(
 )
 
 # ============================================================
+
+
+# ============================================================
 # 5.1 DIAGNÓSTICO Y LECTURA DE LA MATRIZ FUENTE
 # ============================================================
 
@@ -97,8 +100,6 @@ try:
         st.write("**Hojas encontradas en la matriz:**")
         st.write(libro.sheet_names)
 
-        # Por ahora NO suponemos el nombre de la hoja.
-        # El usuario selecciona la hoja real.
         hoja_fuente = st.selectbox(
             "Seleccione la hoja de la matriz que contiene la información:",
             libro.sheet_names,
@@ -110,7 +111,6 @@ try:
             sheet_name=hoja_fuente
         )
 
-        # Eliminamos únicamente columnas completamente vacías.
         df_fuente = df_fuente.dropna(
             axis=1,
             how="all"
@@ -121,7 +121,7 @@ try:
         )
 
         st.info(
-            f"Registros encontrados: **{len(df_fuente)}**  |  "
+            f"Registros encontrados: **{len(df_fuente)}** | "
             f"Columnas encontradas: **{len(df_fuente.columns)}**"
         )
 
@@ -130,7 +130,8 @@ try:
         columnas_reales = pd.DataFrame({
             "N.º": range(1, len(df_fuente.columns) + 1),
             "Nombre real de la columna": [
-                str(col) for col in df_fuente.columns
+                str(col)
+                for col in df_fuente.columns
             ]
         })
 
@@ -155,11 +156,6 @@ try:
 
 except Exception as e:
     st.error(
-        f"🔴 5.1 ERROR al leer la matriz: {type(e).__name__}: {e}"
+        f"🔴 5.1 ERROR al leer la matriz: "
+        f"{type(e).__name__}: {e}"
     )
-
-        ]
-
-        st.rerun()
-
-  
