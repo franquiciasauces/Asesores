@@ -319,3 +319,50 @@ if "df_acciones_52" in st.session_state:
         )
 else:
     st.error("❌ Primero debes ejecutar la sección 5.2")
+from github import Github
+import streamlit as st
+
+def sincronizar_con_github(csv_string, nombre_archivo):
+    # Obtener credenciales de los secretos
+    token = st.secrets["github"]["token"]
+    repo_full_name = st.secrets["github"]["repo_name"]
+    
+    try:
+        g = Github(token)
+        repo = g.get_repo(repo_full_name)
+        
+        # Intentar obtener el archivo si ya existe para actualizarlo
+        try:
+            contents = repo.get_contents(nombre_archivo)
+            repo.update_file(
+                path=contents.path,
+                message="Actualización automática desde Streamlit",
+                content=csv_string,
+                sha=contents.sha
+            )
+            return True, "Archivo actualizado exitosamente."
+        except:
+            # Si no existe, crearlo
+            repo.create_file(
+                path=nombre_archivo,
+                message="Creación automática desde Streamlit",
+                content=csv_string
+            )
+            return True, "Archivo creado exitosamente."
+            
+    except Exception as e:
+        return False, str(e)
+
+# --- Integración en botón de la sección 5.3 ---
+if st.button("🚀 Guardar y Sincronizar con GitHub"):
+    # 1. Generar el contenido del CSV
+    csv_data = df_limpio.to_csv(index=False)
+    
+    # 2. Llamar a la función de sincronización
+    with st.spinner("Sincronizando con GitHub..."):
+        exito, mensaje = sincronizar_con_github(csv_data, "RELACIONES_PRODUCTO_ACCION_GENERAL.csv")
+        
+        if exito:
+            st.success(f"✅ Sincronización exitosa: {mensaje}")
+        else:
+            st.error(f"❌ Error al sincronizar: {mensaje}")
