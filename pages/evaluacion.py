@@ -6591,259 +6591,107 @@ except Exception as e:
     )
 
 # ============================================================
-# BANCO GENERAL — 3. RELACIÓN PRODUCTO → ACCIÓN GENERAL
+# ============================================================
+# GENERADOR COMPONENTE → ACCIÓN
+# 1. CONSTRUIR RELACIONES
 #
 # FUENTE EXCLUSIVA:
-#     ACCIONES_GENERALES.xlsx
-#
-# COLUMNAS DE ESTA FUENTE:
-#     Código
-#     Nombre del producto
-#     Acción general
-#
-# USO:
-#     Nombre del producto → Acción general
-#
-# NO UTILIZA:
-#     MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx
 #     DF2_COMPONENTES_ACCIONES.xlsx
+#
+# COLUMNAS:
+#     Código
+#     Producto
+#     Componente
+#     Acción componente
 # ============================================================
 
-st.markdown(
-    "### Producto → Acción general — Relaciones"
-)
+st.markdown("### Generador componente → acción")
 
 try:
 
-    import pandas as pd
-
-    # ========================================================
-    # 1. TOMAR EXCLUSIVAMENTE ACCIONES_GENERALES
-    # ========================================================
-
-    df_acciones_generales = st.session_state[
-        "fuente_acciones_generales"
+    df_componentes = st.session_state[
+        "fuente_df2_componentes_acciones"
     ].copy()
 
-    # ========================================================
-    # 2. COLUMNAS EXACTAS DE ACCIONES_GENERALES
-    # ========================================================
-
-    columnas_necesarias = [
+    columnas = [
         "Código",
-        "Nombre del producto",
-        "Acción general"
+        "Producto",
+        "Componente",
+        "Acción componente"
     ]
 
     faltantes = [
-        columna
-        for columna in columnas_necesarias
-        if columna not in df_acciones_generales.columns
+        c for c in columnas
+        if c not in df_componentes.columns
     ]
 
     if faltantes:
 
         st.error(
-            "🔴 ERROR EN ACCIONES_GENERALES.xlsx: "
-            "faltan las columnas: "
+            "🔴 Faltan columnas en "
+            "DF2_COMPONENTES_ACCIONES.xlsx: "
             + ", ".join(faltantes)
         )
 
     else:
 
-        # ====================================================
-        # 3. COPIA DE LAS COLUMNAS QUE REALMENTE NECESITAMOS
-        #
-        # Código              → identificación de la fuente
-        # Nombre del producto → producto
-        # Acción general      → acción que pertenece al producto
-        # ====================================================
-
-        df_producto_accion = (
-            df_acciones_generales[
-                [
-                    "Código",
-                    "Nombre del producto",
-                    "Acción general"
-                ]
-            ]
-            .copy()
-        )
-
-        # ====================================================
-        # 4. LIMPIEZA
-        # ====================================================
-
-        df_producto_accion[
-            "Nombre del producto"
-        ] = (
-            df_producto_accion[
-                "Nombre del producto"
-            ]
+        df_componentes = (
+            df_componentes[columnas]
             .fillna("")
             .astype(str)
-            .str.strip()
         )
 
-        df_producto_accion[
-            "Acción general"
-        ] = (
-            df_producto_accion[
-                "Acción general"
-            ]
-            .fillna("")
-            .astype(str)
-            .str.strip()
-        )
+        df_componentes[
+            "Producto"
+        ] = df_componentes[
+            "Producto"
+        ].str.strip()
 
-        # ====================================================
-        # 5. ELIMINAR FILAS SIN PRODUCTO O SIN ACCIÓN
-        # ====================================================
+        df_componentes[
+            "Componente"
+        ] = df_componentes[
+            "Componente"
+        ].str.strip()
 
-        df_producto_accion = (
-            df_producto_accion[
-                (
-                    df_producto_accion[
-                        "Nombre del producto"
-                    ] != ""
-                )
+        df_componentes[
+            "Acción componente"
+        ] = df_componentes[
+            "Acción componente"
+        ].str.strip()
+
+        df_componentes = (
+            df_componentes[
+                (df_componentes["Producto"] != "")
                 &
-                (
-                    df_producto_accion[
-                        "Acción general"
-                    ] != ""
-                )
+                (df_componentes["Componente"] != "")
+                &
+                (df_componentes["Acción componente"] != "")
             ]
-            .copy()
-        )
-
-        # ====================================================
-        # 6. ELIMINAR DUPLICADOS
-        #
-        # UNA MISMA RELACIÓN:
-        # PRODUCTO + ACCIÓN GENERAL
-        #
-        # SOLO DEBE EXISTIR UNA VEZ.
-        # ====================================================
-
-        df_producto_accion = (
-            df_producto_accion
             .drop_duplicates(
                 subset=[
-                    "Nombre del producto",
-                    "Acción general"
+                    "Producto",
+                    "Componente",
+                    "Acción componente"
                 ]
             )
             .reset_index(drop=True)
         )
 
-        # ====================================================
-        # 7. CONSTRUIR PRODUCTO → ACCIONES
-        #
-        # NO SE INVENTAN ACCIONES.
-        # SE TOMAN ÚNICAMENTE LAS EXISTENTES
-        # EN ACCIONES_GENERALES.xlsx
-        # ====================================================
-
-        producto_acciones_generales = {}
-
-        for _, fila in (
-            df_producto_accion.iterrows()
-        ):
-
-            producto = fila[
-                "Nombre del producto"
-            ]
-
-            accion = fila[
-                "Acción general"
-            ]
-
-            if producto not in (
-                producto_acciones_generales
-            ):
-
-                producto_acciones_generales[
-                    producto
-                ] = []
-
-            if accion not in (
-                producto_acciones_generales[
-                    producto
-                ]
-            ):
-
-                producto_acciones_generales[
-                    producto
-                ].append(
-                    accion
-                )
-
-        # ====================================================
-        # 8. GUARDAR RESULTADO PARA LOS GENERADORES
-        # ====================================================
-
         st.session_state[
-            "df_producto_accion_generador"
-        ] = (
-            df_producto_accion.copy()
-        )
-
-        st.session_state[
-            "producto_acciones_generales"
-        ] = (
-            producto_acciones_generales
-        )
-
-        # ====================================================
-        # 9. RESUMEN DE ACCIONES POR PRODUCTO
-        # ====================================================
-
-        resumen_producto_acciones = pd.DataFrame(
-            [
-                {
-                    "Producto":
-                        producto,
-
-                    "Número de acciones":
-                        len(acciones)
-                }
-
-                for producto, acciones
-                in producto_acciones_generales.items()
-            ]
-        )
-
-        # ====================================================
-        # 10. RESULTADO
-        # ====================================================
+            "df_relaciones_componente_accion"
+        ] = df_componentes.copy()
 
         st.success(
-            "🟢 Producto → Acción general "
-            "construido correctamente desde "
-            "ACCIONES_GENERALES.xlsx."
+            "🟢 Relaciones producto → componente → acción "
+            "cargadas correctamente."
         )
 
         st.write(
-            "Productos encontrados:",
-            len(
-                producto_acciones_generales
-            )
-        )
-
-        st.write(
-            "Relaciones únicas Producto → Acción:",
-            len(
-                df_producto_accion
-            )
-        )
-
-        st.write(
-            "### Acciones generales por producto"
+            f"Relaciones: {len(df_componentes)}"
         )
 
         st.dataframe(
-            resumen_producto_acciones,
+            df_componentes,
             use_container_width=True,
             hide_index=True
         )
@@ -6851,171 +6699,6 @@ try:
 except Exception as e:
 
     st.error(
-        "🔴 ERROR EN RELACIÓN "
-        "PRODUCTO → ACCIÓN GENERAL: "
-        f"{type(e).__name__}: {e}"
-    )
-
-# ============================================================
-# BANCO GENERAL — 3.1 CONTROL DE COBERTURA
-#
-# FUENTE:
-#     ACCIONES_GENERALES.xlsx
-# ============================================================
-
-st.markdown(
-    "### Control de cobertura — Acciones generales"
-)
-
-try:
-
-    df_acciones_generales = st.session_state[
-        "fuente_acciones_generales"
-    ].copy()
-
-    df_producto_accion = st.session_state[
-        "df_producto_accion_generador"
-    ].copy()
-
-    # ========================================================
-    # PRODUCTOS ÚNICOS
-    # ========================================================
-
-    productos_unicos = (
-        df_acciones_generales[
-            "Nombre del producto"
-        ]
-        .dropna()
-        .astype(str)
-        .str.strip()
-    )
-
-    productos_unicos = (
-        productos_unicos[
-            productos_unicos != ""
-        ]
-        .drop_duplicates()
-        .tolist()
-    )
-
-    # ========================================================
-    # ACCIONES GENERALES ÚNICAS
-    # ========================================================
-
-    acciones_unicas = (
-        df_acciones_generales[
-            "Acción general"
-        ]
-        .dropna()
-        .astype(str)
-        .str.strip()
-    )
-
-    acciones_unicas = (
-        acciones_unicas[
-            acciones_unicas != ""
-        ]
-        .drop_duplicates()
-        .tolist()
-    )
-
-    # ========================================================
-    # RELACIONES
-    # ========================================================
-
-    total_registros = len(
-        df_acciones_generales
-    )
-
-    total_productos = len(
-        productos_unicos
-    )
-
-    total_acciones = len(
-        acciones_unicas
-    )
-
-    total_relaciones = len(
-        df_producto_accion
-    )
-
-    # ========================================================
-    # MOSTRAR
-    # ========================================================
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-
-        st.metric(
-            "Registros archivo",
-            total_registros
-        )
-
-    with col2:
-
-        st.metric(
-            "Productos únicos",
-            total_productos
-        )
-
-    with col3:
-
-        st.metric(
-            "Acciones generales únicas",
-            total_acciones
-        )
-
-    with col4:
-
-        st.metric(
-            "Relaciones únicas",
-            total_relaciones
-        )
-
-    # ========================================================
-    # ALERTA DE COBERTURA
-    # ========================================================
-
-    if total_productos < 70:
-
-        st.warning(
-            "⚠️ ACCIONES_GENERALES contiene "
-            f"{total_productos} productos únicos. "
-            "Se esperaba aproximadamente 70 o más. "
-            "Revise el archivo antes de continuar."
-        )
-
-    else:
-
-        st.success(
-            "🟢 La fuente contiene "
-            f"{total_productos} productos únicos."
-        )
-
-    # ========================================================
-    # LISTADO COMPLETO DE PRODUCTOS
-    # ========================================================
-
-    st.write(
-        "### Productos encontrados"
-    )
-
-    df_control_productos = pd.DataFrame(
-        {
-            "Producto": productos_unicos
-        }
-    )
-
-    st.dataframe(
-        df_control_productos,
-        use_container_width=True,
-        hide_index=True
-    )
-
-except Exception as e:
-
-    st.error(
-        "🔴 ERROR EN CONTROL DE COBERTURA: "
+        "🔴 ERROR: "
         f"{type(e).__name__}: {e}"
     )
