@@ -270,46 +270,52 @@ except Exception as e:
     )
 
 # ============================================================
-# 5.3A CLASIFICACIÓN DETERMINISTA (LISTA MAESTRA) Y SINCRONIZACIÓN
+# 5.3A CLASIFICACIÓN DETERMINISTA (LISTA MAESTRA) - VERSIÓN FINAL
 # ============================================================
 st.markdown("### 5.3 Clasificación Manual (Lista Maestra)")
 
-# Asegurarse de que tenemos la data de la sección 5.2
 if "df_acciones_52" not in st.session_state:
-    st.error("❌ Primero debes ejecutar la sección 5.2 para tener datos que clasificar.")
+    st.error("❌ Primero debes ejecutar la sección 5.2 para cargar los datos.")
 else:
     df_acciones = st.session_state["df_acciones_52"]
-    
-    # 1. Configuración inicial del editor (solo si no existe)
-    if "df_maestro_acciones" not in st.session_state:
-        acciones_unicas = df_acciones["Acción general"].unique()
-        st.session_state["df_maestro_acciones"] = pd.DataFrame({
-            "Acción general": acciones_unicas,
-            "¿Es General?": True 
-        })
 
-    st.info("💡 **Definición Maestra:** Marca con un check las que SÍ son Acciones Generales.")
+    # --- Lógica de Estado: ¿Ya finalizamos? ---
+    # Si 'df_limpio' NO existe en sesión, mostramos el editor.
+    # Si 'df_limpio' SÍ existe, saltamos directo al resultado para evitar re-procesar.
     
-    # 2. Editor interactivo
-    df_maestro = st.data_editor(
-        st.session_state["df_maestro_acciones"], 
-        use_container_width=True, 
-        hide_index=True
-    )
-    # Guardamos cambios en el editor inmediatamente
-    st.session_state["df_maestro_acciones"] = df_maestro
+    if "df_limpio" not in st.session_state:
+        # MODO EDICIÓN
+        if "df_maestro_acciones" not in st.session_state:
+            acciones_unicas = df_acciones["Acción general"].unique()
+            st.session_state["df_maestro_acciones"] = pd.DataFrame({
+                "Acción general": acciones_unicas,
+                "¿Es General?": True 
+            })
 
-    # 3. Botón para Finalizar Validación (Procesa la data)
-    if st.button("✅ Finalizar Validación y Generar Archivo"):
-        acciones_validas = df_maestro[df_maestro["¿Es General?"] == True]["Acción general"].tolist()
-        df_limpio = df_acciones[df_acciones["Acción general"].isin(acciones_validas)].copy()
+        st.info("💡 **Definición Maestra:** Marca con un check las que SÍ son Acciones Generales.")
         
-        # Guardamos en sesión para que NO se pierda nunca
-        st.session_state["df_limpio"] = df_limpio
-        st.success(f"✅ Validación lista: {len(df_limpio)} relaciones procesadas.")
+        df_maestro = st.data_editor(
+            st.session_state["df_maestro_acciones"], 
+            use_container_width=True, 
+            hide_index=True
+        )
+        st.session_state["df_maestro_acciones"] = df_maestro
 
-    # 4. Zona de Sincronización (Solo aparece si la validación fue finalizada)
-    if "df_limpio" in st.session_state:
+        if st.button("✅ Finalizar Validación"):
+            # Procesamiento único
+            acciones_validas = df_maestro[df_maestro["¿Es General?"] == True]["Acción general"].tolist()
+            st.session_state["df_limpio"] = df_acciones[df_acciones["Acción general"].isin(acciones_validas)].copy()
+            st.rerun() # Recargamos para que el código detecte que ya existe df_limpio
+
+    else:
+        # MODO FINALIZADO (Datos ya guardados)
+        st.success(f"✅ Datos validados y listos ({len(st.session_state['df_limpio'])} registros).")
+        
+        # Botón para volver a editar si te equivocaste
+        if st.button("✏️ Volver a editar/clasificar"):
+            del st.session_state["df_limpio"]
+            st.rerun()
+
         st.write("---")
         st.write("### 📋 Vista previa del resultado:")
         st.dataframe(st.session_state["df_limpio"], use_container_width=True)
@@ -323,10 +329,9 @@ else:
             mime="text/csv"
         )
 
-        # Botón de Sincronización con GitHub
+        # Botón de Sincronización
         if st.button("🚀 Guardar y Sincronizar con GitHub"):
             
-            # Definimos la función de sync dentro del botón para evitar problemas de alcance
             def ejecutar_sync():
                 csv_str = st.session_state["df_limpio"].to_csv(index=False)
                 try:
