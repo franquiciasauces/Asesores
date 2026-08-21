@@ -268,119 +268,116 @@ except Exception as e:
         f"🔴 5.2 ERROR: "
         f"{type(e).__name__}: {e}"
     )
+# 5.3 CLASIFICACIÓN DE ACCIONES INDIVIDUALES
 
+```python
 # ============================================================
-# 5.3 DEPURAR Y CLASIFICAR ACCIONES INDIVIDUALES
+# 5.3 CLASIFICACIÓN DE ACCIONES INDIVIDUALES
 # ============================================================
 
-st.markdown("### 5.3 Depuración y clasificación de acciones")
+st.markdown("### 5.3 Clasificación de acciones individuales")
 
 try:
     import re
-    import unicodedata
 
-    df_base_53 = st.session_state.get(
-        "df_acciones_52"
-    )
+    # --------------------------------------------------------
+    # 1. VERIFICAR ENTRADAS REALES DE 5.1 Y 5.2
+    # --------------------------------------------------------
 
-    if df_base_53 is None or df_base_53.empty:
+    if "df_acciones_52" not in st.session_state:
         st.error(
-            "❌ 5.3 ERROR: No existe df_acciones_52."
+            "❌ 5.3 ERROR: No existe df_acciones_52. "
+            "Debe ejecutarse primero el 5.2."
         )
         st.stop()
 
-    requeridas_53 = [
+    df_acciones_52 = st.session_state[
+        "df_acciones_52"
+    ].copy()
+
+    if "df_fuente" not in locals():
+        st.error(
+            "❌ 5.3 ERROR: No existe la matriz fuente "
+            "cargada por 5.1."
+        )
+        st.stop()
+
+    # --------------------------------------------------------
+    # 2. VALIDAR COLUMNAS REALES NECESARIAS
+    # --------------------------------------------------------
+
+    columnas_53 = [
         "Producto",
-        "Acción general"
+        "Acciones generales",
+        "Componentes"
     ]
 
     faltantes_53 = [
-        c
-        for c in requeridas_53
-        if c not in df_base_53.columns
+        columna
+        for columna in columnas_53
+        if columna not in df_fuente.columns
     ]
 
     if faltantes_53:
         st.error(
-            "❌ 5.3 ERROR: Faltan columnas: "
+            "❌ 5.3 ERROR: Faltan columnas reales en la matriz: "
             + ", ".join(faltantes_53)
         )
         st.stop()
 
-    df_53 = df_base_53.copy()
+    if "Producto" not in df_acciones_52.columns:
+        st.error(
+            "❌ 5.3 ERROR: df_acciones_52 no contiene "
+            "la columna Producto."
+        )
+        st.stop()
+
+    if "Acción general" not in df_acciones_52.columns:
+        st.error(
+            "❌ 5.3 ERROR: df_acciones_52 no contiene "
+            "la columna Acción general."
+        )
+        st.stop()
 
     # --------------------------------------------------------
-    # NORMALIZACIÓN DE TEXTO
+    # 3. NORMALIZACIÓN SOLO PARA COMPARAR
+    #
+    # No modifica los textos originales.
     # --------------------------------------------------------
 
     def normalizar_53(texto):
-        texto = str(texto).strip().lower()
-        texto = unicodedata.normalize(
-            "NFKD",
+        texto = str(texto).lower().strip()
+
+        texto = re.sub(
+            r"[^a-záéíóúüñ0-9\s]",
+            " ",
             texto
         )
-        texto = "".join(
-            c
-            for c in texto
-            if not unicodedata.combining(c)
-        )
+
         texto = re.sub(
             r"\s+",
             " ",
             texto
         )
-        return texto
+
+        return texto.strip()
 
     # --------------------------------------------------------
-    # COLUMNAS REALES DE LA MATRIZ
+    # 4. CATÁLOGO REAL DE PRODUCTOS
     # --------------------------------------------------------
 
-    columnas_matriz_53 = {
-        normalizar_53(c): c
-        for c in df_fuente.columns
-    }
+    productos_53 = set()
 
-    col_componentes_53 = None
+    for valor in df_fuente["Producto"].fillna(""):
+        valor = str(valor).strip()
 
-    for nombre in [
-        "componentes",
-        "componente",
-        "componentes del producto"
-    ]:
-        if nombre in columnas_matriz_53:
-            col_componentes_53 = columnas_matriz_53[
-                nombre
-            ]
-            break
-
-    if col_componentes_53 is None:
-        st.error(
-            "❌ 5.3 ERROR: No se encontró en la matriz "
-            "una columna real de Componentes."
-        )
-        st.stop()
-
-    col_producto_53 = None
-
-    for nombre in [
-        "producto",
-        "nombre del producto"
-    ]:
-        if nombre in columnas_matriz_53:
-            col_producto_53 = columnas_matriz_53[
-                nombre
-            ]
-            break
-
-    if col_producto_53 is None:
-        st.error(
-            "❌ 5.3 ERROR: No se encontró la columna "
-            "real de Producto."
-        )
-        st.stop()
+        if valor:
+            productos_53.add(
+                normalizar_53(valor)
+            )
 
     # --------------------------------------------------------
-    # COMPONENTES REALES POR PRODUCTO
+    # 5. COMPONENTES PROPIOS DE CADA PRODUCTO
     # --------------------------------------------------------
 
     componentes_producto_53 = {}
@@ -388,101 +385,60 @@ try:
     for _, fila in df_fuente.iterrows():
 
         producto = str(
-            fila[col_producto_53]
+            fila["Producto"]
         ).strip()
 
         if not producto:
             continue
 
-        componentes = str(
-            fila[col_componentes_53]
+        clave_producto = normalizar_53(
+            producto
+        )
+
+        texto_componentes = str(
+            fila["Componentes"]
         ).strip()
 
-        lista = re.split(
-            r"\s*;\s*|\s*,\s*|\s*\n\s*",
+        componentes = []
+
+        if texto_componentes:
+            componentes = re.split(
+                r"\s*;\s*|\s*,\s*",
+                texto_componentes
+            )
+
+        componentes_producto_53[
+            clave_producto
+        ] = {
+            normalizar_53(c)
+            for c in componentes
+            if normalizar_53(c)
+        }
+
+    # --------------------------------------------------------
+    # 6. CATÁLOGO GLOBAL DE COMPONENTES
+    #
+    # Se obtiene de la matriz.
+    # --------------------------------------------------------
+
+    componentes_globales_53 = set()
+
+    for componentes in (
+        componentes_producto_53.values()
+    ):
+        componentes_globales_53.update(
             componentes
         )
 
-        componentes_producto_53[
-            normalizar_53(producto)
-        ] = [
-            normalizar_53(x)
-            for x in lista
-            if normalizar_53(x)
-        ]
-
     # --------------------------------------------------------
-    # MARCADORES QUE INVALIDAN LA ACCIÓN
+    # 7. ORDEN DE CLASIFICACIÓN
     # --------------------------------------------------------
 
-    marcadores_eliminar_53 = [
-        "frase comercial",
-        "combinaciones",
-        "recomendacion",
-        "recomendación",
-        "complementario",
-        "complementarios",
-        "contraindicacion",
-        "contraindicación",
-        "restriccion",
-        "restricción",
-        "posologia",
-        "posología",
-        "modo de accion",
-        "modo de acción"
-    ]
+    def clasificar_53(producto, accion):
 
-    marcadores_uso_53 = [
-        "dosis",
-        "tomar",
-        "consumir",
-        "uso",
-        "posologia",
-        "posología",
-        "precaucion",
-        "precaución",
-        "advertencia"
-    ]
-
-    # --------------------------------------------------------
-    # COMPONENTE REAL MENCIONADO EN LA ACCIÓN
-    # --------------------------------------------------------
-
-    def componente_mencionado_53(
-        accion,
-        componentes
-    ):
-        accion_n = normalizar_53(
-            accion
+        producto_n = normalizar_53(
+            producto
         )
-
-        encontrados = []
-
-        for componente in componentes:
-
-            if not componente:
-                continue
-
-            if componente in accion_n:
-                encontrados.append(
-                    componente
-                )
-
-        return encontrados
-
-    # --------------------------------------------------------
-    # CLASIFICACIÓN
-    # --------------------------------------------------------
-
-    def clasificar_53(fila):
-
-        producto = str(
-            fila["Producto"]
-        ).strip()
-
-        accion = str(
-            fila["Acción general"]
-        ).strip()
 
         accion_n = normalizar_53(
             accion
@@ -491,105 +447,210 @@ try:
         if not accion_n:
             return "ELIMINAR"
 
-        # --------------------------------------------
-        # 1. FRASE COMERCIAL / COMBINACIONES
-        # --------------------------------------------
+        # ----------------------------------------------------
+        # FRASES COMERCIALES
+        # ----------------------------------------------------
 
-        for marcador in marcadores_eliminar_53:
+        if (
+            "frase comercial" in accion_n
+            or "frase de venta" in accion_n
+        ):
+            return "ELIMINAR"
 
-            if normalizar_53(
-                marcador
-            ) in accion_n:
+        # ----------------------------------------------------
+        # COMBINACIONES
+        # ----------------------------------------------------
 
-                return "ELIMINAR"
+        if (
+            "combinaciones" in accion_n
+            or "combinar con" in accion_n
+            or "combinado con" in accion_n
+        ):
+            return "RECOMENDACIÓN / COMPLEMENTO"
 
-        # --------------------------------------------
-        # 2. PRODUCTO Y COMPONENTES REALES
-        # --------------------------------------------
+        # ----------------------------------------------------
+        # POSOLOGÍA / USO / PRECAUCIÓN
+        # ----------------------------------------------------
 
-        componentes = componentes_producto_53.get(
-            normalizar_53(producto),
-            []
+        patrones_uso = [
+            "dosis",
+            "dosificación",
+            "posología",
+            "tomar",
+            "consumir",
+            "ingerir",
+            "uso diario",
+            "modo de uso",
+            "precaución",
+            "precauciones"
+        ]
+
+        if any(
+            patron in accion_n
+            for patron in patrones_uso
+        ):
+            return "USO / POSOLOGÍA / PRECAUCIÓN"
+
+        # ----------------------------------------------------
+        # RESTRICCIONES / CONTRAINDICACIONES
+        # ----------------------------------------------------
+
+        patrones_restriccion = [
+            "contraindicación",
+            "contraindicaciones",
+            "restricción",
+            "restricciones",
+            "no usar",
+            "no recomendado",
+            "embarazo",
+            "lactancia"
+        ]
+
+        if any(
+            patron in accion_n
+            for patron in patrones_restriccion
+        ):
+            return "RESTRICCIÓN / CONTRAINDICACIÓN"
+
+        # ----------------------------------------------------
+        # COMPONENTES DEL PRODUCTO ACTUAL
+        # ----------------------------------------------------
+
+        propios = componentes_producto_53.get(
+            producto_n,
+            set()
         )
 
-        encontrados = componente_mencionado_53(
-            accion,
-            componentes
-        )
+        componentes_propios_mencionados = [
+            componente
+            for componente in propios
+            if componente in accion_n
+        ]
 
-        # --------------------------------------------
-        # 3. COMPONENTE + FUNCIÓN
+        # ----------------------------------------------------
+        # COMPONENTE DE OTRO PRODUCTO
         #
-        # SOLO SI EL COMPONENTE APARECE
-        # REALMENTE EN LOS COMPONENTES DEL PRODUCTO
-        # --------------------------------------------
+        # Si aparece un componente conocido pero NO
+        # pertenece al producto actual, es referencia externa.
+        # ----------------------------------------------------
 
-        if encontrados:
+        componentes_externos = [
+            componente
+            for componente in componentes_globales_53
+            if componente not in propios
+            and len(componente) >= 4
+            and componente in accion_n
+        ]
+
+        if componentes_externos:
+            return "RECOMENDACIÓN / COMPLEMENTO"
+
+        # ----------------------------------------------------
+        # OTRO PRODUCTO DE LA MATRIZ
+        #
+        # No debe confundirse el producto consigo mismo.
+        # ----------------------------------------------------
+
+        for otro_producto in productos_53:
+
+            if (
+                otro_producto == producto_n
+                or len(otro_producto) < 4
+            ):
+                continue
+
+            if otro_producto in accion_n:
+                return "RECOMENDACIÓN / COMPLEMENTO"
+
+        # ----------------------------------------------------
+        # COMPONENTE + FUNCIÓN
+        #
+        # SOLO si el componente aparece explícitamente
+        # Y pertenece al producto actual.
+        # ----------------------------------------------------
+
+        if componentes_propios_mencionados:
             return "COMPONENTE + FUNCIÓN"
 
-        # --------------------------------------------
-        # 4. USO / POSOLOGÍA / PRECAUCIÓN
-        # --------------------------------------------
-
-        for marcador in marcadores_uso_53:
-
-            if normalizar_53(
-                marcador
-            ) in accion_n:
-
-                return (
-                    "USO / POSOLOGÍA / PRECAUCIÓN"
-                )
-
-        # --------------------------------------------
-        # 5. RESTO
-        # --------------------------------------------
+        # ----------------------------------------------------
+        # RESTO
+        # ----------------------------------------------------
 
         return "ACCIÓN GENERAL"
 
-    df_53[
+    # --------------------------------------------------------
+    # 8. CLASIFICAR SIN MODIFICAR 5.2
+    # --------------------------------------------------------
+
+    df_clasificacion_53 = (
+        df_acciones_52.copy()
+    )
+
+    df_clasificacion_53[
         "Clasificación"
-    ] = df_53.apply(
-        clasificar_53,
+    ] = df_clasificacion_53.apply(
+        lambda fila: clasificar_53(
+            fila["Producto"],
+            fila["Acción general"]
+        ),
         axis=1
     )
 
     # --------------------------------------------------------
-    # ELIMINAR LO QUE NO DEBE ENTRAR EN LA MATRIZ DEPURADA
-    # --------------------------------------------------------
-
-    df_depurado_53 = df_53[
-        df_53["Clasificación"]
-        != "ELIMINAR"
-    ].copy()
-
-    # --------------------------------------------------------
-    # GUARDAR
+    # 9. GUARDAR RESULTADO PARA 5.4
     # --------------------------------------------------------
 
     st.session_state[
-        "df_depurado_53"
-    ] = df_depurado_53.copy()
+        "df_clasificacion_53"
+    ] = df_clasificacion_53.copy()
 
     # --------------------------------------------------------
-    # RESULTADO
+    # 10. MOSTRAR RESULTADO
     # --------------------------------------------------------
 
     st.success(
         f"🟢 5.3 TERMINADO: "
-        f"{len(df_53)} acciones revisadas → "
-        f"{len(df_depurado_53)} acciones depuradas."
+        f"{len(df_clasificacion_53)} relaciones clasificadas."
     )
 
     st.dataframe(
-        df_depurado_53,
+        df_clasificacion_53,
+        use_container_width=True,
+        hide_index=True
+    )
+
+    # --------------------------------------------------------
+    # 11. RESUMEN
+    # --------------------------------------------------------
+
+    resumen_53 = (
+        df_clasificacion_53[
+            "Clasificación"
+        ]
+        .value_counts()
+        .rename_axis(
+            "Clasificación"
+        )
+        .reset_index(
+            name="Cantidad"
+        )
+    )
+
+    st.write(
+        "### Resumen de clasificación"
+    )
+
+    st.dataframe(
+        resumen_53,
         use_container_width=True,
         hide_index=True
     )
 
 except Exception as e:
-
     st.error(
         f"🔴 5.3 ERROR: "
         f"{type(e).__name__}: {e}"
     )
+```
+
+
