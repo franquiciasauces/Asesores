@@ -279,43 +279,37 @@ try:
 
     import re
 
-    if "df_acciones_52" not in st.session_state:
-        st.error("❌ 5.3 ERROR: No existe df_acciones_52.")
-        st.stop()
-
-    df_acciones_53 = st.session_state[
+    df_acciones_53 = st.session_state.get(
         "df_acciones_52"
-    ].copy()
+    )
 
-    if "Componentes" not in df_fuente.columns:
+    if df_acciones_53 is None:
         st.error(
-            "❌ 5.3 ERROR: No existe la columna real "
-            "'Componentes' en la matriz."
+            "❌ 5.3 ERROR: No existe df_acciones_52."
         )
         st.stop()
 
-    componentes_producto_53 = (
+    df_acciones_53 = df_acciones_53.copy()
+
+    if "Componentes" not in df_fuente.columns:
+        st.error(
+            "❌ 5.3 ERROR: No existe la columna "
+            "'Componentes'."
+        )
+        st.stop()
+
+    componentes_53 = (
         df_fuente[
             ["Producto", "Componentes"]
         ]
         .drop_duplicates("Producto")
-        .copy()
     )
 
     df_acciones_53 = df_acciones_53.merge(
-        componentes_producto_53,
+        componentes_53,
         on="Producto",
         how="left"
     )
-
-    categorias_53 = [
-        "ACCIÓN GENERAL",
-        "COMPONENTE + FUNCIÓN",
-        "RECOMENDACIÓN / COMPLEMENTO",
-        "USO / POSOLOGÍA / PRECAUCIÓN",
-        "RESTRICCIÓN / CONTRAINDICACIÓN",
-        "COMERCIAL"
-    ]
 
     def clasificar_accion_53(fila):
 
@@ -323,43 +317,25 @@ try:
             fila["Acción general"]
         ).strip()
 
-        componentes = str(
-            fila["Componentes"]
-        ).strip()
-
         texto = accion.lower()
 
-        if (
-            "frase comercial" in texto
-            or any(
-                x in texto
-                for x in [
-                    "compra",
-                    "ideal para ti",
-                    "excelente opción",
-                    "lleva una vida",
-                    "tu mejor opción"
-                ]
-            )
-        ):
+        if "frase comercial" in texto:
             return "COMERCIAL"
 
         if any(
-            x in texto
-            for x in [
+            termino in texto
+            for termino in [
                 "contraindicado",
                 "contraindicación",
                 "no usar",
-                "no se recomienda",
-                "evitar en",
-                "precaución"
+                "evitar en"
             ]
         ):
             return "RESTRICCIÓN / CONTRAINDICACIÓN"
 
         if any(
-            x in texto
-            for x in [
+            termino in texto
+            for termino in [
                 "tomar",
                 "consumir",
                 "ingerir",
@@ -367,24 +343,27 @@ try:
                 "cápsulas al día",
                 "ml al día",
                 "por día",
-                "dos veces al día"
+                "veces al día"
             ]
         ):
             return "USO / POSOLOGÍA / PRECAUCIÓN"
 
         if any(
-            x in texto
-            for x in [
-                "recomendado como complemento",
+            termino in texto
+            for termino in [
                 "complemento",
-                "se recomienda",
-                "acompañar con",
-                "acompañado de"
+                "complementario",
+                "recomendado como complemento",
+                "se recomienda acompañar"
             ]
         ):
             return "RECOMENDACIÓN / COMPLEMENTO"
 
-        componentes_lista = [
+        componentes = str(
+            fila["Componentes"]
+        )
+
+        lista_componentes = [
             x.strip().lower()
             for x in re.split(
                 r";|,",
@@ -393,11 +372,22 @@ try:
             if x.strip()
         ]
 
-        if componentes_lista and any(
-            componente in texto
-            for componente in componentes_lista
-        ):
-            return "COMPONENTE + FUNCIÓN"
+        for componente in lista_componentes:
+
+            if componente in texto:
+                return "COMPONENTE + FUNCIÓN"
+
+            nombre_simple = re.sub(
+                r"\([^)]*\)",
+                "",
+                componente
+            ).strip()
+
+            if (
+                nombre_simple
+                and nombre_simple in texto
+            ):
+                return "COMPONENTE + FUNCIÓN"
 
         return "ACCIÓN GENERAL"
 
