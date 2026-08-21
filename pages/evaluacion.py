@@ -6590,3 +6590,100 @@ except Exception as e:
         f"{type(e).__name__}: {e}"
     )
 
+# ============================================================
+# BANCO GENERAL — 2. COLUMNAS ACCIONES_GENERALES
+# ============================================================
+
+st.markdown(
+    "### Producto → Acción general — Fuente"
+)
+
+try:
+
+    df_acciones = st.session_state[
+        "fuente_acciones_generales"
+    ].copy()
+
+    st.write(
+        "Columnas disponibles en ACCIONES_GENERALES:"
+    )
+
+    st.write(
+        list(df_acciones.columns)
+    )
+
+    columnas_producto = [
+        "Producto",
+        "producto",
+        "Nombre Producto",
+        "Nombre del Producto"
+    ]
+
+    columnas_accion = [
+        "Acción general",
+        "Accion general",
+        "Acción General",
+        "accion_general"
+    ]
+
+    columna_producto = next(
+        (
+            columna
+            for columna in columnas_producto
+            if columna in df_acciones.columns
+        ),
+        None
+    )
+
+    columna_accion = next(
+        (
+            columna
+            for columna in columnas_accion
+            if columna in df_acciones.columns
+        ),
+        None
+    )
+
+    if columna_producto is None:
+
+        st.error(
+            "🔴 No se encontró la columna Producto."
+        )
+
+    else:
+
+        st.success(
+            f"🟢 Producto = {columna_producto}"
+        )
+
+    if columna_accion is None:
+
+        st.error(
+            "🔴 No se encontró la columna Acción general."
+        )
+
+    else:
+
+        st.success(
+            f"🟢 Acción general = {columna_accion}"
+        )
+
+    if (
+        columna_producto is not None
+        and columna_accion is not None
+    ):
+
+        st.session_state[
+            "columna_producto_acciones"
+        ] = columna_producto
+
+        st.session_state[
+            "columna_accion_general"
+        ] = columna_accion
+
+except Exception as e:
+
+    st.error(
+        "🔴 ERROR IDENTIFICANDO COLUMNAS: "
+        f"{type(e).__name__}: {e}"
+    )
