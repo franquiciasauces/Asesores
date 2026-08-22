@@ -9099,20 +9099,35 @@ def generar_preguntas_63(
 
 
 # ============================================================
-# 5. INTERFAZ DE GENERACIÓN
+# 6.3 - INTERFAZ DEL GENERADOR
 # ============================================================
 
-if (
-    "df_disponible_63"
-    in st.session_state
-):
+if "df_disponible_63" in st.session_state:
+
+    df_disponible_63 = st.session_state[
+        "df_disponible_63"
+    ]
 
     st.markdown(
-        "### Generación de preguntas Nivel 1"
+        "### Generador de preguntas 6.3"
+    )
+
+    st.write(
+        "Producto - Categoría principal"
+    )
+
+    st.info(
+        "Este generador produce únicamente "
+        "preguntas Nivel 1."
+    )
+
+    st.metric(
+        "Relaciones disponibles",
+        len(df_disponible_63)
     )
 
     cantidad_63 = st.number_input(
-        "¿Cuántas preguntas desea generar?",
+        "Cantidad de preguntas a generar",
         min_value=1,
         max_value=500,
         value=10,
@@ -9120,124 +9135,61 @@ if (
         key="cantidad_generar_63"
     )
 
-    st.info(
-        "6.3 genera únicamente preguntas Nivel 1: "
-        "una categoría correcta y tres categorías falsas."
-    )
-
     if st.button(
         "GENERAR PREGUNTAS 6.3",
         key="generar_preguntas_63"
     ):
 
-        nuevas = generar_preguntas_63(
+        nuevas_63 = generar_preguntas_63(
             cantidad_63
         )
 
-        if not nuevas:
+        if not nuevas_63:
 
             st.warning(
-                "No hay suficientes relaciones "
-                "disponibles para generar nuevas "
-                "preguntas con cuatro categorías "
-                "diferentes."
+                "No fue posible generar preguntas "
+                "con las relaciones disponibles."
             )
 
         else:
 
             st.session_state[
                 "preguntas_generadas_63"
-            ] = nuevas
+            ] = nuevas_63
 
-            consumidas = (
+            consumidas_63 = (
                 st.session_state.get(
                     "fuentes_consumidas_63",
                     set()
                 )
             )
 
-            for pregunta in nuevas:
+            for pregunta in nuevas_63:
 
-                for fuente in str(
-                    pregunta[
-                        "Fuente_ID"
-                    ]
-                ).split(";"):
+                fuentes = str(
+                    pregunta.get(
+                        "Fuente_ID",
+                        ""
+                    )
+                ).split(";")
+
+                for fuente in fuentes:
 
                     fuente = fuente.strip()
 
                     if fuente:
 
-                        consumidas.add(
+                        consumidas_63.add(
                             fuente
                         )
 
             st.session_state[
                 "fuentes_consumidas_63"
-            ] = consumidas
+            ] = consumidas_63
 
             st.success(
                 f"Se generaron "
-                f"{len(nuevas)} preguntas Nivel 1."
+                f"{len(nuevas_63)} preguntas Nivel 1."
             )
 
-            st.info(
-                "Las cuatro relaciones utilizadas "
-                "en cada pregunta quedan consumidas "
-                "y no volverán a utilizarse."
-            )
-
-
-# ============================================================
-# 6. MOSTRAR PREGUNTAS GENERADAS
-# ============================================================
-
-preguntas_63 = st.session_state.get(
-    "preguntas_generadas_63",
-    []
-)
-
-if preguntas_63:
-
-    st.markdown(
-        "### Preguntas generadas"
-    )
-
-    for pregunta in preguntas_63:
-
-        st.markdown(
-            f"**{pregunta['Pregunta_ID']} — "
-            f"{pregunta['Nivel']}**"
-        )
-
-        st.write(
-            pregunta["Pregunta"]
-        )
-
-        st.write(
-            f"**1.** {pregunta['Respuesta_1']}"
-        )
-
-        st.write(
-            f"**2.** {pregunta['Respuesta_2']}"
-        )
-
-        st.write(
-            f"**3.** {pregunta['Respuesta_3']}"
-        )
-
-        st.write(
-            f"**4.** {pregunta['Respuesta_4']}"
-        )
-
-        st.caption(
-            "Respuesta correcta: "
-            f"{pregunta['Respuesta_Correcta']}"
-        )
-
-        st.caption(
-            "Fuente: "
-            f"{pregunta['Fuente_ID']}"
-        )
-
-        st.divider()
+            st.rerun()
