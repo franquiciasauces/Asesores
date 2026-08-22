@@ -8624,3 +8624,620 @@ if (
         use_container_width=True,
         hide_index=True
     )
+# ============================================================
+# 6.3 - PARTE 2
+# GENERADOR PRODUCTO - CATEGORÍA PRINCIPAL
+# SOLO NIVEL 1
+# ============================================================
+
+
+# ============================================================
+# 1. FUNCIONES DE CONTROL
+# ============================================================
+
+def obtener_relaciones_consumidas_63():
+
+    consumidas = set()
+
+    if "df_banco_63" in st.session_state:
+
+        df_banco = st.session_state[
+            "df_banco_63"
+        ]
+
+        if (
+            not df_banco.empty
+            and "Fuente_ID" in df_banco.columns
+        ):
+
+            for valor in df_banco[
+                "Fuente_ID"
+            ].fillna(""):
+
+                for fuente in str(
+                    valor
+                ).split(";"):
+
+                    fuente = fuente.strip()
+
+                    if fuente:
+                        consumidas.add(
+                            fuente
+                        )
+
+    consumidas.update(
+        st.session_state.get(
+            "fuentes_consumidas_63",
+            set()
+        )
+    )
+
+    return consumidas
+
+
+def siguiente_id_63():
+
+    mayor = 0
+
+    df_banco = st.session_state.get(
+        "df_banco_63",
+        pd.DataFrame()
+    )
+
+    if (
+        not df_banco.empty
+        and "Pregunta_ID" in df_banco.columns
+    ):
+
+        for valor in df_banco[
+            "Pregunta_ID"
+        ].fillna(""):
+
+            coincidencia = re.match(
+                r"PTCP-(\d+)",
+                str(valor).strip()
+            )
+
+            if coincidencia:
+
+                mayor = max(
+                    mayor,
+                    int(
+                        coincidencia.group(1)
+                    )
+                )
+
+    preguntas_actuales = st.session_state.get(
+        "preguntas_generadas_63",
+        []
+    )
+
+    for pregunta in preguntas_actuales:
+
+        coincidencia = re.match(
+            r"PTCP-(\d+)",
+            str(
+                pregunta.get(
+                    "Pregunta_ID",
+                    ""
+                )
+            )
+        )
+
+        if coincidencia:
+
+            mayor = max(
+                mayor,
+                int(
+                    coincidencia.group(1)
+                )
+            )
+
+    return f"PTCP-{mayor + 1:06d}"
+
+
+# ============================================================
+# 2. GENERAR UNA PREGUNTA NIVEL 1
+# ============================================================
+
+def generar_nivel_1_63(
+    df_disponible,
+    consumidas
+):
+
+    candidatos = df_disponible[
+        ~df_disponible[
+            "Fuente_ID"
+        ].isin(consumidas)
+    ].copy()
+
+    if len(candidatos) < 4:
+
+        return None
+
+    # --------------------------------------------------------
+    # Seleccionar aleatoriamente la relación verdadera
+    # --------------------------------------------------------
+
+    candidatos = candidatos.sample(
+        frac=1,
+        random_state=None
+    ).reset_index(
+        drop=True
+    )
+
+    for _, verdadera in candidatos.iterrows():
+
+        producto = verdadera[
+            "Producto"
+        ]
+
+        categoria_correcta = (
+            verdadera[
+                "Categoría principal"
+            ]
+        )
+
+        clave_categoria = (
+            normalizar_63(
+                categoria_correcta
+            )
+        )
+
+        # ----------------------------------------------------
+        # Las falsas deben tener categorías diferentes
+        # a la correcta.
+        #
+        # IMPORTANTE:
+        # Cabello y Cabello/Uñas son diferentes.
+        # ----------------------------------------------------
+
+        falsas = candidatos[
+            candidatos[
+                "Categoría principal"
+            ].map(
+                normalizar_63
+            ) != clave_categoria
+        ].copy()
+
+        if len(falsas) < 3:
+
+            continue
+
+        # ----------------------------------------------------
+        # Seleccionar falsas procurando que las categorías
+        # sean diferentes entre sí.
+        # ----------------------------------------------------
+
+        falsas = falsas.sample(
+            frac=1,
+            random_state=None
+        ).reset_index(
+            drop=True
+        )
+
+        seleccionadas = []
+
+        categorias_vistas = {
+            clave_categoria
+        }
+
+        for _, candidata in falsas.iterrows():
+
+            categoria = candidata[
+                "Categoría principal"
+            ]
+
+            clave = normalizar_63(
+                categoria
+            )
+
+            if not clave:
+                continue
+
+            if clave in categorias_vistas:
+                continue
+
+            seleccionadas.append(
+                candidata
+            )
+
+            categorias_vistas.add(
+                clave
+            )
+
+            if len(seleccionadas) == 3:
+                break
+
+        if len(seleccionadas) < 3:
+
+            continue
+
+        falsas = pd.DataFrame(
+            seleccionadas
+        )
+
+        # ----------------------------------------------------
+        # Las 4 relaciones deben ser diferentes
+        # ----------------------------------------------------
+
+        opciones = pd.concat(
+            [
+                pd.DataFrame(
+                    [verdadera]
+                ),
+                falsas
+            ],
+            ignore_index=True
+        )
+
+        # ----------------------------------------------------
+        # Mezclar las cuatro opciones
+        # ----------------------------------------------------
+
+        opciones = opciones.sample(
+            frac=1,
+            random_state=None
+        ).reset_index(
+            drop=True
+        )
+
+        # ----------------------------------------------------
+        # Verificar categorías únicas
+        # ----------------------------------------------------
+
+        categorias = [
+            normalizar_63(
+                valor
+            )
+            for valor in opciones[
+                "Categoría principal"
+            ]
+        ]
+
+        if len(
+            set(categorias)
+        ) != 4:
+
+            continue
+
+        # ----------------------------------------------------
+        # Verificar fuentes únicas
+        # ----------------------------------------------------
+
+        fuentes = list(
+            opciones[
+                "Fuente_ID"
+            ]
+        )
+
+        if len(
+            set(fuentes)
+        ) != 4:
+
+            continue
+
+        correcta = int(
+            opciones.index[
+                opciones[
+                    "Fuente_ID"
+                ]
+                ==
+                verdadera[
+                    "Fuente_ID"
+                ]
+            ][0]
+        ) + 1
+
+        return {
+
+            "Producto":
+                producto,
+
+            "Opciones":
+                opciones,
+
+            "Correcta":
+                correcta
+        }
+
+    return None
+
+
+# ============================================================
+# 3. CONSTRUIR PREGUNTA
+# ============================================================
+
+def construir_pregunta_63(
+    resultado
+):
+
+    opciones = resultado[
+        "Opciones"
+    ]
+
+    producto = resultado[
+        "Producto"
+    ]
+
+    correcta = resultado[
+        "Correcta"
+    ]
+
+    pregunta_id = siguiente_id_63()
+
+    fuentes = ";".join(
+        opciones[
+            "Fuente_ID"
+        ].tolist()
+    )
+
+    texto = (
+        "¿Cuál es la categoría principal "
+        f"a la que pertenece el producto "
+        f"{producto}?"
+    )
+
+    return {
+
+        "Pregunta_ID":
+            pregunta_id,
+
+        "Modulo":
+            "Producto",
+
+        "Tema":
+            "Categoría principal",
+
+        "Nivel":
+            "Nivel 1",
+
+        "Tipo_Relacion":
+            "Producto-Categoría principal",
+
+        "Pregunta":
+            texto,
+
+        "Respuesta_1":
+            opciones.iloc[0][
+                "Categoría principal"
+            ],
+
+        "Respuesta_2":
+            opciones.iloc[1][
+                "Categoría principal"
+            ],
+
+        "Respuesta_3":
+            opciones.iloc[2][
+                "Categoría principal"
+            ],
+
+        "Respuesta_4":
+            opciones.iloc[3][
+                "Categoría principal"
+            ],
+
+        "Respuesta_Correcta":
+            str(correcta),
+
+        "Estado":
+            "PENDIENTE",
+
+        "Observacion_Administrador":
+            "",
+
+        "Fecha_Generacion":
+            pd.Timestamp.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+
+        "Fuente_ID":
+            fuentes
+    }
+
+
+# ============================================================
+# 4. GENERADOR
+# ============================================================
+
+def generar_preguntas_63(
+    cantidad
+):
+
+    df_disponible = st.session_state.get(
+        "df_disponible_63",
+        pd.DataFrame()
+    )
+
+    if df_disponible.empty:
+
+        return []
+
+    consumidas = (
+        obtener_relaciones_consumidas_63()
+    )
+
+    preguntas = []
+
+    while len(preguntas) < cantidad:
+
+        resultado = generar_nivel_1_63(
+            df_disponible,
+            consumidas
+        )
+
+        if resultado is None:
+
+            break
+
+        pregunta = construir_pregunta_63(
+            resultado
+        )
+
+        preguntas.append(
+            pregunta
+        )
+
+        # ----------------------------------------------------
+        # Consumir inmediatamente las 4 relaciones utilizadas
+        # ----------------------------------------------------
+
+        fuentes = (
+            resultado[
+                "Opciones"
+            ][
+                "Fuente_ID"
+            ].tolist()
+        )
+
+        consumidas.update(
+            fuentes
+        )
+
+    return preguntas
+
+
+# ============================================================
+# 5. INTERFAZ DE GENERACIÓN
+# ============================================================
+
+if (
+    "df_disponible_63"
+    in st.session_state
+):
+
+    st.markdown(
+        "### Generación de preguntas Nivel 1"
+    )
+
+    cantidad_63 = st.number_input(
+        "¿Cuántas preguntas desea generar?",
+        min_value=1,
+        max_value=500,
+        value=10,
+        step=1,
+        key="cantidad_generar_63"
+    )
+
+    st.info(
+        "6.3 genera únicamente preguntas Nivel 1: "
+        "una categoría correcta y tres categorías falsas."
+    )
+
+    if st.button(
+        "GENERAR PREGUNTAS 6.3",
+        key="generar_preguntas_63"
+    ):
+
+        nuevas = generar_preguntas_63(
+            cantidad_63
+        )
+
+        if not nuevas:
+
+            st.warning(
+                "No hay suficientes relaciones "
+                "disponibles para generar nuevas "
+                "preguntas con cuatro categorías "
+                "diferentes."
+            )
+
+        else:
+
+            st.session_state[
+                "preguntas_generadas_63"
+            ] = nuevas
+
+            consumidas = (
+                st.session_state.get(
+                    "fuentes_consumidas_63",
+                    set()
+                )
+            )
+
+            for pregunta in nuevas:
+
+                for fuente in str(
+                    pregunta[
+                        "Fuente_ID"
+                    ]
+                ).split(";"):
+
+                    fuente = fuente.strip()
+
+                    if fuente:
+
+                        consumidas.add(
+                            fuente
+                        )
+
+            st.session_state[
+                "fuentes_consumidas_63"
+            ] = consumidas
+
+            st.success(
+                f"Se generaron "
+                f"{len(nuevas)} preguntas Nivel 1."
+            )
+
+            st.info(
+                "Las cuatro relaciones utilizadas "
+                "en cada pregunta quedan consumidas "
+                "y no volverán a utilizarse."
+            )
+
+
+# ============================================================
+# 6. MOSTRAR PREGUNTAS GENERADAS
+# ============================================================
+
+preguntas_63 = st.session_state.get(
+    "preguntas_generadas_63",
+    []
+)
+
+if preguntas_63:
+
+    st.markdown(
+        "### Preguntas generadas"
+    )
+
+    for pregunta in preguntas_63:
+
+        st.markdown(
+            f"**{pregunta['Pregunta_ID']} — "
+            f"{pregunta['Nivel']}**"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"**1.** {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"**2.** {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"**3.** {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"**4.** {pregunta['Respuesta_4']}"
+        )
+
+        st.caption(
+            "Respuesta correcta: "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            "Fuente: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        st.divider()
