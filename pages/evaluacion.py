@@ -3665,68 +3665,22 @@ else:
 # FUENTE:
 # MATRIZ_PRODUCTO_PATOLOGIAS-PAQUETES
 #
-# ARCHIVO PERSISTENTE:
+# SALIDA:
 # COMPONENTES_Y_ACCIONES.csv
 #
-# COLUMNAS FINALES:
+# COLUMNAS:
 # Producto | Componente | Acciones
 #
-# ============================================================
-# REGLAS
-# ============================================================
-#
-# 1. PRODUCTO SIEMPRE SE CONSERVA.
-#
-# 2. SI EL PRODUCTO TIENE UN SOLO COMPONENTE:
-#    TODAS las acciones válidas se asignan a ese componente.
-#
-# 3. SI EL PRODUCTO TIENE VARIOS COMPONENTES:
-#    una acción SOLO se asigna cuando existe una referencia
-#    explícita al componente.
-#
-# 4. Si una acción menciona varios componentes:
-#    se genera una fila por cada componente.
-#
-# 5. La referencia del componente se elimina del texto final
-#    para evitar redundancia.
-#
-# 6. Se eliminan encabezados:
-#    MODO DE ACCIÓN:
-#    MODO DE ACCION:
-#
-# 7. Al aparecer COMBINACIONES:
-#    se corta TODO lo que sigue.
-#
-# 8. Al aparecer SE RECOMIENDA:
-#    se corta TODO lo que sigue.
-#
-# 9. Al aparecer RECOMENDADO:
-#    se corta TODO lo que sigue.
-#
-# 10. Al aparecer RECOMENDACIÓN:
-#     se corta TODO lo que sigue.
-#
-# 11. Al aparecer FRASE DE VENTA:
-#     se corta TODO lo que sigue.
-#
-# 12. Al aparecer FRASE COMERCIAL:
-#     se corta TODO lo que sigue.
-#
-# 13. No se utiliza aprendizaje automático.
-#
-# 14. No se infieren acciones por conocimiento externo.
-#
-# 15. Las relaciones se identifican únicamente con la
-#     información contenida en la matriz.
-#
-# 16. La persistencia se realiza AUTOMÁTICAMENTE después
-#     de generar el DataFrame.
-#
+# IMPORTANTE:
+# - NO modifica 5.7
+# - NO muestra GITHUB_TOKEN
+# - Usa el mismo GITHUB_TOKEN existente en la aplicación
+# - La persistencia es automática
 # ============================================================
 
 
 # ============================================================
-# 1. IMPORTACIONES
+# 1. IMPORTACIONES ESPECÍFICAS DE 5.8
 # ============================================================
 
 import re
@@ -3735,14 +3689,9 @@ import urllib.request
 import urllib.error
 import json
 
-import pandas as pd
-import streamlit as st
-
-from unidecode import unidecode
-
 
 # ============================================================
-# 2. CONFIGURACIÓN DE GITHUB
+# 2. CONFIGURACIÓN DE 5.8
 # ============================================================
 
 GITHUB_USUARIO_58 = "franquiciasauces"
@@ -3751,9 +3700,7 @@ GITHUB_REPOSITORIO_58 = "Asesores"
 
 GITHUB_RAMA_58 = "main"
 
-ARCHIVO_SALIDA_58 = (
-    "COMPONENTES_Y_ACCIONES.csv"
-)
+ARCHIVO_SALIDA_58 = "COMPONENTES_Y_ACCIONES.csv"
 
 URL_GITHUB_58 = (
     "https://api.github.com/repos/"
@@ -3764,32 +3711,28 @@ URL_GITHUB_58 = (
 
 
 # ============================================================
-# 3. VALIDAR TOKEN
+# 3. TOKEN
+# ============================================================
+# IMPORTANTE:
+# NO imprimir, mostrar ni escribir el token en pantalla.
+#
+# Si GITHUB_TOKEN ya fue definido al inicio de evaluacion.py,
+# se reutiliza.
 # ============================================================
 
-try:
+if "GITHUB_TOKEN" not in globals():
 
-    GITHUB_TOKEN
+    try:
 
-except NameError:
+        GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 
-    GITHUB_TOKEN = st.secrets.get(
-        "GITHUB_TOKEN",
-        ""
-    )
+    except Exception:
 
-
-if not GITHUB_TOKEN:
-
-    st.error(
-        "❌ 5.8 ERROR: No existe GITHUB_TOKEN."
-    )
-
-    st.stop()
+        GITHUB_TOKEN = ""
 
 
 # ============================================================
-# 4. NORMALIZACIÓN DE TEXTO
+# 4. NORMALIZAR TEXTO
 # ============================================================
 
 def normalizar_texto_58(texto):
@@ -3851,7 +3794,7 @@ def separar_componentes_58(valor):
         texto
     )
 
-    componentes = []
+    resultado = []
 
     for parte in partes:
 
@@ -3860,30 +3803,26 @@ def separar_componentes_58(valor):
         if not parte:
             continue
 
-        normalizado = (
-            normalizar_texto_58(
-                parte
-            )
-        )
-
-        if normalizado in {
+        if normalizar_texto_58(
+            parte
+        ) in {
             "nan",
             "none",
             "-"
         }:
             continue
 
-        if parte not in componentes:
+        if parte not in resultado:
 
-            componentes.append(
+            resultado.append(
                 parte
             )
 
-    return componentes
+    return resultado
 
 
 # ============================================================
-# 6. MARCADORES DE CORTE
+# 6. MARCADORES QUE NO SON ACCIONES
 # ============================================================
 
 MARCADORES_CORTE_58 = [
@@ -3920,40 +3859,32 @@ MARCADORES_CORTE_58 = [
 
 
 # ============================================================
-# 7. CORTAR DESDE EL PRIMER MARCADOR
+# 7. CORTAR CONTENIDO POSTERIOR
 # ============================================================
 
-def cortar_contenido_58(
-    texto
-):
+def cortar_contenido_58(texto):
 
     if not texto:
         return ""
 
-    texto_original = str(
+    original = str(
         texto
     )
 
-    texto_normalizado = (
-        normalizar_texto_58(
-            texto_original
-        )
+    normalizado = normalizar_texto_58(
+        original
     )
 
     posiciones = []
 
     for marcador in MARCADORES_CORTE_58:
 
-        marcador_normalizado = (
-            normalizar_texto_58(
-                marcador
-            )
+        marcador_n = normalizar_texto_58(
+            marcador
         )
 
-        posicion = (
-            texto_normalizado.find(
-                marcador_normalizado
-            )
+        posicion = normalizado.find(
+            marcador_n
         )
 
         if posicion >= 0:
@@ -3968,22 +3899,18 @@ def cortar_contenido_58(
             posiciones
         )
 
-        texto_original = (
-            texto_original[
-                :limite
-            ]
-        )
+        original = original[
+            :limite
+        ]
 
-    return texto_original.strip()
+    return original.strip()
 
 
 # ============================================================
-# 8. ELIMINAR ENCABEZADOS
+# 8. ELIMINAR "MODO DE ACCIÓN"
 # ============================================================
 
-def limpiar_encabezados_58(
-    texto
-):
+def limpiar_modo_accion_58(texto):
 
     if not texto:
         return ""
@@ -4030,36 +3957,21 @@ def limpiar_encabezados_58(
 # 9. SEPARAR ACCIONES
 # ============================================================
 
-def separar_acciones_58(
-    texto
-):
+def separar_acciones_58(texto):
 
     if not texto:
         return []
-
-    # --------------------------------------------------------
-    # Primero cortar COMBINACIONES / RECOMENDACIONES /
-    # FRASE DE VENTA.
-    # --------------------------------------------------------
 
     texto = cortar_contenido_58(
         texto
     )
 
-    # --------------------------------------------------------
-    # Eliminar MODO DE ACCIÓN.
-    # --------------------------------------------------------
-
-    texto = limpiar_encabezados_58(
+    texto = limpiar_modo_accion_58(
         texto
     )
 
     if not texto:
         return []
-
-    # --------------------------------------------------------
-    # Separar acciones por ;
-    # --------------------------------------------------------
 
     partes = re.split(
         r"\s*;\s*",
@@ -4075,24 +3987,22 @@ def separar_acciones_58(
         if not accion:
             continue
 
-        accion = limpiar_encabezados_58(
+        accion = limpiar_modo_accion_58(
             accion
         )
 
-        if not accion:
-            continue
-
-        normalizada = (
-            normalizar_texto_58(
-                accion
-            )
+        normalizada = normalizar_texto_58(
+            accion
         )
 
+        if not normalizada:
+            continue
+
         # ----------------------------------------------------
-        # Seguridad adicional
+        # No permitir que estas secciones entren como acción.
         # ----------------------------------------------------
 
-        marcadores_excluir = [
+        prohibidas = [
 
             "se recomienda",
 
@@ -4108,23 +4018,12 @@ def separar_acciones_58(
 
         ]
 
-        excluir = False
+        if any(
+            normalizada.startswith(x)
+            for x in prohibidas
+        ):
 
-        for marcador in marcadores_excluir:
-
-            if normalizada.startswith(
-                marcador
-            ):
-
-                excluir = True
-                break
-
-        if excluir:
             continue
-
-        # ----------------------------------------------------
-        # Limpiar espacios
-        # ----------------------------------------------------
 
         accion = re.sub(
             r"\s+",
@@ -4132,10 +4031,7 @@ def separar_acciones_58(
             accion
         ).strip()
 
-        if not accion:
-            continue
-
-        if accion not in acciones:
+        if accion and accion not in acciones:
 
             acciones.append(
                 accion
@@ -4156,22 +4052,11 @@ def componentes_mencionados_58(
     if not accion:
         return []
 
-    if not componentes:
-        return []
-
-    accion_normalizada = (
-        normalizar_texto_58(
-            accion
-        )
+    accion_normalizada = normalizar_texto_58(
+        accion
     )
 
     encontrados = []
-
-    # --------------------------------------------------------
-    # Buscar primero componentes más largos.
-    # Esto evita problemas con nombres contenidos dentro
-    # de otros nombres.
-    # --------------------------------------------------------
 
     componentes_ordenados = sorted(
         componentes,
@@ -4183,20 +4068,18 @@ def componentes_mencionados_58(
 
     for componente in componentes_ordenados:
 
-        componente_normalizado = (
-            normalizar_texto_58(
-                componente
-            )
+        componente_n = normalizar_texto_58(
+            componente
         )
 
-        if not componente_normalizado:
+        if not componente_n:
             continue
 
         patron = (
             r"(?<!\w)"
             +
             re.escape(
-                componente_normalizado
+                componente_n
             )
             +
             r"(?!\w)"
@@ -4217,10 +4100,10 @@ def componentes_mencionados_58(
 
 
 # ============================================================
-# 11. LIMPIAR REFERENCIAS DE COMPONENTES
+# 11. LIMPIAR REFERENCIAS AL COMPONENTE
 # ============================================================
 
-def limpiar_referencias_58(
+def limpiar_referencias_componentes_58(
     accion,
     componentes_identificados
 ):
@@ -4236,19 +4119,16 @@ def limpiar_referencias_58(
 
         return resultado
 
-    # ========================================================
-    # A. ELIMINAR PARÉNTESIS QUE CONTENGAN COMPONENTES
-    # ========================================================
+    # --------------------------------------------------------
+    # Primero eliminar paréntesis cuyo contenido corresponde
+    # únicamente a componentes identificados.
+    # --------------------------------------------------------
 
-    def limpiar_parentesis(
-        coincidencia
-    ):
+    def limpiar_parentesis(match):
 
-        contenido = (
-            coincidencia.group(
-                1
-            ).strip()
-        )
+        contenido = match.group(
+            1
+        ).strip()
 
         componentes_dentro = (
             componentes_mencionados_58(
@@ -4257,59 +4137,51 @@ def limpiar_referencias_58(
             )
         )
 
-        # Si el contenido del paréntesis corresponde
-        # a componentes identificados, se elimina completo.
+        if not componentes_dentro:
 
-        if componentes_dentro:
+            return match.group(
+                0
+            )
 
-            contenido_normalizado = (
+        restante = normalizar_texto_58(
+            contenido
+        )
+
+        for componente in componentes_identificados:
+
+            componente_n = (
                 normalizar_texto_58(
-                    contenido
+                    componente
                 )
             )
 
-            nombres_normalizados = [
-
-                normalizar_texto_58(
-                    c
-                )
-
-                for c in
-                componentes_identificados
-
-            ]
-
-            # ------------------------------------------------
-            # Confirmar que no haya información distinta
-            # dentro del paréntesis.
-            # ------------------------------------------------
-
-            restante = contenido_normalizado
-
-            for nombre in nombres_normalizados:
-
-                restante = restante.replace(
-                    nombre,
-                    ""
-                )
-
-            restante = re.sub(
-                r"[\+\&,;/y]+",
-                "",
-                restante
+            restante = restante.replace(
+                componente_n,
+                ""
             )
 
-            restante = re.sub(
-                r"\s+",
-                "",
-                restante
-            )
+        restante = re.sub(
+            r"[\+\&,;/]+",
+            "",
+            restante
+        )
 
-            if not restante:
+        restante = restante.replace(
+            " y ",
+            ""
+        )
 
-                return ""
+        restante = re.sub(
+            r"\s+",
+            "",
+            restante
+        )
 
-        return coincidencia.group(
+        if not restante:
+
+            return ""
+
+        return match.group(
             0
         )
 
@@ -4319,9 +4191,9 @@ def limpiar_referencias_58(
         resultado
     )
 
-    # ========================================================
-    # B. ELIMINAR COMPONENTES QUE QUEDEN FUERA
-    # ========================================================
+    # --------------------------------------------------------
+    # Después eliminar referencia directa restante.
+    # --------------------------------------------------------
 
     for componente in sorted(
         componentes_identificados,
@@ -4331,20 +4203,18 @@ def limpiar_referencias_58(
         reverse=True
     ):
 
-        componente_normalizado = (
-            normalizar_texto_58(
-                componente
-            )
+        componente_n = normalizar_texto_58(
+            componente
         )
 
-        if not componente_normalizado:
+        if not componente_n:
             continue
 
         patron = (
             r"(?<!\w)"
             +
             re.escape(
-                componente_normalizado
+                componente_n
             )
             +
             r"(?!\w)"
@@ -4357,9 +4227,9 @@ def limpiar_referencias_58(
             flags=re.IGNORECASE
         )
 
-    # ========================================================
-    # C. LIMPIEZA FINAL
-    # ========================================================
+    # --------------------------------------------------------
+    # Limpieza final.
+    # --------------------------------------------------------
 
     resultado = re.sub(
         r"\(\s*\)",
@@ -4368,19 +4238,13 @@ def limpiar_referencias_58(
     )
 
     resultado = re.sub(
-        r"\s{2,}",
+        r"\s+",
         " ",
         resultado
     )
 
     resultado = re.sub(
         r"\s+([,.;:])",
-        r"\1",
-        resultado
-    )
-
-    resultado = re.sub(
-        r"([,;:])\s+([,;:])",
         r"\1",
         resultado
     )
@@ -4451,20 +4315,17 @@ def generar_relaciones_58(
             continue
 
         # ====================================================
-        # CASO 1:
-        # UN SOLO COMPONENTE
+        # PRODUCTO CON UN SOLO COMPONENTE
         # ====================================================
 
         if len(componentes) == 1:
 
-            componente = (
-                componentes[0]
-            )
+            componente = componentes[0]
 
             for accion in acciones:
 
                 accion_limpia = (
-                    limpiar_referencias_58(
+                    limpiar_referencias_componentes_58(
                         accion,
                         [componente]
                     )
@@ -4486,71 +4347,63 @@ def generar_relaciones_58(
 
                 })
 
-            continue
-
         # ====================================================
-        # CASO 2:
-        # VARIOS COMPONENTES
+        # PRODUCTO CON VARIOS COMPONENTES
         # ====================================================
 
-        for accion in acciones:
+        else:
 
-            componentes_identificados = (
-                componentes_mencionados_58(
-                    accion,
-                    componentes
+            for accion in acciones:
+
+                componentes_identificados = (
+                    componentes_mencionados_58(
+                        accion,
+                        componentes
+                    )
                 )
-            )
 
-            # ------------------------------------------------
-            # SIN REFERENCIA EXPLÍCITA
-            # ------------------------------------------------
+                # --------------------------------------------
+                # REGLA FUNDAMENTAL:
+                # si no aparece explícitamente el componente,
+                # NO se crea relación.
+                # --------------------------------------------
 
-            if not componentes_identificados:
+                if not componentes_identificados:
 
-                continue
+                    continue
 
-            # ------------------------------------------------
-            # LIMPIAR UNA SOLA VEZ
-            # para todos los componentes identificados.
-            # ------------------------------------------------
+                accion_limpia = (
+                    limpiar_referencias_componentes_58(
+                        accion,
+                        componentes_identificados
+                    )
+                )
 
-            accion_limpia = (
-                limpiar_referencias_58(
-                    accion,
+                if not accion_limpia:
+                    continue
+
+                for componente in (
                     componentes_identificados
-                )
-            )
+                ):
 
-            if not accion_limpia:
-                continue
+                    relaciones.append({
 
-            # ------------------------------------------------
-            # UNA FILA POR CADA COMPONENTE
-            # ------------------------------------------------
+                        "Producto":
+                            producto,
 
-            for componente in (
-                componentes_identificados
-            ):
+                        "Componente":
+                            componente,
 
-                relaciones.append({
+                        "Acciones":
+                            accion_limpia
 
-                    "Producto":
-                        producto,
-
-                    "Componente":
-                        componente,
-
-                    "Acciones":
-                        accion_limpia
-
-                })
+                    })
 
     # ========================================================
-    # CREAR DATAFRAME
+    # DATAFRAME FINAL
     # ========================================================
 
-    df_relaciones = pd.DataFrame(
+    df_resultado = pd.DataFrame(
         relaciones,
         columns=[
             "Producto",
@@ -4559,14 +4412,10 @@ def generar_relaciones_58(
         ]
     )
 
-    # ========================================================
-    # ELIMINAR DUPLICADOS
-    # ========================================================
+    if not df_resultado.empty:
 
-    if not df_relaciones.empty:
-
-        df_relaciones = (
-            df_relaciones
+        df_resultado = (
+            df_resultado
             .drop_duplicates(
                 subset=[
                     "Producto",
@@ -4579,16 +4428,16 @@ def generar_relaciones_58(
             )
         )
 
-    return df_relaciones
+    return df_resultado
 
 
 # ============================================================
-# 13. CARGAR MATRIZ ORIGINAL
+# 13. CARGAR MATRIZ
 # ============================================================
 
-def cargar_matriz_original_58():
+def cargar_matriz_58():
 
-    rutas = [
+    nombres = [
 
         "MATRIZ_PRODUCTO_PATOLOGIAS-PAQUETES.xlsx",
 
@@ -4600,27 +4449,23 @@ def cargar_matriz_original_58():
 
     ]
 
-    for ruta in rutas:
+    for nombre in nombres:
 
         try:
 
             df = pd.read_excel(
-                ruta
+                nombre
             )
 
-            columnas_requeridas = {
+            columnas = set(
+                df.columns
+            )
 
+            if {
                 "Producto",
-
                 "Componentes",
-
                 "Acciones generales"
-
-            }
-
-            if columnas_requeridas.issubset(
-                set(df.columns)
-            ):
+            }.issubset(columnas):
 
                 return df
 
@@ -4632,39 +4477,43 @@ def cargar_matriz_original_58():
 
 
 # ============================================================
-# 14. PERSISTENCIA AUTOMÁTICA EN GITHUB
+# 14. PERSISTENCIA
 # ============================================================
 
-def persistir_58(
-    df_relaciones
+def guardar_github_58(
+    df_resultado
 ):
+
+    # --------------------------------------------------------
+    # NO mostrar jamás GITHUB_TOKEN.
+    # --------------------------------------------------------
+
+    if not GITHUB_TOKEN:
+
+        st.error(
+            "❌ 5.8: GITHUB_TOKEN no está configurado."
+        )
+
+        return False
 
     try:
 
-        # ====================================================
-        # CONVERTIR A CSV
-        # ====================================================
-
-        contenido_csv = (
-            df_relaciones.to_csv(
+        csv_texto = (
+            df_resultado.to_csv(
                 index=False,
                 encoding="utf-8-sig"
             )
         )
 
-        contenido_base64 = (
+        contenido = (
             base64.b64encode(
-                contenido_csv.encode(
+                csv_texto.encode(
                     "utf-8-sig"
                 )
             ).decode(
                 "utf-8"
             )
         )
-
-        # ====================================================
-        # HEADERS
-        # ====================================================
 
         headers = {
 
@@ -4685,12 +4534,12 @@ def persistir_58(
         sha = None
 
         # ====================================================
-        # BUSCAR ARCHIVO EXISTENTE
+        # CONSULTAR ARCHIVO
         # ====================================================
 
         try:
 
-            solicitud_get = (
+            request_get = (
                 urllib.request.Request(
                     URL_GITHUB_58,
                     headers=headers,
@@ -4699,12 +4548,12 @@ def persistir_58(
             )
 
             with urllib.request.urlopen(
-                solicitud_get,
+                request_get,
                 timeout=30
-            ) as respuesta:
+            ) as response:
 
                 datos = json.loads(
-                    respuesta.read().decode(
+                    response.read().decode(
                         "utf-8"
                     )
                 )
@@ -4717,46 +4566,25 @@ def persistir_58(
 
             if error.code != 404:
 
-                detalle = ""
-
-                try:
-
-                    detalle = (
-                        error.read()
-                        .decode(
-                            "utf-8"
-                        )
-                    )
-
-                except Exception:
-
-                    detalle = str(
-                        error
-                    )
-
                 st.error(
-                    "❌ 5.8: GitHub no permitió "
-                    "consultar el archivo existente."
-                )
-
-                st.code(
-                    detalle
+                    "❌ 5.8: No fue posible "
+                    "consultar el archivo en GitHub."
                 )
 
                 return False
 
         # ====================================================
-        # DATOS PARA CREAR / ACTUALIZAR
+        # CREAR / ACTUALIZAR
         # ====================================================
 
-        datos_guardado = {
+        payload = {
 
             "message":
                 "5.8 - Actualizar "
                 "COMPONENTES_Y_ACCIONES.csv",
 
             "content":
-                contenido_base64,
+                contenido,
 
             "branch":
                 GITHUB_RAMA_58
@@ -4765,45 +4593,37 @@ def persistir_58(
 
         if sha:
 
-            datos_guardado[
+            payload[
                 "sha"
             ] = sha
 
-        cuerpo = json.dumps(
-            datos_guardado
+        body = json.dumps(
+            payload
         ).encode(
             "utf-8"
         )
 
-        # ====================================================
-        # PUT
-        # ====================================================
-
-        solicitud_put = (
+        request_put = (
             urllib.request.Request(
                 URL_GITHUB_58,
-                data=cuerpo,
+                data=body,
                 headers=headers,
                 method="PUT"
             )
         )
 
         with urllib.request.urlopen(
-            solicitud_put,
+            request_put,
             timeout=30
-        ) as respuesta:
+        ) as response:
 
-            respuesta_json = json.loads(
-                respuesta.read().decode(
+            resultado = json.loads(
+                response.read().decode(
                     "utf-8"
                 )
             )
 
-        # ====================================================
-        # VERIFICAR RESPUESTA
-        # ====================================================
-
-        if respuesta_json.get(
+        if resultado.get(
             "content"
         ):
 
@@ -4813,50 +4633,29 @@ def persistir_58(
 
     except urllib.error.HTTPError as error:
 
-        detalle = ""
-
-        try:
-
-            detalle = (
-                error.read()
-                .decode(
-                    "utf-8"
-                )
-            )
-
-        except Exception:
-
-            detalle = str(
-                error
-            )
-
         st.error(
-            "❌ 5.8 ERROR HTTP al guardar "
-            "COMPONENTES_Y_ACCIONES.csv"
+            "❌ 5.8: GitHub rechazó "
+            "la actualización."
         )
 
-        st.code(
-            detalle
-        )
+        # IMPORTANTE:
+        # NO mostramos el contenido del error
+        # porque podría contener información sensible.
 
         return False
 
-    except Exception as error:
+    except Exception:
 
         st.error(
-            "❌ 5.8 ERROR al guardar "
-            "COMPONENTES_Y_ACCIONES.csv"
-        )
-
-        st.exception(
-            error
+            "❌ 5.8: Error inesperado "
+            "durante la persistencia."
         )
 
         return False
 
 
 # ============================================================
-# 15. INTERFAZ 5.8
+# 15. INTERFAZ
 # ============================================================
 
 st.markdown(
@@ -4864,13 +4663,13 @@ st.markdown(
 )
 
 st.write(
-    "Genera y persiste las relaciones "
+    "Genera las relaciones "
     "Producto + Componente + Acción."
 )
 
 
 # ============================================================
-# 16. BOTÓN ÚNICO DE GENERACIÓN
+# 16. GENERAR
 # ============================================================
 
 if st.button(
@@ -4879,11 +4678,11 @@ if st.button(
 ):
 
     # ========================================================
-    # CARGAR MATRIZ
+    # CARGAR
     # ========================================================
 
     df_matriz_58 = (
-        cargar_matriz_original_58()
+        cargar_matriz_58()
     )
 
     if df_matriz_58 is None:
@@ -4903,41 +4702,41 @@ if st.button(
         st.stop()
 
     # ========================================================
-    # GENERAR RELACIONES
+    # GENERAR
     # ========================================================
 
-    df_relaciones_58 = (
+    df_resultado_58 = (
         generar_relaciones_58(
             df_matriz_58
         )
     )
 
     # ========================================================
-    # GUARDAR EN SESIÓN
+    # SESIÓN
     # ========================================================
 
     st.session_state[
         "df_componentes_acciones_58"
-    ] = df_relaciones_58.copy()
+    ] = df_resultado_58.copy()
 
     # ========================================================
-    # TOTALIZAR
+    # TOTALIZACIÓN
     # ========================================================
 
     total_relaciones_58 = len(
-        df_relaciones_58
+        df_resultado_58
     )
 
-    if not df_relaciones_58.empty:
+    if not df_resultado_58.empty:
 
         total_productos_58 = (
-            df_relaciones_58[
+            df_resultado_58[
                 "Producto"
             ].nunique()
         )
 
         total_componentes_58 = (
-            df_relaciones_58[
+            df_resultado_58[
                 "Componente"
             ].nunique()
         )
@@ -4957,13 +4756,12 @@ if st.button(
     )
 
     st.info(
-        f"Se generaron "
-        f"**{total_relaciones_58:,}** "
-        f"relaciones Producto–Componente–Acción."
+        f"Relaciones generadas: "
+        f"**{total_relaciones_58:,}**"
     )
 
     st.info(
-        f"Productos con relaciones: "
+        f"Productos involucrados: "
         f"**{total_productos_58:,}**"
     )
 
@@ -4977,30 +4775,32 @@ if st.button(
     # ========================================================
 
     with st.spinner(
-        "Guardando COMPONENTES_Y_ACCIONES.csv "
-        "persistentemente en GitHub..."
+        "Guardando persistentemente..."
     ):
 
         guardado_58 = (
-            persistir_58(
-                df_relaciones_58
+            guardar_github_58(
+                df_resultado_58
             )
         )
 
     if guardado_58:
 
         st.success(
-            "✅ Persistencia correcta: "
-            "COMPONENTES_Y_ACCIONES.csv "
-            "quedó guardado en GitHub."
+            "✅ Persistencia correcta."
+        )
+
+        st.write(
+            "Archivo persistente: "
+            "**COMPONENTES_Y_ACCIONES.csv**"
         )
 
     else:
 
         st.error(
-            "❌ El DataFrame fue generado, "
-            "pero NO se pudo guardar "
-            "persistentemente en GitHub."
+            "❌ Se generó el resultado, "
+            "pero no fue posible guardarlo "
+            "persistentemente."
         )
 
     # ========================================================
@@ -5008,11 +4808,11 @@ if st.button(
     # ========================================================
 
     st.markdown(
-        "#### Vista previa de relaciones"
+        "#### Vista previa"
     )
 
     st.dataframe(
-        df_relaciones_58,
+        df_resultado_58,
         use_container_width=True,
         hide_index=True
     )
@@ -5021,8 +4821,8 @@ if st.button(
     # DESCARGA
     # ========================================================
 
-    csv_descarga_58 = (
-        df_relaciones_58.to_csv(
+    csv_58 = (
+        df_resultado_58.to_csv(
             index=False,
             encoding="utf-8-sig"
         )
@@ -5033,11 +4833,10 @@ if st.button(
             "⬇️ Descargar "
             "COMPONENTES_Y_ACCIONES.csv"
         ),
-        data=csv_descarga_58,
+        data=csv_58,
         file_name=(
             "COMPONENTES_Y_ACCIONES.csv"
         ),
         mime="text/csv",
         key="descargar_componentes_acciones_58"
     )
-
