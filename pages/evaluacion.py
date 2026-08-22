@@ -7814,16 +7814,13 @@ if preguntas_62:
             "se habilitará a continuación."
         )
 
-
 # ============================================================
 # 6.2 - PARTE 4
 # SINCRONIZAR PREGUNTAS CON BANCO GENERAL
 # ============================================================
 
 GITHUB_USUARIO_62 = "franquiciasauces"
-
 GITHUB_REPOSITORIO_62 = "Asesores"
-
 GITHUB_RAMA_62 = "main"
 
 GITHUB_ARCHIVO_62 = (
@@ -7853,13 +7850,16 @@ def sincronizar_banco_62():
 
         return
 
-    if any(
-        p.get(
+    pendientes = [
+        p
+        for p in preguntas
+        if p.get(
             "Estado",
             "PENDIENTE"
         ) == "PENDIENTE"
-        for p in preguntas
-    ):
+    ]
+
+    if pendientes:
 
         st.error(
             "Todavía hay preguntas pendientes "
@@ -7879,7 +7879,7 @@ def sincronizar_banco_62():
     try:
 
         # ----------------------------------------------------
-        # LEER BANCO EXISTENTE
+        # LEER BANCO DESDE GITHUB
         # ----------------------------------------------------
 
         solicitud = urllib.request.Request(
@@ -7908,9 +7908,42 @@ def sincronizar_banco_62():
             )
         )
 
-        df_banco = pd.read_excel(
-            io.BytesIO(contenido)
+        # ----------------------------------------------------
+        # LEER EXCEL SIN UTILIZAR io
+        # ----------------------------------------------------
+
+        archivo_temporal = (
+            tempfile.NamedTemporaryFile(
+                suffix=".xlsx",
+                delete=False
+            )
         )
+
+        ruta_temporal = (
+            archivo_temporal.name
+        )
+
+        try:
+
+            archivo_temporal.write(
+                contenido
+            )
+
+            archivo_temporal.close()
+
+            df_banco = pd.read_excel(
+                ruta_temporal,
+                engine="openpyxl"
+            )
+
+        finally:
+
+            try:
+                os.remove(
+                    ruta_temporal
+                )
+            except Exception:
+                pass
 
         total_antes = len(
             df_banco
@@ -7942,12 +7975,28 @@ def sincronizar_banco_62():
             "Fuente_ID"
         ]
 
+        faltantes = [
+            columna
+            for columna in columnas
+            if columna not in df_nuevas.columns
+        ]
+
+        if faltantes:
+
+            st.error(
+                "6.2 ERROR: faltan columnas "
+                "en las preguntas generadas: "
+                + ", ".join(faltantes)
+            )
+
+            return
+
         df_nuevas = df_nuevas[
             columnas
         ].copy()
 
         # ----------------------------------------------------
-        # EVITAR DUPLICADOS
+        # EVITAR DUPLICAR Pregunta_ID
         # ----------------------------------------------------
 
         if "Pregunta_ID" in df_banco.columns:
@@ -7956,6 +8005,7 @@ def sincronizar_banco_62():
                 df_banco[
                     "Pregunta_ID"
                 ]
+                .fillna("")
                 .astype(str)
                 .str.strip()
             )
@@ -7964,14 +8014,19 @@ def sincronizar_banco_62():
                 ~df_nuevas[
                     "Pregunta_ID"
                 ]
+                .fillna("")
                 .astype(str)
                 .str.strip()
                 .isin(existentes)
-            ]
+            ].copy()
 
         total_nuevas = len(
             df_nuevas
         )
+
+        # ----------------------------------------------------
+        # NADA NUEVO
+        # ----------------------------------------------------
 
         if total_nuevas == 0:
 
@@ -7999,28 +8054,55 @@ def sincronizar_banco_62():
         )
 
         # ----------------------------------------------------
-        # CREAR EXCEL
+        # CREAR ARCHIVO EXCEL TEMPORAL
         # ----------------------------------------------------
 
-        memoria = io.BytesIO()
-
-        with pd.ExcelWriter(
-            memoria,
-            engine="openpyxl"
-        ) as writer:
-
-            df_final.to_excel(
-                writer,
-                index=False,
-                sheet_name="Banco"
+        archivo_salida = (
+            tempfile.NamedTemporaryFile(
+                suffix=".xlsx",
+                delete=False
             )
-
-        contenido_nuevo = (
-            base64.b64encode(
-                memoria.getvalue()
-            )
-            .decode("utf-8")
         )
+
+        ruta_salida = (
+            archivo_salida.name
+        )
+
+        archivo_salida.close()
+
+        try:
+
+            with pd.ExcelWriter(
+                ruta_salida,
+                engine="openpyxl"
+            ) as writer:
+
+                df_final.to_excel(
+                    writer,
+                    index=False,
+                    sheet_name="Banco"
+                )
+
+            with open(
+                ruta_salida,
+                "rb"
+            ) as archivo:
+
+                contenido_nuevo = (
+                    base64.b64encode(
+                        archivo.read()
+                    )
+                    .decode("utf-8")
+                )
+
+        finally:
+
+            try:
+                os.remove(
+                    ruta_salida
+                )
+            except Exception:
+                pass
 
         # ----------------------------------------------------
         # ACTUALIZAR GITHUB
@@ -8072,8 +8154,8 @@ def sincronizar_banco_62():
         )
 
         st.success(
-            "✅ Banco de preguntas actualizado "
-            "correctamente en GitHub."
+            "✅ BANCO_PREGUNTAS_GENERALES.xlsx "
+            "fue actualizado correctamente en GitHub."
         )
 
         st.info(
