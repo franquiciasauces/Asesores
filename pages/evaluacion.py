@@ -5,27 +5,19 @@
 # ============================================================
 
 from pathlib import Path
-import pandas as pd
+from unidecode import unidecode
+from rapidfuzz import fuzz
 import streamlit as st
+import pandas as pd
+import numpy as np
 
-from github import Github
+import base64
+import urllib.request
+import urllib.error
+import json
 
 GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
-GITHUB_USUARIO = "franquiciasauces"
-GITHUB_REPOSITORIO = "Asesores"
 
-def sync_github(csv_str):
-    try:
-        g = Github(GITHUB_TOKEN)
-        repo = g.get_repo(f"{GITHUB_USUARIO}/{GITHUB_REPOSITORIO}")
-        try:
-            c = repo.get_contents("RELACIONES_PRODUCTO_ACCION_GENERAL.csv")
-            repo.update_file(c.path, "Actualización manual", csv_str, c.sha)
-        except:
-            repo.create_file("RELACIONES_PRODUCTO_ACCION_GENERAL.csv", "Creación automática", csv_str)
-        return True, "Sincronizado"
-    except Exception as e:
-        return False, str(e)
 
 # ============================================================
 # 1. CONFIGURACIÓN
@@ -287,7 +279,7 @@ except Exception as e:
         f"{type(e).__name__}: {e}"
     )
 
- ============================================================
+# ============================================================
 # 5.3 CLASIFICACIÓN MANUAL
 # ============================================================
 st.markdown("### 5.3 Clasificación Manual")
@@ -295,8 +287,7 @@ st.markdown("### 5.3 Clasificación Manual")
 if "df_acciones_52" not in st.session_state:
     st.error("❌ Primero ejecuta la sección 5.2.")
 else:
-    if "final" not in st.session_state: 
-        st.session_state["final"] = False
+    if "final" not in st.session_state: st.session_state["final"] = False
     
     if not st.session_state["final"]:
         if "df_e" not in st.session_state:
@@ -307,8 +298,7 @@ else:
         st.session_state["df_e"] = st.data_editor(st.session_state["df_e"], use_container_width=True)
         
         if st.button("✅ Finalizar Validación"):
-            mask = st.session_state["df_e"]["¿General?"] == True
-            val = st.session_state["df_e"][mask]["Acción"].tolist()
+            val = st.session_state["df_e"][st.session_state["df_e"]["¿General?"]]["Acción"].tolist()
             st.session_state["df_limpio"] = st.session_state["df_acciones_52"][st.session_state["df_acciones_52"]["Acción general"].isin(val)].copy()
             st.session_state["final"] = True
             st.rerun()
@@ -323,7 +313,7 @@ else:
                 st.rerun()
         with col2:
             if st.button("🚀 Sincronizar"):
-                with st.spinner("Subiendo..."):
-                    ok, msg = sync_github(st.session_state["df_limpio"].to_csv(index=False))
-                    if ok: st.success(msg)
-                    else: st.error(msg)
+                ok, msg = sync_github(st.session_state["df_limpio"].to_csv(index=False))
+                if ok: st.success(msg)
+                else: st.error(msg)
+
