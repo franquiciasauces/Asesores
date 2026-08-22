@@ -3312,3 +3312,271 @@ if st.button(
         st.exception(
             error
         )
+# ============================================================
+# 5.7 — PERSISTENCIA DE PRODUCTO_ACCIONESGENERALES
+# ============================================================
+# Toma MATRIZ_56.cvs generado por 5.6 y lo guarda
+# persistentemente en GitHub como:
+#
+#     producto_accionesgenerales.csv
+#
+# Este bloque NO clasifica.
+# Este bloque NO modifica las relaciones.
+# Este bloque NO ejecuta aprendizaje.
+# Este bloque solamente persiste el resultado de 5.6.
+# ============================================================
+
+import base64
+from pathlib import Path
+import requests
+import streamlit as st
+
+
+def persistir_producto_accionesgenerales():
+
+    # --------------------------------------------------------
+    # 1. Archivo generado por 5.6
+    # --------------------------------------------------------
+    archivo_origen = "MATRIZ_56.cvs"
+
+    rutas_posibles = [
+        Path.cwd() / archivo_origen,
+        Path(__file__).resolve().parent / archivo_origen,
+        Path(archivo_origen),
+    ]
+
+    archivo_local = None
+
+    for ruta in rutas_posibles:
+        if ruta.exists() and ruta.is_file():
+            archivo_local = ruta
+            break
+
+    if archivo_local is None:
+        st.error(
+            "No se encontró MATRIZ_56.cvs. "
+            "Ejecute primero el proceso 5.6 para generar el archivo."
+        )
+        return False
+
+    # --------------------------------------------------------
+    # 2. Leer el archivo generado por 5.6
+    # --------------------------------------------------------
+    try:
+        contenido = archivo_local.read_bytes()
+    except Exception as e:
+        st.error(
+            f"No fue posible leer MATRIZ_56.cvs: {e}"
+        )
+        return False
+
+    if not contenido:
+        st.error(
+            "MATRIZ_56.cvs está vacío. "
+            "No se realizará la persistencia."
+        )
+        return False
+
+    # --------------------------------------------------------
+    # 3. Credenciales de GitHub
+    # --------------------------------------------------------
+    github_token = st.secrets.get("GITHUB_TOKEN", "")
+    github_usuario = st.secrets.get("GITHUB_USUARIO", "")
+    github_repositorio = st.secrets.get("GITHUB_REPOSITORIO", "")
+
+    if not github_token:
+        st.error("No está configurado GITHUB_TOKEN.")
+        return False
+
+    if not github_usuario:
+        st.error("No está configurado GITHUB_USUARIO.")
+        return False
+
+    if not github_repositorio:
+        st.error("No está configurado GITHUB_REPOSITORIO.")
+        return False
+
+    # --------------------------------------------------------
+    # 4. Nombre definitivo del archivo persistente
+    # --------------------------------------------------------
+    nombre_persistente = "producto_accionesgenerales.csv"
+
+    ruta_github = nombre_persistente
+
+    url = (
+        f"https://api.github.com/repos/"
+        f"{github_usuario}/"
+        f"{github_repositorio}/"
+        f"contents/{ruta_github}"
+    )
+
+    headers = {
+        "Authorization": f"Bearer {github_token}",
+        "Accept": "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+    }
+
+    # --------------------------------------------------------
+    # 5. Verificar si el archivo ya existe en GitHub
+    # --------------------------------------------------------
+    try:
+        respuesta_existente = requests.get(
+            url,
+            headers=headers,
+            timeout=30
+        )
+    except Exception as e:
+        st.error(
+            f"No fue posible conectarse con GitHub: {e}"
+        )
+        return False
+
+    sha = None
+
+    if respuesta_existente.status_code == 200:
+
+        try:
+            informacion = respuesta_existente.json()
+            sha = informacion.get("sha")
+        except Exception:
+            sha = None
+
+    elif respuesta_existente.status_code == 404:
+
+        # El archivo todavía no existe.
+        # Se creará por primera vez.
+        sha = None
+
+    else:
+
+        try:
+            detalle = respuesta_existente.json()
+            mensaje = detalle.get(
+                "message",
+                "Error desconocido"
+            )
+        except Exception:
+            mensaje = respuesta_existente.text
+
+        st.error(
+            "GitHub no permitió consultar "
+            f"{nombre_persistente}: {mensaje}"
+        )
+        return False
+
+    # --------------------------------------------------------
+    # 6. Codificar archivo para GitHub
+    # --------------------------------------------------------
+    contenido_base64 = base64.b64encode(
+        contenido
+    ).decode("utf-8")
+
+    datos = {
+        "message": (
+            "Actualizar producto_accionesgenerales.csv "
+            "desde proceso 5.7"
+        ),
+        "content": contenido_base64,
+    }
+
+    # GitHub exige SHA cuando se actualiza
+    # un archivo que ya existe.
+    if sha:
+        datos["sha"] = sha
+
+    # --------------------------------------------------------
+    # 7. Crear o actualizar archivo persistente
+    # --------------------------------------------------------
+    try:
+
+        respuesta_guardado = requests.put(
+            url,
+            headers=headers,
+            json=datos,
+            timeout=30
+        )
+
+    except Exception as e:
+
+        st.error(
+            f"No fue posible guardar el archivo en GitHub: {e}"
+        )
+        return False
+
+    # --------------------------------------------------------
+    # 8. Confirmar resultado
+    # --------------------------------------------------------
+    if respuesta_guardado.status_code in (200, 201):
+
+        if sha:
+            st.success(
+                "producto_accionesgenerales.csv "
+                "fue actualizado correctamente en el repositorio."
+            )
+        else:
+            st.success(
+                "producto_accionesgenerales.csv "
+                "fue creado correctamente en el repositorio."
+            )
+
+        st.info(
+            "El archivo persistente contiene las relaciones "
+            "clasificadas por 5.6 y queda disponible como "
+            "insumo para la siguiente fase."
+        )
+
+        # ----------------------------------------------------
+        # 9. Descargar también desde Streamlit
+        # ----------------------------------------------------
+        st.download_button(
+            label="⬇️ Descargar producto_accionesgenerales.csv",
+            data=contenido,
+            file_name="producto_accionesgenerales.csv",
+            mime="text/csv",
+            key="descargar_producto_accionesgenerales_57"
+        )
+
+        return True
+
+    # --------------------------------------------------------
+    # 10. Mostrar error de GitHub
+    # --------------------------------------------------------
+    try:
+
+        detalle = respuesta_guardado.json()
+
+        mensaje = detalle.get(
+            "message",
+            "Error desconocido"
+        )
+
+    except Exception:
+
+        mensaje = respuesta_guardado.text
+
+    st.error(
+        "No se pudo persistir "
+        "producto_accionesgenerales.csv. "
+        f"Respuesta de GitHub: {mensaje}"
+    )
+
+    return False
+
+
+# ============================================================
+# INTERFAZ 5.7
+# ============================================================
+
+st.markdown("### 5.7 — Persistencia de producto_accionesgenerales")
+
+st.write(
+    "Este proceso toma el resultado generado por 5.6 "
+    "y lo conserva persistentemente como "
+    "`producto_accionesgenerales.csv`."
+)
+
+if st.button(
+    "💾 Guardar producto_accionesgenerales.csv",
+    key="persistir_producto_accionesgenerales_57"
+):
+    persistir_producto_accionesgenerales()
