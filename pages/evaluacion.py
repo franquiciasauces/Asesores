@@ -7837,6 +7837,8 @@ URL_GITHUB_62 = (
 
 def sincronizar_banco_62():
 
+    import io
+
     preguntas = st.session_state.get(
         "preguntas_generadas_62",
         []
@@ -7850,16 +7852,17 @@ def sincronizar_banco_62():
 
         return
 
-    pendientes = [
-        p
-        for p in preguntas
-        if p.get(
+    # --------------------------------------------------------
+    # TODAS LAS PREGUNTAS DEBEN ESTAR REVISADAS
+    # --------------------------------------------------------
+
+    if any(
+        p.get(
             "Estado",
             "PENDIENTE"
         ) == "PENDIENTE"
-    ]
-
-    if pendientes:
+        for p in preguntas
+    ):
 
         st.error(
             "Todavía hay preguntas pendientes "
@@ -7879,7 +7882,7 @@ def sincronizar_banco_62():
     try:
 
         # ----------------------------------------------------
-        # LEER BANCO DESDE GITHUB
+        # LEER ARCHIVO EXISTENTE DESDE GITHUB
         # ----------------------------------------------------
 
         solicitud = urllib.request.Request(
@@ -7909,48 +7912,20 @@ def sincronizar_banco_62():
         )
 
         # ----------------------------------------------------
-        # LEER EXCEL SIN UTILIZAR io
+        # LEER EXCEL EN MEMORIA
         # ----------------------------------------------------
 
-        archivo_temporal = (
-            tempfile.NamedTemporaryFile(
-                suffix=".xlsx",
-                delete=False
-            )
+        df_banco = pd.read_excel(
+            io.BytesIO(contenido),
+            engine="openpyxl"
         )
-
-        ruta_temporal = (
-            archivo_temporal.name
-        )
-
-        try:
-
-            archivo_temporal.write(
-                contenido
-            )
-
-            archivo_temporal.close()
-
-            df_banco = pd.read_excel(
-                ruta_temporal,
-                engine="openpyxl"
-            )
-
-        finally:
-
-            try:
-                os.remove(
-                    ruta_temporal
-                )
-            except Exception:
-                pass
 
         total_antes = len(
             df_banco
         )
 
         # ----------------------------------------------------
-        # CONVERTIR PREGUNTAS VALIDADAS
+        # CONVERTIR PREGUNTAS GENERADAS
         # ----------------------------------------------------
 
         df_nuevas = pd.DataFrame(
@@ -7996,7 +7971,7 @@ def sincronizar_banco_62():
         ].copy()
 
         # ----------------------------------------------------
-        # EVITAR DUPLICAR Pregunta_ID
+        # NO DUPLICAR PREGUNTAS YA EXISTENTES
         # ----------------------------------------------------
 
         if "Pregunta_ID" in df_banco.columns:
@@ -8025,7 +8000,7 @@ def sincronizar_banco_62():
         )
 
         # ----------------------------------------------------
-        # NADA NUEVO
+        # NO HAY PREGUNTAS NUEVAS
         # ----------------------------------------------------
 
         if total_nuevas == 0:
@@ -8054,58 +8029,28 @@ def sincronizar_banco_62():
         )
 
         # ----------------------------------------------------
-        # CREAR ARCHIVO EXCEL TEMPORAL
+        # CREAR NUEVO EXCEL EN MEMORIA
         # ----------------------------------------------------
 
-        archivo_salida = (
-            tempfile.NamedTemporaryFile(
-                suffix=".xlsx",
-                delete=False
+        memoria = io.BytesIO()
+
+        with pd.ExcelWriter(
+            memoria,
+            engine="openpyxl"
+        ) as writer:
+
+            df_final.to_excel(
+                writer,
+                index=False,
+                sheet_name="Banco"
             )
-        )
 
-        ruta_salida = (
-            archivo_salida.name
-        )
-
-        archivo_salida.close()
-
-        try:
-
-            with pd.ExcelWriter(
-                ruta_salida,
-                engine="openpyxl"
-            ) as writer:
-
-                df_final.to_excel(
-                    writer,
-                    index=False,
-                    sheet_name="Banco"
-                )
-
-            with open(
-                ruta_salida,
-                "rb"
-            ) as archivo:
-
-                contenido_nuevo = (
-                    base64.b64encode(
-                        archivo.read()
-                    )
-                    .decode("utf-8")
-                )
-
-        finally:
-
-            try:
-                os.remove(
-                    ruta_salida
-                )
-            except Exception:
-                pass
+        contenido_nuevo = base64.b64encode(
+            memoria.getvalue()
+        ).decode("utf-8")
 
         # ----------------------------------------------------
-        # ACTUALIZAR GITHUB
+        # ACTUALIZAR ARCHIVO EN GITHUB
         # ----------------------------------------------------
 
         datos_actualizacion = {
