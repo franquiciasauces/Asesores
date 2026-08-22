@@ -278,42 +278,156 @@ except Exception as e:
         f"🔴 5.2 ERROR: "
         f"{type(e).__name__}: {e}"
     )
-
 # ============================================================
-# 5.3 CLASIFICACIÓN MANUAL
+# 5.3 ENRIQUECER Y CLASIFICAR ACCIONES
 # ============================================================
-st.markdown("### 5.3 Clasificación Manual")
 
-if "df_acciones_52" not in st.session_state:
-    st.error("❌ Primero ejecuta la sección 5.2.")
-else:
-    if "final" not in st.session_state: st.session_state["final"] = False
-    
-    if not st.session_state["final"]:
-        if "df_e" not in st.session_state:
-            st.session_state["df_e"] = pd.DataFrame({
-                "Acción": st.session_state["df_acciones_52"]["Acción general"].unique(),
-                "¿General?": True
-            })
-        st.session_state["df_e"] = st.data_editor(st.session_state["df_e"], use_container_width=True)
-        
-        if st.button("✅ Finalizar Validación"):
-            val = st.session_state["df_e"][st.session_state["df_e"]["¿General?"]]["Acción"].tolist()
-            st.session_state["df_limpio"] = st.session_state["df_acciones_52"][st.session_state["df_acciones_52"]["Acción general"].isin(val)].copy()
-            st.session_state["final"] = True
-            st.rerun()
-    else:
-        st.success("🔒 VALIDACIÓN FINALIZADA Y FIJA.")
-        st.dataframe(st.session_state["df_limpio"], use_container_width=True)
-        
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("✏️ Editar"): 
-                st.session_state["final"] = False
-                st.rerun()
-        with col2:
-            if st.button("🚀 Sincronizar"):
-                ok, msg = sync_github(st.session_state["df_limpio"].to_csv(index=False))
-                if ok: st.success(msg)
-                else: st.error(msg)
+st.markdown("### 5.3 Clasificación de acciones")
+
+try:
+    requeridas_53 = [
+        "Producto",
+        "Acción general",
+        "Componentes"
+    ]
+
+    faltantes_53 = [
+        columna
+        for columna in requeridas_53
+        if columna not in df_fuente.columns
+    ]
+
+    if faltantes_53:
+        st.error(
+            "❌ 5.3 ERROR: Faltan columnas en la matriz: "
+            + ", ".join(faltantes_53)
+        )
+        st.stop()
+
+    df_componentes_53 = df_fuente[
+        ["Producto", "Componentes"]
+    ].copy()
+
+    df_componentes_53["Producto"] = (
+        df_componentes_53["Producto"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    df_componentes_53["Componentes"] = (
+        df_componentes_53["Componentes"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    df_53 = df_acciones_52.merge(
+        df_componentes_53,
+        on="Producto",
+        how="left"
+    )
+
+    def normalizar_53(texto):
+        return " ".join(
+            unidecode(str(texto))
+            .lower()
+            .split()
+        )
+
+    def separar_componentes_53(texto):
+        texto = str(texto).strip()
+
+        if not texto:
+            return []
+
+        partes = re.split(
+            r"\s*;\s*|\s*,\s*|\s*\|\s*",
+            texto
+        )
+
+        return [
+            parte.strip()
+            for parte in partes
+            if parte.strip()
+        ]
+
+    def contiene_componente_53(accion, componentes):
+        accion_n = normalizar_53(accion)
+
+        encontrados = []
+
+        for componente in componentes:
+            componente_n = normalizar_53(componente)
+
+            if (
+                componente_n
+                and componente_n in accion_n
+            ):
+                encontrados.append(componente)
+
+        return encontrados
+
+    df_53["Lista componentes"] = (
+        df_53["Componentes"]
+        .apply(separar_componentes_53)
+    )
+
+    df_53["Componente identificado"] = df_53.apply(
+        lambda fila: contiene_componente_53(
+            fila["Acción general"],
+            fila["Lista componentes"]
+        ),
+        axis=1
+    )
+
+    df_53["Clasificación"] = df_53[
+        "Componente identificado"
+    ].apply(
+        lambda x:
+            "COMPONENTE + FUNCIÓN"
+            if x
+            else "ACCIÓN GENERAL"
+    )
+
+    df_53["Componente identificado"] = (
+        df_53["Componente identificado"]
+        .apply(
+            lambda x:
+                "; ".join(x)
+                if x
+                else ""
+        )
+    )
+
+    df_53 = df_53[
+        [
+            "Producto",
+            "Acción general",
+            "Componentes",
+            "Componente identificado",
+            "Clasificación"
+        ]
+    ].copy()
+
+    st.session_state[
+        "df_clasificado_53"
+    ] = df_53.copy()
+
+    st.success(
+        f"🟢 5.3 TERMINADO: "
+        f"{len(df_53)} relaciones Producto–Acción clasificadas."
+    )
+
+    st.dataframe(
+        df_53,
+        use_container_width=True,
+        hide_index=True
+    )
+
+except Exception as e:
+    st.error(
+        f"🔴 5.3 ERROR: "
+        f"{type(e).__name__}: {e}"
+    )
 
