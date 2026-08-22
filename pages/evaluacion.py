@@ -10161,9 +10161,8 @@ if (
         use_container_width=True,
         hide_index=True
     )
-python
 
-```python
+
 # ============================================================
 # 6.4 - PARTE 2
 # GENERADOR PRODUCTO - CATEGORÍA PRINCIPAL + COMPLEMENTARIA
