@@ -2179,37 +2179,38 @@ except Exception as e:
     )
 # ============================================================
 # ============================================================
-# 5.6 — APLICACIÓN DEL APRENDIZAJE SOBRE LAS RELACIONES DE 5.2
+# ============================================================
+# FITOASISTE
+# 5.6 — APLICACIÓN DEL APRENDIZAJE DE 5.5
 # ============================================================
 #
-# ENTRADAS:
+# 5.2:
+#   df_acciones_52
 #
-#   1. st.session_state["df_acciones_52"]
-#      Resultado de 5.2.
-#      Es la base de relaciones que 5.2 generó.
+# 5.5:
+#   APRENDIZAJE_54.csv
 #
-#   2. APRENDIZAJE_54.csv
-#      Aprendizaje persistente generado a partir de las
-#      validaciones humanas de 5.4.
-#
-# SALIDA:
-#
-#   MATRIZ_56.csv
-#
-# FUNCIÓN:
-#
-#   5.6 NO APRENDE.
-#   5.6 APLICA EL APRENDIZAJE DE 5.5 SOBRE LAS RELACIONES
-#   QUE YA EXISTEN EN 5.2.
+# 5.6:
+#   - aprende de las validaciones de 5.5
+#   - genera embeddings EXCLUSIVOS para este aprendizaje
+#   - aplica similitud semántica a TODAS las relaciones de 5.2
+#   - no utiliza embeddings de síntomas
+#   - filtra las relaciones que no quedan como ACCIÓN GENERAL
+#   - genera archivo persistente
 #
 # ============================================================
-
 
 import streamlit as st
 import pandas as pd
+import numpy as np
 import re
 import unicodedata
+
 from pathlib import Path
+
+from sentence_transformers import SentenceTransformer
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.preprocessing import normalize
 
 
 # ============================================================
@@ -2218,35 +2219,52 @@ from pathlib import Path
 
 BASE_DIR_56 = Path(__file__).resolve().parent
 
-# ------------------------------------------------------------
-# APRENDIZAJE DE 5.5
-#
-# evaluacion.py está dentro de /pages.
-# Si APRENDIZAJE_54.csv está en la raíz del repositorio:
-#
-# Asesores/
-# ├── APRENDIZAJE_54.csv
-# └── pages/
-#     └── evaluacion.py
-#
-# se utiliza parent.
-# ------------------------------------------------------------
+# evaluacion.py está en /pages
+# Los archivos persistentes están en la raíz del repositorio.
+
+RAIZ_REPOSITORIO_56 = BASE_DIR_56.parent
 
 ARCHIVO_APRENDIZAJE_54 = (
-    BASE_DIR_56.parent / "APRENDIZAJE_54.csv"
+    RAIZ_REPOSITORIO_56 /
+    "APRENDIZAJE_54.csv"
 )
 
-# ------------------------------------------------------------
-# ARCHIVO PERSISTENTE GENERADO POR 5.6
-# ------------------------------------------------------------
+ARCHIVO_EMBEDDINGS_56 = (
+    RAIZ_REPOSITORIO_56 /
+    "EMBEDDINGS_APRENDIZAJE_54.npy"
+)
+
+ARCHIVO_MEMORIA_56 = (
+    RAIZ_REPOSITORIO_56 /
+    "MEMORIA_APRENDIZAJE_54.csv"
+)
 
 ARCHIVO_SALIDA_56 = (
-    BASE_DIR_56.parent / "MATRIZ_56.csv"
+    RAIZ_REPOSITORIO_56 /
+    "MATRIZ_56.csv"
 )
 
 
 # ============================================================
-# 5.6.2 — NORMALIZACIÓN DE TEXTO
+# 5.6.2 — MODELO SEMÁNTICO EXCLUSIVO
+# ============================================================
+#
+# IMPORTANTE:
+#
+# Este modelo NO utiliza:
+#
+# embeddings_sintomas.npy
+#
+# Los embeddings de este módulo son independientes.
+# ============================================================
+
+MODELO_APRENDIZAJE_56 = (
+    "SINAI/ALIA-MrBERT-es-biomedical-embeddings"
+)
+
+
+# ============================================================
+# 5.6.3 — NORMALIZACIÓN
 # ============================================================
 
 def limpiar_texto_56(valor):
@@ -2256,10 +2274,6 @@ def limpiar_texto_56(valor):
 
     texto = str(valor).strip()
 
-    # --------------------------------------------------------
-    # Corrección de problemas de codificación frecuentes
-    # --------------------------------------------------------
-
     try:
 
         if (
@@ -2267,7 +2281,6 @@ def limpiar_texto_56(valor):
             or "Â" in texto
             or "â" in texto
         ):
-
             texto = texto.encode(
                 "latin1"
             ).decode(
@@ -2301,36 +2314,28 @@ def limpiar_texto_56(valor):
     return texto.strip()
 
 
-def clave_texto_56(valor):
+def clave_56(valor):
 
-    texto = limpiar_texto_56(
+    return limpiar_texto_56(
         valor
-    )
-
-    return texto.casefold()
+    ).casefold()
 
 
 # ============================================================
-# 5.6.3 — NORMALIZAR NOMBRES DE COLUMNAS
+# 5.6.4 — NORMALIZAR COLUMNAS
 # ============================================================
 
 def normalizar_columnas_56(df):
 
     df = df.copy()
 
-    nuevas = []
+    columnas = []
 
     for columna in df.columns:
 
         nombre = limpiar_texto_56(
             columna
         )
-
-        # --------------------------------------------
-        # Por seguridad, corrige únicamente errores
-        # de duplicación de letras que aparecieron
-        # en versiones anteriores del archivo.
-        # --------------------------------------------
 
         nombre = nombre.replace(
             "Acciónn general",
@@ -2352,17 +2357,17 @@ def normalizar_columnas_56(df):
             "Corrección 5.3"
         )
 
-        nuevas.append(
+        columnas.append(
             nombre
         )
 
-    df.columns = nuevas
+    df.columns = columnas
 
     return df
 
 
 # ============================================================
-# 5.6.4 — CARGAR APRENDIZAJE DE 5.5
+# 5.6.5 — CARGAR APRENDIZAJE 5.5
 # ============================================================
 
 def cargar_aprendizaje_54_56():
@@ -2370,18 +2375,18 @@ def cargar_aprendizaje_54_56():
     if not ARCHIVO_APRENDIZAJE_54.exists():
 
         raise FileNotFoundError(
-            "No se encontró APRENDIZAJE_54.csv "
-            f"en: {ARCHIVO_APRENDIZAJE_54}"
+            "No se encontró APRENDIZAJE_54.csv en: "
+            f"{ARCHIVO_APRENDIZAJE_54}"
         )
 
     errores = []
 
-    for encoding in [
+    for encoding in (
         "utf-8-sig",
         "utf-8",
         "cp1252",
         "latin1"
-    ]:
+    ):
 
         try:
 
@@ -2409,7 +2414,6 @@ def cargar_aprendizaje_54_56():
             )
 
             if not faltantes:
-
                 return df
 
         except Exception as error:
@@ -2419,19 +2423,17 @@ def cargar_aprendizaje_54_56():
             )
 
     raise ValueError(
-        "APRENDIZAJE_54.csv no contiene "
-        "la estructura esperada. "
-        f"Errores: {errores[-1:]}"
+        "APRENDIZAJE_54.csv no tiene la "
+        "estructura esperada. "
+        f"Último error: {errores[-1:]}"
     )
 
 
 # ============================================================
-# 5.6.5 — OBTENER CLASIFICACIÓN FINAL DE 5.5
+# 5.6.6 — OBTENER CLASIFICACIÓN FINAL
 # ============================================================
 
-def obtener_clasificacion_final_56(
-    fila
-):
+def clasificacion_final_56(fila):
 
     validacion = limpiar_texto_56(
         fila.get(
@@ -2455,68 +2457,222 @@ def obtener_clasificacion_final_56(
     )
 
     # --------------------------------------------------------
-    # La VALIDACIÓN es la decisión humana final.
+    # La validación humana es la decisión final.
     # --------------------------------------------------------
 
     if validacion:
 
-        clasificacion_final = (
-            validacion
-        )
-
-    # --------------------------------------------------------
-    # Respaldo si Validación estuviera vacía.
-    # --------------------------------------------------------
+        resultado = validacion
 
     elif correccion:
 
         if "→" in correccion:
 
-            partes = correccion.split(
-                "→"
-            )
-
-            clasificacion_final = (
-                partes[-1].strip()
+            resultado = (
+                correccion
+                .split("→")[-1]
+                .strip()
             )
 
         else:
 
-            clasificacion_final = (
-                correccion
-            )
-
-    # --------------------------------------------------------
-    # Último respaldo.
-    # --------------------------------------------------------
+            resultado = correccion
 
     else:
 
-        clasificacion_final = (
-            clasificacion_53
-        )
+        resultado = clasificacion_53
 
     # --------------------------------------------------------
-    # HOMOLOGACIÓN DEFINITIVA
+    # HOMOLOGACIÓN
     #
-    # ELIMINAR ya no existe como categoría.
+    # ELIMINAR ya no existe como clasificación.
     # --------------------------------------------------------
 
-    if clave_texto_56(
-        clasificacion_final
-    ) == "eliminar":
+    if clave_56(resultado) == "eliminar":
 
-        clasificacion_final = (
-            "FRASE COMERCIAL"
-        )
+        resultado = "FRASE COMERCIAL"
 
     return limpiar_texto_56(
-        clasificacion_final
+        resultado
     )
 
 
 # ============================================================
-# 5.6.6 — OBTENER RELACIONES DE 5.2
+# 5.6.7 — PREPARAR EJEMPLOS DE APRENDIZAJE
+# ============================================================
+
+def preparar_ejemplos_56(
+    df
+):
+
+    df = df.copy()
+
+    df[
+        "Clasificación final"
+    ] = df.apply(
+        clasificacion_final_56,
+        axis=1
+    )
+
+    df["Producto"] = (
+        df["Producto"]
+        .apply(limpiar_texto_56)
+    )
+
+    df["Acción general"] = (
+        df["Acción general"]
+        .apply(limpiar_texto_56)
+    )
+
+    df["Clasificación 5.3"] = (
+        df["Clasificación 5.3"]
+        .apply(limpiar_texto_56)
+    )
+
+    # --------------------------------------------------------
+    # Solo usamos validaciones que realmente tienen
+    # una decisión final.
+    # --------------------------------------------------------
+
+    df = df[
+        df["Clasificación final"] != ""
+    ].copy()
+
+    return df.reset_index(
+        drop=True
+    )
+
+
+# ============================================================
+# 5.6.8 — TEXTO PARA EMBEDDING
+# ============================================================
+#
+# No usamos solamente la acción.
+#
+# Combinamos:
+#
+#   acción
+#   clasificación anterior
+#   clasificación final
+#
+# Esto permite que el aprendizaje represente el tipo
+# de relación que fue validado.
+# ============================================================
+
+def texto_aprendizaje_56(
+    fila
+):
+
+    accion = limpiar_texto_56(
+        fila["Acción general"]
+    )
+
+    clasificacion = limpiar_texto_56(
+        fila["Clasificación 5.3"]
+    )
+
+    final = limpiar_texto_56(
+        fila["Clasificación final"]
+    )
+
+    return (
+        f"Acción: {accion}. "
+        f"Clasificación inicial: {clasificacion}. "
+        f"Clasificación validada: {final}."
+    )
+
+
+# ============================================================
+# 5.6.9 — CARGAR MODELO
+# ============================================================
+
+@st.cache_resource(
+    show_spinner=False
+)
+def cargar_modelo_aprendizaje_56():
+
+    return SentenceTransformer(
+        MODELO_APRENDIZAJE_56
+    )
+
+
+# ============================================================
+# 5.6.10 — GENERAR EMBEDDINGS DEL APRENDIZAJE
+# ============================================================
+
+def generar_embeddings_aprendizaje_56(
+    df
+):
+
+    modelo = (
+        cargar_modelo_aprendizaje_56()
+    )
+
+    textos = [
+        texto_aprendizaje_56(
+            fila
+        )
+        for _, fila in df.iterrows()
+    ]
+
+    embeddings = modelo.encode(
+        textos,
+        convert_to_numpy=True,
+        normalize_embeddings=True,
+        show_progress_bar=False
+    )
+
+    embeddings = np.asarray(
+        embeddings,
+        dtype=np.float32
+    )
+
+    np.save(
+        ARCHIVO_EMBEDDINGS_56,
+        embeddings
+    )
+
+    return embeddings
+
+
+# ============================================================
+# 5.6.11 — CONSTRUIR MEMORIA PERSISTENTE
+# ============================================================
+
+def construir_memoria_56(
+    df_aprendizaje,
+    embeddings
+):
+
+    memoria = df_aprendizaje[
+        [
+            "Producto",
+            "Acción general",
+            "Clasificación 5.3",
+            "Validación",
+            "Coherencia 5.3",
+            "Corrección 5.3",
+            "Clasificación final"
+        ]
+    ].copy()
+
+    memoria[
+        "Embedding_ID"
+    ] = np.arange(
+        len(memoria)
+    )
+
+    memoria.to_csv(
+        ARCHIVO_MEMORIA_56,
+        index=False,
+        encoding="utf-8-sig"
+    )
+
+    return memoria
+
+
+# ============================================================
+# 5.6.12 — OBTENER RELACIONES DE 5.2
 # ============================================================
 
 def obtener_relaciones_52_56():
@@ -2549,11 +2705,6 @@ def obtener_relaciones_52_56():
         df
     )
 
-    # --------------------------------------------------------
-    # Estas son las columnas mínimas que necesitamos para
-    # aplicar el aprendizaje.
-    # --------------------------------------------------------
-
     requeridas = {
         "Producto",
         "Acción general"
@@ -2567,17 +2718,13 @@ def obtener_relaciones_52_56():
     if faltantes:
 
         raise ValueError(
-            "df_acciones_52 no contiene "
-            f"las columnas requeridas: "
+            "df_acciones_52 no contiene: "
             f"{sorted(faltantes)}"
         )
 
     # --------------------------------------------------------
-    # IMPORTANTE:
-    #
-    # NO reducimos df a dos columnas.
-    #
-    # Se conserva TODO el DataFrame original de 5.2.
+    # NO reducimos las columnas.
+    # Se conserva TODO lo que produjo 5.2.
     # --------------------------------------------------------
 
     for columna in [
@@ -2585,15 +2732,12 @@ def obtener_relaciones_52_56():
         "Acción general"
     ]:
 
-        df[columna] = df[
-            columna
-        ].apply(
-            limpiar_texto_56
+        df[columna] = (
+            df[columna]
+            .apply(
+                limpiar_texto_56
+            )
         )
-
-    # --------------------------------------------------------
-    # Eliminar únicamente relaciones completamente vacías.
-    # --------------------------------------------------------
 
     df = df[
         (
@@ -2611,249 +2755,357 @@ def obtener_relaciones_52_56():
 
 
 # ============================================================
-# 5.6.7 — CLAVES DE RELACIÓN
+# 5.6.13 — CLASIFICAR LAS 685 RELACIONES
+# ============================================================
+#
+# ESTA ES LA PARTE FUNDAMENTAL.
+#
+# No hacemos merge exacto con APRENDIZAJE_54.
+#
+# El aprendizaje se utiliza para clasificar relaciones
+# nuevas mediante similitud semántica.
 # ============================================================
 
-def agregar_claves_56(df):
-
-    df = df.copy()
-
-    df["_producto_56"] = (
-        df["Producto"]
-        .apply(
-            clave_texto_56
-        )
-    )
-
-    df["_accion_56"] = (
-        df["Acción general"]
-        .apply(
-            clave_texto_56
-        )
-    )
-
-    return df
-
-
-# ============================================================
-# 5.6.8 — PREPARAR APRENDIZAJE
-# ============================================================
-
-def preparar_aprendizaje_56(
-    df_aprendizaje
+def clasificar_relaciones_56(
+    df_52,
+    df_aprendizaje,
+    embeddings_aprendizaje
 ):
 
-    df = df_aprendizaje.copy()
-
-    df[
-        "Clasificación final"
-    ] = df.apply(
-        obtener_clasificacion_final_56,
-        axis=1
-    )
-
-    df["Producto"] = (
-        df["Producto"]
-        .apply(
-            limpiar_texto_56
-        )
-    )
-
-    df["Acción general"] = (
-        df["Acción general"]
-        .apply(
-            limpiar_texto_56
-        )
-    )
-
-    df = agregar_claves_56(
-        df
+    modelo = (
+        cargar_modelo_aprendizaje_56()
     )
 
     # --------------------------------------------------------
-    # Para cada relación Producto + Acción general necesitamos
-    # una sola clasificación final.
+    # Texto de cada relación nueva.
     # --------------------------------------------------------
 
-    df = df[
-        [
-            "_producto_56",
-            "_accion_56",
+    textos_nuevos = []
+
+    for _, fila in df_52.iterrows():
+
+        accion = limpiar_texto_56(
+            fila["Acción general"]
+        )
+
+        # Si 5.2 tiene una clasificación inicial,
+        # la incorporamos.
+        clasificacion_inicial = ""
+
+        if (
+            "Clasificación 5.3"
+            in df_52.columns
+        ):
+
+            clasificacion_inicial = (
+                limpiar_texto_56(
+                    fila[
+                        "Clasificación 5.3"
+                    ]
+                )
+            )
+
+        textos_nuevos.append(
+            (
+                f"Acción: {accion}. "
+                f"Clasificación inicial: "
+                f"{clasificacion_inicial}."
+            )
+        )
+
+    embeddings_nuevos = modelo.encode(
+        textos_nuevos,
+        convert_to_numpy=True,
+        normalize_embeddings=True,
+        show_progress_bar=False
+    )
+
+    embeddings_nuevos = np.asarray(
+        embeddings_nuevos,
+        dtype=np.float32
+    )
+
+    # --------------------------------------------------------
+    # KNN semántico.
+    #
+    # Usamos los ejemplos validados como memoria.
+    # --------------------------------------------------------
+
+    n_ejemplos = len(
+        df_aprendizaje
+    )
+
+    if n_ejemplos < 1:
+
+        raise ValueError(
+            "No existen ejemplos de aprendizaje "
+            "válidos en APRENDIZAJE_54.csv."
+        )
+
+    # --------------------------------------------------------
+    # Número de vecinos.
+    #
+    # Con pocos ejemplos no debemos utilizar un K excesivo.
+    # --------------------------------------------------------
+
+    k = min(
+        5,
+        n_ejemplos
+    )
+
+    modelo_knn = KNeighborsClassifier(
+        n_neighbors=k,
+        weights="distance",
+        metric="cosine"
+    )
+
+    etiquetas = (
+        df_aprendizaje[
             "Clasificación final"
         ]
-    ].copy()
-
-    df = df.drop_duplicates(
-        subset=[
-            "_producto_56",
-            "_accion_56"
-        ],
-        keep="last"
+        .astype(str)
+        .values
     )
 
-    return df
-
-
-# ============================================================
-# 5.6.9 — DEFINIR QUÉ ES UNA ACCIÓN GENERAL VÁLIDA
-# ============================================================
-
-def es_accion_general_valida_56(
-    clasificacion
-):
-
-    valor = clave_texto_56(
-        clasificacion
+    modelo_knn.fit(
+        embeddings_aprendizaje,
+        etiquetas
     )
 
-    # --------------------------------------------------------
-    # ÚNICAMENTE ACCIÓN GENERAL pasa al archivo 5.6.
-    # --------------------------------------------------------
-
-    return (
-        valor == "acción general"
+    distancias, indices = (
+        modelo_knn.kneighbors(
+            embeddings_nuevos,
+            n_neighbors=k
+        )
     )
 
-
-# ============================================================
-# 5.6.10 — CONSTRUIR 5.6
-# ============================================================
-
-def construir_matriz_56():
+    resultados = []
 
     # --------------------------------------------------------
-    # 1. Obtener las relaciones originales de 5.2
+    # Para cada relación nueva:
+    # obtener evidencia de los vecinos aprendidos.
     # --------------------------------------------------------
 
-    df_52 = obtener_relaciones_52_56()
+    for i in range(
+        len(df_52)
+    ):
+
+        vecinos = indices[i]
+
+        dist = distancias[i]
+
+        votos = {}
+
+        for posicion, distancia in zip(
+            vecinos,
+            dist
+        ):
+
+            etiqueta = limpiar_texto_56(
+                etiquetas[posicion]
+            )
+
+            peso = 1.0 / (
+                float(distancia)
+                + 0.0001
+            )
+
+            votos[etiqueta] = (
+                votos.get(
+                    etiqueta,
+                    0.0
+                )
+                + peso
+            )
+
+        if votos:
+
+            clasificacion = max(
+                votos,
+                key=votos.get
+            )
+
+            peso_total = sum(
+                votos.values()
+            )
+
+            confianza = (
+                votos[
+                    clasificacion
+                ]
+                / peso_total
+                if peso_total > 0
+                else 0.0
+            )
+
+        else:
+
+            clasificacion = ""
+            confianza = 0.0
+
+        # ----------------------------------------------------
+        # Homologación
+        # ----------------------------------------------------
+
+        if (
+            clave_56(
+                clasificacion
+            )
+            ==
+            "eliminar"
+        ):
+
+            clasificacion = (
+                "FRASE COMERCIAL"
+            )
+
+        resultados.append(
+            (
+                limpiar_texto_56(
+                    clasificacion
+                ),
+                float(confianza)
+            )
+        )
+
+    return resultados
+
+
+# ============================================================
+# 5.6.14 — CONSTRUIR RESULTADO FINAL
+# ============================================================
+
+def construir_56():
+
+    # --------------------------------------------------------
+    # 1. Relaciones completas de 5.2
+    # --------------------------------------------------------
+
+    df_52 = (
+        obtener_relaciones_52_56()
+    )
 
     total_52 = len(
         df_52
     )
 
     # --------------------------------------------------------
-    # 2. Cargar aprendizaje 5.5
+    # 2. Aprendizaje de 5.5
     # --------------------------------------------------------
 
-    df_aprendizaje = (
+    df_aprendizaje_original = (
         cargar_aprendizaje_54_56()
     )
 
+    df_aprendizaje = (
+        preparar_ejemplos_56(
+            df_aprendizaje_original
+        )
+    )
+
+    if len(
+        df_aprendizaje
+    ) == 0:
+
+        raise ValueError(
+            "APRENDIZAJE_54.csv no contiene "
+            "ejemplos válidos de aprendizaje."
+        )
+
     # --------------------------------------------------------
-    # 3. Obtener clasificación final
+    # 3. Embeddings exclusivos de 5.6
     # --------------------------------------------------------
 
-    df_aprendizaje = (
-        preparar_aprendizaje_56(
+    embeddings = (
+        generar_embeddings_aprendizaje_56(
             df_aprendizaje
         )
     )
 
     # --------------------------------------------------------
-    # 4. Agregar claves al resultado 5.2
+    # 4. Guardar memoria legible
     # --------------------------------------------------------
 
-    df_52 = agregar_claves_56(
-        df_52
-    )
-
-    # --------------------------------------------------------
-    # 5. Aplicar aprendizaje de 5.5
-    #
-    # NO se crean relaciones nuevas.
-    # Solo se clasifica lo que ya existe en 5.2.
-    # --------------------------------------------------------
-
-    df_resultado = pd.merge(
-        df_52,
+    construir_memoria_56(
         df_aprendizaje,
-        on=[
-            "_producto_56",
-            "_accion_56"
-        ],
-        how="left"
+        embeddings
     )
 
     # --------------------------------------------------------
-    # 6. Identificar relaciones sin aprendizaje
+    # 5. Aplicar aprendizaje a TODAS las relaciones
     # --------------------------------------------------------
 
-    df_resultado[
-        "Estado 5.6"
-    ] = df_resultado[
-        "Clasificación final"
-    ].apply(
-        lambda valor:
-        "SIN APRENDIZAJE"
-        if not limpiar_texto_56(
-            valor
+    resultados = (
+        clasificar_relaciones_56(
+            df_52,
+            df_aprendizaje,
+            embeddings
         )
-        else "CLASIFICADA"
     )
 
+    df_resultado = df_52.copy()
+
+    df_resultado[
+        "Clasificación final 5.6"
+    ] = [
+        resultado[0]
+        for resultado in resultados
+    ]
+
+    df_resultado[
+        "Confianza 5.6"
+    ] = [
+        resultado[1]
+        for resultado in resultados
+    ]
+
     # --------------------------------------------------------
-    # 7. Determinar cuáles realmente corresponden
-    #    a ACCIÓN GENERAL.
+    # 6. Determinar cuáles son Acción General
     # --------------------------------------------------------
 
     df_resultado[
-        "Corresponde a Acción general"
-    ] = df_resultado[
-        "Clasificación final"
-    ].apply(
-        es_accion_general_valida_56
+        "Es Acción general"
+    ] = (
+        df_resultado[
+            "Clasificación final 5.6"
+        ]
+        .apply(
+            lambda x:
+            clave_56(x)
+            ==
+            "acción general"
+        )
     )
 
     # --------------------------------------------------------
-    # 8. Filtrar.
+    # 7. FILTRO
     #
-    # Solo permanecen las relaciones cuya clasificación
-    # final aprendida es ACCIÓN GENERAL.
+    # Solo pasan las relaciones que el aprendizaje
+    # determina como ACCIÓN GENERAL.
     # --------------------------------------------------------
 
-    df_validas = df_resultado[
+    df_final = df_resultado[
         df_resultado[
-            "Corresponde a Acción general"
+            "Es Acción general"
         ]
     ].copy()
 
     # --------------------------------------------------------
-    # 9. Conteos
+    # 8. Eliminar columnas técnicas
     # --------------------------------------------------------
 
-    total_validas = len(
-        df_validas
-    )
-
-    total_filtradas = (
-        total_52
-        - total_validas
-    )
-
-    # --------------------------------------------------------
-    # 10. Quitar columnas técnicas.
-    # --------------------------------------------------------
-
-    columnas_tecnicas = [
-        "_producto_56",
-        "_accion_56",
-        "Estado 5.6",
-        "Corresponde a Acción general"
-    ]
-
-    df_validas = df_validas.drop(
+    df_final = df_final.drop(
         columns=[
-            columna
-            for columna in columnas_tecnicas
-            if columna in df_validas.columns
-        ]
+            "Es Acción general"
+        ],
+        errors="ignore"
     )
 
     # --------------------------------------------------------
-    # 11. Eliminar duplicados finales.
+    # 9. Eliminar duplicados de relación
     # --------------------------------------------------------
 
-    df_validas = df_validas.drop_duplicates(
+    df_final = df_final.drop_duplicates(
         subset=[
             "Producto",
             "Acción general"
@@ -2862,45 +3114,53 @@ def construir_matriz_56():
         drop=True
     )
 
-    # --------------------------------------------------------
-    # 12. VALIDACIÓN DE INTEGRIDAD
-    #
-    # Se compara contra el total original de 5.2.
-    # --------------------------------------------------------
-
     total_final = len(
-        df_validas
+        df_final
     )
 
-    if total_final > total_52:
+    total_filtradas = (
+        total_52
+        - total_final
+    )
+
+    # --------------------------------------------------------
+    # 10. Control matemático
+    # --------------------------------------------------------
+
+    if (
+        total_final
+        +
+        total_filtradas
+        !=
+        total_52
+    ):
 
         raise ValueError(
-            "Error de integridad: 5.6 generó "
-            "más relaciones que las recibidas de 5.2."
+            "Error de integridad en 5.6: "
+            "las relaciones no cuadran."
         )
-
-    # --------------------------------------------------------
-    # Se devuelve también el resumen.
-    # --------------------------------------------------------
 
     resumen = {
-        "relaciones_5_2": total_52,
-        "relaciones_filtradas": (
-            total_52 - total_final
+        "total_5_2": total_52,
+        "total_aprendizaje": len(
+            df_aprendizaje
         ),
-        "relaciones_conservadas": (
-            total_final
-        )
+        "total_clasificadas": len(
+            df_resultado
+        ),
+        "total_conservadas": total_final,
+        "total_filtradas": total_filtradas
     }
 
     return (
-        df_validas,
+        df_final,
+        df_resultado,
         resumen
     )
 
 
 # ============================================================
-# 5.6.11 — INTERFAZ STREAMLIT
+# 5.6.15 — INTERFAZ
 # ============================================================
 
 st.markdown(
@@ -2908,137 +3168,145 @@ st.markdown(
 )
 
 st.caption(
-    "5.6 aplica el aprendizaje sobre las relaciones "
-    "generadas previamente por 5.2."
+    "El aprendizaje validado se aplica semánticamente "
+    "a todas las relaciones generadas por 5.2."
 )
 
 
 if st.button(
-    "Generar clasificación 5.6",
-    key="btn_56_clasificacion"
+    "Ejecutar 5.6",
+    key="ejecutar_56"
 ):
 
     try:
 
         with st.spinner(
-            "Aplicando el aprendizaje de 5.5 sobre las relaciones de 5.2..."
+            "Aplicando aprendizaje a las relaciones de 5.2..."
         ):
 
             (
-                df_matriz_56,
+                df_final_56,
+                df_clasificado_56,
                 resumen_56
-            ) = construir_matriz_56()
+            ) = construir_56()
 
             # ------------------------------------------------
-            # Guardar persistentemente
+            # Guardar archivo persistente
             # ------------------------------------------------
 
-            df_matriz_56.to_csv(
+            df_final_56.to_csv(
                 ARCHIVO_SALIDA_56,
                 index=False,
                 encoding="utf-8-sig"
             )
 
             # ------------------------------------------------
-            # Mantener disponible durante la sesión
+            # Guardar en sesión
             # ------------------------------------------------
 
             st.session_state[
                 "df_matriz_56"
-            ] = df_matriz_56.copy()
+            ] = df_final_56.copy()
 
-        # ----------------------------------------------------
-        # AVISO PRINCIPAL
-        # ----------------------------------------------------
+            st.session_state[
+                "df_clasificado_56"
+            ] = df_clasificado_56.copy()
+
+        # ====================================================
+        # RESULTADOS
+        # ====================================================
 
         st.success(
-            "5.6 finalizado correctamente."
+            "5.6 terminó correctamente."
         )
 
         st.info(
-            f"De {resumen_56['relaciones_5_2']:,} "
-            f"relaciones recibidas desde 5.2, "
-            f"se filtraron "
-            f"{resumen_56['relaciones_filtradas']:,} "
-            f"y se conservaron "
-            f"{resumen_56['relaciones_conservadas']:,} "
-            f"que corresponden a una Acción general "
-            f"del producto."
+            f"De {resumen_56['total_5_2']:,} "
+            f"relaciones recibidas de 5.2, "
+            f"se clasificaron "
+            f"{resumen_56['total_clasificadas']:,} "
+            f"mediante el aprendizaje de 5.5."
+        )
+
+        st.info(
+            f"Se conservaron "
+            f"{resumen_56['total_conservadas']:,} "
+            f"relaciones que corresponden a "
+            f"ACCIÓN GENERAL y se filtraron "
+            f"{resumen_56['total_filtradas']:,}."
         )
 
         # ----------------------------------------------------
-        # CONTROL DE CONSISTENCIA
+        # CONTROL
         # ----------------------------------------------------
-
-        suma_control = (
-            resumen_56[
-                "relaciones_filtradas"
-            ]
-            +
-            resumen_56[
-                "relaciones_conservadas"
-            ]
-        )
 
         if (
-            suma_control
+            resumen_56["total_conservadas"]
+            +
+            resumen_56["total_filtradas"]
             ==
-            resumen_56[
-                "relaciones_5_2"
-            ]
+            resumen_56["total_5_2"]
         ):
 
             st.success(
-                "Control de integridad correcto: "
-                "relaciones filtradas + relaciones "
-                "conservadas = relaciones recibidas de 5.2."
+                "Control correcto: "
+                "conservadas + filtradas = relaciones de 5.2."
             )
 
         else:
 
             st.error(
-                "ERROR DE INTEGRIDAD: "
-                "los conteos no coinciden."
+                "ERROR: los conteos no coinciden."
             )
 
         # ----------------------------------------------------
-        # INFORMACIÓN DEL ARCHIVO
+        # Información
         # ----------------------------------------------------
 
         st.write(
-            f"Archivo persistente generado: "
+            "Ejemplos utilizados para aprendizaje: "
+            f"**{resumen_56['total_aprendizaje']:,}**"
+        )
+
+        st.write(
+            "Archivo persistente generado: "
             f"**{ARCHIVO_SALIDA_56.name}**"
         )
 
+        st.write(
+            "Embeddings exclusivos del aprendizaje: "
+            f"**{ARCHIVO_EMBEDDINGS_56.name}**"
+        )
+
         # ----------------------------------------------------
-        # VISTA PREVIA
+        # Vista previa
         # ----------------------------------------------------
 
         st.dataframe(
-            df_matriz_56,
+            df_final_56,
             use_container_width=True,
             hide_index=True
         )
 
         # ----------------------------------------------------
-        # DESCARGA
+        # Descargar
         # ----------------------------------------------------
 
         st.download_button(
-            label="Descargar archivo generado de 5.6",
-            data=df_matriz_56.to_csv(
+            label="Descargar resultado 5.6",
+            data=df_final_56.to_csv(
                 index=False,
                 encoding="utf-8-sig"
             ),
             file_name="MATRIZ_56.csv",
             mime="text/csv",
-            key="download_matriz_56"
+            key="descargar_56"
         )
 
     except Exception as error:
 
         st.error(
-            "No fue posible generar 5.6."
+            "No fue posible ejecutar 5.6."
         )
 
         st.exception(
