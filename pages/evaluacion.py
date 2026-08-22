@@ -6162,7 +6162,268 @@ if preguntas_61:
         )
 # ============================================================
 # 6.1 - PARTE 4
-# SINCRONIZACIÓN CON BANCO DE PREGUNTAS
+# SINCRONIZACIÓN REAL CON BANCO DE PREGUNTAS EN GITHUB
+# ============================================================
+
+GITHUB_USUARIO_61 = "franquiciasauces"
+GITHUB_REPOSITORIO_61 = "Asesores"
+GITHUB_RAMA_61 = "main"
+
+GITHUB_ARCHIVO_BANCO_61 = (
+    "BANCO_PREGUNTAS_GENERALES.csv"
+)
+
+URL_BANCO_GITHUB_61 = (
+    "https://api.github.com/repos/"
+    f"{GITHUB_USUARIO_61}/"
+    f"{GITHUB_REPOSITORIO_61}/contents/"
+    f"{GITHUB_ARCHIVO_BANCO_61}"
+)
+
+
+# ============================================================
+# 1. LEER BANCO DESDE GITHUB
+# ============================================================
+
+def leer_banco_github_61():
+
+    if not GITHUB_TOKEN:
+
+        st.error(
+            "6.1 ERROR: no existe GITHUB_TOKEN."
+        )
+
+        return None, None
+
+    headers = {
+        "Authorization":
+            f"Bearer {GITHUB_TOKEN}",
+
+        "Accept":
+            "application/vnd.github+json"
+    }
+
+    try:
+
+        solicitud = urllib.request.Request(
+            URL_BANCO_GITHUB_61,
+            headers=headers,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            datos = json.loads(
+                respuesta.read().decode(
+                    "utf-8"
+                )
+            )
+
+        contenido = datos.get(
+            "content",
+            ""
+        )
+
+        sha = datos.get(
+            "sha",
+            ""
+        )
+
+        if not contenido:
+
+            st.error(
+                "6.1 ERROR: GitHub no devolvió "
+                "el contenido del banco."
+            )
+
+            return None, None
+
+        contenido = contenido.replace(
+            "\n",
+            ""
+        )
+
+        datos_csv = base64.b64decode(
+            contenido
+        )
+
+        try:
+
+            df_banco = pd.read_csv(
+                io.BytesIO(datos_csv),
+                encoding="utf-8-sig"
+            )
+
+        except UnicodeDecodeError:
+
+            df_banco = pd.read_csv(
+                io.BytesIO(datos_csv),
+                encoding="latin-1"
+            )
+
+        return df_banco, sha
+
+    except urllib.error.HTTPError as error:
+
+        detalle = ""
+
+        try:
+
+            detalle = (
+                error.read()
+                .decode("utf-8")
+            )
+
+        except Exception:
+            pass
+
+        st.error(
+            "6.1 ERROR al leer el banco desde "
+            f"GitHub. Código HTTP: "
+            f"{error.code}"
+        )
+
+        if detalle:
+            st.code(detalle)
+
+        return None, None
+
+    except Exception as error:
+
+        st.error(
+            "6.1 ERROR al leer "
+            "BANCO_PREGUNTAS_GENERALES.csv "
+            "desde GitHub."
+        )
+
+        st.exception(error)
+
+        return None, None
+
+
+# ============================================================
+# 2. SUBIR BANCO COMPLETO A GITHUB
+# ============================================================
+
+def subir_banco_github_61(
+    df_banco,
+    sha_actual
+):
+
+    if not GITHUB_TOKEN:
+
+        st.error(
+            "6.1 ERROR: no existe GITHUB_TOKEN."
+        )
+
+        return False
+
+    try:
+
+        csv_texto = df_banco.to_csv(
+            index=False,
+            encoding="utf-8-sig"
+        )
+
+        contenido_base64 = base64.b64encode(
+            csv_texto.encode("utf-8")
+        ).decode("utf-8")
+
+        datos = {
+            "message":
+                "Actualizar BANCO_PREGUNTAS_GENERALES",
+
+            "content":
+                contenido_base64,
+
+            "branch":
+                GITHUB_RAMA_61,
+
+            "sha":
+                sha_actual
+        }
+
+        cuerpo = json.dumps(
+            datos
+        ).encode("utf-8")
+
+        headers = {
+            "Authorization":
+                f"Bearer {GITHUB_TOKEN}",
+
+            "Accept":
+                "application/vnd.github+json",
+
+            "Content-Type":
+                "application/json"
+        }
+
+        solicitud = urllib.request.Request(
+            URL_BANCO_GITHUB_61,
+            data=cuerpo,
+            headers=headers,
+            method="PUT"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            resultado = json.loads(
+                respuesta.read().decode(
+                    "utf-8"
+                )
+            )
+
+        if resultado:
+
+            return True
+
+        return False
+
+    except urllib.error.HTTPError as error:
+
+        detalle = ""
+
+        try:
+
+            detalle = (
+                error.read()
+                .decode("utf-8")
+            )
+
+        except Exception:
+            pass
+
+        st.error(
+            "6.1 ERROR al sincronizar "
+            "con GitHub. "
+            f"Código HTTP: {error.code}"
+        )
+
+        if detalle:
+            st.code(detalle)
+
+        return False
+
+    except Exception as error:
+
+        st.error(
+            "6.1 ERROR durante la "
+            "sincronización con GitHub."
+        )
+
+        st.exception(error)
+
+        return False
+
+
+# ============================================================
+# 3. SINCRONIZAR
 # ============================================================
 
 def sincronizar_banco_61():
@@ -6181,13 +6442,15 @@ def sincronizar_banco_61():
 
         return
 
+
     # --------------------------------------------------------
-    # Verificar que todas fueron revisadas
+    # Todas deben estar revisadas
     # --------------------------------------------------------
 
     pendientes = [
-        p for p in preguntas
-        if p.get(
+        pregunta
+        for pregunta in preguntas
+        if pregunta.get(
             "Estado",
             "PENDIENTE"
         ) == "PENDIENTE"
@@ -6196,23 +6459,34 @@ def sincronizar_banco_61():
     if pendientes:
 
         st.error(
-            "No se puede sincronizar porque "
-            f"todavía hay {len(pendientes)} "
+            "No se puede sincronizar. "
+            f"Hay {len(pendientes)} "
             "pregunta(s) pendientes de revisión."
         )
 
         return
 
-    # --------------------------------------------------------
-    # Cargar banco actual
-    # --------------------------------------------------------
-
-    df_banco = cargar_banco_61()
-
-    total_antes = len(df_banco)
 
     # --------------------------------------------------------
-    # Convertir preguntas validadas a DataFrame
+    # LEER BANCO REAL DESDE GITHUB
+    # --------------------------------------------------------
+
+    df_banco, sha = (
+        leer_banco_github_61()
+    )
+
+    if df_banco is None:
+
+        return
+
+
+    total_antes = len(
+        df_banco
+    )
+
+
+    # --------------------------------------------------------
+    # CONVERTIR PREGUNTAS DE LA SESIÓN
     # --------------------------------------------------------
 
     df_nuevas = pd.DataFrame(
@@ -6222,16 +6496,19 @@ def sincronizar_banco_61():
     if df_nuevas.empty:
 
         st.warning(
-            "No hay preguntas para incorporar."
+            "No existen preguntas para "
+            "incorporar."
         )
 
         return
 
+
     # --------------------------------------------------------
-    # Asegurar columnas del banco
+    # COLUMNAS OFICIALES DEL BANCO
     # --------------------------------------------------------
 
     columnas_banco = [
+
         "Pregunta_ID",
         "Modulo",
         "Tema",
@@ -6249,25 +6526,29 @@ def sincronizar_banco_61():
         "Fuente_ID"
     ]
 
+
     for columna in columnas_banco:
 
         if columna not in df_nuevas.columns:
 
             df_nuevas[columna] = ""
 
+
     df_nuevas = df_nuevas[
         columnas_banco
     ].copy()
 
+
     # --------------------------------------------------------
-    # Evitar duplicados por Pregunta_ID
+    # IDS YA EXISTENTES
     # --------------------------------------------------------
 
     ids_existentes = set()
 
     if (
         not df_banco.empty
-        and "Pregunta_ID" in df_banco.columns
+        and
+        "Pregunta_ID" in df_banco.columns
     ):
 
         ids_existentes = set(
@@ -6279,23 +6560,17 @@ def sincronizar_banco_61():
             .str.strip()
         )
 
-    df_nuevas = df_nuevas[
-        ~df_nuevas[
-            "Pregunta_ID"
-        ].astype(str).isin(
-            ids_existentes
-        )
-    ].copy()
 
     # --------------------------------------------------------
-    # Evitar duplicación por Fuente_ID
+    # FUENTES YA EXISTENTES
     # --------------------------------------------------------
 
     fuentes_existentes = set()
 
     if (
         not df_banco.empty
-        and "Fuente_ID" in df_banco.columns
+        and
+        "Fuente_ID" in df_banco.columns
     ):
 
         for valor in df_banco[
@@ -6309,25 +6584,45 @@ def sincronizar_banco_61():
                 fuente = fuente.strip()
 
                 if fuente:
+
                     fuentes_existentes.add(
                         fuente
                     )
 
-    filas_validas = []
+
+    # --------------------------------------------------------
+    # FILTRAR PREGUNTAS NUEVAS
+    # --------------------------------------------------------
+
+    filas_nuevas = []
 
     for _, fila in df_nuevas.iterrows():
 
+        pregunta_id = str(
+            fila["Pregunta_ID"]
+        ).strip()
+
+        if (
+            pregunta_id
+            and
+            pregunta_id in ids_existentes
+        ):
+
+            continue
+
+
         fuentes = [
-            x.strip()
-            for x in str(
+            fuente.strip()
+            for fuente in str(
                 fila["Fuente_ID"]
             ).split(";")
-            if x.strip()
+            if fuente.strip()
         ]
 
+
         # ----------------------------------------------------
-        # Una pregunta no puede reutilizar una relación
-        # que ya esté registrada en el banco.
+        # Si cualquiera de las fuentes ya está en el banco,
+        # esta pregunta ya no se incorpora.
         # ----------------------------------------------------
 
         if any(
@@ -6337,59 +6632,90 @@ def sincronizar_banco_61():
 
             continue
 
-        filas_validas.append(
+
+        filas_nuevas.append(
             fila
         )
+
+
+        if pregunta_id:
+
+            ids_existentes.add(
+                pregunta_id
+            )
+
 
         fuentes_existentes.update(
             fuentes
         )
 
+
     df_nuevas = pd.DataFrame(
-        filas_validas,
+        filas_nuevas,
         columns=columnas_banco
     )
 
-    if df_nuevas.empty:
+
+    total_nuevas = len(
+        df_nuevas
+    )
+
+
+    # --------------------------------------------------------
+    # SI NO HAY NADA NUEVO
+    # --------------------------------------------------------
+
+    if total_nuevas == 0:
 
         st.warning(
-            "No hay preguntas nuevas para "
-            "incorporar. Las relaciones ya "
-            "están registradas en el banco."
+            "No se incorporaron preguntas nuevas. "
+            "Las preguntas o sus relaciones ya "
+            "se encuentran registradas en el banco."
+        )
+
+        st.info(
+            f"Preguntas existentes en GitHub: "
+            f"**{total_antes:,}**"
         )
 
         return
 
-    # --------------------------------------------------------
-    # Incorporar nuevas preguntas
-    # --------------------------------------------------------
-
-    if df_banco.empty:
-
-        df_final = df_nuevas.copy()
-
-    else:
-
-        df_final = pd.concat(
-            [
-                df_banco,
-                df_nuevas
-            ],
-            ignore_index=True
-        )
 
     # --------------------------------------------------------
-    # Guardar banco persistente
+    # UNIR BANCO + NUEVAS
     # --------------------------------------------------------
 
-    df_final.to_csv(
-        ARCHIVO_BANCO_61,
-        index=False,
-        encoding="utf-8-sig"
+    df_final = pd.concat(
+        [
+            df_banco,
+            df_nuevas
+        ],
+        ignore_index=True
     )
 
+
     # --------------------------------------------------------
-    # Actualizar sesión
+    # SINCRONIZAR REALMENTE CON GITHUB
+    # --------------------------------------------------------
+
+    exito = subir_banco_github_61(
+        df_final,
+        sha
+    )
+
+
+    if not exito:
+
+        st.error(
+            "Las preguntas fueron preparadas, "
+            "pero NO se actualizó GitHub."
+        )
+
+        return
+
+
+    # --------------------------------------------------------
+    # ACTUALIZAR SESIÓN
     # --------------------------------------------------------
 
     st.session_state[
@@ -6404,34 +6730,32 @@ def sincronizar_banco_61():
         "sincronizado_61"
     ] = True
 
-    # --------------------------------------------------------
-    # Resultado
-    # --------------------------------------------------------
 
-    total_agregadas = len(
-        df_nuevas
-    )
+    # --------------------------------------------------------
+    # RESULTADO
+    # --------------------------------------------------------
 
     total_despues = len(
         df_final
     )
 
     st.success(
-        "Sincronización completada."
+        "✅ BANCO DE PREGUNTAS "
+        "SINCRONIZADO CORRECTAMENTE CON GITHUB."
     )
 
     st.info(
-        f"Preguntas en el banco antes: "
+        f"Preguntas existentes antes: "
         f"**{total_antes:,}**"
     )
 
     st.info(
-        f"Preguntas nuevas incorporadas: "
-        f"**{total_agregadas:,}**"
+        f"Preguntas incorporadas: "
+        f"**{total_nuevas:,}**"
     )
 
     st.info(
-        f"Preguntas en el banco después: "
+        f"Preguntas totales después: "
         f"**{total_despues:,}**"
     )
 
@@ -6443,35 +6767,35 @@ def sincronizar_banco_61():
 
 
 # ============================================================
-# BOTÓN DE SINCRONIZACIÓN
+# 4. BOTÓN DE SINCRONIZACIÓN
 # ============================================================
 
 if preguntas_61:
 
     pendientes_61 = sum(
         1
-        for p in preguntas_61
-        if p.get(
+        for pregunta in preguntas_61
+        if pregunta.get(
             "Estado",
             "PENDIENTE"
         ) == "PENDIENTE"
     )
 
+
     if pendientes_61 == 0:
 
         st.markdown(
-            "### Sincronización"
+            "### Sincronización con el banco"
         )
 
         st.success(
             "Todas las preguntas fueron "
-            "revisadas. El banco está listo "
-            "para actualizarse."
+            "revisadas."
         )
 
         if st.button(
             "🔄 SINCRONIZAR CON BANCO DE PREGUNTAS",
-            key="sincronizar_banco_61"
+            key="sincronizar_banco_github_61"
         ):
 
             sincronizar_banco_61()
