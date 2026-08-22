@@ -9679,9 +9679,10 @@ if preguntas_63:
         ):
 
             sincronizar_banco_63()
+
 # ============================================================
 # 6.4 - PRODUCTO / CATEGORÍA PRINCIPAL + COMPLEMENTARIA
-# PARTE 1 - CARGA Y CONTROL DE FUENTES
+# PARTE 1 - CARGA Y CONTROL DE FUENTE
 # ============================================================
 
 # ------------------------------------------------------------
@@ -9704,7 +9705,6 @@ ARCHIVO_BANCO_64 = (
 def normalizar_64(valor):
 
     if pd.isna(valor):
-
         return ""
 
     return (
@@ -9720,7 +9720,8 @@ def cargar_fuente_64():
     try:
 
         df = pd.read_excel(
-            ARCHIVO_FUENTE_64
+            ARCHIVO_FUENTE_64,
+            engine="openpyxl"
         )
 
     except Exception as error:
@@ -9755,18 +9756,42 @@ def cargar_fuente_64():
 
         return None
 
+    # --------------------------------------------------------
+    # CONSERVAR SOLAMENTE LAS COLUMNAS NECESARIAS
+    # --------------------------------------------------------
+
     df = df[
         columnas
     ].copy()
 
-    for columna in columnas:
+    # --------------------------------------------------------
+    # LIMPIEZA
+    # --------------------------------------------------------
 
-        df[columna] = (
-            df[columna]
-            .fillna("")
-            .astype(str)
-            .str.strip()
-        )
+    df["Producto"] = (
+        df["Producto"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    df["Categoría principal"] = (
+        df["Categoría principal"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    df["Categorías complementarias"] = (
+        df["Categorías complementarias"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    # --------------------------------------------------------
+    # ELIMINAR REGISTROS INCOMPLETOS
+    # --------------------------------------------------------
 
     df = df[
         (df["Producto"] != "")
@@ -9776,9 +9801,9 @@ def cargar_fuente_64():
         (df["Categorías complementarias"] != "")
     ].copy()
 
-    df = df.reset_index(
-        drop=True
-    )
+    # --------------------------------------------------------
+    # IDENTIFICADOR DE FUENTE
+    # --------------------------------------------------------
 
     df["Fuente_ID"] = [
         f"PTCC-F{i:06d}"
@@ -9787,6 +9812,10 @@ def cargar_fuente_64():
             len(df) + 1
         )
     ]
+
+    # --------------------------------------------------------
+    # CLAVE ÚNICA
+    # --------------------------------------------------------
 
     df["_clave"] = (
         df["Producto"]
@@ -9798,6 +9827,10 @@ def cargar_fuente_64():
         + df["Categorías complementarias"]
         .map(normalizar_64)
     )
+
+    # --------------------------------------------------------
+    # ELIMINAR DUPLICADOS
+    # --------------------------------------------------------
 
     df = (
         df
@@ -9817,7 +9850,8 @@ def cargar_banco_64():
     try:
 
         df = pd.read_excel(
-            ARCHIVO_BANCO_64
+            ARCHIVO_BANCO_64,
+            engine="openpyxl"
         )
 
     except FileNotFoundError:
@@ -9828,10 +9862,12 @@ def cargar_banco_64():
 
         return pd.DataFrame()
 
+    return df
 
-# ------------------------------------------------------------
+
+# ============================================================
 # IDENTIFICAR RELACIONES YA UTILIZADAS
-# ------------------------------------------------------------
+# ============================================================
 
 def obtener_fuentes_usadas_64(
     df_banco
@@ -9866,9 +9902,9 @@ def obtener_fuentes_usadas_64(
     return usadas
 
 
-# ------------------------------------------------------------
+# ============================================================
 # IDENTIFICAR PREGUNTAS EXISTENTES
-# ------------------------------------------------------------
+# ============================================================
 
 def obtener_preguntas_existentes_64(
     df_banco
@@ -9916,7 +9952,7 @@ st.write(
 
 
 if st.button(
-    "🔎 CARGAR Y VALIDAR FUENTES 6.4",
+    "🔎 CARGAR Y VALIDAR FUENTE 6.4",
     key="cargar_fuentes_64"
 ):
 
@@ -10031,7 +10067,7 @@ if (
     # --------------------------------------------------------
 
     st.success(
-        "6.4 cargó correctamente las fuentes."
+        "6.4 cargó correctamente la fuente."
     )
 
     col1, col2, col3 = st.columns(3)
