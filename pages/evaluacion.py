@@ -6450,13 +6450,8 @@ if preguntas_61:
         ):
 
             sincronizar_banco_61()
-6.2 ERROR al leer COMPONENTES_Y_ACCIONES.csv
 
-NameError: name 'io' is not defined
-Traceback:
-File "/mount/src/asesores/pages/evaluacion.py", line 6493, in leer_fuente_pt_ca_62
-    io.BytesIO(contenido),
-    ^^
+
 # ============================================================
 # 6.2 - PRODUCTO / COMPONENTE / ACCIÓN
 # PARTE 1 - CARGA Y CONTROL DE FUENTES
