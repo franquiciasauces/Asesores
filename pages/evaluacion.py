@@ -9,6 +9,7 @@ import pandas as pd
 import streamlit as st
 
 from github import Github
+
 GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 GITHUB_USUARIO = "franquiciasauces"
 GITHUB_REPOSITORIO = "Asesores"
@@ -19,11 +20,12 @@ def sync_github(csv_str):
         repo = g.get_repo(f"{GITHUB_USUARIO}/{GITHUB_REPOSITORIO}")
         try:
             c = repo.get_contents("RELACIONES_PRODUCTO_ACCION_GENERAL.csv")
-            repo.update_file(c.path, "Update", csv_str, c.sha)
+            repo.update_file(c.path, "Actualización manual", csv_str, c.sha)
         except:
-            repo.create_file("RELACIONES_PRODUCTO_ACCION_GENERAL.csv", "Create", csv_str)
-        return True, "OK"
-    except Exception as e: return False, str(e)
+            repo.create_file("RELACIONES_PRODUCTO_ACCION_GENERAL.csv", "Creación automática", csv_str)
+        return True, "Sincronizado"
+    except Exception as e:
+        return False, str(e)
 
 # ============================================================
 # 1. CONFIGURACIÓN
@@ -293,27 +295,23 @@ st.markdown("### 5.3 Clasificación Manual")
 if "df_acciones_52" not in st.session_state:
     st.error("❌ Primero ejecuta la sección 5.2.")
 else:
-    # Estado: finalizado = False (editando), True (bloqueado)
     if "final" not in st.session_state: 
         st.session_state["final"] = False
     
-    # Si no hemos finalizado, mostramos el editor
     if not st.session_state["final"]:
         if "df_e" not in st.session_state:
             st.session_state["df_e"] = pd.DataFrame({
                 "Acción": st.session_state["df_acciones_52"]["Acción general"].unique(),
                 "¿General?": True
             })
-        
         st.session_state["df_e"] = st.data_editor(st.session_state["df_e"], use_container_width=True)
         
         if st.button("✅ Finalizar Validación"):
-            val = st.session_state["df_e"][st.session_state["df_e"]["¿General?"]]["Acción"].tolist()
+            mask = st.session_state["df_e"]["¿General?"] == True
+            val = st.session_state["df_e"][mask]["Acción"].tolist()
             st.session_state["df_limpio"] = st.session_state["df_acciones_52"][st.session_state["df_acciones_52"]["Acción general"].isin(val)].copy()
             st.session_state["final"] = True
             st.rerun()
-
-    # Si ya finalizamos, bloqueamos todo
     else:
         st.success("🔒 VALIDACIÓN FINALIZADA Y FIJA.")
         st.dataframe(st.session_state["df_limpio"], use_container_width=True)
@@ -324,7 +322,7 @@ else:
                 st.session_state["final"] = False
                 st.rerun()
         with col2:
-            if st.button("🚀 Sincronizar con GitHub"):
+            if st.button("🚀 Sincronizar"):
                 with st.spinner("Subiendo..."):
                     ok, msg = sync_github(st.session_state["df_limpio"].to_csv(index=False))
                     if ok: st.success(msg)
