@@ -6160,3 +6160,318 @@ if preguntas_61:
             "La sincronización con el banco "
             "se habilitará en la siguiente parte."
         )
+# ============================================================
+# 6.1 - PARTE 4
+# SINCRONIZACIÓN CON BANCO DE PREGUNTAS
+# ============================================================
+
+def sincronizar_banco_61():
+
+    preguntas = st.session_state.get(
+        "preguntas_generadas_61",
+        []
+    )
+
+    if not preguntas:
+
+        st.warning(
+            "No hay preguntas generadas "
+            "para sincronizar."
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # Verificar que todas fueron revisadas
+    # --------------------------------------------------------
+
+    pendientes = [
+        p for p in preguntas
+        if p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    ]
+
+    if pendientes:
+
+        st.error(
+            "No se puede sincronizar porque "
+            f"todavía hay {len(pendientes)} "
+            "pregunta(s) pendientes de revisión."
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # Cargar banco actual
+    # --------------------------------------------------------
+
+    df_banco = cargar_banco_61()
+
+    total_antes = len(df_banco)
+
+    # --------------------------------------------------------
+    # Convertir preguntas validadas a DataFrame
+    # --------------------------------------------------------
+
+    df_nuevas = pd.DataFrame(
+        preguntas
+    )
+
+    if df_nuevas.empty:
+
+        st.warning(
+            "No hay preguntas para incorporar."
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # Asegurar columnas del banco
+    # --------------------------------------------------------
+
+    columnas_banco = [
+        "Pregunta_ID",
+        "Modulo",
+        "Tema",
+        "Nivel",
+        "Tipo_Relacion",
+        "Pregunta",
+        "Respuesta_1",
+        "Respuesta_2",
+        "Respuesta_3",
+        "Respuesta_4",
+        "Respuesta_Correcta",
+        "Estado",
+        "Observacion_Administrador",
+        "Fecha_Generacion",
+        "Fuente_ID"
+    ]
+
+    for columna in columnas_banco:
+
+        if columna not in df_nuevas.columns:
+
+            df_nuevas[columna] = ""
+
+    df_nuevas = df_nuevas[
+        columnas_banco
+    ].copy()
+
+    # --------------------------------------------------------
+    # Evitar duplicados por Pregunta_ID
+    # --------------------------------------------------------
+
+    ids_existentes = set()
+
+    if (
+        not df_banco.empty
+        and "Pregunta_ID" in df_banco.columns
+    ):
+
+        ids_existentes = set(
+            df_banco[
+                "Pregunta_ID"
+            ]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+    df_nuevas = df_nuevas[
+        ~df_nuevas[
+            "Pregunta_ID"
+        ].astype(str).isin(
+            ids_existentes
+        )
+    ].copy()
+
+    # --------------------------------------------------------
+    # Evitar duplicación por Fuente_ID
+    # --------------------------------------------------------
+
+    fuentes_existentes = set()
+
+    if (
+        not df_banco.empty
+        and "Fuente_ID" in df_banco.columns
+    ):
+
+        for valor in df_banco[
+            "Fuente_ID"
+        ].fillna(""):
+
+            for fuente in str(
+                valor
+            ).split(";"):
+
+                fuente = fuente.strip()
+
+                if fuente:
+                    fuentes_existentes.add(
+                        fuente
+                    )
+
+    filas_validas = []
+
+    for _, fila in df_nuevas.iterrows():
+
+        fuentes = [
+            x.strip()
+            for x in str(
+                fila["Fuente_ID"]
+            ).split(";")
+            if x.strip()
+        ]
+
+        # ----------------------------------------------------
+        # Una pregunta no puede reutilizar una relación
+        # que ya esté registrada en el banco.
+        # ----------------------------------------------------
+
+        if any(
+            fuente in fuentes_existentes
+            for fuente in fuentes
+        ):
+
+            continue
+
+        filas_validas.append(
+            fila
+        )
+
+        fuentes_existentes.update(
+            fuentes
+        )
+
+    df_nuevas = pd.DataFrame(
+        filas_validas,
+        columns=columnas_banco
+    )
+
+    if df_nuevas.empty:
+
+        st.warning(
+            "No hay preguntas nuevas para "
+            "incorporar. Las relaciones ya "
+            "están registradas en el banco."
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # Incorporar nuevas preguntas
+    # --------------------------------------------------------
+
+    if df_banco.empty:
+
+        df_final = df_nuevas.copy()
+
+    else:
+
+        df_final = pd.concat(
+            [
+                df_banco,
+                df_nuevas
+            ],
+            ignore_index=True
+        )
+
+    # --------------------------------------------------------
+    # Guardar banco persistente
+    # --------------------------------------------------------
+
+    df_final.to_csv(
+        ARCHIVO_BANCO_61,
+        index=False,
+        encoding="utf-8-sig"
+    )
+
+    # --------------------------------------------------------
+    # Actualizar sesión
+    # --------------------------------------------------------
+
+    st.session_state[
+        "df_banco_61"
+    ] = df_final.copy()
+
+    st.session_state[
+        "preguntas_sincronizadas_61"
+    ] = df_nuevas.copy()
+
+    st.session_state[
+        "sincronizado_61"
+    ] = True
+
+    # --------------------------------------------------------
+    # Resultado
+    # --------------------------------------------------------
+
+    total_agregadas = len(
+        df_nuevas
+    )
+
+    total_despues = len(
+        df_final
+    )
+
+    st.success(
+        "Sincronización completada."
+    )
+
+    st.info(
+        f"Preguntas en el banco antes: "
+        f"**{total_antes:,}**"
+    )
+
+    st.info(
+        f"Preguntas nuevas incorporadas: "
+        f"**{total_agregadas:,}**"
+    )
+
+    st.info(
+        f"Preguntas en el banco después: "
+        f"**{total_despues:,}**"
+    )
+
+    st.dataframe(
+        df_nuevas,
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+# ============================================================
+# BOTÓN DE SINCRONIZACIÓN
+# ============================================================
+
+if preguntas_61:
+
+    pendientes_61 = sum(
+        1
+        for p in preguntas_61
+        if p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    if pendientes_61 == 0:
+
+        st.markdown(
+            "### Sincronización"
+        )
+
+        st.success(
+            "Todas las preguntas fueron "
+            "revisadas. El banco está listo "
+            "para actualizarse."
+        )
+
+        if st.button(
+            "🔄 SINCRONIZAR CON BANCO DE PREGUNTAS",
+            key="sincronizar_banco_61"
+        ):
+
+            sincronizar_banco_61()
