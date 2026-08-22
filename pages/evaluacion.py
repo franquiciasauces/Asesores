@@ -279,7 +279,7 @@ except Exception as e:
         f"{type(e).__name__}: {e}"
     )
 # ============================================================
-# 5.3 ENRIQUECER Y CLASIFICAR ACCIONES
+# 5.3 CLASIFICAR ACCIÓN SEGÚN COMPONENTES DEL PRODUCTO
 # ============================================================
 
 st.markdown("### 5.3 Clasificación de acciones")
@@ -287,20 +287,26 @@ st.markdown("### 5.3 Clasificación de acciones")
 try:
     requeridas_53 = [
         "Producto",
-        "Acción general",
-        "Componentes"
+        "Acción general"
     ]
 
     faltantes_53 = [
         columna
         for columna in requeridas_53
-        if columna not in df_fuente.columns
+        if columna not in df_acciones_52.columns
     ]
 
     if faltantes_53:
         st.error(
-            "❌ 5.3 ERROR: Faltan columnas en la matriz: "
+            "❌ 5.3 ERROR: Faltan columnas en 5.2: "
             + ", ".join(faltantes_53)
+        )
+        st.stop()
+
+    if "Componentes" not in df_fuente.columns:
+        st.error(
+            "❌ 5.3 ERROR: La matriz no contiene "
+            "la columna real 'Componentes'."
         )
         st.stop()
 
@@ -322,6 +328,11 @@ try:
         .str.strip()
     )
 
+    df_componentes_53 = (
+        df_componentes_53
+        .drop_duplicates("Producto")
+    )
+
     df_53 = df_acciones_52.merge(
         df_componentes_53,
         on="Producto",
@@ -329,10 +340,10 @@ try:
     )
 
     def normalizar_53(texto):
-        return " ".join(
+        return (
             unidecode(str(texto))
             .lower()
-            .split()
+            .strip()
         )
 
     def separar_componentes_53(texto):
@@ -341,62 +352,55 @@ try:
         if not texto:
             return []
 
-        partes = re.split(
-            r"\s*;\s*|\s*,\s*|\s*\|\s*",
-            texto
-        )
-
         return [
             parte.strip()
-            for parte in partes
+            for parte in re.split(
+                r";|,",
+                texto
+            )
             if parte.strip()
         ]
 
-    def contiene_componente_53(accion, componentes):
-        accion_n = normalizar_53(accion)
+    def buscar_componente_53(fila):
+        accion = normalizar_53(
+            fila["Acción general"]
+        )
+
+        componentes = separar_componentes_53(
+            fila["Componentes"]
+        )
 
         encontrados = []
 
         for componente in componentes:
-            componente_n = normalizar_53(componente)
+            componente_n = normalizar_53(
+                componente
+            )
 
             if (
                 componente_n
-                and componente_n in accion_n
+                and componente_n in accion
             ):
-                encontrados.append(componente)
+                encontrados.append(
+                    componente
+                )
 
-        return encontrados
-
-    df_53["Lista componentes"] = (
-        df_53["Componentes"]
-        .apply(separar_componentes_53)
-    )
-
-    df_53["Componente identificado"] = df_53.apply(
-        lambda fila: contiene_componente_53(
-            fila["Acción general"],
-            fila["Lista componentes"]
-        ),
-        axis=1
-    )
-
-    df_53["Clasificación"] = df_53[
-        "Componente identificado"
-    ].apply(
-        lambda x:
-            "COMPONENTE + FUNCIÓN"
-            if x
-            else "ACCIÓN GENERAL"
-    )
+        return "; ".join(encontrados)
 
     df_53["Componente identificado"] = (
+        df_53.apply(
+            buscar_componente_53,
+            axis=1
+        )
+    )
+
+    df_53["Clasificación"] = (
         df_53["Componente identificado"]
         .apply(
             lambda x:
-                "; ".join(x)
+                "COMPONENTE + FUNCIÓN"
                 if x
-                else ""
+                else "ACCIÓN GENERAL"
         )
     )
 
@@ -416,7 +420,7 @@ try:
 
     st.success(
         f"🟢 5.3 TERMINADO: "
-        f"{len(df_53)} relaciones Producto–Acción clasificadas."
+        f"{len(df_53)} relaciones clasificadas."
     )
 
     st.dataframe(
@@ -430,4 +434,3 @@ except Exception as e:
         f"🔴 5.3 ERROR: "
         f"{type(e).__name__}: {e}"
     )
-
