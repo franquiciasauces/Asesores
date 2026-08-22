@@ -6450,3 +6450,311 @@ if preguntas_61:
         ):
 
             sincronizar_banco_61()
+# ============================================================
+# 6.2 - GENERADOR PRODUCTO - COMPONENTE - ACCIÓN
+# PARTE 1: GENERACIÓN
+# ============================================================
+
+GITHUB_ARCHIVO_PT_CA_62 = "COMPONENTES_Y_ACCIONES.csv"
+
+URL_GITHUB_PT_CA_62 = (
+    "https://api.github.com/repos/"
+    "franquiciasauces/Asesores/contents/"
+    f"{GITHUB_ARCHIVO_PT_CA_62}"
+)
+
+
+def leer_fuente_pt_ca_62():
+
+    try:
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_PT_CA_62,
+            headers={
+                "Authorization": f"Bearer {GITHUB_TOKEN}",
+                "Accept": "application/vnd.github+json"
+            }
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            datos = json.loads(
+                respuesta.read().decode("utf-8")
+            )
+
+        contenido = base64.b64decode(
+            datos["content"].replace("\n", "")
+        )
+
+        df = pd.read_csv(
+            io.BytesIO(contenido),
+            encoding="utf-8-sig"
+        )
+
+        columnas = [
+            "Producto",
+            "Componente",
+            "Acciones"
+        ]
+
+        faltantes = [
+            c for c in columnas
+            if c not in df.columns
+        ]
+
+        if faltantes:
+
+            st.error(
+                "6.2 ERROR: faltan columnas: "
+                + ", ".join(faltantes)
+            )
+
+            return None
+
+        df = df[columnas].copy()
+
+        df = df.dropna(
+            subset=[
+                "Producto",
+                "Componente",
+                "Acciones"
+            ]
+        )
+
+        for columna in columnas:
+
+            df[columna] = (
+                df[columna]
+                .astype(str)
+                .str.strip()
+            )
+
+        df = df[
+            (df["Producto"] != "") &
+            (df["Componente"] != "") &
+            (df["Acciones"] != "")
+        ]
+
+        return df.reset_index(drop=True)
+
+    except Exception as error:
+
+        st.error(
+            "6.2 ERROR al leer "
+            "COMPONENTES_Y_ACCIONES.csv"
+        )
+
+        st.exception(error)
+
+        return None
+
+
+def generar_pt_ca_62(
+    df_fuente,
+    cantidad,
+    nivel
+):
+
+    if df_fuente is None or df_fuente.empty:
+
+        st.warning(
+            "No existen relaciones disponibles."
+        )
+
+        return []
+
+    disponibles = df_fuente.copy()
+
+    disponibles = disponibles.sample(
+        frac=1,
+        random_state=None
+    ).reset_index(drop=True)
+
+    preguntas = []
+
+    contador = 1
+
+    for _, fila in disponibles.iterrows():
+
+        if len(preguntas) >= cantidad:
+            break
+
+        producto = fila["Producto"]
+        componente = fila["Componente"]
+        accion = fila["Acciones"]
+
+        # ----------------------------------------------------
+        # ENUNCIADO
+        # ----------------------------------------------------
+
+        if nivel == 1:
+
+            pregunta = (
+                f"En el producto {producto}, "
+                f"¿cuál de las siguientes acciones "
+                f"corresponde específicamente al "
+                f"componente {componente}?"
+            )
+
+            correctas = 1
+
+        else:
+
+            pregunta = (
+                f"En el producto {producto}, "
+                f"¿cuáles de las siguientes acciones "
+                f"corresponden específicamente al "
+                f"componente {componente}?"
+            )
+
+            correctas = 2
+
+        # ----------------------------------------------------
+        # ID
+        # ----------------------------------------------------
+
+        pregunta_id = (
+            f"PT-CA-{contador:06d}"
+        )
+
+        preguntas.append({
+
+            "Pregunta_ID":
+                pregunta_id,
+
+            "Modulo":
+                "PRODUCTO",
+
+            "Tema":
+                "COMPONENTE-ACCION",
+
+            "Nivel":
+                nivel,
+
+            "Tipo_Relacion":
+                "PRODUCTO-COMPONENTE-ACCION",
+
+            "Pregunta":
+                pregunta,
+
+            "Respuesta_1":
+                accion,
+
+            "Respuesta_2":
+                "",
+
+            "Respuesta_3":
+                "",
+
+            "Respuesta_4":
+                "",
+
+            "Respuesta_Correcta":
+                "1",
+
+            "Estado":
+                "PENDIENTE",
+
+            "Observacion_Administrador":
+                "",
+
+            "Fecha_Generacion":
+                pd.Timestamp.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+
+            "Fuente_ID":
+                f"{producto}|{componente}|{accion}"
+        })
+
+        contador += 1
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ 6.2
+# ============================================================
+
+st.markdown(
+    "### 6.2 Producto - Componente - Acción"
+)
+
+df_fuente_pt_ca_62 = leer_fuente_pt_ca_62()
+
+if df_fuente_pt_ca_62 is not None:
+
+    st.info(
+        f"Relaciones disponibles: "
+        f"**{len(df_fuente_pt_ca_62):,}**"
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        nivel_pt_ca_62 = st.selectbox(
+            "Nivel",
+            [
+                "Nivel 1",
+                "Nivel 2"
+            ],
+            key="nivel_pt_ca_62"
+        )
+
+    with col2:
+
+        cantidad_pt_ca_62 = st.number_input(
+            "Cantidad de preguntas",
+            min_value=1,
+            max_value=500,
+            value=10,
+            step=1,
+            key="cantidad_pt_ca_62"
+        )
+
+    if st.button(
+        "GENERAR PREGUNTAS PRODUCTO-COMPONENTE-ACCIÓN",
+        key="generar_pt_ca_62"
+    ):
+
+        nivel_numero = (
+            1
+            if nivel_pt_ca_62 == "Nivel 1"
+            else 2
+        )
+
+        preguntas_62 = generar_pt_ca_62(
+            df_fuente_pt_ca_62,
+            cantidad_pt_ca_62,
+            nivel_numero
+        )
+
+        st.session_state[
+            "preguntas_generadas_pt_ca_62"
+        ] = preguntas_62
+
+        st.success(
+            f"Se generaron "
+            f"**{len(preguntas_62)}** preguntas."
+        )
+
+    preguntas_mostradas_62 = (
+        st.session_state.get(
+            "preguntas_generadas_pt_ca_62",
+            []
+        )
+    )
+
+    if preguntas_mostradas_62:
+
+        st.dataframe(
+            pd.DataFrame(
+                preguntas_mostradas_62
+            ),
+            use_container_width=True,
+            hide_index=True
+        )
