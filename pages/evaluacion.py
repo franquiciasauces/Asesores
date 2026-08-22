@@ -3658,3 +3658,873 @@ else:
             mime="text/csv",
             key="descargar_producto_accionesgenerales_57"
         )
+# ============================================================
+# 5.8 — RELACIONES ACCIÓN - COMPONENTE
+# ============================================================
+# Fuente:
+# MATRIZ_PRODUCTO_PATOLOGIAS-PAQUETES
+#
+# Resultado:
+# RELACIONES_ACCION_COMPONENTE.csv
+#
+# Columnas EXACTAS:
+# Producto | Componente | Acciones
+#
+# REGLAS:
+# 1. Un solo componente:
+#    todas las acciones válidas se asignan al componente.
+#
+# 2. Varios componentes:
+#    la acción SOLO se asigna si existe una referencia
+#    explícita al componente.
+#
+# 3. Una acción puede mencionar varios componentes:
+#    se genera una fila por cada componente mencionado.
+#
+# 4. COMBINACIONES:, SE RECOMIENDA:, RECOMENDADO:,
+#    RECOMENDACIÓN: y FRASE DE VENTA: cortan el análisis.
+#
+# 5. Todo lo que aparezca después de esos marcadores
+#    queda excluido.
+#
+# 6. No se utiliza aprendizaje automático.
+# 7. No se infieren acciones por conocimiento externo.
+# 8. No se asignan acciones generales sin componente explícito
+#    cuando existen varios componentes.
+# ============================================================
+
+
+# ============================================================
+# 1. CONFIGURACIÓN
+# ============================================================
+
+import re
+import base64
+import urllib.request
+import urllib.error
+import json
+
+import pandas as pd
+import streamlit as st
+
+from unidecode import unidecode
+
+
+GITHUB_USUARIO_58 = "franquiciasauces"
+GITHUB_REPOSITORIO_58 = "Asesores"
+GITHUB_RAMA_58 = "main"
+
+ARCHIVO_SALIDA_58 = (
+    "RELACIONES_ACCION_COMPONENTE.csv"
+)
+
+URL_GITHUB_58 = (
+    "https://api.github.com/repos/"
+    f"{GITHUB_USUARIO_58}/"
+    f"{GITHUB_REPOSITORIO_58}/contents/"
+    f"{ARCHIVO_SALIDA_58}"
+)
+
+
+# ============================================================
+# 2. VALIDAR TOKEN
+# ============================================================
+
+if not GITHUB_TOKEN:
+
+    st.error(
+        "❌ 5.8 ERROR: No existe GITHUB_TOKEN."
+    )
+
+    st.stop()
+
+
+# ============================================================
+# 3. NORMALIZACIÓN AUXILIAR
+# ============================================================
+
+def normalizar_texto_58(texto):
+
+    if texto is None:
+        return ""
+
+    if pd.isna(texto):
+        return ""
+
+    texto = str(texto).strip()
+
+    texto = unidecode(texto).lower()
+
+    texto = re.sub(
+        r"\s+",
+        " ",
+        texto
+    )
+
+    return texto.strip()
+
+
+# ============================================================
+# 4. LIMPIAR COMPONENTES
+# ============================================================
+
+def separar_componentes_58(valor):
+
+    if valor is None:
+        return []
+
+    if pd.isna(valor):
+        return []
+
+    texto = str(valor).strip()
+
+    if not texto:
+        return []
+
+    partes = re.split(
+        r"\s*;\s*|\s*\|\s*",
+        texto
+    )
+
+    componentes = []
+
+    for parte in partes:
+
+        parte = parte.strip()
+
+        if not parte:
+            continue
+
+        if normalizar_texto_58(parte) in {
+            "nan",
+            "none",
+            "-"
+        }:
+            continue
+
+        if parte not in componentes:
+
+            componentes.append(parte)
+
+    return componentes
+
+
+# ============================================================
+# 5. CORTAR CONTENIDO NO VÁLIDO
+# ============================================================
+# Todo lo que aparezca desde estos marcadores en adelante
+# queda excluido.
+# ============================================================
+
+MARCADORES_CORTE_58 = [
+    "combinaciones:",
+    "se recomienda:",
+    "se recomienda",
+    "recomendado:",
+    "recomendación:",
+    "recomendaciones:",
+    "frase de venta:",
+    "frase comercial:",
+]
+
+
+def cortar_acciones_58(texto):
+
+    if texto is None:
+        return ""
+
+    if pd.isna(texto):
+        return ""
+
+    texto_original = str(texto)
+
+    texto_normalizado = normalizar_texto_58(
+        texto_original
+    )
+
+    posiciones = []
+
+    for marcador in MARCADORES_CORTE_58:
+
+        posicion = texto_normalizado.find(
+            normalizar_texto_58(marcador)
+        )
+
+        if posicion >= 0:
+
+            posiciones.append(
+                posicion
+            )
+
+    if posiciones:
+
+        limite = min(posiciones)
+
+        return texto_original[:limite].strip()
+
+    return texto_original.strip()
+
+
+# ============================================================
+# 6. ELIMINAR POSOLOGÍA / MODO DE USO
+# ============================================================
+
+MARCADORES_NO_ACCION_58 = [
+    "posologia:",
+    "posología:",
+    "modo de uso:",
+    "modo de empleo:",
+    "forma de uso:",
+    "dosis:",
+    "presentacion:",
+    "presentación:",
+]
+
+
+def cortar_posologia_58(texto):
+
+    if not texto:
+        return ""
+
+    texto_original = str(texto)
+
+    texto_normalizado = normalizar_texto_58(
+        texto_original
+    )
+
+    posiciones = []
+
+    for marcador in MARCADORES_NO_ACCION_58:
+
+        posicion = texto_normalizado.find(
+            normalizar_texto_58(marcador)
+        )
+
+        if posicion >= 0:
+
+            posiciones.append(
+                posicion
+            )
+
+    if posiciones:
+
+        limite = min(posiciones)
+
+        return texto_original[:limite].strip()
+
+    return texto_original.strip()
+
+
+# ============================================================
+# 7. SEPARAR ACCIONES
+# ============================================================
+
+def separar_acciones_58(texto):
+
+    if not texto:
+        return []
+
+    texto = cortar_acciones_58(
+        texto
+    )
+
+    texto = cortar_posologia_58(
+        texto
+    )
+
+    if not texto:
+        return []
+
+    # --------------------------------------------------------
+    # Separación principal por punto y coma
+    # --------------------------------------------------------
+
+    partes = re.split(
+        r"\s*;\s*",
+        texto
+    )
+
+    acciones = []
+
+    for parte in partes:
+
+        accion = parte.strip()
+
+        if not accion:
+            continue
+
+        # ----------------------------------------------------
+        # Evitar frases comerciales
+        # ----------------------------------------------------
+
+        normalizada = normalizar_texto_58(
+            accion
+        )
+
+        if (
+            "frase de venta" in normalizada
+            or
+            "frase comercial" in normalizada
+        ):
+            continue
+
+        # ----------------------------------------------------
+        # Evitar contenidos de recomendación
+        # ----------------------------------------------------
+
+        if (
+            normalizada.startswith(
+                "se recomienda"
+            )
+            or
+            normalizada.startswith(
+                "recomendado"
+            )
+            or
+            normalizada.startswith(
+                "recomendacion"
+            )
+        ):
+            continue
+
+        # ----------------------------------------------------
+        # Limpiar espacios
+        # ----------------------------------------------------
+
+        accion = re.sub(
+            r"\s+",
+            " ",
+            accion
+        ).strip()
+
+        if accion not in acciones:
+
+            acciones.append(
+                accion
+            )
+
+    return acciones
+
+
+# ============================================================
+# 8. DETECTAR COMPONENTES EXPLÍCITOS
+# ============================================================
+
+def componentes_mencionados_58(
+    accion,
+    componentes
+):
+
+    if not accion or not componentes:
+
+        return []
+
+    accion_normalizada = normalizar_texto_58(
+        accion
+    )
+
+    encontrados = []
+
+    for componente in componentes:
+
+        componente_normalizado = (
+            normalizar_texto_58(
+                componente
+            )
+        )
+
+        if not componente_normalizado:
+            continue
+
+        # ----------------------------------------------------
+        # Caso especial:
+        # Vitaminas agrupadas
+        # ----------------------------------------------------
+
+        variantes = [
+            componente_normalizado
+        ]
+
+        # ----------------------------------------------------
+        # Buscar coincidencia explícita
+        # ----------------------------------------------------
+
+        for variante in variantes:
+
+            patron = (
+                r"(?<!\w)"
+                +
+                re.escape(variante)
+                +
+                r"(?!\w)"
+            )
+
+            if re.search(
+                patron,
+                accion_normalizada
+            ):
+
+                encontrados.append(
+                    componente
+                )
+
+                break
+
+    return encontrados
+
+
+# ============================================================
+# 9. EXTRAER RELACIONES
+# ============================================================
+
+def generar_relaciones_58(
+    df_origen
+):
+
+    relaciones = []
+
+    for _, fila in df_origen.iterrows():
+
+        producto = str(
+            fila.get(
+                "Producto",
+                ""
+            )
+        ).strip()
+
+        if not producto:
+            continue
+
+        componentes = separar_componentes_58(
+            fila.get(
+                "Componentes",
+                ""
+            )
+        )
+
+        if not componentes:
+            continue
+
+        acciones = separar_acciones_58(
+            fila.get(
+                "Acciones generales",
+                ""
+            )
+        )
+
+        if not acciones:
+            continue
+
+        # ====================================================
+        # CASO 1 — UN SOLO COMPONENTE
+        # ====================================================
+
+        if len(componentes) == 1:
+
+            componente_unico = componentes[0]
+
+            for accion in acciones:
+
+                relaciones.append({
+                    "Producto": producto,
+                    "Componente": componente_unico,
+                    "Acciones": accion
+                })
+
+            continue
+
+        # ====================================================
+        # CASO 2 — VARIOS COMPONENTES
+        # ====================================================
+
+        for accion in acciones:
+
+            componentes_encontrados = (
+                componentes_mencionados_58(
+                    accion,
+                    componentes
+                )
+            )
+
+            # ------------------------------------------------
+            # Si no hay componente explícito,
+            # NO se crea relación.
+            # ------------------------------------------------
+
+            if not componentes_encontrados:
+                continue
+
+            # ------------------------------------------------
+            # Una acción puede corresponder
+            # a varios componentes.
+            # ------------------------------------------------
+
+            for componente in componentes_encontrados:
+
+                relaciones.append({
+                    "Producto": producto,
+                    "Componente": componente,
+                    "Acciones": accion
+                })
+
+    # ========================================================
+    # DATAFRAME FINAL
+    # ========================================================
+
+    df_relaciones = pd.DataFrame(
+        relaciones,
+        columns=[
+            "Producto",
+            "Componente",
+            "Acciones"
+        ]
+    )
+
+    if not df_relaciones.empty:
+
+        df_relaciones = (
+            df_relaciones
+            .drop_duplicates(
+                subset=[
+                    "Producto",
+                    "Componente",
+                    "Acciones"
+                ]
+            )
+            .reset_index(drop=True)
+        )
+
+    return df_relaciones
+
+
+# ============================================================
+# 10. CARGAR MATRIZ ORIGINAL
+# ============================================================
+
+def cargar_matriz_original_58():
+
+    rutas_posibles = [
+        "MATRIZ_PRODUCTO_PATOLOGIAS-PAQUETES.xlsx",
+        "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx",
+    ]
+
+    for ruta in rutas_posibles:
+
+        try:
+
+            df = pd.read_excel(
+                ruta
+            )
+
+            columnas_necesarias = {
+                "Producto",
+                "Componentes",
+                "Acciones generales"
+            }
+
+            if columnas_necesarias.issubset(
+                set(df.columns)
+            ):
+
+                return df
+
+        except Exception:
+            continue
+
+    return None
+
+
+# ============================================================
+# 11. PERSISTENCIA EN GITHUB
+# ============================================================
+
+def persistir_relaciones_58(
+    df_relaciones
+):
+
+    contenido_csv = df_relaciones.to_csv(
+        index=False,
+        encoding="utf-8-sig"
+    )
+
+    contenido_base64 = base64.b64encode(
+        contenido_csv.encode(
+            "utf-8-sig"
+        )
+    ).decode("utf-8")
+
+    headers = {
+        "Authorization":
+            f"token {GITHUB_TOKEN}",
+        "Accept":
+            "application/vnd.github.v3+json",
+        "Content-Type":
+            "application/json"
+    }
+
+    sha = None
+
+    # --------------------------------------------------------
+    # Consultar archivo existente
+    # --------------------------------------------------------
+
+    try:
+
+        solicitud_get = urllib.request.Request(
+            URL_GITHUB_58,
+            headers=headers,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud_get,
+            timeout=30
+        ) as respuesta:
+
+            datos = json.loads(
+                respuesta.read().decode(
+                    "utf-8"
+                )
+            )
+
+            sha = datos.get(
+                "sha"
+            )
+
+    except urllib.error.HTTPError as error:
+
+        if error.code != 404:
+
+            st.error(
+                "❌ 5.8 ERROR consultando "
+                "RELACIONES_ACCION_COMPONENTE.csv"
+            )
+
+            return False
+
+    except Exception as error:
+
+        st.error(
+            "❌ 5.8 ERROR conectando con GitHub."
+        )
+
+        st.exception(
+            error
+        )
+
+        return False
+
+    # --------------------------------------------------------
+    # Preparar actualización
+    # --------------------------------------------------------
+
+    datos_guardado = {
+        "message":
+            "5.8 - Actualizar relaciones "
+            "accion componente",
+        "content":
+            contenido_base64,
+        "branch":
+            GITHUB_RAMA_58
+    }
+
+    if sha:
+
+        datos_guardado[
+            "sha"
+        ] = sha
+
+    # --------------------------------------------------------
+    # Guardar
+    # --------------------------------------------------------
+
+    try:
+
+        cuerpo = json.dumps(
+            datos_guardado
+        ).encode(
+            "utf-8"
+        )
+
+        solicitud_put = urllib.request.Request(
+            URL_GITHUB_58,
+            data=cuerpo,
+            headers=headers,
+            method="PUT"
+        )
+
+        with urllib.request.urlopen(
+            solicitud_put,
+            timeout=30
+        ) as respuesta:
+
+            respuesta.read()
+
+        return True
+
+    except urllib.error.HTTPError as error:
+
+        try:
+
+            detalle = (
+                error.read()
+                .decode("utf-8")
+            )
+
+        except Exception:
+
+            detalle = str(error)
+
+        st.error(
+            "❌ 5.8 ERROR guardando en GitHub."
+        )
+
+        st.code(
+            detalle
+        )
+
+        return False
+
+    except Exception as error:
+
+        st.error(
+            "❌ 5.8 ERROR inesperado."
+        )
+
+        st.exception(
+            error
+        )
+
+        return False
+
+
+# ============================================================
+# 12. INTERFAZ 5.8
+# ============================================================
+
+st.markdown(
+    "### 5.8 — Relaciones Acción - Componente"
+)
+
+st.write(
+    "Genera las relaciones explícitas entre "
+    "Producto, Componente y Acción."
+)
+
+if st.button(
+    "🔎 Generar RELACIONES_ACCION_COMPONENTE.csv",
+    key="generar_relaciones_accion_componente_58"
+):
+
+    df_matriz_58 = (
+        cargar_matriz_original_58()
+    )
+
+    if df_matriz_58 is None:
+
+        st.error(
+            "❌ 5.8: No se encontró "
+            "MATRIZ_PRODUCTO_PATOLOGIAS-PAQUETES "
+            "con las columnas requeridas."
+        )
+
+    else:
+
+        df_relaciones_58 = (
+            generar_relaciones_58(
+                df_matriz_58
+            )
+        )
+
+        # ----------------------------------------------------
+        # Guardar en sesión
+        # ----------------------------------------------------
+
+        st.session_state[
+            "df_relaciones_accion_componente_58"
+        ] = df_relaciones_58.copy()
+
+        # ----------------------------------------------------
+        # Total
+        # ----------------------------------------------------
+
+        total_relaciones_58 = (
+            len(df_relaciones_58)
+        )
+
+        total_productos_58 = (
+            df_relaciones_58[
+                "Producto"
+            ].nunique()
+            if not df_relaciones_58.empty
+            else 0
+        )
+
+        st.success(
+            "5.8 terminó correctamente."
+        )
+
+        st.info(
+            f"Total de relaciones "
+            f"Acción–Componente generadas: "
+            f"**{total_relaciones_58:,}**"
+        )
+
+        st.info(
+            f"Productos con relaciones "
+            f"válidas: **{total_productos_58:,}**"
+        )
+
+        # ----------------------------------------------------
+        # Vista previa
+        # ----------------------------------------------------
+
+        st.dataframe(
+            df_relaciones_58,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        # ----------------------------------------------------
+        # Descargar
+        # ----------------------------------------------------
+
+        st.download_button(
+            label=(
+                "⬇️ Descargar "
+                "RELACIONES_ACCION_COMPONENTE.csv"
+            ),
+            data=df_relaciones_58.to_csv(
+                index=False,
+                encoding="utf-8-sig"
+            ),
+            file_name=(
+                "RELACIONES_ACCION_COMPONENTE.csv"
+            ),
+            mime="text/csv",
+            key="descargar_relaciones_accion_componente_58"
+        )
+
+        # ----------------------------------------------------
+        # Persistencia
+        # ----------------------------------------------------
+
+        if st.button(
+            "💾 Guardar persistentemente",
+            key="persistir_relaciones_accion_componente_58"
+        ):
+
+            guardado = (
+                persistir_relaciones_58(
+                    df_relaciones_58
+                )
+            )
+
+            if guardado:
+
+                st.success(
+                    "✅ "
+                    "RELACIONES_ACCION_COMPONENTE.csv "
+                    "quedó guardado persistentemente "
+                    "en el repositorio."
+                )
