@@ -5955,3 +5955,208 @@ if preguntas_61:
         )
 
         st.divider()
+# ============================================================
+# 6.1 - PARTE 3A
+# VALIDACIÓN INDIVIDUAL DE PREGUNTAS
+# ============================================================
+
+if preguntas_61:
+
+    st.markdown(
+        "## Validación de preguntas"
+    )
+
+    st.info(
+        "Revise cada pregunta individualmente. "
+        "Una pregunta rechazada no afecta las demás."
+    )
+
+    for i, pregunta in enumerate(preguntas_61):
+
+        st.markdown(
+            f"### {pregunta['Pregunta_ID']}"
+        )
+
+        st.write(
+            f"**Nivel:** {pregunta['Nivel']}"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"**1.** {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"**2.** {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"**3.** {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"**4.** {pregunta['Respuesta_4']}"
+        )
+
+        st.write(
+            "**Respuesta correcta:** "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            f"Fuente utilizada: {pregunta['Fuente_ID']}"
+        )
+
+        # ----------------------------------------------------
+        # ESTADO ACTUAL
+        # ----------------------------------------------------
+
+        estado_actual = pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        )
+
+        st.write(
+            f"**Estado actual:** {estado_actual}"
+        )
+
+        # ----------------------------------------------------
+        # OBSERVACIÓN
+        # ----------------------------------------------------
+
+        observacion = st.text_input(
+            "Observación del administrador",
+            value=pregunta.get(
+                "Observacion_Administrador",
+                ""
+            ),
+            key=f"observacion_61_{i}"
+        )
+
+        # ----------------------------------------------------
+        # BOTONES
+        # ----------------------------------------------------
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            if st.button(
+                "✅ APROBAR",
+                key=f"aprobar_61_{i}"
+            ):
+
+                preguntas_61[i][
+                    "Estado"
+                ] = "APROBADA"
+
+                preguntas_61[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_61"
+                ] = preguntas_61
+
+                st.success(
+                    f"{pregunta['Pregunta_ID']} "
+                    "fue aprobada."
+                )
+
+                st.rerun()
+
+        with col2:
+
+            if st.button(
+                "❌ RECHAZAR",
+                key=f"rechazar_61_{i}"
+            ):
+
+                preguntas_61[i][
+                    "Estado"
+                ] = "RECHAZADA"
+
+                preguntas_61[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_61"
+                ] = preguntas_61
+
+                st.warning(
+                    f"{pregunta['Pregunta_ID']} "
+                    "fue rechazada."
+                )
+
+                st.rerun()
+
+        st.divider()
+
+
+# ============================================================
+# RESUMEN DE VALIDACIÓN
+# ============================================================
+
+if preguntas_61:
+
+    aprobadas_61 = sum(
+        1
+        for p in preguntas_61
+        if p.get("Estado") == "APROBADA"
+    )
+
+    rechazadas_61 = sum(
+        1
+        for p in preguntas_61
+        if p.get("Estado") == "RECHAZADA"
+    )
+
+    pendientes_61 = sum(
+        1
+        for p in preguntas_61
+        if p.get("Estado", "PENDIENTE")
+        == "PENDIENTE"
+    )
+
+    st.markdown(
+        "### Resumen de validación"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Aprobadas",
+            aprobadas_61
+        )
+
+    with col2:
+
+        st.metric(
+            "Rechazadas",
+            rechazadas_61
+        )
+
+    with col3:
+
+        st.metric(
+            "Pendientes",
+            pendientes_61
+        )
+
+    if pendientes_61 == 0:
+
+        st.success(
+            "Todas las preguntas fueron "
+            "revisadas individualmente."
+        )
+
+        st.info(
+            "La sincronización con el banco "
+            "se habilitará en la siguiente parte."
+        )
