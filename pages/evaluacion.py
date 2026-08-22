@@ -9679,3 +9679,449 @@ if preguntas_63:
         ):
 
             sincronizar_banco_63()
+# ============================================================
+# 6.4 - PRODUCTO / CATEGORÍA PRINCIPAL + COMPLEMENTARIA
+# PARTE 1 - CARGA Y CONTROL DE FUENTES
+# ============================================================
+
+# ------------------------------------------------------------
+# ARCHIVOS
+# ------------------------------------------------------------
+
+ARCHIVO_FUENTE_64 = (
+    "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
+)
+
+ARCHIVO_BANCO_64 = (
+    "BANCO_PREGUNTAS_GENERALES.xlsx"
+)
+
+
+# ------------------------------------------------------------
+# FUNCIONES
+# ------------------------------------------------------------
+
+def normalizar_64(valor):
+
+    if pd.isna(valor):
+
+        return ""
+
+    return (
+        str(valor)
+        .strip()
+        .lower()
+        .replace("\n", " ")
+    )
+
+
+def cargar_fuente_64():
+
+    try:
+
+        df = pd.read_excel(
+            ARCHIVO_FUENTE_64
+        )
+
+    except Exception as error:
+
+        st.error(
+            "6.4 ERROR al cargar "
+            f"{ARCHIVO_FUENTE_64}: "
+            f"{error}"
+        )
+
+        return None
+
+    columnas = [
+        "Producto",
+        "Categoría principal",
+        "Categorías complementarias"
+    ]
+
+    faltantes = [
+        columna
+        for columna in columnas
+        if columna not in df.columns
+    ]
+
+    if faltantes:
+
+        st.error(
+            "6.4 ERROR: faltan columnas en "
+            f"{ARCHIVO_FUENTE_64}: "
+            f"{', '.join(faltantes)}"
+        )
+
+        return None
+
+    df = df[
+        columnas
+    ].copy()
+
+    for columna in columnas:
+
+        df[columna] = (
+            df[columna]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+    df = df[
+        (df["Producto"] != "")
+        &
+        (df["Categoría principal"] != "")
+        &
+        (df["Categorías complementarias"] != "")
+    ].copy()
+
+    df = df.reset_index(
+        drop=True
+    )
+
+    df["Fuente_ID"] = [
+        f"PTCC-F{i:06d}"
+        for i in range(
+            1,
+            len(df) + 1
+        )
+    ]
+
+    df["_clave"] = (
+        df["Producto"]
+        .map(normalizar_64)
+        + "||"
+        + df["Categoría principal"]
+        .map(normalizar_64)
+        + "||"
+        + df["Categorías complementarias"]
+        .map(normalizar_64)
+    )
+
+    df = (
+        df
+        .drop_duplicates(
+            subset="_clave"
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    return df
+
+
+def cargar_banco_64():
+
+    try:
+
+        df = pd.read_excel(
+            ARCHIVO_BANCO_64
+        )
+
+    except FileNotFoundError:
+
+        return pd.DataFrame()
+
+    except Exception:
+
+        return pd.DataFrame()
+
+
+# ------------------------------------------------------------
+# IDENTIFICAR RELACIONES YA UTILIZADAS
+# ------------------------------------------------------------
+
+def obtener_fuentes_usadas_64(
+    df_banco
+):
+
+    usadas = set()
+
+    if df_banco.empty:
+
+        return usadas
+
+    if "Fuente_ID" not in df_banco.columns:
+
+        return usadas
+
+    for valor in df_banco[
+        "Fuente_ID"
+    ].fillna(""):
+
+        for fuente in str(
+            valor
+        ).split(";"):
+
+            fuente = fuente.strip()
+
+            if fuente:
+
+                usadas.add(
+                    fuente
+                )
+
+    return usadas
+
+
+# ------------------------------------------------------------
+# IDENTIFICAR PREGUNTAS EXISTENTES
+# ------------------------------------------------------------
+
+def obtener_preguntas_existentes_64(
+    df_banco
+):
+
+    preguntas = set()
+
+    if df_banco.empty:
+
+        return preguntas
+
+    if "Pregunta" not in df_banco.columns:
+
+        return preguntas
+
+    for pregunta in df_banco[
+        "Pregunta"
+    ].fillna(""):
+
+        clave = normalizar_64(
+            pregunta
+        )
+
+        if clave:
+
+            preguntas.add(
+                clave
+            )
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ 6.4
+# ============================================================
+
+st.markdown(
+    "## 6.4 Producto - Categoría principal + complementaria"
+)
+
+st.write(
+    "Control de relaciones disponibles para "
+    "la generación de preguntas Nivel 2."
+)
+
+
+if st.button(
+    "🔎 CARGAR Y VALIDAR FUENTES 6.4",
+    key="cargar_fuentes_64"
+):
+
+    df_fuente_64 = (
+        cargar_fuente_64()
+    )
+
+    if df_fuente_64 is None:
+
+        st.stop()
+
+    df_banco_64 = (
+        cargar_banco_64()
+    )
+
+    fuentes_usadas_64 = (
+        obtener_fuentes_usadas_64(
+            df_banco_64
+        )
+    )
+
+    preguntas_existentes_64 = (
+        obtener_preguntas_existentes_64(
+            df_banco_64
+        )
+    )
+
+    # --------------------------------------------------------
+    # RELACIONES DISPONIBLES
+    # --------------------------------------------------------
+
+    df_disponible_64 = (
+        df_fuente_64[
+            ~df_fuente_64[
+                "Fuente_ID"
+            ].isin(
+                fuentes_usadas_64
+            )
+        ]
+        .copy()
+        .reset_index(
+            drop=True
+        )
+    )
+
+    # --------------------------------------------------------
+    # GUARDAR EN SESIÓN
+    # --------------------------------------------------------
+
+    st.session_state[
+        "df_fuente_64"
+    ] = df_fuente_64.copy()
+
+    st.session_state[
+        "df_banco_64"
+    ] = df_banco_64.copy()
+
+    st.session_state[
+        "df_disponible_64"
+    ] = df_disponible_64.copy()
+
+    st.session_state[
+        "fuentes_usadas_64"
+    ] = fuentes_usadas_64
+
+    st.session_state[
+        "preguntas_existentes_64"
+    ] = preguntas_existentes_64
+
+
+# ============================================================
+# MOSTRAR CONTROL
+# ============================================================
+
+if (
+    "df_fuente_64"
+    in st.session_state
+):
+
+    df_fuente_64 = (
+        st.session_state[
+            "df_fuente_64"
+        ]
+    )
+
+    df_banco_64 = (
+        st.session_state[
+            "df_banco_64"
+        ]
+    )
+
+    df_disponible_64 = (
+        st.session_state[
+            "df_disponible_64"
+        ]
+    )
+
+    fuentes_usadas_64 = (
+        st.session_state[
+            "fuentes_usadas_64"
+        ]
+    )
+
+    preguntas_existentes_64 = (
+        st.session_state[
+            "preguntas_existentes_64"
+        ]
+    )
+
+    # --------------------------------------------------------
+    # RESUMEN
+    # --------------------------------------------------------
+
+    st.success(
+        "6.4 cargó correctamente las fuentes."
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Relaciones fuente",
+            len(df_fuente_64)
+        )
+
+    with col2:
+
+        st.metric(
+            "Relaciones ya utilizadas",
+            len(fuentes_usadas_64)
+        )
+
+    with col3:
+
+        st.metric(
+            "Relaciones disponibles",
+            len(df_disponible_64)
+        )
+
+    st.info(
+        "Preguntas existentes en el banco: "
+        f"{len(preguntas_existentes_64):,}"
+    )
+
+    # --------------------------------------------------------
+    # CONTROL DE CONSISTENCIA
+    # --------------------------------------------------------
+
+    total_fuente = len(
+        df_fuente_64
+    )
+
+    total_usadas = len(
+        fuentes_usadas_64
+        &
+        set(
+            df_fuente_64[
+                "Fuente_ID"
+            ]
+        )
+    )
+
+    total_disponibles = len(
+        df_disponible_64
+    )
+
+    if (
+        total_usadas
+        +
+        total_disponibles
+        ==
+        total_fuente
+    ):
+
+        st.success(
+            "Control correcto: "
+            "utilizadas + disponibles = "
+            "relaciones fuente."
+        )
+
+    else:
+
+        st.error(
+            "6.4 ERROR: los conteos "
+            "de relaciones no coinciden."
+        )
+
+    # --------------------------------------------------------
+    # VISTA PREVIA
+    # --------------------------------------------------------
+
+    st.markdown(
+        "### Relaciones disponibles"
+    )
+
+    st.dataframe(
+        df_disponible_64[
+            [
+                "Fuente_ID",
+                "Producto",
+                "Categoría principal",
+                "Categorías complementarias"
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True
+    )
