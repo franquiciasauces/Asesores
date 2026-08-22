@@ -7618,3 +7618,515 @@ if preguntas_62:
         )
 
         st.divider()
+# ============================================================
+# 6.2 - PARTE 3A
+# VALIDACIÓN INDIVIDUAL DE PREGUNTAS
+# ============================================================
+
+if preguntas_62:
+
+    st.markdown(
+        "## Validación de preguntas"
+    )
+
+    st.info(
+        "Revise cada pregunta individualmente. "
+        "Una pregunta rechazada no afecta las demás."
+    )
+
+    for i, pregunta in enumerate(preguntas_62):
+
+        st.markdown(
+            f"### {pregunta['Pregunta_ID']}"
+        )
+
+        st.write(
+            f"**Nivel:** {pregunta['Nivel']}"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"**1.** {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"**2.** {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"**3.** {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"**4.** {pregunta['Respuesta_4']}"
+        )
+
+        st.write(
+            "**Respuesta correcta:** "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            f"Fuente utilizada: {pregunta['Fuente_ID']}"
+        )
+
+        estado_actual = pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        )
+
+        st.write(
+            f"**Estado actual:** {estado_actual}"
+        )
+
+        observacion = st.text_input(
+            "Observación del administrador",
+            value=pregunta.get(
+                "Observacion_Administrador",
+                ""
+            ),
+            key=f"observacion_62_{i}"
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            if st.button(
+                "✅ APROBAR",
+                key=f"aprobar_62_{i}"
+            ):
+
+                preguntas_62[i][
+                    "Estado"
+                ] = "APROBADA"
+
+                preguntas_62[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_62"
+                ] = preguntas_62
+
+                st.success(
+                    f"{pregunta['Pregunta_ID']} "
+                    "fue aprobada."
+                )
+
+                st.rerun()
+
+        with col2:
+
+            if st.button(
+                "❌ RECHAZAR",
+                key=f"rechazar_62_{i}"
+            ):
+
+                preguntas_62[i][
+                    "Estado"
+                ] = "RECHAZADA"
+
+                preguntas_62[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_62"
+                ] = preguntas_62
+
+                st.warning(
+                    f"{pregunta['Pregunta_ID']} "
+                    "fue rechazada."
+                )
+
+                st.rerun()
+
+        st.divider()
+
+
+# ============================================================
+# RESUMEN DE VALIDACIÓN
+# ============================================================
+
+if preguntas_62:
+
+    aprobadas_62 = sum(
+        1
+        for p in preguntas_62
+        if p.get("Estado") == "APROBADA"
+    )
+
+    rechazadas_62 = sum(
+        1
+        for p in preguntas_62
+        if p.get("Estado") == "RECHAZADA"
+    )
+
+    pendientes_62 = sum(
+        1
+        for p in preguntas_62
+        if p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    st.markdown(
+        "### Resumen de validación"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Aprobadas",
+            aprobadas_62
+        )
+
+    with col2:
+
+        st.metric(
+            "Rechazadas",
+            rechazadas_62
+        )
+
+    with col3:
+
+        st.metric(
+            "Pendientes",
+            pendientes_62
+        )
+
+    if pendientes_62 == 0:
+
+        st.success(
+            "Todas las preguntas fueron "
+            "revisadas individualmente."
+        )
+
+        st.info(
+            "La sincronización con el banco "
+            "se habilitará a continuación."
+        )
+
+
+# ============================================================
+# 6.2 - PARTE 4
+# SINCRONIZAR PREGUNTAS CON BANCO GENERAL
+# ============================================================
+
+GITHUB_USUARIO_62 = "franquiciasauces"
+
+GITHUB_REPOSITORIO_62 = "Asesores"
+
+GITHUB_RAMA_62 = "main"
+
+GITHUB_ARCHIVO_62 = (
+    "BANCO_PREGUNTAS_GENERALES.xlsx"
+)
+
+URL_GITHUB_62 = (
+    "https://api.github.com/repos/"
+    f"{GITHUB_USUARIO_62}/"
+    f"{GITHUB_REPOSITORIO_62}/contents/"
+    f"{GITHUB_ARCHIVO_62}"
+)
+
+
+def sincronizar_banco_62():
+
+    preguntas = st.session_state.get(
+        "preguntas_generadas_62",
+        []
+    )
+
+    if not preguntas:
+
+        st.warning(
+            "No hay preguntas para sincronizar."
+        )
+
+        return
+
+    if any(
+        p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+        for p in preguntas
+    ):
+
+        st.error(
+            "Todavía hay preguntas pendientes "
+            "de revisión."
+        )
+
+        return
+
+    headers = {
+        "Authorization":
+            f"Bearer {GITHUB_TOKEN}",
+
+        "Accept":
+            "application/vnd.github+json"
+    }
+
+    try:
+
+        # ----------------------------------------------------
+        # LEER BANCO EXISTENTE
+        # ----------------------------------------------------
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_62,
+            headers=headers,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            datos = json.loads(
+                respuesta.read().decode(
+                    "utf-8"
+                )
+            )
+
+        sha = datos["sha"]
+
+        contenido = base64.b64decode(
+            datos["content"].replace(
+                "\n",
+                ""
+            )
+        )
+
+        df_banco = pd.read_excel(
+            io.BytesIO(contenido)
+        )
+
+        total_antes = len(
+            df_banco
+        )
+
+        # ----------------------------------------------------
+        # CONVERTIR PREGUNTAS VALIDADAS
+        # ----------------------------------------------------
+
+        df_nuevas = pd.DataFrame(
+            preguntas
+        )
+
+        columnas = [
+            "Pregunta_ID",
+            "Modulo",
+            "Tema",
+            "Nivel",
+            "Tipo_Relacion",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Estado",
+            "Observacion_Administrador",
+            "Fecha_Generacion",
+            "Fuente_ID"
+        ]
+
+        df_nuevas = df_nuevas[
+            columnas
+        ].copy()
+
+        # ----------------------------------------------------
+        # EVITAR DUPLICADOS
+        # ----------------------------------------------------
+
+        if "Pregunta_ID" in df_banco.columns:
+
+            existentes = set(
+                df_banco[
+                    "Pregunta_ID"
+                ]
+                .astype(str)
+                .str.strip()
+            )
+
+            df_nuevas = df_nuevas[
+                ~df_nuevas[
+                    "Pregunta_ID"
+                ]
+                .astype(str)
+                .str.strip()
+                .isin(existentes)
+            ]
+
+        total_nuevas = len(
+            df_nuevas
+        )
+
+        if total_nuevas == 0:
+
+            st.info(
+                "No hay preguntas nuevas para agregar."
+            )
+
+            st.info(
+                f"Preguntas existentes: "
+                f"**{total_antes:,}**"
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # AGREGAR AL BANCO
+        # ----------------------------------------------------
+
+        df_final = pd.concat(
+            [
+                df_banco,
+                df_nuevas
+            ],
+            ignore_index=True
+        )
+
+        # ----------------------------------------------------
+        # CREAR EXCEL
+        # ----------------------------------------------------
+
+        memoria = io.BytesIO()
+
+        with pd.ExcelWriter(
+            memoria,
+            engine="openpyxl"
+        ) as writer:
+
+            df_final.to_excel(
+                writer,
+                index=False,
+                sheet_name="Banco"
+            )
+
+        contenido_nuevo = (
+            base64.b64encode(
+                memoria.getvalue()
+            )
+            .decode("utf-8")
+        )
+
+        # ----------------------------------------------------
+        # ACTUALIZAR GITHUB
+        # ----------------------------------------------------
+
+        datos_actualizacion = {
+
+            "message":
+                "Actualizar BANCO_PREGUNTAS_GENERALES",
+
+            "content":
+                contenido_nuevo,
+
+            "branch":
+                GITHUB_RAMA_62,
+
+            "sha":
+                sha
+        }
+
+        cuerpo = json.dumps(
+            datos_actualizacion
+        ).encode("utf-8")
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_62,
+            data=cuerpo,
+            headers={
+                **headers,
+                "Content-Type":
+                    "application/json"
+            },
+            method="PUT"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            respuesta.read()
+
+        # ----------------------------------------------------
+        # RESULTADO
+        # ----------------------------------------------------
+
+        total_despues = len(
+            df_final
+        )
+
+        st.success(
+            "✅ Banco de preguntas actualizado "
+            "correctamente en GitHub."
+        )
+
+        st.info(
+            f"Preguntas existentes antes: "
+            f"**{total_antes:,}**"
+        )
+
+        st.info(
+            f"Preguntas incorporadas: "
+            f"**{total_nuevas:,}**"
+        )
+
+        st.info(
+            f"Preguntas totales después: "
+            f"**{total_despues:,}**"
+        )
+
+        st.dataframe(
+            df_nuevas,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    except Exception as error:
+
+        st.error(
+            "No fue posible actualizar "
+            "BANCO_PREGUNTAS_GENERALES.xlsx."
+        )
+
+        st.exception(error)
+
+
+# ============================================================
+# BOTÓN DE SINCRONIZACIÓN
+# ============================================================
+
+if preguntas_62:
+
+    pendientes_62 = sum(
+        1
+        for p in preguntas_62
+        if p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    if pendientes_62 == 0:
+
+        if st.button(
+            "🔄 SINCRONIZAR CON BANCO DE PREGUNTAS",
+            key="sincronizar_banco_62"
+        ):
+
+            sincronizar_banco_62()
