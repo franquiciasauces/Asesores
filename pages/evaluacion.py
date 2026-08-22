@@ -2177,3 +2177,633 @@ except Exception as e:
         f"🔴 5.5 ERROR: "
         f"{type(e).__name__}: {e}"
     )
+# ============================================================
+# 5.6 — CONSOLIDACIÓN DE RELACIONES Y CLASIFICACIÓN FINAL
+# ============================================================
+# INSUMOS:
+#   1. st.session_state["df_acciones_52"]
+#      Producto + Acción general
+#
+#   2. APRENDIZAJE_54.csv
+#      Resultado de las validaciones de 5.4 / aprendizaje de 5.5
+#
+# SALIDA:
+#   MATRIZ_RELACIONES_56.csv
+#
+# IMPORTANTE:
+#   5.6 NO vuelve a aprender.
+#   5.6 utiliza la clasificación final aprendida en 5.5.
+# ============================================================
+
+import streamlit as st
+import pandas as pd
+import re
+import unicodedata
+from pathlib import Path
+
+
+# ------------------------------------------------------------
+# 5.6.1 — RUTAS
+# ------------------------------------------------------------
+
+BASE_DIR_56 = Path(__file__).resolve().parent
+
+ARCHIVO_APRENDIZAJE_54 = BASE_DIR_56 / "APRENDIZAJE_54.csv"
+ARCHIVO_MATRIZ_56 = BASE_DIR_56 / "MATRIZ_RELACIONES_56.csv"
+
+
+# ------------------------------------------------------------
+# 5.6.2 — NORMALIZACIÓN DE TEXTO
+# ------------------------------------------------------------
+
+def normalizar_texto_56(valor):
+    """
+    Normaliza texto únicamente para comparar.
+    No modifica el texto original que se guarda.
+    """
+
+    if pd.isna(valor):
+        return ""
+
+    texto = str(valor).strip()
+
+    # Corrige casos de codificación UTF-8 interpretados como Latin-1
+    # Ejemplo: AcciÃ³n -> Acción
+    try:
+        if "Ã" in texto or "Â" in texto or "â" in texto:
+            texto_corregido = texto.encode(
+                "latin1"
+            ).decode(
+                "utf-8"
+            )
+            texto = texto_corregido
+    except Exception:
+        pass
+
+    texto = unicodedata.normalize(
+        "NFKC",
+        texto
+    )
+
+    texto = texto.replace("\n", " ")
+    texto = texto.replace("\r", " ")
+
+    texto = re.sub(
+        r"\s+",
+        " ",
+        texto
+    )
+
+    return texto.strip().casefold()
+
+
+def limpiar_texto_56(valor):
+    """
+    Limpieza para conservar el valor legible.
+    """
+
+    if pd.isna(valor):
+        return ""
+
+    texto = str(valor).strip()
+
+    try:
+        if "Ã" in texto or "Â" in texto or "â" in texto:
+            texto = texto.encode(
+                "latin1"
+            ).decode(
+                "utf-8"
+            )
+    except Exception:
+        pass
+
+    texto = unicodedata.normalize(
+        "NFKC",
+        texto
+    )
+
+    texto = texto.replace("\n", " ")
+    texto = texto.replace("\r", " ")
+
+    texto = re.sub(
+        r"\s+",
+        " ",
+        texto
+    )
+
+    return texto.strip()
+
+
+# ------------------------------------------------------------
+# 5.6.3 — NORMALIZACIÓN DE NOMBRES DE COLUMNAS
+# ------------------------------------------------------------
+
+def normalizar_nombre_columna_56(nombre):
+    nombre = limpiar_texto_56(nombre)
+
+    nombre = nombre.replace(
+        "Acciónn general",
+        "Acción general"
+    )
+
+    nombre = nombre.replace(
+        "Clasificaciónn 5.3",
+        "Clasificación 5.3"
+    )
+
+    nombre = nombre.replace(
+        "Validaciónn",
+        "Validación"
+    )
+
+    nombre = nombre.replace(
+        "Correcciónn 5.3",
+        "Corrección 5.3"
+    )
+
+    return nombre.strip()
+
+
+def normalizar_columnas_56(df):
+
+    df = df.copy()
+
+    df.columns = [
+        normalizar_nombre_columna_56(col)
+        for col in df.columns
+    ]
+
+    return df
+
+
+# ------------------------------------------------------------
+# 5.6.4 — LEER APRENDIZAJE 5.5
+# ------------------------------------------------------------
+
+def cargar_aprendizaje_54_56():
+
+    if not ARCHIVO_APRENDIZAJE_54.exists():
+        raise FileNotFoundError(
+            f"No se encontró el archivo: "
+            f"{ARCHIVO_APRENDIZAJE_54.name}"
+        )
+
+    ultimo_error = None
+
+    # Se prueban las codificaciones habituales porque el archivo
+    # actualmente puede contener texto con problemas de codificación.
+    for encoding in [
+        "utf-8-sig",
+        "utf-8",
+        "cp1252",
+        "latin1"
+    ]:
+
+        try:
+
+            df = pd.read_csv(
+                ARCHIVO_APRENDIZAJE_54,
+                encoding=encoding
+            )
+
+            df = normalizar_columnas_56(df)
+
+            columnas_requeridas = {
+                "Producto",
+                "Acción general",
+                "Clasificación 5.3",
+                "Validación",
+                "Coherencia 5.3",
+                "Corrección 5.3"
+            }
+
+            faltantes = (
+                columnas_requeridas
+                - set(df.columns)
+            )
+
+            if not faltantes:
+                return df
+
+        except Exception as error:
+            ultimo_error = error
+
+    raise ValueError(
+        "No fue posible leer APRENDIZAJE_54.csv "
+        "con una estructura válida. "
+        f"Último error: {ultimo_error}"
+    )
+
+
+# ------------------------------------------------------------
+# 5.6.5 — OBTENER CLASIFICACIÓN FINAL
+# ------------------------------------------------------------
+
+def obtener_clasificacion_final_56(fila):
+
+    validacion = limpiar_texto_56(
+        fila.get("Validación", "")
+    )
+
+    correccion = limpiar_texto_56(
+        fila.get("Corrección 5.3", "")
+    )
+
+    clasificacion_53 = limpiar_texto_56(
+        fila.get("Clasificación 5.3", "")
+    )
+
+    # --------------------------------------------------------
+    # NO APLICA
+    # --------------------------------------------------------
+
+    if normalizar_texto_56(validacion) == "no aplica":
+        return "NO APLICA"
+
+    # --------------------------------------------------------
+    # La VALIDACIÓN humana es la clasificación final.
+    #
+    # Esto es especialmente importante cuando hubo corrección.
+    # --------------------------------------------------------
+
+    if validacion:
+        clasificacion_final = validacion
+
+    elif correccion:
+        # Respaldo únicamente si por alguna razón la validación
+        # está vacía.
+        if "→" in correccion:
+            clasificacion_final = correccion.split(
+                "→"
+            )[-1].strip()
+        else:
+            clasificacion_final = correccion
+
+    else:
+        clasificacion_final = clasificacion_53
+
+    # --------------------------------------------------------
+    # HOMOLOGACIÓN DEFINITIVA
+    #
+    # ELIMINAR ya no es una categoría válida.
+    # Se conserva FRASE COMERCIAL.
+    # --------------------------------------------------------
+
+    if normalizar_texto_56(
+        clasificacion_final
+    ) == "eliminar":
+
+        clasificacion_final = "FRASE COMERCIAL"
+
+    return limpiar_texto_56(
+        clasificacion_final
+    )
+
+
+# ------------------------------------------------------------
+# 5.6.6 — CARGAR RELACIONES DE 5.2
+# ------------------------------------------------------------
+
+def obtener_acciones_52_56():
+
+    if "df_acciones_52" not in st.session_state:
+
+        raise ValueError(
+            "No existe df_acciones_52 en st.session_state. "
+            "Debe ejecutarse 5.2 antes de ejecutar 5.6."
+        )
+
+    df = st.session_state[
+        "df_acciones_52"
+    ].copy()
+
+    df = normalizar_columnas_56(df)
+
+    columnas_requeridas = {
+        "Producto",
+        "Acción general"
+    }
+
+    faltantes = (
+        columnas_requeridas
+        - set(df.columns)
+    )
+
+    if faltantes:
+
+        raise ValueError(
+            "df_acciones_52 no contiene las columnas "
+            f"requeridas: {sorted(faltantes)}"
+        )
+
+    df = df[
+        [
+            "Producto",
+            "Acción general"
+        ]
+    ].copy()
+
+    df["Producto"] = df["Producto"].apply(
+        limpiar_texto_56
+    )
+
+    df["Acción general"] = df[
+        "Acción general"
+    ].apply(
+        limpiar_texto_56
+    )
+
+    # Elimina filas vacías
+    df = df[
+        (
+            df["Producto"] != ""
+        )
+        &
+        (
+            df["Acción general"] != ""
+        )
+    ].copy()
+
+    # Elimina duplicados de la estructura original
+    df = df.drop_duplicates(
+        subset=[
+            "Producto",
+            "Acción general"
+        ]
+    )
+
+    return df.reset_index(
+        drop=True
+    )
+
+
+# ------------------------------------------------------------
+# 5.6.7 — CONSTRUIR CLAVES DE RELACIÓN
+# ------------------------------------------------------------
+
+def agregar_claves_56(df):
+
+    df = df.copy()
+
+    df["_producto_key_56"] = df[
+        "Producto"
+    ].apply(
+        normalizar_texto_56
+    )
+
+    df["_accion_key_56"] = df[
+        "Acción general"
+    ].apply(
+        normalizar_texto_56
+    )
+
+    return df
+
+
+# ------------------------------------------------------------
+# 5.6.8 — CONSOLIDAR 5.2 + APRENDIZAJE 5.5
+# ------------------------------------------------------------
+
+def construir_matriz_56():
+
+    # --------------------------------------------
+    # ORIGEN 5.2
+    # --------------------------------------------
+
+    df_acciones = obtener_acciones_52_56()
+
+    # --------------------------------------------
+    # APRENDIZAJE 5.5
+    # --------------------------------------------
+
+    df_aprendizaje = cargar_aprendizaje_54_56()
+
+    # --------------------------------------------
+    # CLASIFICACIÓN FINAL
+    # --------------------------------------------
+
+    df_aprendizaje[
+        "Clasificación final"
+    ] = df_aprendizaje.apply(
+        obtener_clasificacion_final_56,
+        axis=1
+    )
+
+    # --------------------------------------------
+    # Limpiar datos
+    # --------------------------------------------
+
+    df_aprendizaje["Producto"] = (
+        df_aprendizaje["Producto"]
+        .apply(limpiar_texto_56)
+    )
+
+    df_aprendizaje["Acción general"] = (
+        df_aprendizaje["Acción general"]
+        .apply(limpiar_texto_56)
+    )
+
+    # --------------------------------------------
+    # Crear claves
+    # --------------------------------------------
+
+    df_acciones = agregar_claves_56(
+        df_acciones
+    )
+
+    df_aprendizaje = agregar_claves_56(
+        df_aprendizaje
+    )
+
+    # --------------------------------------------
+    # Solo necesitamos una clasificación final
+    # por cada relación Producto + Acción.
+    #
+    # Si existen varias validaciones para la misma
+    # relación, se conserva la última clasificación
+    # disponible en el archivo de aprendizaje.
+    # --------------------------------------------
+
+    df_aprendizaje = df_aprendizaje[
+        [
+            "Producto",
+            "Acción general",
+            "Clasificación final",
+            "_producto_key_56",
+            "_accion_key_56"
+        ]
+    ].copy()
+
+    df_aprendizaje = df_aprendizaje.drop_duplicates(
+        subset=[
+            "_producto_key_56",
+            "_accion_key_56"
+        ],
+        keep="last"
+    )
+
+    # --------------------------------------------
+    # CRUCE:
+    #
+    # 5.2 = estructura Producto + Acción
+    # 5.5 = clasificación final aprendida
+    # --------------------------------------------
+
+    df_matriz = pd.merge(
+        df_acciones,
+        df_aprendizaje[
+            [
+                "_producto_key_56",
+                "_accion_key_56",
+                "Clasificación final"
+            ]
+        ],
+        on=[
+            "_producto_key_56",
+            "_accion_key_56"
+        ],
+        how="left"
+    )
+
+    # --------------------------------------------
+    # Marcar las relaciones sin aprendizaje.
+    # NO inventamos una clasificación.
+    # --------------------------------------------
+
+    df_matriz[
+        "Estado aprendizaje"
+    ] = df_matriz[
+        "Clasificación final"
+    ].apply(
+        lambda x:
+        "APRENDIDA"
+        if limpiar_texto_56(x)
+        else "SIN APRENDIZAJE"
+    )
+
+    # --------------------------------------------
+    # Orden definitivo
+    # --------------------------------------------
+
+    df_matriz = df_matriz[
+        [
+            "Producto",
+            "Acción general",
+            "Clasificación final",
+            "Estado aprendizaje"
+        ]
+    ].copy()
+
+    # --------------------------------------------
+    # Limpieza final
+    # --------------------------------------------
+
+    df_matriz[
+        "Clasificación final"
+    ] = df_matriz[
+        "Clasificación final"
+    ].apply(
+        limpiar_texto_56
+    )
+
+    # Homologación final de seguridad
+    df_matriz[
+        "Clasificación final"
+    ] = df_matriz[
+        "Clasificación final"
+    ].replace(
+        {
+            "ELIMINAR": "FRASE COMERCIAL"
+        }
+    )
+
+    df_matriz = df_matriz.drop_duplicates(
+        subset=[
+            "Producto",
+            "Acción general"
+        ]
+    )
+
+    return df_matriz.reset_index(
+        drop=True
+    )
+
+
+# ------------------------------------------------------------
+# 5.6.9 — EJECUTAR 5.6
+# ------------------------------------------------------------
+
+st.markdown(
+    "### 5.6 — Consolidación de relaciones y clasificación final"
+)
+
+if st.button(
+    "Generar matriz persistente 5.6",
+    key="btn_generar_matriz_56"
+):
+
+    try:
+
+        with st.spinner(
+            "Construyendo matriz 5.6..."
+        ):
+
+            df_matriz_56 = construir_matriz_56()
+
+            # ----------------------------------------
+            # Guardar archivo persistente
+            # ----------------------------------------
+
+            df_matriz_56.to_csv(
+                ARCHIVO_MATRIZ_56,
+                index=False,
+                encoding="utf-8-sig"
+            )
+
+            # ----------------------------------------
+            # También queda disponible durante
+            # la sesión actual
+            # ----------------------------------------
+
+            st.session_state[
+                "df_matriz_56"
+            ] = df_matriz_56.copy()
+
+        st.success(
+            "Matriz 5.6 generada correctamente."
+        )
+
+        st.write(
+            f"Registros generados: "
+            f"**{len(df_matriz_56):,}**"
+        )
+
+        st.write(
+            f"Archivo persistente: "
+            f"**{ARCHIVO_MATRIZ_56.name}**"
+        )
+
+        st.dataframe(
+            df_matriz_56,
+            use_container_width=True,
+            hide_index=True
+        )
+
+        st.download_button(
+            label="Descargar matriz 5.6",
+            data=df_matriz_56.to_csv(
+                index=False,
+                encoding="utf-8-sig"
+            ),
+            file_name="MATRIZ_RELACIONES_56.csv",
+            mime="text/csv",
+            key="download_matriz_56"
+        )
+
+    except Exception as e:
+
+        st.error(
+            "No fue posible generar la matriz 5.6."
+        )
+
+        st.exception(e)
