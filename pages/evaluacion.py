@@ -6457,3 +6457,415 @@ Traceback:
 File "/mount/src/asesores/pages/evaluacion.py", line 6493, in leer_fuente_pt_ca_62
     io.BytesIO(contenido),
     ^^
+# ============================================================
+# 6.2 - PRODUCTO / COMPONENTE / ACCIÓN
+# PARTE 1 - CARGA Y CONTROL DE FUENTES
+# ============================================================
+
+# ------------------------------------------------------------
+# ARCHIVOS
+# ------------------------------------------------------------
+
+ARCHIVO_FUENTE_62 = "COMPONENTES_Y_ACCIONES.csv"
+ARCHIVO_BANCO_62 = "BANCO_PREGUNTAS_GENERALES.csv"
+
+
+# ------------------------------------------------------------
+# FUNCIONES
+# ------------------------------------------------------------
+
+def normalizar_62(valor):
+
+    if pd.isna(valor):
+        return ""
+
+    return (
+        str(valor)
+        .strip()
+        .lower()
+        .replace("\n", " ")
+    )
+
+
+def cargar_fuente_62():
+
+    try:
+
+        df = pd.read_csv(
+            ARCHIVO_FUENTE_62,
+            encoding="utf-8-sig"
+        )
+
+    except UnicodeDecodeError:
+
+        df = pd.read_csv(
+            ARCHIVO_FUENTE_62,
+            encoding="latin-1"
+        )
+
+    columnas = [
+        "Producto",
+        "Componente",
+        "Acciones"
+    ]
+
+    faltantes = [
+        columna
+        for columna in columnas
+        if columna not in df.columns
+    ]
+
+    if faltantes:
+
+        st.error(
+            "6.2 ERROR: faltan columnas en "
+            f"{ARCHIVO_FUENTE_62}: "
+            f"{', '.join(faltantes)}"
+        )
+
+        return None
+
+    df = df[columnas].copy()
+
+    for columna in columnas:
+
+        df[columna] = (
+            df[columna]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+    df = df[
+        (df["Producto"] != "")
+        &
+        (df["Componente"] != "")
+        &
+        (df["Acciones"] != "")
+    ].copy()
+
+    df["Fuente_ID"] = [
+        f"PTCA-F{i:06d}"
+        for i in range(1, len(df) + 1)
+    ]
+
+    df["_clave"] = (
+        df["Producto"]
+        .map(normalizar_62)
+        + "||"
+        + df["Componente"]
+        .map(normalizar_62)
+        + "||"
+        + df["Acciones"]
+        .map(normalizar_62)
+    )
+
+    df = (
+        df
+        .drop_duplicates(
+            subset="_clave"
+        )
+        .reset_index(drop=True)
+    )
+
+    return df
+
+
+def cargar_banco_62():
+
+    try:
+
+        df = pd.read_csv(
+            ARCHIVO_BANCO_62,
+            encoding="utf-8-sig"
+        )
+
+    except FileNotFoundError:
+
+        return pd.DataFrame()
+
+    except UnicodeDecodeError:
+
+        df = pd.read_csv(
+            ARCHIVO_BANCO_62,
+            encoding="latin-1"
+        )
+
+    return df
+
+
+# ------------------------------------------------------------
+# IDENTIFICAR RELACIONES YA UTILIZADAS
+# ------------------------------------------------------------
+
+def obtener_fuentes_usadas_62(df_banco):
+
+    usadas = set()
+
+    if df_banco.empty:
+        return usadas
+
+    if "Fuente_ID" not in df_banco.columns:
+        return usadas
+
+    for valor in df_banco["Fuente_ID"].fillna(""):
+
+        texto = str(valor).strip()
+
+        if not texto:
+            continue
+
+        for fuente in texto.split(";"):
+
+            fuente = fuente.strip()
+
+            if fuente:
+                usadas.add(fuente)
+
+    return usadas
+
+
+# ------------------------------------------------------------
+# IDENTIFICAR PREGUNTAS EXISTENTES
+# ------------------------------------------------------------
+
+def obtener_preguntas_existentes_62(df_banco):
+
+    preguntas = set()
+
+    if df_banco.empty:
+        return preguntas
+
+    if "Pregunta" not in df_banco.columns:
+        return preguntas
+
+    for pregunta in df_banco["Pregunta"].fillna(""):
+
+        clave = normalizar_62(pregunta)
+
+        if clave:
+            preguntas.add(clave)
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ 6.2
+# ============================================================
+
+st.markdown(
+    "## 6.2 Producto - Componente - Acción"
+)
+
+st.write(
+    "Control de relaciones disponibles para "
+    "la generación de preguntas."
+)
+
+
+if st.button(
+    "🔎 CARGAR Y VALIDAR FUENTES 6.2",
+    key="cargar_fuentes_62"
+):
+
+    df_fuente_62 = cargar_fuente_62()
+
+    if df_fuente_62 is None:
+        st.stop()
+
+    df_banco_62 = cargar_banco_62()
+
+    fuentes_usadas_62 = (
+        obtener_fuentes_usadas_62(
+            df_banco_62
+        )
+    )
+
+    preguntas_existentes_62 = (
+        obtener_preguntas_existentes_62(
+            df_banco_62
+        )
+    )
+
+    # --------------------------------------------------------
+    # RELACIONES DISPONIBLES
+    # --------------------------------------------------------
+
+    df_disponible_62 = (
+        df_fuente_62[
+            ~df_fuente_62["Fuente_ID"].isin(
+                fuentes_usadas_62
+            )
+        ]
+        .copy()
+        .reset_index(drop=True)
+    )
+
+    # --------------------------------------------------------
+    # GUARDAR EN SESIÓN
+    # --------------------------------------------------------
+
+    st.session_state[
+        "df_fuente_62"
+    ] = df_fuente_62.copy()
+
+    st.session_state[
+        "df_banco_62"
+    ] = df_banco_62.copy()
+
+    st.session_state[
+        "df_disponible_62"
+    ] = df_disponible_62.copy()
+
+    st.session_state[
+        "fuentes_usadas_62"
+    ] = fuentes_usadas_62
+
+    st.session_state[
+        "preguntas_existentes_62"
+    ] = preguntas_existentes_62
+
+
+# ============================================================
+# MOSTRAR CONTROL
+# ============================================================
+
+if (
+    "df_fuente_62"
+    in st.session_state
+):
+
+    df_fuente_62 = (
+        st.session_state[
+            "df_fuente_62"
+        ]
+    )
+
+    df_banco_62 = (
+        st.session_state[
+            "df_banco_62"
+        ]
+    )
+
+    df_disponible_62 = (
+        st.session_state[
+            "df_disponible_62"
+        ]
+    )
+
+    fuentes_usadas_62 = (
+        st.session_state[
+            "fuentes_usadas_62"
+        ]
+    )
+
+    preguntas_existentes_62 = (
+        st.session_state[
+            "preguntas_existentes_62"
+        ]
+    )
+
+
+    # --------------------------------------------------------
+    # RESUMEN
+    # --------------------------------------------------------
+
+    st.success(
+        "6.2 cargó correctamente las fuentes."
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Relaciones fuente",
+            len(df_fuente_62)
+        )
+
+    with col2:
+
+        st.metric(
+            "Relaciones ya utilizadas",
+            len(fuentes_usadas_62)
+        )
+
+    with col3:
+
+        st.metric(
+            "Relaciones disponibles",
+            len(df_disponible_62)
+        )
+
+
+    st.info(
+        "Preguntas existentes en el banco: "
+        f"{len(preguntas_existentes_62):,}"
+    )
+
+
+    # --------------------------------------------------------
+    # CONTROL DE CONSISTENCIA
+    # --------------------------------------------------------
+
+    total_fuente = len(
+        df_fuente_62
+    )
+
+    total_usadas = len(
+        fuentes_usadas_62
+        &
+        set(
+            df_fuente_62[
+                "Fuente_ID"
+            ]
+        )
+    )
+
+    total_disponibles = len(
+        df_disponible_62
+    )
+
+
+    if (
+        total_usadas
+        +
+        total_disponibles
+        ==
+        total_fuente
+    ):
+
+        st.success(
+            "Control correcto: "
+            "utilizadas + disponibles = "
+            "relaciones fuente."
+        )
+
+    else:
+
+        st.error(
+            "6.2 ERROR: los conteos "
+            "de relaciones no coinciden."
+        )
+
+
+    # --------------------------------------------------------
+    # VISTA PREVIA
+    # --------------------------------------------------------
+
+    st.markdown(
+        "### Relaciones disponibles"
+    )
+
+    st.dataframe(
+        df_disponible_62[
+            [
+                "Fuente_ID",
+                "Producto",
+                "Componente",
+                "Acciones"
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True
+    )
