@@ -5254,3 +5254,704 @@ if (
         use_container_width=True,
         hide_index=True
     )
+# ============================================================
+# 6.1 - PARTE 2
+# GENERADOR PRODUCTO - ACCIÓN GENERAL
+# ============================================================
+
+# ============================================================
+# 1. FUNCIONES DE CONTROL
+# ============================================================
+
+def clave_relacion_61(producto, accion):
+
+    return (
+        normalizar_61(producto)
+        + "||"
+        + normalizar_61(accion)
+    )
+
+
+def obtener_relaciones_consumidas_61():
+
+    consumidas = set()
+
+    if "df_banco_61" in st.session_state:
+
+        df_banco = st.session_state[
+            "df_banco_61"
+        ]
+
+        if (
+            not df_banco.empty
+            and "Fuente_ID" in df_banco.columns
+        ):
+
+            for valor in df_banco[
+                "Fuente_ID"
+            ].fillna(""):
+
+                for fuente in str(
+                    valor
+                ).split(";"):
+
+                    fuente = fuente.strip()
+
+                    if fuente:
+                        consumidas.add(fuente)
+
+    # Relaciones consumidas durante esta sesión
+
+    consumidas.update(
+        st.session_state.get(
+            "fuentes_consumidas_61",
+            set()
+        )
+    )
+
+    return consumidas
+
+
+def obtener_claves_preguntas_61():
+
+    claves = set()
+
+    if "df_banco_61" not in st.session_state:
+        return claves
+
+    df_banco = st.session_state[
+        "df_banco_61"
+    ]
+
+    if df_banco.empty:
+        return claves
+
+    # --------------------------------------------------------
+    # Se utiliza también Fuente_ID para evitar reutilización.
+    # --------------------------------------------------------
+
+    if "Fuente_ID" in df_banco.columns:
+
+        for valor in df_banco[
+            "Fuente_ID"
+        ].fillna(""):
+
+            fuentes = sorted(
+                [
+                    x.strip()
+                    for x in str(valor).split(";")
+                    if x.strip()
+                ]
+            )
+
+            if fuentes:
+                claves.add(
+                    "FUENTES::"
+                    + "||".join(fuentes)
+                )
+
+    return claves
+
+
+def siguiente_id_61():
+
+    mayor = 0
+
+    df_banco = st.session_state.get(
+        "df_banco_61",
+        pd.DataFrame()
+    )
+
+    if (
+        not df_banco.empty
+        and "Pregunta_ID" in df_banco.columns
+    ):
+
+        for valor in df_banco[
+            "Pregunta_ID"
+        ].fillna(""):
+
+            coincidencia = re.match(
+                r"PTAG-(\d+)",
+                str(valor).strip()
+            )
+
+            if coincidencia:
+
+                mayor = max(
+                    mayor,
+                    int(
+                        coincidencia.group(1)
+                    )
+                )
+
+    preguntas_actuales = st.session_state.get(
+        "preguntas_generadas_61",
+        []
+    )
+
+    for pregunta in preguntas_actuales:
+
+        coincidencia = re.match(
+            r"PTAG-(\d+)",
+            str(
+                pregunta.get(
+                    "Pregunta_ID",
+                    ""
+                )
+            )
+        )
+
+        if coincidencia:
+
+            mayor = max(
+                mayor,
+                int(
+                    coincidencia.group(1)
+                )
+            )
+
+    return f"PTAG-{mayor + 1:06d}"
+
+
+# ============================================================
+# 2. GENERAR NIVEL 1
+# ============================================================
+
+def generar_nivel_1_61(df_disponible, consumidas):
+
+    if len(df_disponible) < 4:
+        return None
+
+    candidatos = df_disponible[
+        ~df_disponible[
+            "Fuente_ID"
+        ].isin(consumidas)
+    ].copy()
+
+    if len(candidatos) < 4:
+        return None
+
+    # --------------------------------------------------------
+    # Buscar una relación verdadera
+    # --------------------------------------------------------
+
+    verdaderas = candidatos.sample(
+        frac=1,
+        random_state=None
+    )
+
+    for _, verdadera in verdaderas.iterrows():
+
+        producto = verdadera[
+            "Producto"
+        ]
+
+        clave_producto = normalizar_61(
+            producto
+        )
+
+        # ----------------------------------------------------
+        # Las falsas deben corresponder a otros productos.
+        # ----------------------------------------------------
+
+        falsas = candidatos[
+            candidatos["Producto"].map(
+                normalizar_61
+            ) != clave_producto
+        ].copy()
+
+        if len(falsas) < 3:
+            continue
+
+        falsas = falsas.sample(
+            n=3,
+            random_state=None
+        )
+
+        opciones = pd.concat(
+            [
+                pd.DataFrame([verdadera]),
+                falsas
+            ],
+            ignore_index=True
+        )
+
+        opciones = opciones.sample(
+            frac=1,
+            random_state=None
+        ).reset_index(drop=True)
+
+        fuentes = list(
+            opciones["Fuente_ID"]
+        )
+
+        if len(set(fuentes)) != 4:
+            continue
+
+        return {
+            "Producto": producto,
+            "Opciones": opciones,
+            "Correctas": [
+                int(
+                    opciones.index[
+                        opciones["Fuente_ID"]
+                        == verdadera["Fuente_ID"]
+                    ][0]
+                ) + 1
+            ]
+        }
+
+    return None
+
+
+# ============================================================
+# 3. GENERAR NIVEL 2
+# ============================================================
+
+def generar_nivel_2_61(df_disponible, consumidas):
+
+    candidatos = df_disponible[
+        ~df_disponible[
+            "Fuente_ID"
+        ].isin(consumidas)
+    ].copy()
+
+    if len(candidatos) < 4:
+        return None
+
+    # --------------------------------------------------------
+    # Buscar productos que tengan por lo menos 2 acciones.
+    # --------------------------------------------------------
+
+    grupos = (
+        candidatos
+        .groupby("Producto", sort=False)
+        .filter(
+            lambda grupo: len(grupo) >= 2
+        )
+    )
+
+    if grupos.empty:
+        return None
+
+    productos = (
+        grupos["Producto"]
+        .drop_duplicates()
+        .tolist()
+    )
+
+    np.random.shuffle(
+        productos
+    )
+
+    for producto in productos:
+
+        verdaderas = grupos[
+            grupos["Producto"] == producto
+        ].copy()
+
+        if len(verdaderas) < 2:
+            continue
+
+        verdaderas = verdaderas.sample(
+            n=2,
+            random_state=None
+        )
+
+        claves_verdaderas = set(
+            verdaderas["Fuente_ID"]
+        )
+
+        # ----------------------------------------------------
+        # Las falsas deben provenir de otros productos.
+        # ----------------------------------------------------
+
+        falsas = candidatos[
+            ~candidatos["Fuente_ID"].isin(
+                claves_verdaderas
+            )
+        ].copy()
+
+        falsas = falsas[
+            falsas["Producto"].map(
+                normalizar_61
+            ) != normalizar_61(producto)
+        ]
+
+        if len(falsas) < 2:
+            continue
+
+        falsas = falsas.sample(
+            n=2,
+            random_state=None
+        )
+
+        opciones = pd.concat(
+            [
+                verdaderas.assign(
+                    _correcta=True
+                ),
+                falsas.assign(
+                    _correcta=False
+                )
+            ],
+            ignore_index=True
+        )
+
+        opciones = opciones.sample(
+            frac=1,
+            random_state=None
+        ).reset_index(drop=True)
+
+        fuentes = list(
+            opciones["Fuente_ID"]
+        )
+
+        if len(set(fuentes)) != 4:
+            continue
+
+        correctas = [
+            i + 1
+            for i, valor in enumerate(
+                opciones["_correcta"]
+            )
+            if valor
+        ]
+
+        return {
+            "Producto": producto,
+            "Opciones": opciones,
+            "Correctas": correctas
+        }
+
+    return None
+
+
+# ============================================================
+# 4. CONSTRUIR PREGUNTA
+# ============================================================
+
+def construir_pregunta_61(
+    resultado,
+    nivel
+):
+
+    opciones = resultado[
+        "Opciones"
+    ]
+
+    producto = resultado[
+        "Producto"
+    ]
+
+    if nivel == "Nivel 1":
+
+        texto = (
+            "¿Cuál de las siguientes "
+            "acciones generales corresponde "
+            f"al producto {producto}?"
+        )
+
+    else:
+
+        texto = (
+            "¿Cuáles de las siguientes "
+            "acciones generales corresponden "
+            f"al producto {producto}? "
+            "Seleccione las dos opciones correctas."
+        )
+
+    pregunta_id = siguiente_id_61()
+
+    fuentes = ";".join(
+        opciones[
+            "Fuente_ID"
+        ].tolist()
+    )
+
+    return {
+
+        "Pregunta_ID":
+            pregunta_id,
+
+        "Modulo":
+            "Producto",
+
+        "Tema":
+            "Acción General",
+
+        "Nivel":
+            nivel,
+
+        "Tipo_Relacion":
+            "Producto-Acción General",
+
+        "Pregunta":
+            texto,
+
+        "Respuesta_1":
+            opciones.iloc[0][
+                "Acción general"
+            ],
+
+        "Respuesta_2":
+            opciones.iloc[1][
+                "Acción general"
+            ],
+
+        "Respuesta_3":
+            opciones.iloc[2][
+                "Acción general"
+            ],
+
+        "Respuesta_4":
+            opciones.iloc[3][
+                "Acción general"
+            ],
+
+        "Respuesta_Correcta":
+            ";".join(
+                str(x)
+                for x in resultado[
+                    "Correctas"
+                ]
+            ),
+
+        "Estado":
+            "PENDIENTE",
+
+        "Observacion_Administrador":
+            "",
+
+        "Fecha_Generacion":
+            pd.Timestamp.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+
+        "Fuente_ID":
+            fuentes
+    }
+
+
+# ============================================================
+# 5. GENERADOR GENERAL
+# ============================================================
+
+def generar_preguntas_61(
+    cantidad,
+    nivel
+):
+
+    df_disponible = st.session_state.get(
+        "df_disponible_61",
+        pd.DataFrame()
+    )
+
+    if df_disponible.empty:
+        return []
+
+    consumidas = obtener_relaciones_consumidas_61()
+
+    preguntas = []
+
+    while len(preguntas) < cantidad:
+
+        if nivel == "Nivel 1":
+
+            resultado = generar_nivel_1_61(
+                df_disponible,
+                consumidas
+            )
+
+        else:
+
+            resultado = generar_nivel_2_61(
+                df_disponible,
+                consumidas
+            )
+
+        if resultado is None:
+            break
+
+        pregunta = construir_pregunta_61(
+            resultado,
+            nivel
+        )
+
+        preguntas.append(
+            pregunta
+        )
+
+        # ----------------------------------------------------
+        # Consumir las 4 relaciones inmediatamente.
+        # ----------------------------------------------------
+
+        fuentes = (
+            resultado["Opciones"]
+            ["Fuente_ID"]
+            .tolist()
+        )
+
+        consumidas.update(
+            fuentes
+        )
+
+    return preguntas
+
+
+# ============================================================
+# 6. INTERFAZ DE GENERACIÓN
+# ============================================================
+
+if (
+    "df_disponible_61"
+    in st.session_state
+):
+
+    st.markdown(
+        "### Generación de preguntas"
+    )
+
+    cantidad_61 = st.number_input(
+        "¿Cuántas preguntas desea generar?",
+        min_value=1,
+        max_value=500,
+        value=10,
+        step=1,
+        key="cantidad_generar_61"
+    )
+
+    nivel_61 = st.selectbox(
+        "Nivel de evaluación",
+        [
+            "Nivel 1",
+            "Nivel 2"
+        ],
+        key="nivel_generar_61"
+    )
+
+    if st.button(
+        "GENERAR PREGUNTAS",
+        key="generar_preguntas_61"
+    ):
+
+        nuevas = generar_preguntas_61(
+            cantidad_61,
+            nivel_61
+        )
+
+        if not nuevas:
+
+            st.warning(
+                "No hay suficientes relaciones "
+                "disponibles para generar nuevas "
+                "preguntas con las condiciones "
+                "establecidas."
+            )
+
+        else:
+
+            # ------------------------------------------------
+            # Guardar preguntas generadas
+            # ------------------------------------------------
+
+            st.session_state[
+                "preguntas_generadas_61"
+            ] = nuevas
+
+            # ------------------------------------------------
+            # Marcar relaciones consumidas
+            # ------------------------------------------------
+
+            consumidas = (
+                st.session_state.get(
+                    "fuentes_consumidas_61",
+                    set()
+                )
+            )
+
+            for pregunta in nuevas:
+
+                for fuente in str(
+                    pregunta[
+                        "Fuente_ID"
+                    ]
+                ).split(";"):
+
+                    fuente = fuente.strip()
+
+                    if fuente:
+                        consumidas.add(
+                            fuente
+                        )
+
+            st.session_state[
+                "fuentes_consumidas_61"
+            ] = consumidas
+
+            st.success(
+                f"Se generaron "
+                f"{len(nuevas)} preguntas."
+            )
+
+            st.info(
+                "Las relaciones utilizadas en "
+                "estas preguntas quedan consumidas "
+                "y no volverán a utilizarse."
+            )
+
+
+# ============================================================
+# 7. MOSTRAR PREGUNTAS GENERADAS
+# ============================================================
+
+preguntas_61 = st.session_state.get(
+    "preguntas_generadas_61",
+    []
+)
+
+if preguntas_61:
+
+    st.markdown(
+        "### Preguntas generadas"
+    )
+
+    for pregunta in preguntas_61:
+
+        st.markdown(
+            f"**{pregunta['Pregunta_ID']} — "
+            f"{pregunta['Nivel']}**"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"1. {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"2. {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"3. {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"4. {pregunta['Respuesta_4']}"
+        )
+
+        st.caption(
+            "Respuesta correcta: "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            "Fuente: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        st.divider()
