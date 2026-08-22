@@ -536,7 +536,7 @@ try:
                 accion_n,
                 patron
             ):
-                return "ELIMINAR"
+                return "FRASE COMERCIAL"
 
         # --------------------------------------------
         # COMBINACIONES
@@ -547,7 +547,8 @@ try:
                 accion_n,
                 patron
             ):
-                return "RECOMENDACIÓN / COMPLEMENTO"
+                return "RECOMENDACIÓN DE COMBINACIÓN CON OTRO PRODUCTO"
+
 
         # --------------------------------------------
         # RESTRICCIONES
@@ -558,8 +559,9 @@ try:
                 accion_n,
                 patron
             ):
-                return "RESTRICCIÓN / CONTRAINDICACIÓN"
+                return "RESTRICCIÓN"
 
+        
         # --------------------------------------------
         # USO / POSOLOGÍA
         # --------------------------------------------
@@ -593,7 +595,9 @@ try:
                 break
 
         if componente_propio_encontrado:
-            return "COMPONENTE + FUNCIÓN"
+            return "ACCIÓN DE COMPONENTE"
+
+     
 
         # --------------------------------------------
         # OTRO COMPONENTE
@@ -609,7 +613,7 @@ try:
                 accion_n,
                 componente_global
             ):
-                return "RECOMENDACIÓN / COMPLEMENTO"
+                return "RECOMENDACIÓN DE COMBINACIÓN CON OTRO PRODUCTO"
 
         # --------------------------------------------
         # OTRO PRODUCTO
@@ -631,8 +635,9 @@ try:
                 accion_n,
                 otro_producto
             ):
-                return "RECOMENDACIÓN / COMPLEMENTO"
+                return "RECOMENDACIÓN DE COMBINACIÓN CON OTRO PRODUCTO"
 
+       
         # --------------------------------------------
         # ACCIÓN GENERAL
         # --------------------------------------------
@@ -814,9 +819,7 @@ try:
                 "Producto",
                 "Acción general",
                 "Clasificación 5.3",
-                "Validación",
-                "Restricciones",
-                "Posología"
+                "Validación"
             ]
         )
 
@@ -1190,14 +1193,7 @@ try:
                         clasificacion_53,
                     "Validación":
                         clasificacion_manual,
-                    "Restricciones":
-                        "SÍ"
-                        if restriccion
-                        else "NO",
-                    "Posología":
-                        "SÍ"
-                        if posologia
-                        else "NO"
+                   
                 }
             )
 
@@ -1244,8 +1240,7 @@ try:
                 "Acción general",
                 "Clasificación 5.3",
                 "Validación",
-                "Restricciones",
-                "Posología"
+               
             ]
 
             df_nuevo_aprendizaje_54 = (
@@ -1391,5 +1386,794 @@ except Exception as e:
 
     st.error(
         f"🔴 5.4 ERROR: "
+        f"{type(e).__name__}: {e}"
+    )
+# ============================================================
+# 5.5 PERSISTENCIA Y ANÁLISIS DEL APRENDIZAJE DE 5.4
+# ============================================================
+
+st.markdown("### 5.5 Persistencia y análisis del aprendizaje")
+
+try:
+
+    import base64
+    import json
+    import urllib.request
+    import urllib.error
+
+    # ========================================================
+    # 1. CONFIGURACIÓN DE PERSISTENCIA
+    # ========================================================
+
+    GITHUB_USUARIO_55 = "franquiciasauces"
+    GITHUB_REPOSITORIO_55 = "Asesores"
+    GITHUB_RAMA_55 = "main"
+
+    ARCHIVO_APRENDIZAJE_55 = (
+        "APRENDIZAJE_54.csv"
+    )
+
+    URL_GITHUB_55 = (
+        "https://api.github.com/repos/"
+        f"{GITHUB_USUARIO_55}/"
+        f"{GITHUB_REPOSITORIO_55}/contents/"
+        f"{ARCHIVO_APRENDIZAJE_55}"
+    )
+
+    # ========================================================
+    # 2. VALIDAR TOKEN
+    # ========================================================
+
+    if not GITHUB_TOKEN:
+        st.error(
+            "❌ 5.5 ERROR: No existe GITHUB_TOKEN."
+        )
+        st.stop()
+
+    # ========================================================
+    # 3. COLUMNAS OBLIGATORIAS DEL APRENDIZAJE
+    #
+    # Estas son las columnas reales que debe conservar 5.5.
+    # ========================================================
+
+    columnas_aprendizaje_55 = [
+        "Producto",
+        "Acción general",
+        "Clasificación 5.3",
+        "Validación"
+    ]
+
+    # ========================================================
+    # 4. CATEGORÍAS VÁLIDAS DE VALIDACIÓN
+    # ========================================================
+
+    categorias_validacion_55 = [
+        "ACCIÓN GENERAL",
+        "COMPONENTE",
+        "ACCIÓN DE COMPONENTE",
+        "NO APLICA",
+        "RECOMENDACIÓN DE COMBINACIÓN CON OTRO PRODUCTO",
+        "FRASE COMERCIAL",
+        "RESTRICCIÓN",
+        "POSOLOGÍA"
+    ]
+
+    # ========================================================
+    # 5. FUNCIÓN DE NORMALIZACIÓN
+    # ========================================================
+
+    def normalizar_55(texto):
+
+        import unicodedata
+        import re
+
+        texto = str(texto).strip().lower()
+
+        texto = unicodedata.normalize(
+            "NFD",
+            texto
+        )
+
+        texto = "".join(
+            caracter
+            for caracter in texto
+            if unicodedata.category(caracter) != "Mn"
+        )
+
+        texto = re.sub(
+            r"[^a-z0-9]+",
+            " ",
+            texto
+        )
+
+        return re.sub(
+            r"\s+",
+            " ",
+            texto
+        ).strip()
+
+    # ========================================================
+    # 6. CLAVE ÚNICA DE LA RELACIÓN
+    #
+    # IMPORTANTE:
+    # Esta clave NO modifica 5.3.
+    #
+    # Sirve únicamente para identificar una relación
+    # Producto + Acción general dentro del aprendizaje.
+    # ========================================================
+
+    def clave_relacion_55(fila):
+
+        producto = normalizar_55(
+            fila.get(
+                "Producto",
+                ""
+            )
+        )
+
+        accion = normalizar_55(
+            fila.get(
+                "Acción general",
+                ""
+            )
+        )
+
+        return (
+            producto
+            + "||"
+            + accion
+        )
+
+    # ========================================================
+    # 7. LEER APRENDIZAJE TEMPORAL DE 5.4
+    # ========================================================
+
+    aprendizaje_temporal_55 = (
+        st.session_state.get(
+            "aprendizaje_54"
+        )
+    )
+
+    if (
+        aprendizaje_temporal_55 is None
+        or not isinstance(
+            aprendizaje_temporal_55,
+            pd.DataFrame
+        )
+    ):
+
+        aprendizaje_temporal_55 = pd.DataFrame(
+            columns=columnas_aprendizaje_55
+        )
+
+    else:
+
+        aprendizaje_temporal_55 = (
+            aprendizaje_temporal_55.copy()
+        )
+
+    # ========================================================
+    # 8. VALIDAR Y NORMALIZAR COLUMNAS
+    # ========================================================
+
+    faltantes_temporal_55 = [
+        columna
+        for columna in columnas_aprendizaje_55
+        if columna not in aprendizaje_temporal_55.columns
+    ]
+
+    if faltantes_temporal_55:
+
+        st.error(
+            "❌ 5.5 ERROR: El aprendizaje de 5.4 "
+            "no contiene las columnas obligatorias: "
+            + ", ".join(
+                faltantes_temporal_55
+            )
+        )
+
+        st.stop()
+
+    aprendizaje_temporal_55 = (
+        aprendizaje_temporal_55[
+            columnas_aprendizaje_55
+        ].copy()
+    )
+
+    aprendizaje_temporal_55 = (
+        aprendizaje_temporal_55.fillna("")
+    )
+
+    # ========================================================
+    # 9. VALIDAR CATEGORÍAS DE VALIDACIÓN
+    # ========================================================
+
+    aprendizaje_temporal_55 = (
+        aprendizaje_temporal_55[
+            aprendizaje_temporal_55[
+                "Validación"
+            ].astype(str).isin(
+                categorias_validacion_55
+            )
+        ].copy()
+    )
+
+    # ========================================================
+    # 10. ANALIZAR COHERENCIA 5.3 VS VALIDACIÓN
+    #
+    # IMPORTANTE:
+    #
+    # Este análisis NO cambia la clasificación de 5.3.
+    # Solamente registra si la validación humana confirmó
+    # o corrigió la propuesta inicial.
+    # ========================================================
+
+    def analizar_coherencia_55(fila):
+
+        clasificacion_53 = (
+            str(
+                fila[
+                    "Clasificación 5.3"
+                ]
+            )
+            .strip()
+            .upper()
+        )
+
+        validacion = (
+            str(
+                fila[
+                    "Validación"
+                ]
+            )
+            .strip()
+            .upper()
+        )
+
+        if (
+            not clasificacion_53
+            or not validacion
+        ):
+            return "SIN DATOS"
+
+        if (
+            clasificacion_53
+            == validacion
+        ):
+            return "CORRECTA"
+
+        return "CORREGIDA"
+
+    aprendizaje_temporal_55[
+        "Coherencia 5.3"
+    ] = aprendizaje_temporal_55.apply(
+        analizar_coherencia_55,
+        axis=1
+    )
+
+    # ========================================================
+    # 11. REGISTRAR LA CORRECCIÓN
+    #
+    # No reemplazamos la clasificación 5.3.
+    # Conservamos ambas:
+    #
+    # Clasificación 5.3 = propuesta inicial
+    # Validación = decisión humana
+    # ========================================================
+
+    aprendizaje_temporal_55[
+        "Corrección 5.3"
+    ] = aprendizaje_temporal_55.apply(
+        lambda fila:
+        "SIN CORRECCIÓN"
+        if fila["Coherencia 5.3"] == "CORRECTA"
+        else (
+            str(
+                fila["Clasificación 5.3"]
+            ).strip()
+            + " → "
+            + str(
+                fila["Validación"]
+            ).strip()
+        ),
+        axis=1
+    )
+
+    # ========================================================
+    # 12. LEER APRENDIZAJE PERSISTENTE DE GITHUB
+    # ========================================================
+
+    aprendizaje_persistente_55 = pd.DataFrame(
+        columns=columnas_aprendizaje_55
+    )
+
+    sha_github_55 = None
+
+    solicitud_get_55 = urllib.request.Request(
+        URL_GITHUB_55,
+        method="GET"
+    )
+
+    solicitud_get_55.add_header(
+        "Authorization",
+        f"Bearer {GITHUB_TOKEN}"
+    )
+
+    solicitud_get_55.add_header(
+        "Accept",
+        "application/vnd.github+json"
+    )
+
+    try:
+
+        with urllib.request.urlopen(
+            solicitud_get_55,
+            timeout=30
+        ) as respuesta_55:
+
+            contenido_respuesta_55 = (
+                json.loads(
+                    respuesta_55.read().decode(
+                        "utf-8"
+                    )
+                )
+            )
+
+        sha_github_55 = (
+            contenido_respuesta_55.get(
+                "sha"
+            )
+        )
+
+        contenido_base64_55 = (
+            contenido_respuesta_55.get(
+                "content",
+                ""
+            )
+        )
+
+        if contenido_base64_55:
+
+            contenido_bytes_55 = (
+                base64.b64decode(
+                    contenido_base64_55
+                )
+            )
+
+            texto_csv_55 = (
+                contenido_bytes_55.decode(
+                    "utf-8-sig"
+                )
+            )
+
+            if texto_csv_55.strip():
+
+                aprendizaje_persistente_55 = (
+                    pd.read_csv(
+                        __import__(
+                            "io"
+                        ).StringIO(
+                            texto_csv_55
+                        ),
+                        dtype=str
+                    )
+                )
+
+    except urllib.error.HTTPError as error_55:
+
+        if error_55.code == 404:
+
+            st.info(
+                "ℹ️ 5.5: Todavía no existe "
+                "un archivo de aprendizaje persistente. "
+                "Se creará con las validaciones actuales."
+            )
+
+        else:
+
+            st.error(
+                "❌ 5.5 ERROR al consultar GitHub: "
+                f"HTTP {error_55.code}"
+            )
+
+            st.stop()
+
+    except Exception as error_lectura_55:
+
+        st.error(
+            "❌ 5.5 ERROR al leer el aprendizaje "
+            f"persistente: "
+            f"{type(error_lectura_55).__name__}: "
+            f"{error_lectura_55}"
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 13. ASEGURAR COLUMNAS DEL ARCHIVO PERSISTENTE
+    # ========================================================
+
+    for columna in columnas_aprendizaje_55:
+
+        if columna not in aprendizaje_persistente_55.columns:
+
+            aprendizaje_persistente_55[
+                columna
+            ] = ""
+
+    aprendizaje_persistente_55 = (
+        aprendizaje_persistente_55[
+            columnas_aprendizaje_55
+        ].copy()
+    )
+
+    aprendizaje_persistente_55 = (
+        aprendizaje_persistente_55.fillna("")
+    )
+
+    # ========================================================
+    # 14. UNIR APRENDIZAJE HISTÓRICO + NUEVO
+    #
+    # El aprendizaje anterior NO se reemplaza.
+    # ========================================================
+
+    aprendizaje_consolidado_55 = pd.concat(
+        [
+            aprendizaje_persistente_55,
+            aprendizaje_temporal_55[
+                columnas_aprendizaje_55
+            ]
+        ],
+        ignore_index=True
+    )
+
+    # ========================================================
+    # 15. ELIMINAR DUPLICADOS
+    #
+    # Si una relación ya existe en el aprendizaje histórico,
+    # la validación más reciente prevalece.
+    #
+    # Esto NO altera 5.3.
+    # ========================================================
+
+    aprendizaje_consolidado_55[
+        "_clave_55"
+    ] = aprendizaje_consolidado_55.apply(
+        clave_relacion_55,
+        axis=1
+    )
+
+    aprendizaje_consolidado_55 = (
+        aprendizaje_consolidado_55[
+            aprendizaje_consolidado_55[
+                "_clave_55"
+            ] != "||"
+        ]
+        .drop_duplicates(
+            subset=["_clave_55"],
+            keep="last"
+        )
+        .drop(
+            columns=["_clave_55"]
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    # ========================================================
+    # 16. VOLVER A CALCULAR EL ANÁLISIS SOBRE EL
+    # APRENDIZAJE CONSOLIDADO
+    # ========================================================
+
+    aprendizaje_consolidado_55[
+        "Coherencia 5.3"
+    ] = aprendizaje_consolidado_55.apply(
+        analizar_coherencia_55,
+        axis=1
+    )
+
+    aprendizaje_consolidado_55[
+        "Corrección 5.3"
+    ] = aprendizaje_consolidado_55.apply(
+        lambda fila:
+        "SIN CORRECCIÓN"
+        if fila["Coherencia 5.3"] == "CORRECTA"
+        else (
+            str(
+                fila["Clasificación 5.3"]
+            ).strip()
+            + " → "
+            + str(
+                fila["Validación"]
+            ).strip()
+        ),
+        axis=1
+    )
+
+    # ========================================================
+    # 17. MOSTRAR RESUMEN DEL APRENDIZAJE
+    # ========================================================
+
+    total_historico_55 = len(
+        aprendizaje_persistente_55
+    )
+
+    total_nuevo_55 = len(
+        aprendizaje_temporal_55
+    )
+
+    total_consolidado_55 = len(
+        aprendizaje_consolidado_55
+    )
+
+    total_correctas_55 = len(
+        aprendizaje_consolidado_55[
+            aprendizaje_consolidado_55[
+                "Coherencia 5.3"
+            ] == "CORRECTA"
+        ]
+    )
+
+    total_corregidas_55 = len(
+        aprendizaje_consolidado_55[
+            aprendizaje_consolidado_55[
+                "Coherencia 5.3"
+            ] == "CORREGIDA"
+        ]
+    )
+
+    st.info(
+        f"Aprendizaje histórico: **{total_historico_55:,}**  \n"
+        f"Validaciones nuevas de 5.4: **{total_nuevo_55:,}**  \n"
+        f"Aprendizaje consolidado: **{total_consolidado_55:,}**"
+    )
+
+    col_55_a, col_55_b = st.columns(2)
+
+    with col_55_a:
+
+        st.metric(
+            "5.3 correctas",
+            total_correctas_55
+        )
+
+    with col_55_b:
+
+        st.metric(
+            "5.3 corregidas",
+            total_corregidas_55
+        )
+
+    # ========================================================
+    # 18. MOSTRAR CORRECCIONES
+    # ========================================================
+
+    correcciones_55 = (
+        aprendizaje_consolidado_55[
+            aprendizaje_consolidado_55[
+                "Coherencia 5.3"
+            ] == "CORREGIDA"
+        ][
+            [
+                "Producto",
+                "Acción general",
+                "Clasificación 5.3",
+                "Validación",
+                "Corrección 5.3"
+            ]
+        ].copy()
+    )
+
+    if not correcciones_55.empty:
+
+        with st.expander(
+            "Ver correcciones de 5.3"
+        ):
+
+            st.dataframe(
+                correcciones_55,
+                use_container_width=True,
+                hide_index=True
+            )
+
+    # ========================================================
+    # 19. GUARDAR APRENDIZAJE PERSISTENTE EN GITHUB
+    # ========================================================
+
+    if st.button(
+        "💾 Consolidar y guardar aprendizaje permanente",
+        key="guardar_aprendizaje_55",
+        use_container_width=True
+    ):
+
+        # ----------------------------------------------------
+        # Convertir a CSV UTF-8
+        # ----------------------------------------------------
+
+        csv_55 = (
+            aprendizaje_consolidado_55[
+                [
+                    "Producto",
+                    "Acción general",
+                    "Clasificación 5.3",
+                    "Validación",
+                    "Coherencia 5.3",
+                    "Corrección 5.3"
+                ]
+            ]
+            .to_csv(
+                index=False
+            )
+        )
+
+        contenido_base64_55 = (
+            base64.b64encode(
+                csv_55.encode(
+                    "utf-8"
+                )
+            )
+            .decode(
+                "utf-8"
+            )
+        )
+
+        # ----------------------------------------------------
+        # Crear mensaje de commit
+        # ----------------------------------------------------
+
+        mensaje_commit_55 = (
+            "FITOASISTE: actualizar aprendizaje 5.4"
+        )
+
+        datos_github_55 = {
+            "message": mensaje_commit_55,
+            "content": contenido_base64_55,
+            "branch": GITHUB_RAMA_55
+        }
+
+        # ----------------------------------------------------
+        # Si el archivo ya existe, GitHub exige SHA
+        # ----------------------------------------------------
+
+        if sha_github_55:
+
+            datos_github_55[
+                "sha"
+            ] = sha_github_55
+
+        cuerpo_github_55 = json.dumps(
+            datos_github_55
+        ).encode(
+            "utf-8"
+        )
+
+        solicitud_put_55 = urllib.request.Request(
+            URL_GITHUB_55,
+            data=cuerpo_github_55,
+            method="PUT"
+        )
+
+        solicitud_put_55.add_header(
+            "Authorization",
+            f"Bearer {GITHUB_TOKEN}"
+        )
+
+        solicitud_put_55.add_header(
+            "Accept",
+            "application/vnd.github+json"
+        )
+
+        solicitud_put_55.add_header(
+            "Content-Type",
+            "application/json"
+        )
+
+        try:
+
+            with urllib.request.urlopen(
+                solicitud_put_55,
+                timeout=30
+            ) as respuesta_put_55:
+
+                resultado_put_55 = json.loads(
+                    respuesta_put_55.read().decode(
+                        "utf-8"
+                    )
+                )
+
+            st.success(
+                "🟢 5.5 TERMINADO: "
+                "El aprendizaje fue guardado "
+                "permanentemente en GitHub."
+            )
+
+            st.info(
+                f"Archivo persistente: "
+                f"**{ARCHIVO_APRENDIZAJE_55}**  \n"
+                f"Registros consolidados: "
+                f"**{total_consolidado_55:,}**"
+            )
+
+            # ------------------------------------------------
+            # Actualizar la sesión con el aprendizaje
+            # consolidado, pero SIN modificar 5.3.
+            # ------------------------------------------------
+
+            st.session_state[
+                "aprendizaje_54"
+            ] = aprendizaje_consolidado_55[
+                columnas_aprendizaje_55
+            ].copy()
+
+        except urllib.error.HTTPError as error_put_55:
+
+            detalle_55 = ""
+
+            try:
+
+                detalle_55 = (
+                    error_put_55.read()
+                    .decode(
+                        "utf-8"
+                    )
+                )
+
+            except Exception:
+                detalle_55 = ""
+
+            st.error(
+                "❌ 5.5 ERROR al guardar en GitHub: "
+                f"HTTP {error_put_55.code}"
+            )
+
+            if detalle_55:
+
+                st.code(
+                    detalle_55
+                )
+
+        except Exception as error_guardado_55:
+
+            st.error(
+                "❌ 5.5 ERROR al guardar el aprendizaje: "
+                f"{type(error_guardado_55).__name__}: "
+                f"{error_guardado_55}"
+            )
+
+    # ========================================================
+    # 20. MOSTRAR APRENDIZAJE CONSOLIDADO
+    #
+    # SOLO CONSULTA.
+    #
+    # NO ES EL RESULTADO DE 5.3.
+    # NO MODIFICA 5.3.
+    # ========================================================
+
+    with st.expander(
+        "📚 Ver aprendizaje persistente consolidado"
+    ):
+
+        st.dataframe(
+            aprendizaje_consolidado_55,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    # ========================================================
+    # 21. MENSAJE DE SEGURIDAD DEL FLUJO
+    # ========================================================
+
+    st.success(
+        "🔒 5.5 funciona de forma independiente: "
+        "el aprendizaje se obtiene de las validaciones humanas "
+        "de 5.4, se conserva persistentemente y NO modifica "
+        "ni retroalimenta directamente 5.3."
+    )
+
+except Exception as e:
+
+    st.error(
+        f"🔴 5.5 ERROR: "
         f"{type(e).__name__}: {e}"
     )
