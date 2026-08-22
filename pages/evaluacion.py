@@ -4841,43 +4841,82 @@ if st.button(
         key="descargar_componentes_acciones_58"
     )
 # ============================================================
-# PT-AG — GENERADOR PRODUCTO / ACCIÓN GENERAL
+# PT-AG
+# GENERADOR DE PREGUNTAS PRODUCTO - ACCIÓN GENERAL
 # ============================================================
+#
 # FUENTE:
-#     ACCIONES_GENERALES.xlsx
+# producto_accionesgenerales.csv
 #
-# DESTINO:
-#     BANCO_PREGUNTAS_GENERALES.csv
+# COLUMNAS FUENTE:
+# Producto
+# Acción general
+# Clasificación final 5.6
+# Confianza 5.6
 #
-# REGLAS:
-#     NIVEL 1 = 1 verdadera + 3 falsas
-#     NIVEL 2 = 2 verdaderas + 2 falsas
+# BANCO:
+# BANCO_PREGUNTAS_GENERALES.csv
 #
-# CADA RELACIÓN SE UTILIZA UNA SOLA VEZ.
-# UNA RELACIÓN UTILIZADA QUEDA CONSUMIDA, INCLUSO SI:
-#     - la pregunta queda PENDIENTE
-#     - la pregunta es APROBADA
-#     - la pregunta es RECHAZADA
+# NIVEL 1:
+# 1 verdadera + 3 falsas
+#
+# NIVEL 2:
+# 2 verdaderas + 2 falsas
+#
+# REGLA PRINCIPAL:
+# Una relación Producto + Acción general solo puede utilizarse
+# UNA VEZ como parte de una pregunta.
+#
+# Una relación utilizada queda consumida aunque la pregunta sea:
+# PENDIENTE
+# APROBADA
+# RECHAZADA
 #
 # NO SE FUERZAN PREGUNTAS.
 # ============================================================
 
 
 # ============================================================
-# 1. CONFIGURACIÓN
+# 1. IMPORTACIONES
 # ============================================================
 
-ARCHIVO_FUENTE_PT_AG = "ACCIONES_GENERALES.xlsx"
+import re
+import io
+import base64
+import json
+import urllib.request
+import urllib.error
+
+import pandas as pd
+import numpy as np
+import streamlit as st
+
+from unidecode import unidecode
+
+
+# ============================================================
+# 2. CONFIGURACIÓN
+# ============================================================
+
+ARCHIVO_FUENTE_PT_AG = (
+    "producto_accionesgenerales.csv"
+)
 
 ARCHIVO_BANCO_PT_AG = (
     "BANCO_PREGUNTAS_GENERALES.csv"
 )
 
-GITHUB_USUARIO_PT_AG = "franquiciasauces"
+GITHUB_USUARIO_PT_AG = (
+    "franquiciasauces"
+)
 
-GITHUB_REPOSITORIO_PT_AG = "Asesores"
+GITHUB_REPOSITORIO_PT_AG = (
+    "Asesores"
+)
 
-GITHUB_RAMA_PT_AG = "main"
+GITHUB_RAMA_PT_AG = (
+    "main"
+)
 
 URL_BANCO_PT_AG = (
     "https://api.github.com/repos/"
@@ -4888,7 +4927,7 @@ URL_BANCO_PT_AG = (
 
 
 # ============================================================
-# 2. TOKEN
+# 3. TOKEN
 # ============================================================
 
 try:
@@ -4903,7 +4942,7 @@ except Exception:
 
 
 # ============================================================
-# 3. COLUMNAS DEL BANCO
+# 4. COLUMNAS DEL BANCO
 # ============================================================
 
 COLUMNAS_BANCO_PT_AG = [
@@ -4928,7 +4967,7 @@ COLUMNAS_BANCO_PT_AG = [
 
 
 # ============================================================
-# 4. NORMALIZACIÓN
+# 5. NORMALIZACIÓN
 # ============================================================
 
 def normalizar_pt_ag(valor):
@@ -4978,22 +5017,45 @@ def clave_pt_ag(valor):
 
 
 # ============================================================
-# 5. CARGAR ACCIONES GENERALES
+# 6. CARGAR ARCHIVO FUENTE
 # ============================================================
 
-def cargar_acciones_generales_pt_ag():
+def cargar_fuente_pt_ag():
 
     try:
 
-        df = pd.read_excel(
-            ARCHIVO_FUENTE_PT_AG
+        df = pd.read_csv(
+            ARCHIVO_FUENTE_PT_AG,
+            encoding="utf-8-sig"
         )
+
+    except UnicodeDecodeError:
+
+        try:
+
+            df = pd.read_csv(
+                ARCHIVO_FUENTE_PT_AG,
+                encoding="latin-1"
+            )
+
+        except Exception as error:
+
+            st.error(
+                "No fue posible leer "
+                "producto_accionesgenerales.csv."
+            )
+
+            st.exception(
+                error
+            )
+
+            return None
 
     except Exception as error:
 
         st.error(
             "No fue posible abrir "
-            "ACCIONES_GENERALES.xlsx."
+            "producto_accionesgenerales.csv."
         )
 
         st.exception(
@@ -5003,62 +5065,40 @@ def cargar_acciones_generales_pt_ag():
         return None
 
 
-    # --------------------------------------------------------
-    # Buscar columnas tolerando pequeñas diferencias
-    # --------------------------------------------------------
+    # ========================================================
+    # VALIDAR COLUMNAS EXACTAS
+    # ========================================================
 
-    columnas = {
-        clave_pt_ag(c): c
-        for c in df.columns
-    }
+    columnas_requeridas = [
 
+        "Producto",
+        "Acción general",
+        "Clasificación final 5.6",
+        "Confianza 5.6"
 
-    columna_producto = None
-
-    for nombre in [
-        "producto",
-    ]:
-
-        if nombre in columnas:
-
-            columna_producto = (
-                columnas[nombre]
-            )
-
-            break
+    ]
 
 
-    columna_accion = None
+    faltantes = [
 
-    for nombre in [
+        columna
 
-        "acciones generales",
-        "accion general",
-        "acciones_general",
-        "accion_general",
-        "acciones"
+        for columna in columnas_requeridas
 
-    ]:
+        if columna not in df.columns
 
-        if nombre in columnas:
-
-            columna_accion = (
-                columnas[nombre]
-            )
-
-            break
+    ]
 
 
-    if (
-        columna_producto is None
-        or
-        columna_accion is None
-    ):
+    if faltantes:
 
         st.error(
-            "ACCIONES_GENERALES.xlsx "
-            "no contiene las columnas "
-            "Producto y Acción General."
+            "Faltan columnas en "
+            "producto_accionesgenerales.csv:"
+        )
+
+        st.write(
+            faltantes
         )
 
         st.write(
@@ -5072,93 +5112,74 @@ def cargar_acciones_generales_pt_ag():
         return None
 
 
-    # --------------------------------------------------------
-    # Crear estructura interna
-    # --------------------------------------------------------
+    # ========================================================
+    # CONSERVAR LAS COLUMNAS ORIGINALES
+    # ========================================================
 
-    resultado = []
-
-    for indice, fila in df.iterrows():
-
-        producto = normalizar_pt_ag(
-            fila[
-                columna_producto
-            ]
-        )
-
-        accion = normalizar_pt_ag(
-            fila[
-                columna_accion
-            ]
-        )
-
-        if not producto or not accion:
-            continue
+    df = df[
+        columnas_requeridas
+    ].copy()
 
 
-        # ----------------------------------------------------
-        # ID PERMANENTE DE LA RELACIÓN
-        # ----------------------------------------------------
+    # ========================================================
+    # LIMPIAR PRODUCTO Y ACCIÓN
+    # ========================================================
 
-        fuente_id = (
-            f"PTAG-F{indice + 1:06d}"
-        )
+    df["Producto"] = (
+        df["Producto"]
+        .map(normalizar_pt_ag)
+    )
 
-
-        resultado.append({
-
-            "Fuente_ID":
-                fuente_id,
-
-            "Producto":
-                producto,
-
-            "Accion":
-                accion
-
-        })
-
-
-    df_resultado = pd.DataFrame(
-        resultado
+    df["Acción general"] = (
+        df["Acción general"]
+        .map(normalizar_pt_ag)
     )
 
 
-    if df_resultado.empty:
+    # ========================================================
+    # ELIMINAR FILAS SIN PRODUCTO O ACCIÓN
+    # ========================================================
 
-        return df_resultado
+    df = df[
+        (
+            df["Producto"]
+            != ""
+        )
+        &
+        (
+            df["Acción general"]
+            != ""
+        )
+    ].copy()
 
 
-    # --------------------------------------------------------
-    # Eliminar duplicados exactos
-    # --------------------------------------------------------
+    # ========================================================
+    # CREAR CLAVE ÚNICA DE RELACIÓN
+    # ========================================================
 
-    df_resultado[
-        "_clave"
-    ] = (
+    df["_clave_relacion"] = (
 
-        df_resultado[
-            "Producto"
-        ].map(clave_pt_ag)
+        df["Producto"]
+        .map(clave_pt_ag)
 
         + "||"
 
         +
 
-        df_resultado[
-            "Accion"
-        ].map(clave_pt_ag)
+        df["Acción general"]
+        .map(clave_pt_ag)
 
     )
 
 
-    df_resultado = (
-        df_resultado
+    # ========================================================
+    # ELIMINAR RELACIONES EXACTAMENTE DUPLICADAS
+    # ========================================================
+
+    df = (
+        df
         .drop_duplicates(
-            subset="_clave"
-        )
-        .drop(
-            columns="_clave"
+            subset="_clave_relacion"
         )
         .reset_index(
             drop=True
@@ -5166,14 +5187,31 @@ def cargar_acciones_generales_pt_ag():
     )
 
 
-    return df_resultado
+    # ========================================================
+    # CREAR ID PERMANENTE DE LA RELACIÓN
+    # ========================================================
+
+    df["Fuente_ID"] = [
+
+        f"PTAG-F{numero:06d}"
+
+        for numero
+        in range(
+            1,
+            len(df) + 1
+        )
+
+    ]
+
+
+    return df
 
 
 # ============================================================
-# 6. CARGAR BANCO EXISTENTE DESDE GITHUB
+# 7. CARGAR BANCO DESDE GITHUB
 # ============================================================
 
-def cargar_banco_github_pt_ag():
+def cargar_banco_pt_ag():
 
     if not GITHUB_TOKEN_PT_AG:
 
@@ -5206,6 +5244,7 @@ def cargar_banco_github_pt_ag():
             )
         )
 
+
         with urllib.request.urlopen(
             request,
             timeout=30
@@ -5218,8 +5257,10 @@ def cargar_banco_github_pt_ag():
             )
 
 
-        contenido = base64.b64decode(
-            datos["content"]
+        contenido = (
+            base64.b64decode(
+                datos["content"]
+            )
         )
 
 
@@ -5264,25 +5305,27 @@ def cargar_banco_github_pt_ag():
 
 
 # ============================================================
-# 7. OBTENER RELACIONES YA UTILIZADAS
+# 8. RELACIONES YA UTILIZADAS
 # ============================================================
 
-def relaciones_utilizadas_pt_ag(
+def obtener_fuentes_utilizadas_pt_ag(
     df_banco
 ):
 
     utilizadas = set()
 
 
-    if df_banco is None:
-        return utilizadas
+    if (
+        df_banco is None
+        or
+        df_banco.empty
+    ):
 
-
-    if df_banco.empty:
         return utilizadas
 
 
     if "Fuente_ID" not in df_banco.columns:
+
         return utilizadas
 
 
@@ -5296,6 +5339,7 @@ def relaciones_utilizadas_pt_ag(
 
 
         if not texto:
+
             continue
 
 
@@ -5319,101 +5363,136 @@ def relaciones_utilizadas_pt_ag(
 
 
 # ============================================================
-# 8. OBTENER ID DE PREGUNTA
+# 9. GENERAR ID DE PREGUNTA
 # ============================================================
 
-def siguiente_id_pregunta_pt_ag(
-    df_banco
+def siguiente_pregunta_id_pt_ag(
+    df_banco,
+    preguntas_actuales
 ):
 
-    numero_mayor = 0
+    mayor = 0
 
 
     if (
         df_banco is not None
         and
         not df_banco.empty
-        and
-        "Pregunta_ID" in df_banco.columns
     ):
 
-        for valor in df_banco[
-            "Pregunta_ID"
-        ].fillna(""):
+        valores = (
+            df_banco[
+                "Pregunta_ID"
+            ]
+            .fillna("")
+            .astype(str)
+        )
 
-            texto = str(
-                valor
-            ).strip()
 
+        for valor in valores:
 
             coincidencia = re.match(
                 r"PTAG-(\d+)",
-                texto
+                valor.strip()
             )
 
 
             if coincidencia:
 
-                numero = int(
+                mayor = max(
+                    mayor,
+                    int(
+                        coincidencia.group(
+                            1
+                        )
+                    )
+                )
+
+
+    for pregunta in preguntas_actuales:
+
+        coincidencia = re.match(
+            r"PTAG-(\d+)",
+            str(
+                pregunta.get(
+                    "Pregunta_ID",
+                    ""
+                )
+            )
+        )
+
+
+        if coincidencia:
+
+            mayor = max(
+                mayor,
+                int(
                     coincidencia.group(
                         1
                     )
                 )
-
-                numero_mayor = max(
-                    numero_mayor,
-                    numero
-                )
+            )
 
 
     return (
-        f"PTAG-{numero_mayor + 1:06d}"
+        f"PTAG-{mayor + 1:06d}"
     )
 
 
 # ============================================================
-# 9. COMBINACIÓN DE OPCIONES
+# 10. VALIDAR OPCIONES
 # ============================================================
 
-def combinacion_valida_pt_ag(
+def opciones_validas_pt_ag(
     opciones
 ):
 
-    claves = [
-        clave_pt_ag(
-            opcion["Accion"]
-        )
-        for opcion in opciones
-    ]
-
-
-    # No repetir acción
     if len(
-        set(claves)
+        opciones
     ) != 4:
 
         return False
 
 
-    # No repetir producto + acción
-    relaciones = [
+    # --------------------------------------------------------
+    # No repetir acciones
+    # --------------------------------------------------------
 
-        (
-            clave_pt_ag(
-                opcion["Producto"]
-            ),
-            clave_pt_ag(
-                opcion["Accion"]
-            )
+    acciones = [
+
+        clave_pt_ag(
+            opcion["Accion"]
         )
 
-        for opcion in opciones
+        for opcion
+        in opciones
 
     ]
 
 
     if len(
-        set(relaciones)
+        set(acciones)
+    ) != 4:
+
+        return False
+
+
+    # --------------------------------------------------------
+    # No repetir Fuente_ID
+    # --------------------------------------------------------
+
+    fuentes = [
+
+        opcion["Fuente_ID"]
+
+        for opcion
+        in opciones
+
+    ]
+
+
+    if len(
+        set(fuentes)
     ) != 4:
 
         return False
@@ -5423,642 +5502,708 @@ def combinacion_valida_pt_ag(
 
 
 # ============================================================
-# 10. GENERAR PREGUNTAS
+# 11. CREAR PREGUNTA NIVEL 1
 # ============================================================
 
-def generar_preguntas_pt_ag(
+def crear_nivel_1_pt_ag(
+    disponible,
+    utilizadas
+):
+
+    for indice, verdadera in enumerate(
+        disponible
+    ):
+
+        fuente_verdadera = (
+            verdadera["Fuente_ID"]
+        )
+
+
+        if (
+            fuente_verdadera
+            in utilizadas
+        ):
+
+            continue
+
+
+        candidatos = []
+
+
+        for j, candidato in enumerate(
+            disponible
+        ):
+
+            if j == indice:
+
+                continue
+
+
+            fuente_candidato = (
+                candidato["Fuente_ID"]
+            )
+
+
+            if (
+                fuente_candidato
+                in utilizadas
+            ):
+
+                continue
+
+
+            if (
+                fuente_candidato
+                ==
+                fuente_verdadera
+            ):
+
+                continue
+
+
+            # ------------------------------------------------
+            # No usar la misma acción
+            # ------------------------------------------------
+
+            if (
+                clave_pt_ag(
+                    candidato[
+                        "Acción"
+                    ]
+                )
+                ==
+                clave_pt_ag(
+                    verdadera[
+                        "Acción"
+                    ]
+                )
+            ):
+
+                continue
+
+
+            # ------------------------------------------------
+            # Evitar usar otra acción del mismo producto
+            # como distractor cuando sea posible.
+            # ------------------------------------------------
+
+            if (
+                clave_pt_ag(
+                    candidato[
+                        "Producto"
+                    ]
+                )
+                ==
+                clave_pt_ag(
+                    verdadera[
+                        "Producto"
+                    ]
+                )
+            ):
+
+                continue
+
+
+            candidatos.append(
+                candidato
+            )
+
+
+        if len(
+            candidatos
+        ) < 3:
+
+            continue
+
+
+        np.random.shuffle(
+            candidatos
+        )
+
+
+        falsas = candidatos[
+            :3
+        ]
+
+
+        opciones = [
+            verdadera,
+            falsas[0],
+            falsas[1],
+            falsas[2]
+        ]
+
+
+        if not opciones_validas_pt_ag(
+            opciones
+        ):
+
+            continue
+
+
+        np.random.shuffle(
+            opciones
+        )
+
+
+        correcta = next(
+
+            indice_opcion + 1
+
+            for indice_opcion, opcion
+            in enumerate(
+                opciones
+            )
+
+            if (
+                opcion["Fuente_ID"]
+                ==
+                fuente_verdadera
+            )
+
+        )
+
+
+        return opciones, correcta
+
+
+    return None, None
+
+
+# ============================================================
+# 12. CREAR PREGUNTA NIVEL 2
+# ============================================================
+
+def crear_nivel_2_pt_ag(
+    disponible,
+    utilizadas
+):
+
+    verdaderas_posibles = []
+
+
+    # --------------------------------------------------------
+    # Buscar pares del mismo producto
+    # --------------------------------------------------------
+
+    for i in range(
+        len(disponible)
+    ):
+
+        primera = disponible[i]
+
+
+        if (
+            primera["Fuente_ID"]
+            in utilizadas
+        ):
+
+            continue
+
+
+        for j in range(
+            i + 1,
+            len(disponible)
+        ):
+
+            segunda = disponible[j]
+
+
+            if (
+                segunda["Fuente_ID"]
+                in utilizadas
+            ):
+
+                continue
+
+
+            if (
+                clave_pt_ag(
+                    primera[
+                        "Producto"
+                    ]
+                )
+                !=
+                clave_pt_ag(
+                    segunda[
+                        "Producto"
+                    ]
+                )
+            ):
+
+                continue
+
+
+            if (
+                clave_pt_ag(
+                    primera[
+                        "Acción"
+                    ]
+                )
+                ==
+                clave_pt_ag(
+                    segunda[
+                        "Acción"
+                    ]
+                )
+            ):
+
+                continue
+
+
+            verdaderas_posibles.append(
+                (
+                    primera,
+                    segunda
+                )
+            )
+
+
+    np.random.shuffle(
+        verdaderas_posibles
+    )
+
+
+    for primera, segunda in (
+        verdaderas_posibles
+    ):
+
+        candidatos = []
+
+
+        for candidato in disponible:
+
+            if (
+                candidato["Fuente_ID"]
+                in {
+
+                    primera["Fuente_ID"],
+                    segunda["Fuente_ID"]
+
+                }
+            ):
+
+                continue
+
+
+            # ----------------------------------------------
+            # Las falsas no deben corresponder al producto
+            # evaluado.
+            # ----------------------------------------------
+
+            if (
+                clave_pt_ag(
+                    candidato[
+                        "Producto"
+                    ]
+                )
+                ==
+                clave_pt_ag(
+                    primera[
+                        "Producto"
+                    ]
+                )
+            ):
+
+                continue
+
+
+            if (
+                clave_pt_ag(
+                    candidato[
+                        "Acción"
+                    ]
+                )
+                in {
+
+                    clave_pt_ag(
+                        primera[
+                            "Acción"
+                        ]
+                    ),
+
+                    clave_pt_ag(
+                        segunda[
+                            "Acción"
+                        ]
+                    )
+
+                }
+            ):
+
+                continue
+
+
+            candidatos.append(
+                candidato
+            )
+
+
+        if len(
+            candidatos
+        ) < 2:
+
+            continue
+
+
+        np.random.shuffle(
+            candidatos
+        )
+
+
+        falsa_1 = candidatos[0]
+        falsa_2 = candidatos[1]
+
+
+        opciones = [
+
+            {
+                "tipo": "V",
+                **primera
+            },
+
+            {
+                "tipo": "V",
+                **segunda
+            },
+
+            {
+                "tipo": "F",
+                **falsa_1
+            },
+
+            {
+                "tipo": "F",
+                **falsa_2
+            }
+
+        ]
+
+
+        if not opciones_validas_pt_ag(
+            opciones
+        ):
+
+            continue
+
+
+        np.random.shuffle(
+            opciones
+        )
+
+
+        correctas = []
+
+
+        for indice, opcion in enumerate(
+            opciones
+        ):
+
+            if (
+                opcion["tipo"]
+                ==
+                "V"
+            ):
+
+                correctas.append(
+                    str(
+                        indice + 1
+                    )
+                )
+
+
+        return opciones, ";".join(
+            correctas
+        )
+
+
+    return None, None
+
+
+# ============================================================
+# 13. GENERADOR PRINCIPAL
+# ============================================================
+
+def generar_pt_ag(
     df_fuente,
     df_banco,
     cantidad,
     nivel
 ):
 
-    if df_fuente is None:
-        return []
+    if (
+        df_fuente is None
+        or
+        df_fuente.empty
+    ):
 
-
-    if df_fuente.empty:
         return []
 
 
     utilizadas = (
-        relaciones_utilizadas_pt_ag(
+        obtener_fuentes_utilizadas_pt_ag(
             df_banco
         )
     )
 
 
-    disponibles = []
+    # --------------------------------------------------------
+    # Incorporar relaciones consumidas durante esta sesión.
+    # --------------------------------------------------------
 
-    for _, fila in df_fuente.iterrows():
+    utilizadas_sesion = set(
+        st.session_state.get(
+            "pt_ag_fuentes_consumidas",
+            set()
+        )
+    )
+
+
+    utilizadas.update(
+        utilizadas_sesion
+    )
+
+
+    disponible = []
+
+
+    for _, fila in (
+        df_fuente.iterrows()
+    ):
 
         fuente_id = str(
-            fila["Fuente_ID"]
+            fila[
+                "Fuente_ID"
+            ]
         ).strip()
 
 
         if fuente_id in utilizadas:
+
             continue
 
 
-        disponibles.append({
+        disponible.append({
 
             "Fuente_ID":
                 fuente_id,
 
             "Producto":
-                fila["Producto"],
+                fila[
+                    "Producto"
+                ],
 
             "Accion":
-                fila["Accion"]
+                fila[
+                    "Acción general"
+                ]
 
         })
 
 
-    # --------------------------------------------------------
-    # BARAJAR
-    # --------------------------------------------------------
-
     np.random.shuffle(
-        disponibles
+        disponible
     )
 
 
     preguntas = []
 
-    utilizadas_nuevas = set()
+
+    fuentes_consumidas = set()
 
 
     # ========================================================
-    # NIVEL 1
+    # GENERAR
     # ========================================================
 
-    if nivel == "Nivel 1":
+    while (
+        len(preguntas)
+        <
+        cantidad
+    ):
 
-        while (
-            len(preguntas)
-            < cantidad
-            and
-            len(disponibles)
-            >= 4
-        ):
+        if nivel == "Nivel 1":
 
-            encontrado = False
-
-
-            for i in range(
-                len(disponibles)
-            ):
-
-                verdadera = (
-                    disponibles[i]
+            opciones, correctas = (
+                crear_nivel_1_pt_ag(
+                    disponible,
+                    (
+                        utilizadas
+                        |
+                        fuentes_consumidas
+                    )
                 )
+            )
 
 
-                if (
-                    verdadera[
-                        "Fuente_ID"
-                    ]
-                    in utilizadas_nuevas
-                ):
-                    continue
+        else:
 
-
-                # --------------------------------------------
-                # Buscar tres distractores
-                # --------------------------------------------
-
-                candidatos = [
-
-                    x
-
-                    for j, x in enumerate(
-                        disponibles
+            opciones, correctas = (
+                crear_nivel_2_pt_ag(
+                    disponible,
+                    (
+                        utilizadas
+                        |
+                        fuentes_consumidas
                     )
+                )
+            )
 
-                    if j != i
 
-                    and
-                    x[
-                        "Fuente_ID"
-                    ] not in utilizadas_nuevas
+        if opciones is None:
 
-                    and
-                    clave_pt_ag(
-                        x["Accion"]
-                    )
-                    !=
-                    clave_pt_ag(
-                        verdadera["Accion"]
-                    )
+            break
 
-                    and
-                    clave_pt_ag(
-                        x["Producto"]
-                    )
-                    !=
-                    clave_pt_ag(
-                        verdadera["Producto"]
-                    )
 
+        producto = opciones[0][
+            "Producto"
+        ]
+
+
+        pregunta_id = (
+            siguiente_pregunta_id_pt_ag(
+                df_banco,
+                preguntas
+            )
+        )
+
+
+        # ----------------------------------------------------
+        # Enunciado claro y autosuficiente
+        # ----------------------------------------------------
+
+        if nivel == "Nivel 1":
+
+            texto_pregunta = (
+
+                "¿Cuál de las siguientes "
+                "acciones generales corresponde "
+                f"al producto {producto}?"
+
+            )
+
+        else:
+
+            texto_pregunta = (
+
+                "¿Cuáles de las siguientes "
+                "acciones generales corresponden "
+                f"al producto {producto}? "
+                "Seleccione las dos opciones correctas."
+
+            )
+
+
+        fuente_ids = ";".join(
+
+            opcion[
+                "Fuente_ID"
+            ]
+
+            for opcion
+            in opciones
+
+        )
+
+
+        pregunta = {
+
+            "Pregunta_ID":
+                pregunta_id,
+
+            "Modulo":
+                "Producto",
+
+            "Tema":
+                "Acción General",
+
+            "Nivel":
+                nivel,
+
+            "Tipo_Relacion":
+                "Producto-Acción General",
+
+            "Pregunta":
+                texto_pregunta,
+
+            "Respuesta_1":
+                opciones[0][
+                    "Accion"
+                ],
+
+            "Respuesta_2":
+                opciones[1][
+                    "Accion"
+                ],
+
+            "Respuesta_3":
+                opciones[2][
+                    "Accion"
+                ],
+
+            "Respuesta_4":
+                opciones[3][
+                    "Accion"
+                ],
+
+            "Respuesta_Correcta":
+                correctas,
+
+            "Estado":
+                "PENDIENTE",
+
+            "Observacion_Administrador":
+                "",
+
+            "Fecha_Generacion":
+                pd.Timestamp.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+
+            "Fuente_ID":
+                fuente_ids
+
+        }
+
+
+        preguntas.append(
+            pregunta
+        )
+
+
+        # ----------------------------------------------------
+        # CONSUMIR LAS 4 RELACIONES
+        # ----------------------------------------------------
+
+        for opcion in opciones:
+
+            fuentes_consumidas.add(
+                opcion[
+                    "Fuente_ID"
                 ]
-
-
-                np.random.shuffle(
-                    candidatos
-                )
-
-
-                if len(
-                    candidatos
-                ) < 3:
-
-                    continue
-
-
-                distractores = (
-                    candidatos[:3]
-                )
-
-
-                opciones = [
-                    verdadera
-                ] + distractores
-
-
-                if not combinacion_valida_pt_ag(
-                    opciones
-                ):
-
-                    continue
-
-
-                np.random.shuffle(
-                    opciones
-                )
-
-
-                posicion_correcta = next(
-                    i
-                    for i, opcion
-                    in enumerate(
-                        opciones
-                    )
-                    if opcion[
-                        "Fuente_ID"
-                    ]
-                    ==
-                    verdadera[
-                        "Fuente_ID"
-                    ]
-                )
-
-
-                pregunta_id = (
-                    siguiente_id_pregunta_pt_ag(
-                        pd.concat(
-                            [
-                                df_banco,
-                                pd.DataFrame(
-                                    preguntas
-                                )
-                            ],
-                            ignore_index=True
-                        )
-                    )
-                )
-
-
-                fuente_ids = ";".join(
-                    [
-                        x[
-                            "Fuente_ID"
-                        ]
-                        for x in opciones
-                    ]
-                )
-
-
-                preguntas.append({
-
-                    "Pregunta_ID":
-                        pregunta_id,
-
-                    "Modulo":
-                        "Producto",
-
-                    "Tema":
-                        "Acción General",
-
-                    "Nivel":
-                        "Nivel 1",
-
-                    "Tipo_Relacion":
-                        "Producto-Acción General",
-
-                    "Pregunta":
-                        (
-                            "¿Cuál de las siguientes "
-                            "acciones generales corresponde "
-                            f"al producto "
-                            f"{verdadera['Producto']}?"
-                        ),
-
-                    "Respuesta_1":
-                        opciones[0]["Accion"],
-
-                    "Respuesta_2":
-                        opciones[1]["Accion"],
-
-                    "Respuesta_3":
-                        opciones[2]["Accion"],
-
-                    "Respuesta_4":
-                        opciones[3]["Accion"],
-
-                    "Respuesta_Correcta":
-                        str(
-                            posicion_correcta + 1
-                        ),
-
-                    "Estado":
-                        "PENDIENTE",
-
-                    "Observacion_Administrador":
-                        "",
-
-                    "Fecha_Generacion":
-                        pd.Timestamp.now().strftime(
-                            "%Y-%m-%d %H:%M:%S"
-                        ),
-
-                    "Fuente_ID":
-                        fuente_ids
-
-                })
-
-
-                for opcion in opciones:
-
-                    utilizadas_nuevas.add(
-                        opcion[
-                            "Fuente_ID"
-                        ]
-                    )
-
-
-                encontrado = True
-
-                break
-
-
-            if not encontrado:
-                break
+            )
 
 
     # ========================================================
-    # NIVEL 2
+    # PERSISTIR CONSUMO DURANTE LA SESIÓN
     # ========================================================
 
-    elif nivel == "Nivel 2":
-
-        while (
-            len(preguntas)
-            < cantidad
-            and
-            len(disponibles)
-            >= 4
-        ):
-
-            encontrado = False
-
-
-            for i in range(
-                len(disponibles)
-            ):
-
-                verdadera_1 = (
-                    disponibles[i]
-                )
-
-
-                if (
-                    verdadera_1[
-                        "Fuente_ID"
-                    ]
-                    in utilizadas_nuevas
-                ):
-                    continue
-
-
-                for j in range(
-                    i + 1,
-                    len(disponibles)
-                ):
-
-                    verdadera_2 = (
-                        disponibles[j]
-                    )
-
-
-                    if (
-                        verdadera_2[
-                            "Fuente_ID"
-                        ]
-                        in utilizadas_nuevas
-                    ):
-                        continue
-
-
-                    # ----------------------------------------
-                    # Las dos verdaderas deben corresponder
-                    # al mismo producto.
-                    # ----------------------------------------
-
-                    if (
-                        clave_pt_ag(
-                            verdadera_1[
-                                "Producto"
-                            ]
-                        )
-                        !=
-                        clave_pt_ag(
-                            verdadera_2[
-                                "Producto"
-                            ]
-                        )
-                    ):
-
-                        continue
-
-
-                    candidatos = [
-
-                        x
-
-                        for k, x in enumerate(
-                            disponibles
-                        )
-
-                        if k not in {
-                            i,
-                            j
-                        }
-
-                        and
-                        x[
-                            "Fuente_ID"
-                        ] not in utilizadas_nuevas
-
-                        and
-                        clave_pt_ag(
-                            x["Producto"]
-                        )
-                        !=
-                        clave_pt_ag(
-                            verdadeira_1[
-                                "Producto"
-                            ]
-                        )
-
-                        and
-                        clave_pt_ag(
-                            x["Accion"]
-                        )
-                        not in {
-
-                            clave_pt_ag(
-                                verdadeira_1[
-                                    "Accion"
-                                ]
-                            ),
-
-                            clave_pt_ag(
-                                verdadeira_2[
-                                    "Accion"
-                                ]
-                            )
-
-                        }
-
-                    ]
-
-
-                    np.random.shuffle(
-                        candidatos
-                    )
-
-
-                    if len(
-                        candidatos
-                    ) < 2:
-
-                        continue
-
-
-                    falsas = (
-                        candidatos[:2]
-                    )
-
-
-                    opciones = [
-
-                        {
-                            "tipo":
-                                "verdadera",
-
-                            **verdadeira_1
-
-                        },
-
-                        {
-                            "tipo":
-                                "verdadera",
-
-                            **verdadeira_2
-
-                        },
-
-                        {
-                            "tipo":
-                                "falsa",
-
-                            **falsas[0]
-
-                        },
-
-                        {
-                            "tipo":
-                                "falsa",
-
-                            **falsas[1]
-
-                        }
-
-                    ]
-
-
-                    acciones = [
-                        x["Accion"]
-                        for x in opciones
-                    ]
-
-
-                    if len(
-                        set(
-                            map(
-                                clave_pt_ag,
-                                acciones
-                            )
-                        )
-                    ) != 4:
-
-                        continue
-
-
-                    np.random.shuffle(
-                        opciones
-                    )
-
-
-                    correctas = []
-
-
-                    for posicion, opcion in enumerate(
-                        opciones
-                    ):
-
-                        if (
-                            opcion["tipo"]
-                            ==
-                            "verdadera"
-                        ):
-
-                            correctas.append(
-                                str(
-                                    posicion + 1
-                                )
-                            )
-
-
-                    pregunta_id = (
-                        siguiente_id_pregunta_pt_ag(
-                            pd.concat(
-                                [
-                                    df_banco,
-                                    pd.DataFrame(
-                                        preguntas
-                                    )
-                                ],
-                                ignore_index=True
-                            )
-                        )
-                    )
-
-
-                    fuente_ids = ";".join(
-                        [
-                            x[
-                                "Fuente_ID"
-                            ]
-                            for x in opciones
-                        ]
-                    )
-
-
-                    producto = (
-                        verdadeira_1[
-                            "Producto"
-                        ]
-                    )
-
-
-                    preguntas.append({
-
-                        "Pregunta_ID":
-                            pregunta_id,
-
-                        "Modulo":
-                            "Producto",
-
-                        "Tema":
-                            "Acción General",
-
-                        "Nivel":
-                            "Nivel 2",
-
-                        "Tipo_Relacion":
-                            "Producto-Acción General",
-
-                        "Pregunta":
-                            (
-                                "¿Cuáles de las siguientes "
-                                "acciones generales corresponden "
-                                f"al producto {producto}? "
-                                "Seleccione las dos opciones correctas."
-                            ),
-
-                        "Respuesta_1":
-                            opciones[0]["Accion"],
-
-                        "Respuesta_2":
-                            opciones[1]["Accion"],
-
-                        "Respuesta_3":
-                            opciones[2]["Accion"],
-
-                        "Respuesta_4":
-                            opciones[3]["Accion"],
-
-                        "Respuesta_Correcta":
-                            ";".join(
-                                correctas
-                            ),
-
-                        "Estado":
-                            "PENDIENTE",
-
-                        "Observacion_Administrador":
-                            "",
-
-                        "Fecha_Generacion":
-                            pd.Timestamp.now().strftime(
-                                "%Y-%m-%d %H:%M:%S"
-                            ),
-
-                        "Fuente_ID":
-                            fuente_ids
-
-                    })
-
-
-                    for opcion in opciones:
-
-                        utilizadas_nuevas.add(
-                            opcion[
-                                "Fuente_ID"
-                            ]
-                        )
-
-
-                    encontrado = True
-
-                    break
-
-
-                if encontrado:
-                    break
-
-
-            if not encontrado:
-                break
+    st.session_state[
+        "pt_ag_fuentes_consumidas"
+    ] = (
+
+        utilizadas_sesion
+        |
+        fuentes_consumidas
+
+    )
 
 
     return preguntas
 
 
 # ============================================================
-# 11. INTERFAZ
+# 14. INTERFAZ
 # ============================================================
 
 st.markdown(
@@ -6066,13 +6211,13 @@ st.markdown(
 )
 
 st.write(
-    "Generador de preguntas a partir de "
-    "ACCIONES_GENERALES.xlsx."
+    "Genera preguntas a partir de "
+    "`producto_accionesgenerales.csv`."
 )
 
 
 # ============================================================
-# 12. CANTIDAD
+# 15. CANTIDAD
 # ============================================================
 
 cantidad_pt_ag = st.number_input(
@@ -6087,47 +6232,45 @@ cantidad_pt_ag = st.number_input(
 
     step=1,
 
-    key="cantidad_pt_ag"
+    key="pt_ag_cantidad"
 
 )
 
 
 # ============================================================
-# 13. NIVEL
+# 16. NIVEL
 # ============================================================
 
 nivel_pt_ag = st.radio(
 
-    "Nivel de generación",
+    "Nivel",
 
     [
 
         "Nivel 1",
-
         "Nivel 2",
-
         "Ambos"
 
     ],
 
     horizontal=True,
 
-    key="nivel_pt_ag"
+    key="pt_ag_nivel"
 
 )
 
 
 # ============================================================
-# 14. GENERAR
+# 17. GENERAR
 # ============================================================
 
 if st.button(
     "GENERAR PREGUNTAS PT-AG",
-    key="generar_pt_ag"
+    key="pt_ag_generar"
 ):
 
     df_fuente_pt_ag = (
-        cargar_acciones_generales_pt_ag()
+        cargar_fuente_pt_ag()
     )
 
 
@@ -6137,7 +6280,7 @@ if st.button(
 
 
     df_banco_pt_ag = (
-        cargar_banco_github_pt_ag()
+        cargar_banco_pt_ag()
     )
 
 
@@ -6146,65 +6289,54 @@ if st.button(
     )
 
 
+    # --------------------------------------------------------
+    # AMBOS NIVELES
+    # --------------------------------------------------------
+
     if nivel_pt_ag == "Ambos":
 
-        # ----------------------------------------------------
-        # Para "Ambos", se reparte aproximadamente la cantidad.
-        # ----------------------------------------------------
-
-        cantidad_n1 = (
+        cantidad_nivel_1 = (
             cantidad_pt_ag // 2
         )
 
-        cantidad_n2 = (
+        cantidad_nivel_2 = (
             cantidad_pt_ag
             -
-            cantidad_n1
+            cantidad_nivel_1
         )
 
 
-        preguntas_n1 = (
-            generar_preguntas_pt_ag(
+        preguntas_1 = (
+            generar_pt_ag(
                 df_fuente_pt_ag,
                 df_banco_pt_ag,
-                cantidad_n1,
+                cantidad_nivel_1,
                 "Nivel 1"
             )
         )
 
 
-        df_temporal = pd.concat(
-            [
-                df_banco_pt_ag,
-                pd.DataFrame(
-                    preguntas_n1
-                )
-            ],
-            ignore_index=True
-        )
-
-
-        preguntas_n2 = (
-            generar_preguntas_pt_ag(
+        preguntas_2 = (
+            generar_pt_ag(
                 df_fuente_pt_ag,
-                df_temporal,
-                cantidad_n2,
+                df_banco_pt_ag,
+                cantidad_nivel_2,
                 "Nivel 2"
             )
         )
 
 
         preguntas_generadas = (
-            preguntas_n1
+            preguntas_1
             +
-            preguntas_n2
+            preguntas_2
         )
 
 
     else:
 
         preguntas_generadas = (
-            generar_preguntas_pt_ag(
+            generar_pt_ag(
                 df_fuente_pt_ag,
                 df_banco_pt_ag,
                 cantidad_pt_ag,
@@ -6214,30 +6346,36 @@ if st.button(
 
 
     df_generadas_pt_ag = pd.DataFrame(
+
         preguntas_generadas,
+
         columns=COLUMNAS_BANCO_PT_AG
+
     )
 
-
-    # --------------------------------------------------------
-    # Guardar temporalmente en sesión.
-    # --------------------------------------------------------
 
     st.session_state[
         "pt_ag_generadas"
     ] = df_generadas_pt_ag.copy()
 
+
     st.session_state[
         "pt_ag_banco_anterior"
     ] = df_banco_pt_ag.copy()
+
 
     st.session_state[
         "pt_ag_total_anterior"
     ] = total_anterior
 
 
+    st.session_state[
+        "pt_ag_validacion_guardada"
+    ] = False
+
+
 # ============================================================
-# 15. MOSTRAR GENERADAS
+# 18. MOSTRAR RESULTADO
 # ============================================================
 
 df_generadas_pt_ag = (
@@ -6255,81 +6393,110 @@ if (
 
     st.success(
         f"Se generaron "
-        f"**{len(df_generadas_pt_ag)}** "
+        f"{len(df_generadas_pt_ag)} "
         "preguntas."
     )
 
+
     st.info(
-        f"El banco tenía "
-        f"**{st.session_state.get('pt_ag_total_anterior', 0):,}** "
+        "El banco tenía "
+        f"{st.session_state.get('pt_ag_total_anterior', 0):,} "
         "preguntas antes de esta generación."
     )
 
 
     # ========================================================
-    # 16. VALIDACIÓN INDIVIDUAL
+    # VALIDACIÓN
     # ========================================================
 
     st.markdown(
-        "#### Validación"
+        "#### Validación de preguntas"
     )
-
-
-    estados_actualizados = []
 
 
     for indice, fila in (
         df_generadas_pt_ag.iterrows()
     ):
 
-        pregunta_id = fila[
-            "Pregunta_ID"
-        ]
+        pregunta_id = (
+            fila[
+                "Pregunta_ID"
+            ]
+        )
 
 
         st.markdown(
-            f"**{pregunta_id}** — "
-            f"{fila['Nivel']}"
+            f"**{pregunta_id} — "
+            f"{fila['Nivel']}**"
         )
 
 
         st.write(
-            fila["Pregunta"]
+            fila[
+                "Pregunta"
+            ]
         )
 
 
         st.write(
-            f"1. {fila['Respuesta_1']}"
+            "1. "
+            +
+            str(
+                fila[
+                    "Respuesta_1"
+                ]
+            )
         )
+
 
         st.write(
-            f"2. {fila['Respuesta_2']}"
+            "2. "
+            +
+            str(
+                fila[
+                    "Respuesta_2"
+                ]
+            )
         )
+
 
         st.write(
-            f"3. {fila['Respuesta_3']}"
+            "3. "
+            +
+            str(
+                fila[
+                    "Respuesta_3"
+                ]
+            )
         )
+
 
         st.write(
-            f"4. {fila['Respuesta_4']}"
+            "4. "
+            +
+            str(
+                fila[
+                    "Respuesta_4"
+                ]
+            )
         )
 
 
-        estado_actual = fila[
-            "Estado"
-        ]
+        estado_actual = (
+            fila[
+                "Estado"
+            ]
+        )
 
 
         nuevo_estado = st.radio(
 
-            "Estado",
+            "Estado de la pregunta",
 
             [
 
                 "PENDIENTE",
-
                 "APROBADA",
-
                 "RECHAZADA"
 
             ],
@@ -6344,93 +6511,140 @@ if (
 
             horizontal=True,
 
-            key=f"estado_{pregunta_id}"
+            key=(
+                "pt_ag_estado_"
+                +
+                str(
+                    pregunta_id
+                )
+            )
 
         )
 
 
         observacion = st.text_input(
 
-            "Observación",
+            "Observación del administrador",
 
-            value=fila[
-                "Observacion_Administrador"
-            ],
+            value=str(
+                fila[
+                    "Observacion_Administrador"
+                ]
+            ),
 
-            key=f"observacion_{pregunta_id}"
+            key=(
+                "pt_ag_obs_"
+                +
+                str(
+                    pregunta_id
+                )
+            )
 
         )
 
 
-        estados_actualizados.append({
+        df_generadas_pt_ag.loc[
+            indice,
+            "Estado"
+        ] = nuevo_estado
 
-            "Pregunta_ID":
-                pregunta_id,
 
-            "Estado":
-                nuevo_estado,
-
-            "Observacion":
-                observacion
-
-        })
+        df_generadas_pt_ag.loc[
+            indice,
+            "Observacion_Administrador"
+        ] = observacion
 
 
         st.divider()
 
 
+    st.session_state[
+        "pt_ag_generadas"
+    ] = df_generadas_pt_ag.copy()
+
+
     # ========================================================
-    # 17. GUARDAR VALIDACIÓN
+    # VALIDACIÓN EN BLOQUE
+    # ========================================================
+
+    st.markdown(
+        "#### Validación en bloque"
+    )
+
+
+    col1, col2 = st.columns(2)
+
+
+    with col1:
+
+        if st.button(
+            "✅ APROBAR TODAS",
+            key="pt_ag_aprobar_todas"
+        ):
+
+            df_generadas_pt_ag[
+                "Estado"
+            ] = "APROBADA"
+
+
+            st.session_state[
+                "pt_ag_generadas"
+            ] = (
+                df_generadas_pt_ag.copy()
+            )
+
+
+            st.rerun()
+
+
+    with col2:
+
+        if st.button(
+            "❌ RECHAZAR TODAS",
+            key="pt_ag_rechazar_todas"
+        ):
+
+            df_generadas_pt_ag[
+                "Estado"
+            ] = "RECHAZADA"
+
+
+            st.session_state[
+                "pt_ag_generadas"
+            ] = (
+                df_generadas_pt_ag.copy()
+            )
+
+
+            st.rerun()
+
+
+    # ========================================================
+    # GUARDAR VALIDACIÓN
     # ========================================================
 
     if st.button(
         "💾 GUARDAR VALIDACIÓN",
-        key="guardar_validacion_pt_ag"
+        key="pt_ag_guardar_validacion"
     ):
-
-        for registro in (
-            estados_actualizados
-        ):
-
-            mascara = (
-                df_generadas_pt_ag[
-                    "Pregunta_ID"
-                ]
-                ==
-                registro[
-                    "Pregunta_ID"
-                ]
-            )
-
-
-            df_generadas_pt_ag.loc[
-                mascara,
-                "Estado"
-            ] = registro[
-                "Estado"
-            ]
-
-
-            df_generadas_pt_ag.loc[
-                mascara,
-                "Observacion_Administrador"
-            ] = registro[
-                "Observacion"
-            ]
-
 
         st.session_state[
             "pt_ag_generadas"
         ] = df_generadas_pt_ag.copy()
 
 
+        st.session_state[
+            "pt_ag_validacion_guardada"
+        ] = True
+
+
         st.success(
-            "Validación guardada."
+            "Validación guardada correctamente."
         )
 
 
 # ============================================================
-# 18. SINCRONIZACIÓN
+# 19. ESTADO DE VALIDACIÓN
 # ============================================================
 
 df_generadas_pt_ag = (
@@ -6480,35 +6694,35 @@ if (
 
 
     st.info(
-        f"Pendientes: **{pendientes}** | "
-        f"Aprobadas: **{aprobadas}** | "
-        f"Rechazadas: **{rechazadas}**"
+        f"Pendientes: {pendientes} | "
+        f"Aprobadas: {aprobadas} | "
+        f"Rechazadas: {rechazadas}"
     )
 
 
-    # --------------------------------------------------------
-    # Solo aparece cuando TODO fue revisado.
-    # --------------------------------------------------------
+    # ========================================================
+    # 20. SINCRONIZACIÓN
+    # ========================================================
 
     if pendientes == 0:
 
-        st.markdown(
-            "### Sincronización"
+        st.success(
+            "Todas las preguntas fueron revisadas."
         )
 
 
-        st.write(
-            "Todas las preguntas fueron revisadas."
+        st.markdown(
+            "#### Sincronización"
         )
 
 
         if st.button(
             "🔄 SINCRONIZAR CON BANCO DE PREGUNTAS",
-            key="sincronizar_pt_ag"
+            key="pt_ag_sincronizar_banco"
         ):
 
             df_banco_actual = (
-                cargar_banco_github_pt_ag()
+                cargar_banco_pt_ag()
             )
 
 
@@ -6518,7 +6732,7 @@ if (
 
 
             # ------------------------------------------------
-            # SOLO APROBADAS ENTRAN AL BANCO
+            # SOLO APROBADAS SE INCORPORAN
             # ------------------------------------------------
 
             df_aprobadas = (
@@ -6533,280 +6747,331 @@ if (
             )
 
 
-            if df_aprobadas.empty:
+            # ------------------------------------------------
+            # IDs YA EXISTENTES
+            # ------------------------------------------------
 
-                st.warning(
-                    "No hay preguntas aprobadas "
-                    "para agregar al banco."
-                )
+            ids_existentes = set()
 
-            else:
 
-                # --------------------------------------------
-                # Evitar duplicados por Pregunta_ID
-                # --------------------------------------------
+            if (
+                not df_banco_actual.empty
+                and
+                "Pregunta_ID"
+                in df_banco_actual.columns
+            ):
 
                 ids_existentes = set(
+
                     df_banco_actual[
                         "Pregunta_ID"
                     ]
                     .astype(str)
+                    .tolist()
+
                 )
 
 
-                df_aprobadas = (
-                    df_aprobadas[
-                        ~df_aprobadas[
-                            "Pregunta_ID"
-                        ]
-                        .astype(str)
-                        .isin(
-                            ids_existentes
-                        )
+            df_aprobadas = (
+                df_aprobadas[
+                    ~df_aprobadas[
+                        "Pregunta_ID"
                     ]
+                    .astype(str)
+                    .isin(
+                        ids_existentes
+                    )
+                ]
+            )
+
+
+            # ------------------------------------------------
+            # CREAR BANCO FINAL
+            # ------------------------------------------------
+
+            df_final_banco = pd.concat(
+
+                [
+
+                    df_banco_actual,
+
+                    df_aprobadas
+
+                ],
+
+                ignore_index=True
+
+            )
+
+
+            df_final_banco = (
+                df_final_banco[
+                    COLUMNAS_BANCO_PT_AG
+                ]
+                .copy()
+            )
+
+
+            # =================================================
+            # PREPARAR CSV
+            # =================================================
+
+            contenido_csv = (
+                df_final_banco.to_csv(
+                    index=False,
+                    encoding="utf-8-sig"
+                )
+            )
+
+
+            # =================================================
+            # VALIDAR TOKEN
+            # =================================================
+
+            if not GITHUB_TOKEN_PT_AG:
+
+                st.error(
+                    "No está configurado "
+                    "GITHUB_TOKEN."
                 )
 
-
-                df_final_banco = pd.concat(
-                    [
-                        df_banco_actual,
-                        df_aprobadas
-                    ],
-                    ignore_index=True
-                )
+                st.stop()
 
 
-                df_final_banco = (
-                    df_final_banco[
-                        COLUMNAS_BANCO_PT_AG
-                    ]
-                )
+            # =================================================
+            # SINCRONIZAR GITHUB
+            # =================================================
+
+            headers = {
+
+                "Authorization":
+                    f"token {GITHUB_TOKEN_PT_AG}",
+
+                "Accept":
+                    "application/vnd.github+json",
+
+                "Content-Type":
+                    "application/json",
+
+                "User-Agent":
+                    "FITOASISTE"
+
+            }
 
 
-                # --------------------------------------------
-                # CSV
-                # --------------------------------------------
+            try:
 
-                csv_banco = (
-                    df_final_banco.to_csv(
-                        index=False,
-                        encoding="utf-8-sig"
+                # ---------------------------------------------
+                # Obtener SHA actual
+                # ---------------------------------------------
+
+                request_get = (
+                    urllib.request.Request(
+                        URL_BANCO_PT_AG,
+                        headers=headers,
+                        method="GET"
                     )
                 )
 
 
-                # --------------------------------------------
-                # TOKEN
-                # --------------------------------------------
+                with urllib.request.urlopen(
+                    request_get,
+                    timeout=30
+                ) as response:
 
-                if not GITHUB_TOKEN_PT_AG:
+                    datos = json.loads(
+                        response.read().decode(
+                            "utf-8"
+                        )
+                    )
+
+
+                sha = datos.get(
+                    "sha"
+                )
+
+
+                # ---------------------------------------------
+                # Codificar CSV
+                # ---------------------------------------------
+
+                contenido_base64 = (
+                    base64.b64encode(
+                        contenido_csv.encode(
+                            "utf-8-sig"
+                        )
+                    )
+                    .decode(
+                        "utf-8"
+                    )
+                )
+
+
+                payload = {
+
+                    "message":
+                        "PT-AG - Actualizar banco de preguntas",
+
+                    "content":
+                        contenido_base64,
+
+                    "branch":
+                        GITHUB_RAMA_PT_AG,
+
+                    "sha":
+                        sha
+
+                }
+
+
+                cuerpo = json.dumps(
+                    payload
+                ).encode(
+                    "utf-8"
+                )
+
+
+                request_put = (
+                    urllib.request.Request(
+                        URL_BANCO_PT_AG,
+                        data=cuerpo,
+                        headers=headers,
+                        method="PUT"
+                    )
+                )
+
+
+                with urllib.request.urlopen(
+                    request_put,
+                    timeout=30
+                ) as response:
+
+                    resultado = json.loads(
+                        response.read().decode(
+                            "utf-8"
+                        )
+                    )
+
+
+                # =================================================
+                # CONFIRMAR ACTUALIZACIÓN
+                # =================================================
+
+                if resultado.get(
+                    "content"
+                ):
+
+                    nuevas = len(
+                        df_aprobadas
+                    )
+
+
+                    total_despues = len(
+                        df_final_banco
+                    )
+
+
+                    crecimiento = (
+                        total_despues
+                        -
+                        total_antes
+                    )
+
+
+                    st.success(
+                        "✅ BANCO DE PREGUNTAS "
+                        "ACTUALIZADO CORRECTAMENTE."
+                    )
+
+
+                    st.info(
+                        f"Preguntas que había "
+                        f"antes: **{total_antes:,}**"
+                    )
+
+
+                    st.info(
+                        f"Preguntas aprobadas "
+                        f"incorporadas: **{nuevas:,}**"
+                    )
+
+
+                    st.info(
+                        f"Preguntas que hay "
+                        f"ahora: **{total_despues:,}**"
+                    )
+
+
+                    st.success(
+                        f"Crecimiento del banco: "
+                        f"**+{crecimiento:,}**"
+                    )
+
+
+                    # -----------------------------------------
+                    # Limpiar generación actual
+                    # -----------------------------------------
+
+                    st.session_state[
+                        "pt_ag_generadas"
+                    ] = None
+
+
+                else:
 
                     st.error(
-                        "No está configurado "
-                        "GITHUB_TOKEN."
+                        "GitHub no confirmó "
+                        "la actualización."
+                    )
+
+
+            except urllib.error.HTTPError as error:
+
+                if error.code == 401:
+
+                    st.error(
+                        "GitHub rechazó el token."
+                    )
+
+                elif error.code == 403:
+
+                    st.error(
+                        "GitHub rechazó la operación "
+                        "por permisos insuficientes."
+                    )
+
+                elif error.code == 404:
+
+                    st.error(
+                        "No se encontró "
+                        "BANCO_PREGUNTAS_GENERALES.csv "
+                        "en el repositorio."
                     )
 
                 else:
 
-                    try:
-
-                        headers = {
-
-                            "Authorization":
-                                f"token {GITHUB_TOKEN_PT_AG}",
-
-                            "Accept":
-                                "application/vnd.github+json",
-
-                            "Content-Type":
-                                "application/json",
-
-                            "User-Agent":
-                                "FITOASISTE"
-
-                        }
+                    st.error(
+                        f"GitHub devolvió "
+                        f"HTTP {error.code}."
+                    )
 
 
-                        # ------------------------------------
-                        # Obtener SHA
-                        # ------------------------------------
+            except Exception as error:
 
-                        request_get = (
-                            urllib.request.Request(
-                                URL_BANCO_PT_AG,
-                                headers=headers,
-                                method="GET"
-                            )
-                        )
+                st.error(
+                    "No fue posible sincronizar "
+                    "el banco de preguntas."
+                )
 
+                st.exception(
+                    error
+                )
 
-                        with urllib.request.urlopen(
-                            request_get,
-                            timeout=30
-                        ) as response:
-
-                            datos = json.loads(
-                                response.read().decode(
-                                    "utf-8"
-                                )
-                            )
-
-
-                        sha = datos.get(
-                            "sha"
-                        )
-
-
-                        contenido = (
-                            base64.b64encode(
-                                csv_banco.encode(
-                                    "utf-8-sig"
-                                )
-                            )
-                            .decode(
-                                "utf-8"
-                            )
-                        )
-
-
-                        payload = {
-
-                            "message":
-                                "PT-AG - Actualizar banco de preguntas",
-
-                            "content":
-                                contenido,
-
-                            "branch":
-                                GITHUB_RAMA_PT_AG,
-
-                            "sha":
-                                sha
-
-                        }
-
-
-                        cuerpo = json.dumps(
-                            payload
-                        ).encode(
-                            "utf-8"
-                        )
-
-
-                        request_put = (
-                            urllib.request.Request(
-                                URL_BANCO_PT_AG,
-                                data=cuerpo,
-                                headers=headers,
-                                method="PUT"
-                            )
-                        )
-
-
-                        with urllib.request.urlopen(
-                            request_put,
-                            timeout=30
-                        ) as response:
-
-                            resultado = json.loads(
-                                response.read().decode(
-                                    "utf-8"
-                                )
-                            )
-
-
-                        if resultado.get(
-                            "content"
-                        ):
-
-                            crecimiento = (
-                                len(df_final_banco)
-                                -
-                                total_antes
-                            )
-
-
-                            st.success(
-                                "✅ Banco de preguntas "
-                                "sincronizado correctamente."
-                            )
-
-
-                            st.info(
-                                f"Preguntas antes: "
-                                f"**{total_antes:,}**"
-                            )
-
-
-                            st.info(
-                                f"Preguntas nuevas aprobadas: "
-                                f"**{len(df_aprobadas):,}**"
-                            )
-
-
-                            st.info(
-                                f"Preguntas después: "
-                                f"**{len(df_final_banco):,}**"
-                            )
-
-
-                            st.success(
-                                f"Crecimiento del banco: "
-                                f"**+{crecimiento:,}**"
-                            )
-
-
-                        else:
-
-                            st.error(
-                                "GitHub no confirmó "
-                                "la actualización."
-                            )
-
-
-                    except urllib.error.HTTPError as error:
-
-                        if error.code == 401:
-
-                            st.error(
-                                "GitHub rechazó "
-                                "el token."
-                            )
-
-                        elif error.code == 403:
-
-                            st.error(
-                                "GitHub rechazó la operación "
-                                "por permisos insuficientes."
-                            )
-
-                        elif error.code == 404:
-
-                            st.error(
-                                "No se encontró "
-                                "BANCO_PREGUNTAS_GENERALES.csv "
-                                "en el repositorio."
-                            )
-
-                        else:
-
-                            st.error(
-                                f"GitHub devolvió "
-                                f"HTTP {error.code}."
-                            )
-
-
-                    except Exception:
-
-                        st.error(
-                            "No fue posible sincronizar "
-                            "el banco de preguntas."
-                        )
 
     else:
 
         st.warning(
-            "La sincronización aparecerá "
-            "cuando todas las preguntas hayan "
-            "sido aprobadas o rechazadas."
+            "La sincronización estará disponible "
+            "cuando todas las preguntas hayan sido "
+            "revisadas."
         )
