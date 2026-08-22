@@ -3312,10 +3312,11 @@ if st.button(
         st.exception(
             error
         )
+
 # ============================================================
-# 5.7 — PERSISTENCIA PRODUCTO_ACCIONESGENERALES
+# 5.7 — PERSISTENCIA DE PRODUCTO - ACCIONES GENERALES
 # ============================================================
-# Toma directamente el resultado de 5.6 almacenado en:
+# Toma directamente el resultado generado por 5.6:
 #
 #     st.session_state["df_matriz_56"]
 #
@@ -3323,55 +3324,81 @@ if st.button(
 #
 #     producto_accionesgenerales.csv
 #
-# NO vuelve a clasificar.
-# NO vuelve a ejecutar aprendizaje.
+# NO clasifica.
+# NO aprende.
 # NO modifica las relaciones.
+# NO elimina información.
 # ============================================================
 
-import base64
-import requests
-import streamlit as st
+
+# ============================================================
+# 1. CONFIGURACIÓN DE PERSISTENCIA
+# ============================================================
+
+GITHUB_USUARIO_57 = "franquiciasauces"
+GITHUB_REPOSITORIO_57 = "Asesores"
+GITHUB_RAMA_57 = "main"
+
+ARCHIVO_PERSISTENTE_57 = (
+    "producto_accionesgenerales.csv"
+)
+
+URL_GITHUB_57 = (
+    "https://api.github.com/repos/"
+    f"{GITHUB_USUARIO_57}/"
+    f"{GITHUB_REPOSITORIO_57}/contents/"
+    f"{ARCHIVO_PERSISTENTE_57}"
+)
 
 
-def persistir_producto_accionesgenerales_57():
+# ============================================================
+# 2. VALIDAR TOKEN
+# ============================================================
+
+if not GITHUB_TOKEN:
+
+    st.error(
+        "❌ 5.7 ERROR: No existe GITHUB_TOKEN."
+    )
+
+    st.stop()
+
+
+# ============================================================
+# 3. FUNCIÓN DE PERSISTENCIA
+# ============================================================
+
+def guardar_producto_accionesgenerales_57(
+    df_57
+):
 
     # --------------------------------------------------------
-    # 1. Recuperar resultado de 5.6
+    # Validar DataFrame
     # --------------------------------------------------------
 
-    if "df_matriz_56" not in st.session_state:
+    if df_57 is None:
 
         st.error(
-            "No existe el resultado de 5.6 en la sesión. "
-            "Ejecute primero 5.6."
+            "❌ 5.7 ERROR: No se recibió el resultado de 5.6."
         )
 
         return False
 
-    df_persistente_57 = st.session_state[
-        "df_matriz_56"
-    ].copy()
-
-    # --------------------------------------------------------
-    # 2. Verificar que tenga información
-    # --------------------------------------------------------
-
-    if df_persistente_57.empty:
+    if df_57.empty:
 
         st.error(
-            "El resultado de 5.6 está vacío. "
-            "No se realizará la persistencia."
+            "❌ 5.7 ERROR: El resultado de 5.6 está vacío."
         )
 
         return False
 
     # --------------------------------------------------------
-    # 3. Convertir exactamente el resultado de 5.6 a CSV
+    # Convertir DataFrame a CSV
     # --------------------------------------------------------
 
     try:
 
-        contenido_csv_57 = df_persistente_57.to_csv(
+        contenido_csv_57 = df_57.to_csv(
             index=False,
             encoding="utf-8-sig"
         )
@@ -3379,8 +3406,7 @@ def persistir_producto_accionesgenerales_57():
     except Exception as error:
 
         st.error(
-            "No fue posible preparar "
-            "producto_accionesgenerales.csv."
+            "❌ 5.7 ERROR al convertir el resultado a CSV."
         )
 
         st.exception(error)
@@ -3388,153 +3414,97 @@ def persistir_producto_accionesgenerales_57():
         return False
 
     # --------------------------------------------------------
-    # 4. Configuración GitHub
-    # --------------------------------------------------------
-
-    github_token = st.secrets.get(
-        "GITHUB_TOKEN",
-        ""
-    )
-
-    github_usuario = st.secrets.get(
-        "GITHUB_USUARIO",
-        ""
-    )
-
-    github_repositorio = st.secrets.get(
-        "GITHUB_REPOSITORIO",
-        ""
-    )
-
-    if not github_token:
-
-        st.error(
-            "No está configurado GITHUB_TOKEN."
-        )
-
-        return False
-
-    if not github_usuario:
-
-        st.error(
-            "No está configurado GITHUB_USUARIO."
-        )
-
-        return False
-
-    if not github_repositorio:
-
-        st.error(
-            "No está configurado GITHUB_REPOSITORIO."
-        )
-
-        return False
-
-    # --------------------------------------------------------
-    # 5. Nombre definitivo del archivo
-    # --------------------------------------------------------
-
-    nombre_archivo_57 = (
-        "producto_accionesgenerales.csv"
-    )
-
-    url_github_57 = (
-        "https://api.github.com/repos/"
-        f"{github_usuario}/"
-        f"{github_repositorio}/"
-        f"contents/{nombre_archivo_57}"
-    )
-
-    headers_github_57 = {
-        "Authorization": f"Bearer {github_token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-    }
-
-    # --------------------------------------------------------
-    # 6. Consultar si el archivo ya existe
-    # --------------------------------------------------------
-
-    try:
-
-        respuesta_get_57 = requests.get(
-            url_github_57,
-            headers=headers_github_57,
-            timeout=30
-        )
-
-    except Exception as error:
-
-        st.error(
-            "No fue posible conectarse con GitHub."
-        )
-
-        st.exception(error)
-
-        return False
-
-    sha_57 = None
-
-    if respuesta_get_57.status_code == 200:
-
-        try:
-
-            datos_existentes_57 = (
-                respuesta_get_57.json()
-            )
-
-            sha_57 = datos_existentes_57.get(
-                "sha"
-            )
-
-        except Exception:
-
-            sha_57 = None
-
-    elif respuesta_get_57.status_code != 404:
-
-        try:
-
-            mensaje_57 = (
-                respuesta_get_57.json()
-                .get(
-                    "message",
-                    "Error desconocido"
-                )
-            )
-
-        except Exception:
-
-            mensaje_57 = (
-                respuesta_get_57.text
-            )
-
-        st.error(
-            "GitHub no permitió consultar "
-            f"{nombre_archivo_57}: "
-            f"{mensaje_57}"
-        )
-
-        return False
-
-    # --------------------------------------------------------
-    # 7. Codificar CSV
+    # Codificar contenido
     # --------------------------------------------------------
 
     contenido_base64_57 = base64.b64encode(
         contenido_csv_57.encode("utf-8-sig")
     ).decode("utf-8")
 
-    datos_github_57 = {
-        "message": (
-            "Persistencia de "
-            "producto_accionesgenerales.csv"
+    # --------------------------------------------------------
+    # Headers GitHub
+    # --------------------------------------------------------
+
+    headers_57 = {
+        "Authorization": (
+            f"token {GITHUB_TOKEN}"
         ),
-        "content": contenido_base64_57,
+        "Accept": (
+            "application/vnd.github.v3+json"
+        ),
+        "Content-Type": (
+            "application/json"
+        )
     }
 
     # --------------------------------------------------------
-    # 8. Si existe, actualizar usando SHA
+    # Verificar si el archivo ya existe
+    # --------------------------------------------------------
+
+    sha_57 = None
+
+    try:
+
+        solicitud_get_57 = urllib.request.Request(
+            URL_GITHUB_57,
+            headers=headers_57,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud_get_57,
+            timeout=30
+        ) as respuesta_57:
+
+            datos_existentes_57 = json.loads(
+                respuesta_57.read().decode("utf-8")
+            )
+
+            sha_57 = datos_existentes_57.get(
+                "sha"
+            )
+
+    except urllib.error.HTTPError as error:
+
+        if error.code != 404:
+
+            st.error(
+                "❌ 5.7 ERROR consultando "
+                "el archivo en GitHub."
+            )
+
+            st.exception(error)
+
+            return False
+
+        # 404 significa que todavía no existe.
+        sha_57 = None
+
+    except Exception as error:
+
+        st.error(
+            "❌ 5.7 ERROR conectando con GitHub."
+        )
+
+        st.exception(error)
+
+        return False
+
+    # --------------------------------------------------------
+    # Preparar datos para GitHub
+    # --------------------------------------------------------
+
+    datos_github_57 = {
+        "message": (
+            "Persistencia 5.7 - "
+            "producto_accionesgenerales.csv"
+        ),
+        "content": contenido_base64_57,
+        "branch": GITHUB_RAMA_57
+    }
+
+    # --------------------------------------------------------
+    # Si ya existe, enviar SHA para actualizarlo
     # --------------------------------------------------------
 
     if sha_57:
@@ -3542,106 +3512,122 @@ def persistir_producto_accionesgenerales_57():
         datos_github_57["sha"] = sha_57
 
     # --------------------------------------------------------
-    # 9. Crear o actualizar archivo
+    # Guardar / actualizar
     # --------------------------------------------------------
 
     try:
 
-        respuesta_put_57 = requests.put(
-            url_github_57,
-            headers=headers_github_57,
-            json=datos_github_57,
-            timeout=30
+        cuerpo_57 = json.dumps(
+            datos_github_57
+        ).encode("utf-8")
+
+        solicitud_put_57 = urllib.request.Request(
+            URL_GITHUB_57,
+            data=cuerpo_57,
+            headers=headers_57,
+            method="PUT"
         )
+
+        with urllib.request.urlopen(
+            solicitud_put_57,
+            timeout=30
+        ) as respuesta_put_57:
+
+            resultado_github_57 = json.loads(
+                respuesta_put_57.read().decode(
+                    "utf-8"
+                )
+            )
+
+        # ----------------------------------------------------
+        # Confirmación
+        # ----------------------------------------------------
+
+        if resultado_github_57:
+
+            st.success(
+                "✅ 5.7: "
+                "producto_accionesgenerales.csv "
+                "quedó guardado persistentemente."
+            )
+
+            st.info(
+                f"Relaciones persistidas: "
+                f"**{len(df_57):,}**"
+            )
+
+            return True
+
+    except urllib.error.HTTPError as error:
+
+        try:
+
+            detalle_error_57 = (
+                error.read()
+                .decode("utf-8")
+            )
+
+        except Exception:
+
+            detalle_error_57 = str(error)
+
+        st.error(
+            "❌ 5.7 ERROR guardando en GitHub."
+        )
+
+        st.code(
+            detalle_error_57
+        )
+
+        return False
 
     except Exception as error:
 
         st.error(
-            "No fue posible guardar "
-            "producto_accionesgenerales.csv "
-            "en GitHub."
+            "❌ 5.7 ERROR inesperado."
         )
 
         st.exception(error)
 
         return False
 
-    # --------------------------------------------------------
-    # 10. Confirmar operación
-    # --------------------------------------------------------
-
-    if respuesta_put_57.status_code in (200, 201):
-
-        st.success(
-            "Persistencia completada correctamente."
-        )
-
-        st.info(
-            "El resultado de 5.6 quedó guardado como "
-            "**producto_accionesgenerales.csv** "
-            "y está disponible para la siguiente fase."
-        )
-
-        return True
-
-    # --------------------------------------------------------
-    # 11. Error de GitHub
-    # --------------------------------------------------------
-
-    try:
-
-        mensaje_error_57 = (
-            respuesta_put_57.json()
-            .get(
-                "message",
-                "Error desconocido"
-            )
-        )
-
-    except Exception:
-
-        mensaje_error_57 = (
-            respuesta_put_57.text
-        )
-
-    st.error(
-        "GitHub no pudo guardar "
-        "producto_accionesgenerales.csv."
-    )
-
-    st.error(
-        f"Detalle: {mensaje_error_57}"
-    )
-
     return False
 
 
 # ============================================================
-# INTERFAZ 5.7
+# 4. INTERFAZ 5.7
 # ============================================================
 
 st.markdown(
     "### 5.7 — Persistencia de producto_accionesgenerales"
 )
 
-st.write(
-    "Este proceso toma directamente el resultado "
-    "validado por 5.6 y lo conserva persistentemente "
-    "para utilizarlo como insumo en la siguiente fase."
-)
 
 if (
     "df_matriz_56"
-    in st.session_state
+    not in st.session_state
 ):
 
+    st.warning(
+        "Primero ejecute 5.6. "
+        "El resultado todavía no está disponible."
+    )
+
+else:
+
+    df_resultado_57 = (
+        st.session_state[
+            "df_matriz_56"
+        ].copy()
+    )
+
     st.success(
-        "Resultado 5.6 disponible para persistencia."
+        "Resultado de 5.6 disponible."
     )
 
     st.write(
-        f"Relaciones a persistir: "
-        f"**{len(st.session_state['df_matriz_56']):,}**"
+        f"Relaciones listas para persistencia: "
+        f"**{len(df_resultado_57):,}**"
     )
 
     if st.button(
@@ -3649,11 +3635,26 @@ if (
         key="guardar_producto_accionesgenerales_57"
     ):
 
-        persistir_producto_accionesgenerales_57()
+        guardar_producto_accionesgenerales_57(
+            df_resultado_57
+        )
 
-else:
+        # ----------------------------------------------------
+        # Descargar el mismo archivo persistido
+        # ----------------------------------------------------
 
-    st.warning(
-        "Primero debe ejecutar 5.6 para generar "
-        "el resultado que será persistido."
-    )
+        st.download_button(
+            label=(
+                "⬇️ Descargar "
+                "producto_accionesgenerales.csv"
+            ),
+            data=df_resultado_57.to_csv(
+                index=False,
+                encoding="utf-8-sig"
+            ),
+            file_name=(
+                "producto_accionesgenerales.csv"
+            ),
+            mime="text/csv",
+            key="descargar_producto_accionesgenerales_57"
+        )
