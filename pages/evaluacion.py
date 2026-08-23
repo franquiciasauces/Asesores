@@ -10557,81 +10557,56 @@ if preguntas_64:
 
         st.divider()
 
-
 # ============================================================
 # 6.4 - PARTE 3
-# VALIDACIÓN DE PREGUNTAS
+# VALIDACIÓN
 # ============================================================
+
+preguntas_64 = st.session_state.get(
+    "preguntas_generadas_64",
+    []
+)
 
 if preguntas_64:
 
-    st.markdown(
-        "## Validación de preguntas 6.4"
-    )
+    st.markdown("## Validación 6.4")
 
-    st.info(
-        "Revise cada pregunta y apruebe o rechace individualmente."
-    )
-
-    for i, pregunta in enumerate(preguntas_64):
+    for i, p in enumerate(preguntas_64):
 
         st.markdown(
-            f"### {pregunta['Pregunta_ID']}"
+            f"### {p['Pregunta_ID']}"
         )
 
-        st.write(
-            pregunta["Pregunta"]
-        )
+        st.write(p["Pregunta"])
 
-        st.write(
-            f"**1.** {pregunta['Respuesta_1']}"
-        )
-
-        st.write(
-            f"**2.** {pregunta['Respuesta_2']}"
-        )
-
-        st.write(
-            f"**3.** {pregunta['Respuesta_3']}"
-        )
-
-        st.write(
-            f"**4.** {pregunta['Respuesta_4']}"
-        )
+        st.write(f"1. {p['Respuesta_1']}")
+        st.write(f"2. {p['Respuesta_2']}")
+        st.write(f"3. {p['Respuesta_3']}")
+        st.write(f"4. {p['Respuesta_4']}")
 
         st.caption(
-            "Respuestas correctas: "
-            f"{pregunta['Respuesta_Correcta']}"
+            f"Correctas: {p['Respuesta_Correcta']}"
         )
 
-        st.caption(
-            "Fuente: "
-            f"{pregunta['Fuente_ID']}"
-        )
-
-        observacion = st.text_input(
+        obs = st.text_input(
             "Observación",
-            value=pregunta.get(
+            value=p.get(
                 "Observacion_Administrador",
                 ""
             ),
-            key=f"obs_64_{i}"
+            key=f"obs64_{i}"
         )
 
-        col1, col2 = st.columns(2)
+        c1, c2 = st.columns(2)
 
-        with col1:
-
+        with c1:
             if st.button(
-                "✅ APROBAR",
-                key=f"aprobar_64_{i}"
+                "APROBAR",
+                key=f"ok64_{i}"
             ):
 
-                preguntas_64[i]["Estado"] = "APROBADA"
-
-                preguntas_64[i][
-                    "Observacion_Administrador"
-                ] = observacion
+                p["Estado"] = "APROBADA"
+                p["Observacion_Administrador"] = obs
 
                 st.session_state[
                     "preguntas_generadas_64"
@@ -10639,18 +10614,14 @@ if preguntas_64:
 
                 st.rerun()
 
-        with col2:
-
+        with c2:
             if st.button(
-                "❌ RECHAZAR",
-                key=f"rechazar_64_{i}"
+                "RECHAZAR",
+                key=f"no64_{i}"
             ):
 
-                preguntas_64[i]["Estado"] = "RECHAZADA"
-
-                preguntas_64[i][
-                    "Observacion_Administrador"
-                ] = observacion
+                p["Estado"] = "RECHAZADA"
+                p["Observacion_Administrador"] = obs
 
                 st.session_state[
                     "preguntas_generadas_64"
@@ -10660,61 +10631,22 @@ if preguntas_64:
 
         st.divider()
 
-
-# ============================================================
-# RESUMEN DE VALIDACIÓN
-# ============================================================
-
-if preguntas_64:
-
-    aprobadas_64 = sum(
-        1
+    aprobadas = sum(
+        p.get("Estado") == "APROBADA"
         for p in preguntas_64
-        if p.get("Estado") == "APROBADA"
     )
 
-    rechazadas_64 = sum(
-        1
+    rechazadas = sum(
+        p.get("Estado") == "RECHAZADA"
         for p in preguntas_64
-        if p.get("Estado") == "RECHAZADA"
     )
 
-    pendientes_64 = sum(
-        1
-        for p in preguntas_64
-        if p.get("Estado", "PENDIENTE") == "PENDIENTE"
+    pendientes = len(preguntas_64) - aprobadas - rechazadas
+
+    st.write(
+        f"**Aprobadas:** {aprobadas} | "
+        f"**Rechazadas:** {rechazadas} | "
+        f"**Pendientes:** {pendientes}"
     )
 
-    st.markdown(
-        "### Resumen de validación"
-    )
 
-    col1, col2, col3 = st.columns(3)
-
-    with col1:
-        st.metric(
-            "Aprobadas",
-            aprobadas_64
-        )
-
-    with col2:
-        st.metric(
-            "Rechazadas",
-            rechazadas_64
-        )
-
-    with col3:
-        st.metric(
-            "Pendientes",
-            pendientes_64
-        )
-
-    if pendientes_64 == 0:
-
-        st.success(
-            "Todas las preguntas fueron revisadas."
-        )
-
-        st.info(
-            "Puede continuar con la Parte 4: sincronización."
-        )
