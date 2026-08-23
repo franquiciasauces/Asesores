@@ -17780,5 +17780,362 @@ if "df_fuente_81" in st.session_state:
         use_container_width=True,
         hide_index=True
     )
+# ============================================================
+# 8.1 - PARTE 2
+# GENERADOR PRODUCTO - PRECAUCIÓN / CONTRAINDICACIÓN
+# NIVEL 1
+# ============================================================
 
+def siguiente_id_81():
+
+    df_banco = st.session_state.get(
+        "df_banco_81",
+        pd.DataFrame()
+    )
+
+    mayor = 0
+
+    if (
+        not df_banco.empty
+        and "Pregunta_ID" in df_banco.columns
+    ):
+
+        for valor in df_banco["Pregunta_ID"].fillna(""):
+
+            texto = str(valor).strip()
+
+            if texto.startswith("PTRX-"):
+
+                try:
+                    numero = int(
+                        texto.replace("PTRX-", "")
+                    )
+                    mayor = max(mayor, numero)
+
+                except ValueError:
+                    pass
+
+    preguntas = st.session_state.get(
+        "preguntas_generadas_81",
+        []
+    )
+
+    for pregunta in preguntas:
+
+        texto = str(
+            pregunta.get("Pregunta_ID", "")
+        ).strip()
+
+        if texto.startswith("PTRX-"):
+
+            try:
+                numero = int(
+                    texto.replace("PTRX-", "")
+                )
+                mayor = max(mayor, numero)
+
+            except ValueError:
+                pass
+
+    return f"PTRX-{mayor + 1:06d}"
+
+
+def generar_preguntas_81(cantidad):
+
+    df = st.session_state.get(
+        "df_disponible_81",
+        pd.DataFrame()
+    )
+
+    if df.empty:
+        return []
+
+    columnas = [
+        "Fuente_ID",
+        "Producto",
+        "Precaución / Contraindicación"
+    ]
+
+    faltantes = [
+        columna
+        for columna in columnas
+        if columna not in df.columns
+    ]
+
+    if faltantes:
+
+        st.error(
+            "8.1 ERROR: faltan columnas: "
+            + ", ".join(faltantes)
+        )
+
+        return []
+
+    consumidas = st.session_state.get(
+        "fuentes_consumidas_precaucion_81",
+        set()
+    ).copy()
+
+    candidatos = df[
+        ~df["Fuente_ID"].isin(consumidas)
+    ].copy()
+
+    candidatos = candidatos[
+        (candidatos["Producto"].astype(str).str.strip() != "")
+        &
+        (
+            candidatos[
+                "Precaución / Contraindicación"
+            ]
+            .astype(str)
+            .str.strip()
+            != ""
+        )
+    ].copy()
+
+    if len(candidatos) < 4:
+
+        st.warning(
+            "No hay suficientes relaciones disponibles "
+            "para generar preguntas de precaución."
+        )
+
+        return []
+
+    candidatos = candidatos.sample(
+        frac=1
+    ).reset_index(drop=True)
+
+    preguntas = []
+
+    for _, fila in candidatos.iterrows():
+
+        producto = str(
+            fila["Producto"]
+        ).strip()
+
+        correcta = str(
+            fila[
+                "Precaución / Contraindicación"
+            ]
+        ).strip()
+
+        fuente = str(
+            fila["Fuente_ID"]
+        ).strip()
+
+        falsas = candidatos[
+            candidatos["Fuente_ID"] != fuente
+        ].copy()
+
+        falsas["respuesta"] = (
+            falsas[
+                "Precaución / Contraindicación"
+            ]
+            .astype(str)
+            .str.strip()
+        )
+
+        falsas = falsas[
+            falsas["respuesta"].str.lower()
+            != correcta.lower()
+        ]
+
+        falsas = falsas.drop_duplicates(
+            subset="respuesta"
+        )
+
+        if len(falsas) < 3:
+            continue
+
+        falsas = falsas.sample(
+            n=3
+        )
+
+        opciones = [
+            correcta,
+            str(falsas.iloc[0]["respuesta"]).strip(),
+            str(falsas.iloc[1]["respuesta"]).strip(),
+            str(falsas.iloc[2]["respuesta"]).strip()
+        ]
+
+        np.random.shuffle(opciones)
+
+        correcta_numero = (
+            opciones.index(correcta) + 1
+        )
+
+        pregunta = {
+
+            "Pregunta_ID":
+                siguiente_id_81(),
+
+            "Modulo":
+                "Restricciones",
+
+            "Tema":
+                "Precaución / Contraindicación",
+
+            "Nivel":
+                "Nivel 1",
+
+            "Tipo_Relacion":
+                "Producto-Precaución/Contraindicación",
+
+            "Pregunta":
+                "Para el producto "
+                f"{producto}, "
+                "¿cuál de las siguientes corresponde "
+                "a una precaución o contraindicación "
+                "para su uso?",
+
+            "Respuesta_1":
+                opciones[0],
+
+            "Respuesta_2":
+                opciones[1],
+
+            "Respuesta_3":
+                opciones[2],
+
+            "Respuesta_4":
+                opciones[3],
+
+            "Respuesta_Correcta":
+                str(correcta_numero),
+
+            "Estado":
+                "PENDIENTE",
+
+            "Observacion_Administrador":
+                "",
+
+            "Fecha_Generacion":
+                pd.Timestamp.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+
+            "Fuente_ID":
+                fuente
+        }
+
+        preguntas.append(pregunta)
+
+        consumidas.add(fuente)
+
+        if len(preguntas) >= int(cantidad):
+            break
+
+    st.session_state[
+        "fuentes_consumidas_precaucion_81"
+    ] = consumidas
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ DEL GENERADOR
+# ============================================================
+
+if "df_disponible_81" in st.session_state:
+
+    st.markdown(
+        "### 8.1 - Generador de preguntas"
+    )
+
+    st.info(
+        "Nivel 1: Producto → Precaución / "
+        "Contraindicación. La celda completa se "
+        "conserva como una sola respuesta."
+    )
+
+    cantidad_81 = st.number_input(
+        "Cantidad de preguntas",
+        min_value=1,
+        max_value=500,
+        value=10,
+        step=1,
+        key="cantidad_generar_precaucion_81"
+    )
+
+    if st.button(
+        "GENERAR PREGUNTAS 8.1",
+        key="generar_precaucion_81"
+    ):
+
+        nuevas_81 = generar_preguntas_81(
+            int(cantidad_81)
+        )
+
+        st.session_state[
+            "preguntas_generadas_81"
+        ] = nuevas_81
+
+        if nuevas_81:
+
+            st.success(
+                f"Se generaron {len(nuevas_81)} preguntas."
+            )
+
+        else:
+
+            st.warning(
+                "No fue posible generar preguntas "
+                "con las relaciones disponibles."
+            )
+
+
+# ============================================================
+# MOSTRAR PREGUNTAS
+# ============================================================
+
+preguntas_81 = st.session_state.get(
+    "preguntas_generadas_81",
+    []
+)
+
+if preguntas_81:
+
+    st.markdown(
+        "### Preguntas generadas 8.1"
+    )
+
+    for pregunta in preguntas_81:
+
+        st.markdown(
+            f"**{pregunta['Pregunta_ID']} — "
+            f"{pregunta['Nivel']}**"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"1. {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"2. {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"3. {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"4. {pregunta['Respuesta_4']}"
+        )
+
+        st.caption(
+            "Respuesta correcta: "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            "Fuente: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        st.divider()
 
