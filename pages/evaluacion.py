@@ -17008,3 +17008,191 @@ if preguntas_77:
 
         st.divider()
 
+# ============================================================
+# 7.7 - PARTE 3
+# VALIDACIÓN INDIVIDUAL
+# PATOLOGÍA - CONDICIÓN - PRODUCTO - COADYUVANTES
+# ============================================================
+
+preguntas_77 = st.session_state.get(
+    "preguntas_generadas_77",
+    []
+)
+
+if preguntas_77:
+
+    st.markdown(
+        "## 7.7 - Validación de preguntas"
+    )
+
+    st.info(
+        "Revise cada pregunta individualmente. "
+        "Una pregunta rechazada no afecta las demás."
+    )
+
+    for i, pregunta in enumerate(preguntas_77):
+
+        st.markdown(
+            f"### {pregunta['Pregunta_ID']}"
+        )
+
+        st.write(
+            f"**Nivel:** {pregunta['Nivel']}"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"**1.** {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"**2.** {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"**3.** {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"**4.** {pregunta['Respuesta_4']}"
+        )
+
+        st.write(
+            "**Respuesta correcta:** "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            f"Fuente utilizada: {pregunta['Fuente_ID']}"
+        )
+
+        estado = pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        )
+
+        st.write(
+            f"**Estado actual:** {estado}"
+        )
+
+        observacion = st.text_input(
+            "Observación del administrador",
+            value=pregunta.get(
+                "Observacion_Administrador",
+                ""
+            ),
+            key=f"observacion_validacion_77_{i}"
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            if st.button(
+                "APROBAR",
+                key=f"aprobar_validacion_77_{i}"
+            ):
+
+                preguntas_77[i]["Estado"] = "APROBADA"
+
+                preguntas_77[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_77"
+                ] = preguntas_77
+
+                st.rerun()
+
+        with col2:
+
+            if st.button(
+                "RECHAZAR",
+                key=f"rechazar_validacion_77_{i}"
+            ):
+
+                preguntas_77[i]["Estado"] = "RECHAZADA"
+
+                preguntas_77[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_77"
+                ] = preguntas_77
+
+                st.rerun()
+
+        st.divider()
+
+
+# ============================================================
+# RESUMEN DE VALIDACIÓN 7.7
+# ============================================================
+
+if preguntas_77:
+
+    aprobadas_77 = sum(
+        1
+        for pregunta in preguntas_77
+        if pregunta.get("Estado") == "APROBADA"
+    )
+
+    rechazadas_77 = sum(
+        1
+        for pregunta in preguntas_77
+        if pregunta.get("Estado") == "RECHAZADA"
+    )
+
+    pendientes_77 = sum(
+        1
+        for pregunta in preguntas_77
+        if pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    st.markdown(
+        "### Resumen de validación 7.7"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Aprobadas",
+            aprobadas_77
+        )
+
+    with col2:
+
+        st.metric(
+            "Rechazadas",
+            rechazadas_77
+        )
+
+    with col3:
+
+        st.metric(
+            "Pendientes",
+            pendientes_77
+        )
+
+    if pendientes_77 == 0:
+
+        st.success(
+            "Todas las preguntas fueron "
+            "revisadas individualmente."
+        )
+
+        st.info(
+            "Las preguntas aprobadas quedan "
+            "listas para sincronización."
+        )
+
