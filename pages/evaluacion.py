@@ -19103,3 +19103,295 @@ if preguntas_78:
         ):
 
             sincronizar_banco_78()
+# ============================================================
+# 7.9 - PARTE 1
+# CARGA Y CONTROL DE FUENTE
+# HOJA: RESTRICCIONES
+# ============================================================
+
+ARCHIVO_FUENTE_79 = (
+    "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
+)
+
+HOJA_FUENTE_79 = "Restricciones"
+
+ARCHIVO_BANCO_79 = (
+    "BANCO_PREGUNTAS_GENERALES.xlsx"
+)
+
+
+# ============================================================
+# CARGAR FUENTE
+# ============================================================
+
+def cargar_fuente_79():
+
+    try:
+
+        df = pd.read_excel(
+            ARCHIVO_FUENTE_79,
+            sheet_name=HOJA_FUENTE_79,
+            engine="openpyxl"
+        )
+
+    except Exception as error:
+
+        st.error(
+            "7.9 ERROR al cargar la hoja "
+            f"{HOJA_FUENTE_79}: {error}"
+        )
+
+        return None
+
+    columnas = [
+        "Restriccion_ID",
+        "Producto",
+        "Tipo",
+        "Precaución / Contraindicación",
+        "Motivo",
+        "Alternativas seguras"
+    ]
+
+    faltantes = [
+        columna
+        for columna in columnas
+        if columna not in df.columns
+    ]
+
+    if faltantes:
+
+        st.error(
+            "7.9 ERROR: faltan columnas: "
+            + ", ".join(faltantes)
+        )
+
+        return None
+
+    df = df[columnas].copy()
+
+    for columna in columnas:
+
+        df[columna] = (
+            df[columna]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+    df = df[
+        (df["Restriccion_ID"] != "")
+        &
+        (df["Producto"] != "")
+        &
+        (df["Tipo"] != "")
+        &
+        (df["Precaución / Contraindicación"] != "")
+        &
+        (df["Motivo"] != "")
+        &
+        (df["Alternativas seguras"] != "")
+    ].copy()
+
+    df["Fuente_ID"] = [
+        f"RX-{i:06d}"
+        for i in range(1, len(df) + 1)
+    ]
+
+    return df.reset_index(drop=True)
+
+
+# ============================================================
+# CARGAR BANCO
+# ============================================================
+
+def cargar_banco_79():
+
+    try:
+
+        return pd.read_excel(
+            ARCHIVO_BANCO_79,
+            engine="openpyxl"
+        )
+
+    except Exception:
+
+        return pd.DataFrame()
+
+
+# ============================================================
+# OBTENER FUENTES UTILIZADAS
+# ============================================================
+
+def obtener_fuentes_usadas_79(
+    df_banco
+):
+
+    usadas = set()
+
+    if df_banco.empty:
+
+        return usadas
+
+    if "Fuente_ID" not in df_banco.columns:
+
+        return usadas
+
+    for valor in df_banco[
+        "Fuente_ID"
+    ].fillna(""):
+
+        for fuente in str(
+            valor
+        ).split(";"):
+
+            fuente = fuente.strip()
+
+            if fuente:
+
+                usadas.add(
+                    fuente
+                )
+
+    return usadas
+
+
+# ============================================================
+# INTERFAZ DE CARGA
+# ============================================================
+
+st.markdown(
+    "## 7.9 Restricciones"
+)
+
+st.write(
+    "Carga y control de la hoja Restricciones "
+    "para generar preguntas de precauciones, "
+    "motivos y alternativas seguras."
+)
+
+
+if st.button(
+    "CARGAR Y VALIDAR FUENTE 7.9",
+    key="cargar_fuentes_79"
+):
+
+    df_fuente_79 = (
+        cargar_fuente_79()
+    )
+
+    if df_fuente_79 is None:
+
+        st.stop()
+
+    df_banco_79 = (
+        cargar_banco_79()
+    )
+
+    fuentes_usadas_79 = (
+        obtener_fuentes_usadas_79(
+            df_banco_79
+        )
+    )
+
+    df_disponible_79 = (
+        df_fuente_79[
+            ~df_fuente_79[
+                "Fuente_ID"
+            ].isin(
+                fuentes_usadas_79
+            )
+        ]
+        .copy()
+        .reset_index(drop=True)
+    )
+
+    st.session_state[
+        "df_fuente_79"
+    ] = df_fuente_79.copy()
+
+    st.session_state[
+        "df_banco_79"
+    ] = df_banco_79.copy()
+
+    st.session_state[
+        "df_disponible_79"
+    ] = df_disponible_79.copy()
+
+    st.session_state[
+        "fuentes_usadas_79"
+    ] = fuentes_usadas_79
+
+
+# ============================================================
+# MOSTRAR CONTROL
+# ============================================================
+
+if "df_fuente_79" in st.session_state:
+
+    df_fuente_79 = st.session_state[
+        "df_fuente_79"
+    ]
+
+    df_disponible_79 = st.session_state[
+        "df_disponible_79"
+    ]
+
+    fuentes_usadas_79 = st.session_state[
+        "fuentes_usadas_79"
+    ]
+
+    st.success(
+        "7.9 cargó correctamente la hoja "
+        "Restricciones."
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Restricciones fuente",
+            len(df_fuente_79)
+        )
+
+    with col2:
+
+        st.metric(
+            "Fuentes utilizadas",
+            len(
+                fuentes_usadas_79
+                &
+                set(
+                    df_fuente_79[
+                        "Fuente_ID"
+                    ]
+                )
+            )
+        )
+
+    with col3:
+
+        st.metric(
+            "Restricciones disponibles",
+            len(df_disponible_79)
+        )
+
+    st.markdown(
+        "### Estructura cargada"
+    )
+
+    st.dataframe(
+        df_disponible_79[
+            [
+                "Fuente_ID",
+                "Restriccion_ID",
+                "Producto",
+                "Tipo",
+                "Precaución / Contraindicación",
+                "Motivo",
+                "Alternativas seguras"
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True
+    )
