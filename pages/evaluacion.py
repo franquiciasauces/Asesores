@@ -10972,4 +10972,373 @@ if preguntas_64:
         ):
 
             sincronizar_banco_64()
+# ============================================================
+# 7.1 - PATOLOGÍA
+# PARTE 1 - CARGA Y CONTROL DE FUENTE
+# ============================================================
 
+ARCHIVO_FUENTE_71 = (
+    "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
+)
+
+HOJA_FUENTE_71 = "Patologias"
+
+ARCHIVO_BANCO_71 = (
+    "BANCO_PREGUNTAS_GENERALES.xlsx"
+)
+
+
+# ============================================================
+# FUNCIONES
+# ============================================================
+
+def normalizar_71(valor):
+
+    if pd.isna(valor):
+        return ""
+
+    return (
+        str(valor)
+        .strip()
+        .lower()
+        .replace("\n", " ")
+    )
+
+
+def cargar_fuente_71():
+
+    try:
+
+        df = pd.read_excel(
+            ARCHIVO_FUENTE_71,
+            sheet_name=HOJA_FUENTE_71,
+            engine="openpyxl"
+        )
+
+    except Exception as error:
+
+        st.error(
+            "7.1 ERROR al cargar la hoja "
+            f"{HOJA_FUENTE_71}: {error}"
+        )
+
+        return None
+
+    columnas = [
+        "Patologia_ID",
+        "Patología",
+        "Descripción breve (para cliente)",
+        "Causas frecuentes (resumen)",
+        "Síntomas/Señales clave (checklist)",
+        "Objetivo del paquete",
+        "Notas (para asesor)"
+    ]
+
+    faltantes = [
+        columna
+        for columna in columnas
+        if columna not in df.columns
+    ]
+
+    if faltantes:
+
+        st.error(
+            "7.1 ERROR: faltan columnas en "
+            f"la hoja {HOJA_FUENTE_71}: "
+            f"{', '.join(faltantes)}"
+        )
+
+        return None
+
+    df = df[columnas].copy()
+
+    for columna in columnas:
+
+        df[columna] = (
+            df[columna]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+    df = df[
+        (df["Patologia_ID"] != "")
+        &
+        (df["Patología"] != "")
+    ].copy()
+
+    df["Fuente_ID"] = [
+        f"PTG-F{i:06d}"
+        for i in range(1, len(df) + 1)
+    ]
+
+    df["_clave"] = (
+        df["Patologia_ID"]
+        .map(normalizar_71)
+    )
+
+    df = (
+        df
+        .drop_duplicates(
+            subset="_clave"
+        )
+        .reset_index(drop=True)
+    )
+
+    return df
+
+
+def cargar_banco_71():
+
+    try:
+
+        df = pd.read_excel(
+            ARCHIVO_BANCO_71,
+            engine="openpyxl"
+        )
+
+    except FileNotFoundError:
+
+        return pd.DataFrame()
+
+    except Exception:
+
+        return pd.DataFrame()
+
+    return df
+
+
+# ============================================================
+# RELACIONES YA UTILIZADAS
+# ============================================================
+
+def obtener_fuentes_usadas_71(
+    df_banco
+):
+
+    usadas = set()
+
+    if df_banco.empty:
+
+        return usadas
+
+    if "Fuente_ID" not in df_banco.columns:
+
+        return usadas
+
+    for valor in df_banco[
+        "Fuente_ID"
+    ].fillna(""):
+
+        for fuente in str(
+            valor
+        ).split(";"):
+
+            fuente = fuente.strip()
+
+            if fuente:
+
+                usadas.add(
+                    fuente
+                )
+
+    return usadas
+
+
+# ============================================================
+# PREGUNTAS EXISTENTES
+# ============================================================
+
+def obtener_preguntas_existentes_71(
+    df_banco
+):
+
+    preguntas = set()
+
+    if df_banco.empty:
+
+        return preguntas
+
+    if "Pregunta" not in df_banco.columns:
+
+        return preguntas
+
+    for pregunta in df_banco[
+        "Pregunta"
+    ].fillna(""):
+
+        clave = normalizar_71(
+            pregunta
+        )
+
+        if clave:
+
+            preguntas.add(
+                clave
+            )
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ 7.1
+# ============================================================
+
+st.markdown(
+    "## 7.1 Patología"
+)
+
+st.write(
+    "Carga y control de la hoja "
+    "Patologias para los generadores "
+    "de definición, causas y síntomas."
+)
+
+
+if st.button(
+    "CARGAR Y VALIDAR FUENTE 7.1",
+    key="cargar_fuentes_71"
+):
+
+    df_fuente_71 = (
+        cargar_fuente_71()
+    )
+
+    if df_fuente_71 is None:
+
+        st.stop()
+
+    df_banco_71 = (
+        cargar_banco_71()
+    )
+
+    fuentes_usadas_71 = (
+        obtener_fuentes_usadas_71(
+            df_banco_71
+        )
+    )
+
+    preguntas_existentes_71 = (
+        obtener_preguntas_existentes_71(
+            df_banco_71
+        )
+    )
+
+    df_disponible_71 = (
+        df_fuente_71[
+            ~df_fuente_71[
+                "Fuente_ID"
+            ].isin(
+                fuentes_usadas_71
+            )
+        ]
+        .copy()
+        .reset_index(drop=True)
+    )
+
+    st.session_state[
+        "df_fuente_71"
+    ] = df_fuente_71.copy()
+
+    st.session_state[
+        "df_banco_71"
+    ] = df_banco_71.copy()
+
+    st.session_state[
+        "df_disponible_71"
+    ] = df_disponible_71.copy()
+
+    st.session_state[
+        "fuentes_usadas_71"
+    ] = fuentes_usadas_71
+
+    st.session_state[
+        "preguntas_existentes_71"
+    ] = preguntas_existentes_71
+
+
+# ============================================================
+# MOSTRAR CONTROL
+# ============================================================
+
+if "df_fuente_71" in st.session_state:
+
+    df_fuente_71 = st.session_state[
+        "df_fuente_71"
+    ]
+
+    df_banco_71 = st.session_state[
+        "df_banco_71"
+    ]
+
+    df_disponible_71 = st.session_state[
+        "df_disponible_71"
+    ]
+
+    fuentes_usadas_71 = st.session_state[
+        "fuentes_usadas_71"
+    ]
+
+    preguntas_existentes_71 = st.session_state[
+        "preguntas_existentes_71"
+    ]
+
+    st.success(
+        "7.1 cargó correctamente la hoja "
+        "Patologias."
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Patologías fuente",
+            len(df_fuente_71)
+        )
+
+    with col2:
+
+        st.metric(
+            "Fuentes utilizadas",
+            len(
+                fuentes_usadas_71
+                &
+                set(
+                    df_fuente_71[
+                        "Fuente_ID"
+                    ]
+                )
+            )
+        )
+
+    with col3:
+
+        st.metric(
+            "Patologías disponibles",
+            len(df_disponible_71)
+        )
+
+    st.info(
+        "Preguntas existentes en el banco: "
+        f"{len(preguntas_existentes_71):,}"
+    )
+
+    st.markdown(
+        "### Estructura cargada"
+    )
+
+    st.dataframe(
+        df_disponible_71[
+            [
+                "Fuente_ID",
+                "Patologia_ID",
+                "Patología",
+                "Descripción breve (para cliente)",
+                "Causas frecuentes (resumen)",
+                "Síntomas/Señales clave (checklist)"
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True
+    )
