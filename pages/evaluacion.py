@@ -18139,3 +18139,202 @@ if preguntas_81:
 
         st.divider()
 
+# ============================================================
+# 8.1 - PARTE 3
+# VALIDADOR DE PREGUNTAS
+# PRODUCTO - PRECAUCIÓN / CONTRAINDICACIÓN
+# ============================================================
+
+preguntas_81 = st.session_state.get(
+    "preguntas_generadas_81",
+    []
+)
+
+if preguntas_81:
+
+    st.markdown(
+        "### 8.1 - Validación de preguntas"
+    )
+
+    st.info(
+        "Revise cada pregunta y apruebe o rechace individualmente."
+    )
+
+    for i, pregunta in enumerate(preguntas_81):
+
+        pregunta_id = pregunta.get(
+            "Pregunta_ID",
+            f"PTRX-{i + 1:06d}"
+        )
+
+        st.markdown(
+            f"#### {pregunta_id}"
+        )
+
+        st.write(
+            pregunta.get(
+                "Pregunta",
+                ""
+            )
+        )
+
+        st.write(
+            f"1. {pregunta.get('Respuesta_1', '')}"
+        )
+
+        st.write(
+            f"2. {pregunta.get('Respuesta_2', '')}"
+        )
+
+        st.write(
+            f"3. {pregunta.get('Respuesta_3', '')}"
+        )
+
+        st.write(
+            f"4. {pregunta.get('Respuesta_4', '')}"
+        )
+
+        st.caption(
+            "Respuesta correcta: "
+            + str(
+                pregunta.get(
+                    "Respuesta_Correcta",
+                    ""
+                )
+            )
+        )
+
+        st.caption(
+            "Fuente: "
+            + str(
+                pregunta.get(
+                    "Fuente_ID",
+                    ""
+                )
+            )
+        )
+
+        estado = pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        )
+
+        st.write(
+            f"Estado: {estado}"
+        )
+
+        observacion = st.text_input(
+            "Observación del administrador",
+            value=pregunta.get(
+                "Observacion_Administrador",
+                ""
+            ),
+            key=f"observacion_precaucion_81_{i}"
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            if st.button(
+                "APROBAR",
+                key=f"aprobar_precaucion_81_{i}"
+            ):
+
+                preguntas_81[i]["Estado"] = (
+                    "APROBADA"
+                )
+
+                preguntas_81[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_81"
+                ] = preguntas_81
+
+                st.rerun()
+
+        with col2:
+
+            if st.button(
+                "RECHAZAR",
+                key=f"rechazar_precaucion_81_{i}"
+            ):
+
+                preguntas_81[i]["Estado"] = (
+                    "RECHAZADA"
+                )
+
+                preguntas_81[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_81"
+                ] = preguntas_81
+
+                st.rerun()
+
+        st.divider()
+
+
+# ============================================================
+# RESUMEN DE VALIDACIÓN
+# ============================================================
+
+if preguntas_81:
+
+    aprobadas_81 = sum(
+        1
+        for pregunta in preguntas_81
+        if pregunta.get("Estado") == "APROBADA"
+    )
+
+    rechazadas_81 = sum(
+        1
+        for pregunta in preguntas_81
+        if pregunta.get("Estado") == "RECHAZADA"
+    )
+
+    pendientes_81 = sum(
+        1
+        for pregunta in preguntas_81
+        if pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    st.markdown(
+        "### Resumen de validación 8.1"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Aprobadas",
+            aprobadas_81
+        )
+
+    with col2:
+
+        st.metric(
+            "Rechazadas",
+            rechazadas_81
+        )
+
+    with col3:
+
+        st.metric(
+            "Pendientes",
+            pendientes_81
+        )
+
+    if pendientes_81 == 0:
+
+        st.success(
+            "Todas las preguntas fueron revisadas."
+        )
