@@ -17566,21 +17566,21 @@ if preguntas_77:
             st.warning(
                 "No hay preguntas aprobadas para sincronizar."
             )
+
 # ============================================================
 # 7.8 - PARTE 1
 # CARGAR HOJA COMPLEMENTARIOS
 # ============================================================
 
-ARCHIVO_FUENTE_78 = (
-    "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
-)
-
+ARCHIVO_FUENTE_78 = "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
 HOJA_FUENTE_78 = "Complementarios"
 
 
+st.markdown("## 7.8 Complementarios")
+
 if st.button(
     "CARGAR COMPLEMENTARIOS",
-    key="cargar_complementarios_78"
+    key="cargar_complementarios_parte1_78"
 ):
 
     try:
@@ -17599,17 +17599,18 @@ if st.button(
             "Combinaciones estratégicas"
         ]
 
-        faltantes_78 = [
-            columna
-            for columna in columnas_78
-            if columna not in df_complementarios_78.columns
-        ]
+        faltantes_78 = []
+
+        for columna in columnas_78:
+
+            if columna not in df_complementarios_78.columns:
+
+                faltantes_78.append(columna)
 
         if faltantes_78:
 
             st.error(
-                "7.8 ERROR: faltan columnas en "
-                "la hoja Complementarios: "
+                "7.8 ERROR: faltan columnas: "
                 + ", ".join(faltantes_78)
             )
 
@@ -17654,9 +17655,7 @@ if st.button(
                 .reset_index(drop=True)
             )
 
-            df_complementarios_78[
-                "Fuente_ID"
-            ] = [
+            df_complementarios_78["Fuente_ID"] = [
                 f"COM-{i:06d}"
                 for i in range(
                     1,
@@ -17666,18 +17665,12 @@ if st.button(
 
             st.session_state[
                 "df_complementarios_78"
-            ] = df_complementarios_78.copy()
+            ] = df_complementarios_78
 
             st.success(
-                f"Complementarios cargó "
+                f"Se cargaron "
                 f"{len(df_complementarios_78)} "
-                "relaciones disponibles."
-            )
-
-            st.dataframe(
-                df_complementarios_78,
-                use_container_width=True,
-                hide_index=True
+                "relaciones de Complementarios."
             )
 
 
@@ -17694,20 +17687,12 @@ if "df_complementarios_78" in st.session_state:
     )
 
     st.markdown(
-        "### Fuente Complementarios cargada"
+        "### Relaciones disponibles"
     )
 
     st.dataframe(
-        df_complementarios_78[
-            [
-                "Fuente_ID",
-                "Producto",
-                "Categoría principal",
-                "Indicaciones / Escenarios",
-                "Modo de acción resumido",
-                "Combinaciones estratégicas"
-            ]
-        ],
+        df_complementarios_78,
         use_container_width=True,
         hide_index=True
     )
+
