@@ -10164,7 +10164,7 @@ if (
 
 # ============================================================
 # 6.4 - PARTE 2
-# GENERADOR PRODUCTO - CATEGORÍA PRINCIPAL Y COMPLEMENTARIA
+# GENERADOR PRODUCTO - CATEGORÍA PRINCIPAL + COMPLEMENTARIA
 # SOLO NIVEL 2
 # ============================================================
 
@@ -10223,7 +10223,6 @@ def siguiente_id_64():
             )
 
             if coincidencia:
-
                 mayor = max(
                     mayor,
                     int(coincidencia.group(1))
@@ -10236,16 +10235,10 @@ def siguiente_id_64():
 
         coincidencia = re.match(
             r"PTCC-(\d+)",
-            str(
-                pregunta.get(
-                    "Pregunta_ID",
-                    ""
-                )
-            )
+            str(pregunta.get("Pregunta_ID", ""))
         )
 
         if coincidencia:
-
             mayor = max(
                 mayor,
                 int(coincidencia.group(1))
@@ -10254,352 +10247,166 @@ def siguiente_id_64():
     return f"PTCC-{mayor + 1:06d}"
 
 
-def separar_complementarias_64(valor):
-
-    if pd.isna(valor):
-        return []
-
-    texto = str(valor).strip()
-
-    if not texto:
-        return []
-
-    for separador in [";", "|", "\n"]:
-
-        texto = texto.replace(
-            separador,
-            ";"
-        )
-
-    resultado = []
-
-    for elemento in texto.split(";"):
-
-        elemento = elemento.strip()
-
-        if elemento and elemento not in resultado:
-            resultado.append(elemento)
-
-    return resultado
-
-
 def generar_nivel_2_64(
     df_disponible,
     consumidas
 ):
 
     candidatos = df_disponible[
-        ~df_disponible["Fuente_ID"].isin(
-            consumidas
-        )
+        ~df_disponible["Fuente_ID"].isin(consumidas)
     ].copy()
 
-    if len(candidatos) < 3:
+    if len(candidatos) < 2:
         return None
 
     candidatos = candidatos.sample(
         frac=1
     ).reset_index(drop=True)
 
-    for _, correcta in candidatos.iterrows():
+    for _, verdadera in candidatos.iterrows():
 
-        producto = correcta["Producto"]
+        producto = verdadera["Producto"]
 
-        categoria_principal = (
-            correcta["Categoría principal"]
+        principal_correcta = (
+            verdadera["Categoría principal"]
         )
 
-        complementarias = (
-            separar_complementarias_64(
-                correcta[
-                    "Categorías complementarias"
-                ]
-            )
+        complementaria_correcta = (
+            verdadera["Categorías complementarias"]
         )
 
-        if not complementarias:
+        if (
+            not str(principal_correcta).strip()
+            or not str(complementaria_correcta).strip()
+        ):
             continue
 
-        categoria_complementaria = (
-            complementarias[0]
-        )
-
-        categorias_correctas = {
-            normalizar_64(
-                categoria_principal
-            ),
-            normalizar_64(
-                categoria_complementaria
-            )
-        }
-
-        if len(categorias_correctas) != 2:
-            continue
-
-        # ----------------------------------------------------
-        # BUSCAR UNA CATEGORÍA PRINCIPAL FALSA
-        # ----------------------------------------------------
-
-        falsas_principales = candidatos[
+        falsas = candidatos[
             candidatos["Fuente_ID"]
-            != correcta["Fuente_ID"]
+            != verdadera["Fuente_ID"]
         ].copy()
 
-        falsas_principales = falsas_principales[
-            falsas_principales[
-                "Categoría principal"
-            ].map(
-                normalizar_64
-            ).apply(
-                lambda x:
-                x not in categorias_correctas
-            )
-        ]
-
-        if falsas_principales.empty:
+        if falsas.empty:
             continue
 
-        falsas_principales = (
-            falsas_principales.sample(
-                frac=1
-            )
-            .reset_index(drop=True)
-        )
-
-        falsa_principal = None
-
-        for _, candidata in falsas_principales.iterrows():
-
-            categoria = candidata[
-                "Categoría principal"
-            ]
-
-            clave = normalizar_64(
-                categoria
-            )
-
-            if (
-                clave
-                and clave
-                not in categorias_correctas
-            ):
-
-                falsa_principal = candidata
-                break
-
-        if falsa_principal is None:
-            continue
-
-        # ----------------------------------------------------
-        # BUSCAR UNA CATEGORÍA COMPLEMENTARIA FALSA
-        # ----------------------------------------------------
-
-        falsas_complementarias = []
-
-        for _, candidata in candidatos.iterrows():
-
-            if (
-                candidata["Fuente_ID"]
-                == correcta["Fuente_ID"]
-            ):
-                continue
-
-            categorias = (
-                separar_complementarias_64(
-                    candidata[
-                        "Categorías complementarias"
-                    ]
-                )
-            )
-
-            for categoria in categorias:
-
-                clave = normalizar_64(
-                    categoria
-                )
-
-                if not clave:
-                    continue
-
-                if clave in categorias_correctas:
-                    continue
-
-                if (
-                    clave
-                    == normalizar_64(
-                        falsa_principal[
-                            "Categoría principal"
-                        ]
-                    )
-                ):
-                    continue
-
-                falsas_complementarias.append(
-                    (
-                        candidata,
-                        categoria
-                    )
-                )
-
-        if not falsas_complementarias:
-            continue
-
-        falsa_complementaria = (
-            falsas_complementarias[
-                np.random.randint(
-                    len(
-                        falsas_complementarias
-                    )
-                )
-            ]
-        )
-
-        fila_complementaria = (
-            falsa_complementaria[0]
-        )
-
-        categoria_falsa_complementaria = (
-            falsa_complementaria[1]
-        )
-
-        fuentes = [
-            correcta["Fuente_ID"],
-            falsa_principal["Fuente_ID"],
-            fila_complementaria["Fuente_ID"]
-        ]
-
-        if len(set(fuentes)) != 3:
-            continue
-
-        opciones = [
-            {
-                "Texto":
-                    categoria_principal,
-                "Correcta":
-                    True
-            },
-            {
-                "Texto":
-                    categoria_complementaria,
-                "Correcta":
-                    True
-            },
-            {
-                "Texto":
-                    falsa_principal[
-                        "Categoría principal"
-                    ],
-                "Correcta":
-                    False
-            },
-            {
-                "Texto":
-                    categoria_falsa_complementaria,
-                "Correcta":
-                    False
-            }
-        ]
-
-        categorias_finales = [
-            normalizar_64(
-                opcion["Texto"]
-            )
-            for opcion in opciones
-        ]
-
-        if len(
-            set(categorias_finales)
-        ) != 4:
-            continue
-
-        opciones = pd.DataFrame(
-            opciones
-        )
-
-        opciones = opciones.sample(
+        falsas = falsas.sample(
             frac=1
         ).reset_index(drop=True)
 
-        correctas = [
-            i + 1
-            for i, valor in enumerate(
-                opciones["Correcta"]
-            )
-            if valor
-        ]
+        for _, falsa in falsas.iterrows():
 
-        return {
-            "Producto":
-                producto,
-            "Opciones":
-                opciones,
-            "Correctas":
-                correctas,
-            "Fuentes":
-                fuentes
-        }
+            principal_falsa = (
+                falsa["Categoría principal"]
+            )
+
+            complementaria_falsa = (
+                falsa["Categorías complementarias"]
+            )
+
+            if (
+                not str(principal_falsa).strip()
+                or not str(complementaria_falsa).strip()
+            ):
+                continue
+
+            if (
+                normalizar_64(principal_falsa)
+                == normalizar_64(principal_correcta)
+            ):
+                continue
+
+            if (
+                normalizar_64(complementaria_falsa)
+                == normalizar_64(complementaria_correcta)
+            ):
+                continue
+
+            opciones = [
+                principal_correcta,
+                complementaria_correcta,
+                principal_falsa,
+                complementaria_falsa
+            ]
+
+            if len({
+                normalizar_64(x)
+                for x in opciones
+            }) != 4:
+                continue
+
+            return {
+                "Producto": producto,
+                "Principal": principal_correcta,
+                "Complementaria": complementaria_correcta,
+                "Falsa_Principal": principal_falsa,
+                "Falsa_Complementaria": complementaria_falsa,
+                "Fuente_ID": (
+                    verdadera["Fuente_ID"]
+                    + ";"
+                    + falsa["Fuente_ID"]
+                )
+            }
 
     return None
 
 
-def construir_pregunta_64(
-    resultado
-):
+def construir_pregunta_64(resultado):
 
-    opciones = resultado["Opciones"]
+    opciones = [
+        resultado["Principal"],
+        resultado["Complementaria"],
+        resultado["Falsa_Principal"],
+        resultado["Falsa_Complementaria"]
+    ]
 
-    pregunta_id = siguiente_id_64()
+    np.random.shuffle(opciones)
 
-    texto = (
-        "¿Cuáles de las siguientes categorías "
-        "corresponden al producto "
-        f"{resultado['Producto']}? "
-        "Seleccione las dos opciones correctas."
-    )
+    correctas = []
+
+    for i, opcion in enumerate(opciones):
+
+        if normalizar_64(opcion) in {
+            normalizar_64(resultado["Principal"]),
+            normalizar_64(resultado["Complementaria"])
+        }:
+            correctas.append(i + 1)
 
     return {
 
-        "Pregunta_ID":
-            pregunta_id,
+        "Pregunta_ID": siguiente_id_64(),
 
-        "Modulo":
-            "Producto",
+        "Modulo": "Producto",
 
-        "Tema":
-            "Categoría principal y complementaria",
+        "Tema": "Categoría principal y complementaria",
 
-        "Nivel":
-            "Nivel 2",
+        "Nivel": "Nivel 2",
 
         "Tipo_Relacion":
-            "Producto-Categoría principal y complementaria",
+            "Producto-Categoría principal-Categoría complementaria",
 
         "Pregunta":
-            texto,
+            "¿Cuáles de las siguientes categorías "
+            "corresponden al producto "
+            f"{resultado['Producto']}? "
+            "Seleccione las dos opciones correctas.",
 
-        "Respuesta_1":
-            opciones.iloc[0]["Texto"],
+        "Respuesta_1": opciones[0],
 
-        "Respuesta_2":
-            opciones.iloc[1]["Texto"],
+        "Respuesta_2": opciones[1],
 
-        "Respuesta_3":
-            opciones.iloc[2]["Texto"],
+        "Respuesta_3": opciones[2],
 
-        "Respuesta_4":
-            opciones.iloc[3]["Texto"],
+        "Respuesta_4": opciones[3],
 
         "Respuesta_Correcta":
             ";".join(
                 str(x)
-                for x in resultado["Correctas"]
+                for x in sorted(correctas)
             ),
 
-        "Estado":
-            "PENDIENTE",
+        "Estado": "PENDIENTE",
 
-        "Observacion_Administrador":
-            "",
+        "Observacion_Administrador": "",
 
         "Fecha_Generacion":
             pd.Timestamp.now().strftime(
@@ -10607,15 +10414,11 @@ def construir_pregunta_64(
             ),
 
         "Fuente_ID":
-            ";".join(
-                resultado["Fuentes"]
-            )
+            resultado["Fuente_ID"]
     }
 
 
-def generar_preguntas_64(
-    cantidad
-):
+def generar_preguntas_64(cantidad):
 
     df_disponible = st.session_state.get(
         "df_disponible_64",
@@ -10625,9 +10428,7 @@ def generar_preguntas_64(
     if df_disponible.empty:
         return []
 
-    consumidas = (
-        obtener_relaciones_consumidas_64()
-    )
+    consumidas = obtener_relaciones_consumidas_64()
 
     preguntas = []
 
@@ -10645,25 +10446,23 @@ def generar_preguntas_64(
             resultado
         )
 
-        preguntas.append(
-            pregunta
-        )
+        preguntas.append(pregunta)
 
         consumidas.update(
-            resultado["Fuentes"]
+            resultado["Fuente_ID"].split(";")
         )
 
     return preguntas
 
 
 # ============================================================
-# INTERFAZ DEL GENERADOR
+# INTERFAZ
 # ============================================================
 
 if "df_disponible_64" in st.session_state:
 
     st.markdown(
-        "### Generador Producto - Categoría principal y complementaria"
+        "### Generador Producto - Categorías"
     )
 
     cantidad_64 = st.number_input(
@@ -10694,8 +10493,7 @@ if "df_disponible_64" in st.session_state:
 
             st.warning(
                 "No hay suficientes relaciones "
-                "disponibles para generar preguntas "
-                "con las condiciones establecidas."
+                "para generar las preguntas."
             )
 
         else:
@@ -10704,11 +10502,9 @@ if "df_disponible_64" in st.session_state:
                 "preguntas_generadas_64"
             ] = nuevas_64
 
-            consumidas_64 = (
-                st.session_state.get(
-                    "fuentes_consumidas_64",
-                    set()
-                )
+            consumidas_64 = st.session_state.get(
+                "fuentes_consumidas_64",
+                set()
             )
 
             for pregunta in nuevas_64:
@@ -10720,23 +10516,16 @@ if "df_disponible_64" in st.session_state:
                     fuente = fuente.strip()
 
                     if fuente:
-                        consumidas_64.add(
-                            fuente
-                        )
+                        consumidas_64.add(fuente)
 
             st.session_state[
                 "fuentes_consumidas_64"
             ] = consumidas_64
 
             st.success(
-                f"Se generaron "
-                f"{len(nuevas_64)} preguntas."
+                f"Se generaron {len(nuevas_64)} preguntas."
             )
 
-
-# ============================================================
-# MOSTRAR PREGUNTAS GENERADAS
-# ============================================================
 
 preguntas_64 = st.session_state.get(
     "preguntas_generadas_64",
@@ -10787,4 +10576,3 @@ if preguntas_64:
         )
 
         st.divider()
-
