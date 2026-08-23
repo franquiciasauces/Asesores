@@ -16065,10 +16065,12 @@ if preguntas_76:
         )
 
         st.divider()
+
+
 # ============================================================
 # 7.6 - PARTE 3
 # VALIDACIÓN INDIVIDUAL DE PREGUNTAS
-# PATOLOGÍA - DESCRIPCIÓN - PRODUCTO
+# PATOLOGÍA - PRODUCTO DESDE DESCRIPCIÓN
 # ============================================================
 
 preguntas_76 = st.session_state.get(
@@ -16125,7 +16127,7 @@ if preguntas_76:
         )
 
         st.caption(
-            f"Fuente utilizada: "
+            "Fuente utilizada: "
             f"{pregunta['Fuente_ID']}"
         )
 
@@ -16144,7 +16146,7 @@ if preguntas_76:
                 "Observacion_Administrador",
                 ""
             ),
-            key=f"observacion_patologia_descripcion_producto_76_{i}"
+            key=f"observacion_76_{i}"
         )
 
         col1, col2 = st.columns(2)
@@ -16153,7 +16155,7 @@ if preguntas_76:
 
             if st.button(
                 "APROBAR",
-                key=f"aprobar_patologia_descripcion_producto_76_{i}"
+                key=f"aprobar_76_{i}"
             ):
 
                 preguntas_76[i][
@@ -16174,7 +16176,7 @@ if preguntas_76:
 
             if st.button(
                 "RECHAZAR",
-                key=f"rechazar_patologia_descripcion_producto_76_{i}"
+                key=f"rechazar_76_{i}"
             ):
 
                 preguntas_76[i][
@@ -16203,13 +16205,17 @@ if preguntas_76:
     aprobadas_76 = sum(
         1
         for p in preguntas_76
-        if p.get("Estado") == "APROBADA"
+        if p.get(
+            "Estado"
+        ) == "APROBADA"
     )
 
     rechazadas_76 = sum(
         1
         for p in preguntas_76
-        if p.get("Estado") == "RECHAZADA"
+        if p.get(
+            "Estado"
+        ) == "RECHAZADA"
     )
 
     pendientes_76 = sum(
@@ -16259,7 +16265,3 @@ if preguntas_76:
             "Las preguntas aprobadas quedan "
             "listas para la sincronización."
         )
-
- 
-
-
