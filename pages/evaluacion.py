@@ -17567,5 +17567,9 @@ if preguntas_77:
                 "No hay preguntas aprobadas para sincronizar."
             )
 
+# ============================================================
+# 7.8 - PRUEBA
+# ============================================================
 
+st.markdown("## 7.8 Complementarios")
 
