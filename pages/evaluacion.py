@@ -16598,12 +16598,52 @@ if preguntas_76:
             sincronizar_banco_76()
 
 
-
 # ============================================================
-# 7.7 - PARTE 2
+# 7.7 - PARTE 1
 # GENERADOR PATOLOGÍA - CONDICIÓN - PRODUCTO + COADYUVANTES
 # NIVEL 2
 # ============================================================
+
+def siguiente_id_77():
+
+    mayor = 0
+
+    df_banco = st.session_state.get(
+        "df_banco_71",
+        pd.DataFrame()
+    )
+
+    if (
+        not df_banco.empty
+        and "Pregunta_ID" in df_banco.columns
+    ):
+
+        for valor in df_banco["Pregunta_ID"].fillna(""):
+
+            texto = str(valor).strip()
+
+            if texto.startswith("PTG-PC-"):
+
+                try:
+
+                    numero = int(
+                        texto.replace(
+                            "PTG-PC-",
+                            ""
+                        )
+                    )
+
+                    mayor = max(
+                        mayor,
+                        numero
+                    )
+
+                except ValueError:
+
+                    pass
+
+    return f"PTG-PC-{mayor + 1:06d}"
+
 
 def generar_preguntas_77(cantidad):
 
@@ -16613,6 +16653,7 @@ def generar_preguntas_77(cantidad):
     )
 
     if df.empty:
+
         return []
 
     df = df[
@@ -16622,58 +16663,182 @@ def generar_preguntas_77(cantidad):
         ) == 1
     ].copy()
 
+    df = df[
+        (df["Patologia_ID"].fillna("").astype(str).str.strip() != "")
+        &
+        (df["Patología"].fillna("").astype(str).str.strip() != "")
+        &
+        (df["Segmento/Perfil"].fillna("").astype(str).str.strip() != "")
+        &
+        (df["Producto principal"].fillna("").astype(str).str.strip() != "")
+        &
+        (
+            df["Coadyuvantes sugeridos (1-3)"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            != ""
+        )
+    ].copy()
+
+    if len(df) < 4:
+
+        return []
+
+    usadas = st.session_state.get(
+        "fuentes_consumidas_77",
+        set()
+    )
+
+    df = df[
+        ~df["Patologia_ID"]
+        .astype(str)
+        .str.strip()
+        .isin(usadas)
+    ].copy()
+
+    if len(df) < 4:
+
+        return []
+
+    df = df.sample(
+        frac=1
+    ).reset_index(
+        drop=True
+    )
+
     preguntas = []
 
-    for _, fila in df.iterrows():
+    for _, verdadera in df.iterrows():
 
         if len(preguntas) >= cantidad:
+
             break
 
         patologia_id = str(
-            fila["Patologia_ID"]
+            verdadera["Patologia_ID"]
         ).strip()
 
         patologia = str(
-            fila["Patología"]
+            verdadera["Patología"]
         ).strip()
 
         segmento = str(
-            fila["Segmento/Perfil"]
+            verdadera["Segmento/Perfil"]
         ).strip()
 
         producto = str(
-            fila["Producto principal"]
+            verdadera["Producto principal"]
         ).strip()
 
         coadyuvantes = str(
-            fila["Coadyuvantes sugeridos (1-3)"]
+            verdadera[
+                "Coadyuvantes sugeridos (1-3)"
+            ]
         ).strip()
 
-        if not patologia_id:
+        paquete_correcto = (
+            producto
+            + " | "
+            + coadyuvantes
+        )
+
+        falsas = df[
+            df["Patologia_ID"]
+            .astype(str)
+            .str.strip()
+            != patologia_id
+        ].copy()
+
+        falsas = falsas.sample(
+            frac=1
+        ).reset_index(
+            drop=True
+        )
+
+        paquetes_falsos = []
+
+        for _, falsa in falsas.iterrows():
+
+            producto_falso = str(
+                falsa["Producto principal"]
+            ).strip()
+
+            coadyuvantes_falsos = str(
+                falsa[
+                    "Coadyuvantes sugeridos (1-3)"
+                ]
+            ).strip()
+
+            if (
+                not producto_falso
+                or not coadyuvantes_falsos
+            ):
+
+                continue
+
+            paquete_falso = (
+                producto_falso
+                + " | "
+                + coadyuvantes_falsos
+            )
+
+            if (
+                paquete_falso.lower()
+                == paquete_correcto.lower()
+            ):
+
+                continue
+
+            if any(
+                paquete_falso.lower()
+                == existente.lower()
+                for existente in paquetes_falsos
+            ):
+
+                continue
+
+            paquetes_falsos.append(
+                paquete_falso
+            )
+
+            if len(paquetes_falsos) == 3:
+
+                break
+
+        if len(paquetes_falsos) != 3:
+
             continue
 
-        if not patologia:
-            continue
+        opciones = [
+            paquete_correcto,
+            paquetes_falsos[0],
+            paquetes_falsos[1],
+            paquetes_falsos[2]
+        ]
 
-        if not segmento:
-            continue
+        opciones = pd.Series(
+            opciones
+        ).sample(
+            frac=1
+        ).tolist()
 
-        if not producto:
-            continue
-
-        if not coadyuvantes:
-            continue
+        correcta = (
+            opciones.index(
+                paquete_correcto
+            ) + 1
+        )
 
         preguntas.append({
 
             "Pregunta_ID":
-                f"PTG-PCS-{len(preguntas) + 1:06d}",
+                siguiente_id_77(),
 
             "Modulo":
                 "Patología",
 
             "Tema":
-                "Condición - Producto - Coadyuvantes",
+                "Condición - Producto + Coadyuvantes",
 
             "Nivel":
                 "Nivel 2",
@@ -16684,27 +16849,25 @@ def generar_preguntas_77(cantidad):
             "Pregunta":
                 (
                     f"Para la patología {patologia}, "
-                    f"si se presenta el siguiente perfil "
-                    f"o condición: {segmento}, "
-                    "¿cuál es el producto principal "
-                    "recomendado y cuáles son sus "
-                    "coadyuvantes?"
+                    f"si se presenta el perfil o condición "
+                    f"{segmento}, ¿cuál sería el paquete "
+                    "recomendado?"
                 ),
 
             "Respuesta_1":
-                producto,
+                opciones[0],
 
             "Respuesta_2":
-                coadyuvantes,
+                opciones[1],
 
             "Respuesta_3":
-                "",
+                opciones[2],
 
             "Respuesta_4":
-                "",
+                opciones[3],
 
             "Respuesta_Correcta":
-                "1;2",
+                str(correcta),
 
             "Estado":
                 "PENDIENTE",
@@ -16721,6 +16884,14 @@ def generar_preguntas_77(cantidad):
                 patologia_id
         })
 
+        usadas.add(
+            patologia_id
+        )
+
+    st.session_state[
+        "fuentes_consumidas_77"
+    ] = usadas
+
     return preguntas
 
 
@@ -16734,9 +16905,8 @@ st.markdown(
 )
 
 st.info(
-    "Nivel 2: relaciona la patología y el perfil "
-    "o condición con el producto principal y "
-    "los coadyuvantes sugeridos."
+    "Nivel 2: relaciona la patología y el "
+    "segmento o condición con el paquete recomendado."
 )
 
 cantidad_77 = st.number_input(
@@ -16756,9 +16926,7 @@ if st.button(
     if "df_trabajo_75" not in st.session_state:
 
         st.error(
-            "No está cargado el dataframe de "
-            "Patología-Producto. Primero debe "
-            "cargar la Parte 1 de 7.5."
+            "Primero debe cargar la Parte 1 de 7.5."
         )
 
     else:
@@ -16781,13 +16949,13 @@ if st.button(
         else:
 
             st.warning(
-                "No existen relaciones completas "
-                "de prioridad 1 para generar preguntas."
+                "No hay suficientes relaciones de "
+                "prioridad 1 para generar preguntas."
             )
 
 
 # ============================================================
-# MOSTRAR PREGUNTAS GENERADAS
+# MOSTRAR PREGUNTAS
 # ============================================================
 
 preguntas_77 = st.session_state.get(
@@ -16813,23 +16981,23 @@ if preguntas_77:
         )
 
         st.write(
-            f"**1.** {pregunta['Respuesta_1']}"
+            f"1. {pregunta['Respuesta_1']}"
         )
 
         st.write(
-            f"**2.** {pregunta['Respuesta_2']}"
+            f"2. {pregunta['Respuesta_2']}"
         )
 
         st.write(
-            f"**3.** {pregunta['Respuesta_3']}"
+            f"3. {pregunta['Respuesta_3']}"
         )
 
         st.write(
-            f"**4.** {pregunta['Respuesta_4']}"
+            f"4. {pregunta['Respuesta_4']}"
         )
 
         st.caption(
-            "Respuestas correctas: "
+            "Respuesta correcta: "
             f"{pregunta['Respuesta_Correcta']}"
         )
 
@@ -16839,3 +17007,4 @@ if preguntas_77:
         )
 
         st.divider()
+
