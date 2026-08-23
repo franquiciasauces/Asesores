@@ -16597,8 +16597,10 @@ if preguntas_76:
 
             sincronizar_banco_76()
 
+
+
 # ============================================================
-# 7.7 - PARTE 1
+# 7.7 - PARTE 2
 # GENERADOR PATOLOGÍA - CONDICIÓN - PRODUCTO + COADYUVANTES
 # NIVEL 2
 # ============================================================
@@ -16606,12 +16608,19 @@ if preguntas_76:
 def generar_preguntas_77(cantidad):
 
     df = st.session_state.get(
-        "df_trabajo_77",
+        "df_trabajo_75",
         pd.DataFrame()
     )
 
     if df.empty:
         return []
+
+    df = df[
+        pd.to_numeric(
+            df["Prioridad (1=alta)"],
+            errors="coerce"
+        ) == 1
+    ].copy()
 
     preguntas = []
 
@@ -16658,13 +16667,13 @@ def generar_preguntas_77(cantidad):
         preguntas.append({
 
             "Pregunta_ID":
-                f"PTG-PC-{len(preguntas) + 1:06d}",
+                f"PTG-PCS-{len(preguntas) + 1:06d}",
 
             "Modulo":
                 "Patología",
 
             "Tema":
-                "Producto + Coadyuvantes",
+                "Condición - Producto - Coadyuvantes",
 
             "Nivel":
                 "Nivel 2",
@@ -16675,10 +16684,11 @@ def generar_preguntas_77(cantidad):
             "Pregunta":
                 (
                     f"Para la patología {patologia}, "
-                    f"si se presenta la condición "
-                    f"{segmento}, ¿cuál sería el "
-                    "producto principal recomendado "
-                    "y cuáles sus coadyuvantes?"
+                    f"si se presenta el siguiente perfil "
+                    f"o condición: {segmento}, "
+                    "¿cuál es el producto principal "
+                    "recomendado y cuáles son sus "
+                    "coadyuvantes?"
                 ),
 
             "Respuesta_1":
@@ -16718,64 +16728,66 @@ def generar_preguntas_77(cantidad):
 # INTERFAZ 7.7
 # ============================================================
 
-if "df_trabajo_77" in st.session_state:
+st.markdown(
+    "### 7.7 Parte 1 - "
+    "Patología + Condición + Producto + Coadyuvantes"
+)
 
-    df_77 = st.session_state[
-        "df_trabajo_77"
-    ]
+st.info(
+    "Nivel 2: relaciona la patología y el perfil "
+    "o condición con el producto principal y "
+    "los coadyuvantes sugeridos."
+)
 
-    if not df_77.empty:
+cantidad_77 = st.number_input(
+    "Cantidad máxima de preguntas",
+    min_value=1,
+    max_value=500,
+    value=10,
+    step=1,
+    key="cantidad_generar_77_parte1"
+)
 
-        st.markdown(
-            "### 7.7 Parte 1 - "
-            "Patología + Condición + Producto + Coadyuvantes"
+if st.button(
+    "GENERAR PREGUNTAS 7.7",
+    key="generar_preguntas_77_parte1"
+):
+
+    if "df_trabajo_75" not in st.session_state:
+
+        st.error(
+            "No está cargado el dataframe de "
+            "Patología-Producto. Primero debe "
+            "cargar la Parte 1 de 7.5."
         )
 
-        st.info(
-            "Nivel 2: relaciona la patología y el "
-            "segmento o condición con el producto "
-            "principal y los coadyuvantes sugeridos."
+    else:
+
+        nuevas_77 = generar_preguntas_77(
+            cantidad_77
         )
 
-        cantidad_77 = st.number_input(
-            "Cantidad máxima de preguntas",
-            min_value=1,
-            max_value=500,
-            value=10,
-            step=1,
-            key="cantidad_generar_77_parte1"
-        )
+        st.session_state[
+            "preguntas_generadas_77"
+        ] = nuevas_77
 
-        if st.button(
-            "GENERAR PREGUNTAS 7.7",
-            key="generar_preguntas_77_parte1"
-        ):
+        if nuevas_77:
 
-            nuevas_77 = generar_preguntas_77(
-                cantidad_77
+            st.success(
+                f"Se generaron "
+                f"{len(nuevas_77)} preguntas."
             )
 
-            st.session_state[
-                "preguntas_generadas_77"
-            ] = nuevas_77
+        else:
 
-            if nuevas_77:
-
-                st.success(
-                    f"Se generaron "
-                    f"{len(nuevas_77)} preguntas."
-                )
-
-            else:
-
-                st.warning(
-                    "No existen relaciones completas "
-                    "de prioridad 1 disponibles."
-                )
+            st.warning(
+                "No existen relaciones completas "
+                "de prioridad 1 para generar preguntas."
+            )
 
 
 # ============================================================
-# MOSTRAR PREGUNTAS
+# MOSTRAR PREGUNTAS GENERADAS
 # ============================================================
 
 preguntas_77 = st.session_state.get(
@@ -16801,13 +16813,19 @@ if preguntas_77:
         )
 
         st.write(
-            f"**1. Producto principal:** "
-            f"{pregunta['Respuesta_1']}"
+            f"**1.** {pregunta['Respuesta_1']}"
         )
 
         st.write(
-            f"**2. Coadyuvantes:** "
-            f"{pregunta['Respuesta_2']}"
+            f"**2.** {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"**3.** {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"**4.** {pregunta['Respuesta_4']}"
         )
 
         st.caption(
@@ -16821,4 +16839,3 @@ if preguntas_77:
         )
 
         st.divider()
-
