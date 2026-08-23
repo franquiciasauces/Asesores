@@ -18338,3 +18338,257 @@ if preguntas_81:
         st.success(
             "Todas las preguntas fueron revisadas."
         )
+# ============================================================
+# 8.1 - PARTE 4
+# SINCRONIZADOR
+# ============================================================
+
+GITHUB_USUARIO_81 = "franquiciasauces"
+GITHUB_REPOSITORIO_81 = "Asesores"
+GITHUB_RAMA_81 = "main"
+GITHUB_ARCHIVO_81 = "BANCO_PREGUNTAS_GENERALES.xlsx"
+
+URL_GITHUB_81 = (
+    "https://api.github.com/repos/"
+    + GITHUB_USUARIO_81
+    + "/"
+    + GITHUB_REPOSITORIO_81
+    + "/contents/"
+    + GITHUB_ARCHIVO_81
+)
+
+
+def sincronizar_81():
+
+    preguntas = st.session_state.get(
+        "preguntas_generadas_81",
+        []
+    )
+
+    aprobadas = [
+        pregunta
+        for pregunta in preguntas
+        if pregunta.get("Estado") == "APROBADA"
+    ]
+
+    if not aprobadas:
+
+        st.warning(
+            "No hay preguntas aprobadas para sincronizar."
+        )
+
+        return
+
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json"
+    }
+
+    try:
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_81,
+            headers=headers,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            datos = json.loads(
+                respuesta.read().decode("utf-8")
+            )
+
+        sha = datos["sha"]
+
+        contenido = base64.b64decode(
+            datos["content"].replace("\n", "")
+        )
+
+        memoria = io.BytesIO(contenido)
+
+        df_banco = pd.read_excel(
+            memoria,
+            engine="openpyxl"
+        )
+
+        columnas = [
+            "Pregunta_ID",
+            "Modulo",
+            "Tema",
+            "Nivel",
+            "Tipo_Relacion",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Estado",
+            "Observacion_Administrador",
+            "Fecha_Generacion",
+            "Fuente_ID"
+        ]
+
+        for columna in columnas:
+
+            if columna not in df_banco.columns:
+
+                st.error(
+                    "8.1 ERROR: el banco no contiene "
+                    "la columna "
+                    + columna
+                )
+
+                return
+
+        df_nuevas = pd.DataFrame(aprobadas)
+
+        for columna in columnas:
+
+            if columna not in df_nuevas.columns:
+
+                st.error(
+                    "8.1 ERROR: falta la columna "
+                    + columna
+                    + " en las preguntas."
+                )
+
+                return
+
+        df_nuevas = df_nuevas[columnas].copy()
+
+        ids_existentes = set(
+            df_banco["Pregunta_ID"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+        nuevas = []
+
+        for _, fila in df_nuevas.iterrows():
+
+            pregunta_id = str(
+                fila["Pregunta_ID"]
+            ).strip()
+
+            if pregunta_id and pregunta_id not in ids_existentes:
+
+                nuevas.append(fila)
+
+        if not nuevas:
+
+            st.info(
+                "No hay preguntas nuevas para sincronizar."
+            )
+
+            return
+
+        df_agregar = pd.DataFrame(nuevas)
+
+        df_final = pd.concat(
+            [
+                df_banco,
+                df_agregar
+            ],
+            ignore_index=True
+        )
+
+        memoria_salida = io.BytesIO()
+
+        with pd.ExcelWriter(
+            memoria_salida,
+            engine="openpyxl"
+        ) as escritor:
+
+            df_final.to_excel(
+                escritor,
+                index=False,
+                sheet_name="Banco"
+            )
+
+        contenido_nuevo = base64.b64encode(
+            memoria_salida.getvalue()
+        ).decode("utf-8")
+
+        datos_actualizacion = {
+            "message": "Agregar preguntas 8.1 - Restricciones",
+            "content": contenido_nuevo,
+            "branch": GITHUB_RAMA_81,
+            "sha": sha
+        }
+
+        cuerpo = json.dumps(
+            datos_actualizacion
+        ).encode("utf-8")
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_81,
+            data=cuerpo,
+            headers={
+                **headers,
+                "Content-Type": "application/json"
+            },
+            method="PUT"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            respuesta.read()
+
+        st.success(
+            f"Se sincronizaron {len(nuevas)} "
+            "preguntas aprobadas de 8.1."
+        )
+
+        st.info(
+            f"Total de preguntas en el banco: "
+            f"{len(df_final):,}"
+        )
+
+    except Exception as error:
+
+        st.error(
+            "8.1 ERROR al sincronizar con GitHub."
+        )
+
+        st.exception(error)
+
+
+# ============================================================
+# BOTÓN
+# ============================================================
+
+preguntas_81 = st.session_state.get(
+    "preguntas_generadas_81",
+    []
+)
+
+aprobadas_81 = sum(
+    1
+    for pregunta in preguntas_81
+    if pregunta.get("Estado") == "APROBADA"
+)
+
+if aprobadas_81 > 0:
+
+    st.markdown(
+        "### 8.1 - Sincronización"
+    )
+
+    st.info(
+        f"Hay {aprobadas_81} preguntas aprobadas."
+    )
+
+    if st.button(
+        "SINCRONIZAR 8.1 CON BANCO DE PREGUNTAS",
+        key="sincronizar_81"
+    ):
+
+        sincronizar_81()
