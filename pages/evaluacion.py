@@ -11342,451 +11342,487 @@ if "df_fuente_71" in st.session_state:
         use_container_width=True,
         hide_index=True
     )
-# ============================================================
-
-# 7.2 - PATOLOGÍA / DEFINICIÓN
-# ============================================================
-
-# 7.2 - PATOLOGÍA / DEFINICIÓN
 
 # ============================================================
+# 7.2 - PARTE 2
+# GENERADOR PATOLOGÍA - DEFINICIÓN
+# NIVEL 1 Y NIVEL 2
+# ============================================================
+
+def normalizar_72(valor):
+
+    if pd.isna(valor):
+        return ""
+
+    return " ".join(
+        str(valor).strip().lower().split()
+    )
+
 
 def siguiente_id_72():
 
+    mayor = 0
 
-preguntas = st.session_state.get(
+    for pregunta in st.session_state.get(
+        "preguntas_generadas_72",
+        []
+    ):
+
+        texto = str(
+            pregunta.get(
+                "Pregunta_ID",
+                ""
+            )
+        )
+
+        if texto.startswith("PTG-DS-"):
+
+            try:
+
+                numero = int(
+                    texto.replace(
+                        "PTG-DS-",
+                        ""
+                    )
+                )
+
+                mayor = max(
+                    mayor,
+                    numero
+                )
+
+            except ValueError:
+                pass
+
+    return (
+        f"PTG-DS-{mayor + 1:06d}"
+    )
+
+
+def obtener_consumidas_72():
+
+    consumidas = set()
+
+    consumidas.update(
+        st.session_state.get(
+            "fuentes_consumidas_72",
+            set()
+        )
+    )
+
+    return consumidas
+
+
+def generar_nivel_72(
+    df,
+    consumidas,
+    nivel
+):
+
+    candidatos = df[
+        ~df["Fuente_ID"].isin(
+            consumidas
+        )
+    ].copy()
+
+    if len(candidatos) < 4:
+
+        return None
+
+    candidatos = candidatos.sample(
+        frac=1
+    ).reset_index(
+        drop=True
+    )
+
+    for _, verdadera in candidatos.iterrows():
+
+        fuente = str(
+            verdadera["Fuente_ID"]
+        ).strip()
+
+        patologia = str(
+            verdadera["Patología"]
+        ).strip()
+
+        definicion = str(
+            verdadera[
+                "Descripción breve (para cliente)"
+            ]
+        ).strip()
+
+        if (
+            not fuente
+            or not patologia
+            or not definicion
+        ):
+
+            continue
+
+        clave_correcta = normalizar_72(
+            definicion
+        )
+
+        falsas = candidatos[
+            candidatos["Fuente_ID"] != fuente
+        ].copy()
+
+        falsas["Definicion"] = (
+            falsas[
+                "Descripción breve (para cliente)"
+            ]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+        falsas = falsas[
+            falsas["Definicion"] != ""
+        ]
+
+        falsas = falsas[
+            falsas["Definicion"].map(
+                normalizar_72
+            ) != clave_correcta
+        ]
+
+        falsas = falsas.drop_duplicates(
+            subset=["Definicion"]
+        )
+
+        if len(falsas) < 3:
+
+            continue
+
+        falsas = falsas.sample(
+            frac=1
+        ).reset_index(
+            drop=True
+        )
+
+        seleccionadas = []
+
+        for _, falsa in falsas.iterrows():
+
+            texto = falsa[
+                "Definicion"
+            ]
+
+            clave = normalizar_72(
+                texto
+            )
+
+            if clave in [
+                normalizar_72(x)
+                for x in seleccionadas
+            ]:
+
+                continue
+
+            seleccionadas.append(
+                texto
+            )
+
+            if len(seleccionadas) == 3:
+
+                break
+
+        if len(seleccionadas) != 3:
+
+            continue
+
+        opciones = [
+            definicion,
+            seleccionadas[0],
+            seleccionadas[1],
+            seleccionadas[2]
+        ]
+
+        opciones = pd.Series(
+            opciones
+        ).sample(
+            frac=1
+        ).tolist()
+
+        correcta = (
+            opciones.index(
+                definicion
+            ) + 1
+        )
+
+        return {
+            "Patología": patologia,
+            "Opciones": opciones,
+            "Correcta": correcta,
+            "Fuente_ID": fuente,
+            "Nivel": nivel
+        }
+
+    return None
+
+
+def construir_pregunta_72(
+    resultado
+):
+
+    opciones = resultado[
+        "Opciones"
+    ]
+
+    return {
+
+        "Pregunta_ID":
+            siguiente_id_72(),
+
+        "Modulo":
+            "Patología",
+
+        "Tema":
+            "Definición",
+
+        "Nivel":
+            resultado["Nivel"],
+
+        "Tipo_Relacion":
+            "Patología-Definición",
+
+        "Pregunta":
+            (
+                "¿Cuál de las siguientes "
+                "opciones describe correctamente "
+                "la patología "
+                f"{resultado['Patología']}?"
+            ),
+
+        "Respuesta_1":
+            opciones[0],
+
+        "Respuesta_2":
+            opciones[1],
+
+        "Respuesta_3":
+            opciones[2],
+
+        "Respuesta_4":
+            opciones[3],
+
+        "Respuesta_Correcta":
+            str(
+                resultado["Correcta"]
+            ),
+
+        "Estado":
+            "PENDIENTE",
+
+        "Observacion_Administrador":
+            "",
+
+        "Fecha_Generacion":
+            pd.Timestamp.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+
+        "Fuente_ID":
+            resultado["Fuente_ID"]
+    }
+
+
+def generar_preguntas_72(
+    cantidad,
+    modo
+):
+
+    df = st.session_state.get(
+        "df_disponible_71",
+        pd.DataFrame()
+    )
+
+    if df.empty:
+
+        return []
+
+    consumidas = (
+        obtener_consumidas_72()
+    )
+
+    preguntas = []
+
+    if modo == "Nivel 1":
+
+        niveles = [
+            "Nivel 1"
+        ]
+
+    elif modo == "Nivel 2":
+
+        niveles = [
+            "Nivel 2"
+        ]
+
+    else:
+
+        niveles = [
+            "Nivel 1",
+            "Nivel 2"
+        ]
+
+    while len(preguntas) < cantidad:
+
+        generado = False
+
+        for nivel in niveles:
+
+            if len(preguntas) >= cantidad:
+
+                break
+
+            resultado = generar_nivel_72(
+                df,
+                consumidas,
+                nivel
+            )
+
+            if resultado is None:
+
+                continue
+
+            pregunta = construir_pregunta_72(
+                resultado
+            )
+
+            preguntas.append(
+                pregunta
+            )
+
+            consumidas.add(
+                resultado["Fuente_ID"]
+            )
+
+            generado = True
+
+        if not generado:
+
+            break
+
+    st.session_state[
+        "fuentes_consumidas_72"
+    ] = consumidas
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ DEL GENERADOR
+# ============================================================
+
+if "df_disponible_71" in st.session_state:
+
+    st.markdown(
+        "### 7.2 Parte 2 - Generador "
+        "Patología - Definición"
+    )
+
+    modo_72 = st.selectbox(
+        "Seleccione el nivel",
+        [
+            "Nivel 1",
+            "Nivel 2",
+            "Niveles 1 y 2"
+        ],
+        key="modo_generacion_72"
+    )
+
+    cantidad_72 = st.number_input(
+        "Cantidad máxima de preguntas",
+        min_value=1,
+        max_value=500,
+        value=10,
+        step=1,
+        key="cantidad_generar_72"
+    )
+
+    if st.button(
+        "GENERAR PREGUNTAS 7.2",
+        key="generar_preguntas_72"
+    ):
+
+        nuevas_72 = generar_preguntas_72(
+            cantidad_72,
+            modo_72
+        )
+
+        st.session_state[
+            "preguntas_generadas_72"
+        ] = nuevas_72
+
+        if nuevas_72:
+
+            st.success(
+                f"Se generaron "
+                f"{len(nuevas_72)} preguntas."
+            )
+
+        else:
+
+            st.warning(
+                "No hay suficientes relaciones "
+                "disponibles para generar preguntas."
+            )
+
+
+# ============================================================
+# MOSTRAR PREGUNTAS GENERADAS
+# ============================================================
+
+preguntas_72 = st.session_state.get(
     "preguntas_generadas_72",
     []
 )
 
-mayor = 0
-
-for p in preguntas:
-
-    texto = str(
-        p.get("Pregunta_ID", "")
-    )
-
-    m = re.search(
-        r"PTG-DS-(\d+)",
-        texto
-    )
-
-    if m:
-        mayor = max(
-            mayor,
-            int(m.group(1))
-        )
-
-return f"PTG-DS-{mayor + 1:06d}"
-
-
-def crear_pregunta_72(
-fila,
-df,
-nivel
-):
-
-
-correcta = str(
-    fila[
-        "Descripción breve (para cliente)"
-    ]
-).strip()
-
-if not correcta:
-    return None
-
-otros = df[
-    df["Patologia_ID"]
-    != fila["Patologia_ID"]
-].copy()
-
-otros[
-    "Descripcion_tmp"
-] = otros[
-    "Descripción breve (para cliente)"
-].fillna("").astype(str).str.strip()
-
-otros = otros[
-    otros["Descripcion_tmp"] != ""
-]
-
-otros = otros.drop_duplicates(
-    subset=["Descripcion_tmp"]
-)
-
-otros = otros.sample(
-    frac=1
-).reset_index(
-    drop=True
-)
-
-correcta_n = normalizar_71(
-    correcta
-)
-
-if nivel == "Nivel 1":
-
-    falsas = []
-
-    for _, r in otros.iterrows():
-
-        texto = r[
-            "Descripcion_tmp"
-        ]
-
-        if normalizar_71(
-            texto
-        ) == correcta_n:
-            continue
-
-        falsas.append(
-            texto
-        )
-
-        if len(falsas) == 3:
-            break
-
-    if len(falsas) < 3:
-        return None
-
-    opciones = [
-        correcta,
-        falsas[0],
-        falsas[1],
-        falsas[2]
-    ]
-
-    opciones = pd.Series(
-        opciones
-    ).sample(
-        frac=1
-    ).tolist()
-
-    correctas = [
-        str(
-            opciones.index(
-                correcta
-            ) + 1
-        )
-    ]
-
-else:
-
-    segunda = None
-
-    for _, r in otros.iterrows():
-
-        texto = r[
-            "Descripcion_tmp"
-        ]
-
-        if normalizar_71(
-            texto
-        ) != correcta_n:
-
-            segunda = texto
-            break
-
-    if segunda is None:
-        return None
-
-    falsas = []
-
-    for _, r in otros.iterrows():
-
-        texto = r[
-            "Descripcion_tmp"
-        ]
-
-        texto_n = normalizar_71(
-            texto
-        )
-
-        if texto_n in {
-            correcta_n,
-            normalizar_71(
-                segunda
-            )
-        }:
-            continue
-
-        falsas.append(
-            texto
-        )
-
-        if len(falsas) == 2:
-            break
-
-    if len(falsas) < 2:
-        return None
-
-    opciones = [
-        correcta,
-        segunda,
-        falsas[0],
-        falsas[1]
-    ]
-
-    opciones = pd.Series(
-        opciones
-    ).sample(
-        frac=1
-    ).tolist()
-
-    correctas = []
-
-    for i, texto in enumerate(
-        opciones
-    ):
-
-        if normalizar_71(
-            texto
-        ) in {
-            correcta_n,
-            normalizar_71(
-                segunda
-            )
-        }:
-
-            correctas.append(
-                str(i + 1)
-            )
-
-return {
-    "Pregunta_ID":
-        siguiente_id_72(),
-
-    "Modulo":
-        "Patología",
-
-    "Tema":
-        "Definición",
-
-    "Nivel":
-        nivel,
-
-    "Tipo_Relacion":
-        "Patología-Definición",
-
-    "Pregunta":
-        (
-            "¿Cuál de las siguientes "
-            "opciones describe correctamente "
-            f"la patología {fila['Patología']}?"
-        ),
-
-    "Respuesta_1":
-        opciones[0],
-
-    "Respuesta_2":
-        opciones[1],
-
-    "Respuesta_3":
-        opciones[2],
-
-    "Respuesta_4":
-        opciones[3],
-
-    "Respuesta_Correcta":
-        ";".join(correctas),
-
-    "Estado":
-        "PENDIENTE",
-
-    "Observacion_Administrador":
-        "",
-
-    "Fecha_Generacion":
-        pd.Timestamp.now().strftime(
-            "%Y-%m-%d %H:%M:%S"
-        ),
-
-    "Fuente_ID":
-        fila["Fuente_ID"]
-}
-
-
-def generar_preguntas_72(
-cantidad,
-modo
-):
-
-
-df = st.session_state.get(
-    "df_disponible_71",
-    pd.DataFrame()
-)
-
-if df.empty:
-    return []
-
-usadas = st.session_state.get(
-    "fuentes_consumidas_72",
-    set()
-)
-
-disponibles = df[
-    ~df["Fuente_ID"].isin(
-        usadas
-    )
-].copy()
-
-preguntas = []
-
-if modo == "Nivel 1":
-    niveles = ["Nivel 1"]
-
-elif modo == "Nivel 2":
-    niveles = ["Nivel 2"]
-
-else:
-    niveles = [
-        "Nivel 1",
-        "Nivel 2"
-    ]
-
-for _, fila in disponibles.sample(
-    frac=1
-).iterrows():
-
-    for nivel in niveles:
-
-        if len(preguntas) >= cantidad:
-            break
-
-        pregunta = crear_pregunta_72(
-            fila,
-            df,
-            nivel
-        )
-
-        if pregunta is None:
-            continue
-
-        preguntas.append(
-            pregunta
-        )
-
-        usadas.add(
-            fila["Fuente_ID"]
-        )
-
-    if len(preguntas) >= cantidad:
-        break
-
-st.session_state[
-    "fuentes_consumidas_72"
-] = usadas
-
-return preguntas
-
-
-if "df_disponible_71" in st.session_state:
-
-
-st.markdown(
-    "### 7.2 Patología - Definición"
-)
-
-modo_72 = st.selectbox(
-    "Seleccione el nivel",
-    [
-        "Nivel 1",
-        "Nivel 2",
-        "Niveles 1 y 2"
-    ],
-    key="modo_72"
-)
-
-cantidad_72 = st.number_input(
-    "Cantidad máxima de preguntas",
-    min_value=1,
-    max_value=500,
-    value=10,
-    step=1,
-    key="cantidad_72"
-)
-
-if st.button(
-    "GENERAR PREGUNTAS 7.2",
-    key="generar_preguntas_72"
-):
-
-    nuevas_72 = generar_preguntas_72(
-        cantidad_72,
-        modo_72
-    )
-
-    st.session_state[
-        "preguntas_generadas_72"
-    ] = nuevas_72
-
-    if nuevas_72:
-
-        st.success(
-            f"Se generaron {len(nuevas_72)} "
-            "preguntas."
-        )
-
-    else:
-
-        st.warning(
-            "No fue posible generar preguntas "
-            "válidas con las relaciones disponibles."
-        )
-
-
-preguntas_72 = st.session_state.get(
-"preguntas_generadas_72",
-[]
-)
-
 if preguntas_72:
 
-
-st.markdown(
-    "### Preguntas generadas"
-)
-
-for p in preguntas_72:
-
     st.markdown(
-        f"**{p['Pregunta_ID']} — "
-        f"{p['Nivel']}**"
+        "### Preguntas generadas 7.2"
     )
 
-    st.write(
-        p["Pregunta"]
-    )
+    for pregunta in preguntas_72:
 
-    st.write(
-        f"1. {p['Respuesta_1']}"
-    )
+        st.markdown(
+            f"**{pregunta['Pregunta_ID']} — "
+            f"{pregunta['Nivel']}**"
+        )
 
-    st.write(
-        f"2. {p['Respuesta_2']}"
-    )
+        st.write(
+            pregunta["Pregunta"]
+        )
 
-    st.write(
-        f"3. {p['Respuesta_3']}"
-    )
+        st.write(
+            f"1. {pregunta['Respuesta_1']}"
+        )
 
-    st.write(
-        f"4. {p['Respuesta_4']}"
-    )
+        st.write(
+            f"2. {pregunta['Respuesta_2']}"
+        )
 
-    st.caption(
-        "Respuestas correctas: "
-        f"{p['Respuesta_Correcta']}"
-    )
+        st.write(
+            f"3. {pregunta['Respuesta_3']}"
+        )
 
-    st.caption(
-        "Fuente: "
-        f"{p['Fuente_ID']}"
-    )
+        st.write(
+            f"4. {pregunta['Respuesta_4']}"
+        )
 
-    st.divider()
+        st.caption(
+            "Respuesta correcta: "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            "Fuente: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        st.divider()
+
 
 
