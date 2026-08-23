@@ -14262,63 +14262,219 @@ if preguntas_74:
 
             sincronizar_banco_74()
 # ============================================================
-# ============================================================
 # 7.5 - PARTE 1
-# CARGAR PATOLOGIAS Y REGLAS_PAQUETES
+# CARGA PATOLOGIAS Y REGLAS_PAQUETES
+# CONSTRUYE DATAFRAME PATOLOGIA-PRODUCTO
 # SOLO PRIORIDAD 1
 # ============================================================
 
-df_patologias_75 = pd.read_excel(
-    archivo_71,
-    sheet_name="Patologias"
+st.markdown(
+    "## 7.5 Patología - Producto"
 )
 
-df_reglas_75 = pd.read_excel(
-    archivo_71,
-    sheet_name="Reglas_Paquetes"
+st.write(
+    "Carga las hojas Patologias y Reglas_Paquetes "
+    "y construye las relaciones de prioridad 1."
 )
 
-df_reglas_75 = df_reglas_75[
-    pd.to_numeric(
-        df_reglas_75["Prioridad (1=alta)"],
-        errors="coerce"
-    ) == 1
-].copy()
 
-df_trabajo_75 = pd.merge(
-    df_patologias_75[
+# ============================================================
+# CARGAR HOJAS
+# ============================================================
+
+if st.button(
+    "CARGAR DATOS 7.5",
+    key="cargar_fuentes_75"
+):
+
+    df_patologias_75 = pd.read_excel(
+        ARCHIVO_FUENTE_71,
+        sheet_name="Patologias",
+        engine="openpyxl"
+    )
+
+    df_reglas_75 = pd.read_excel(
+        ARCHIVO_FUENTE_71,
+        sheet_name="Reglas_Paquetes",
+        engine="openpyxl"
+    )
+
+
+    # ========================================================
+    # COLUMNAS NECESARIAS DE PATOLOGIAS
+    # ========================================================
+
+    columnas_patologias_75 = [
+        "Patologia_ID",
+        "Patología",
+        "Descripción breve (para cliente)"
+    ]
+
+    faltantes_patologias_75 = [
+        columna
+        for columna in columnas_patologias_75
+        if columna not in df_patologias_75.columns
+    ]
+
+    if faltantes_patologias_75:
+
+        st.error(
+            "7.5 ERROR: faltan columnas en "
+            "Patologias: "
+            + ", ".join(
+                faltantes_patologias_75
+            )
+        )
+
+        st.stop()
+
+
+    # ========================================================
+    # COLUMNAS NECESARIAS DE REGLAS_PAQUETES
+    # ========================================================
+
+    columnas_reglas_75 = [
+        "Patologia_ID",
+        "Prioridad (1=alta)",
+        "Segmento/Perfil",
+        "Producto principal",
+        "Coadyuvantes sugeridos (1-3)"
+    ]
+
+    faltantes_reglas_75 = [
+        columna
+        for columna in columnas_reglas_75
+        if columna not in df_reglas_75.columns
+    ]
+
+    if faltantes_reglas_75:
+
+        st.error(
+            "7.5 ERROR: faltan columnas en "
+            "Reglas_Paquetes: "
+            + ", ".join(
+                faltantes_reglas_75
+            )
+        )
+
+        st.stop()
+
+
+    # ========================================================
+    # CONSERVAR SOLO LAS COLUMNAS NECESARIAS
+    # ========================================================
+
+    df_patologias_75 = df_patologias_75[
+        columnas_patologias_75
+    ].copy()
+
+    df_reglas_75 = df_reglas_75[
+        columnas_reglas_75
+    ].copy()
+
+
+    # ========================================================
+    # LIMPIAR CAMPOS
+    # ========================================================
+
+    for columna in columnas_patologias_75:
+
+        df_patologias_75[columna] = (
+            df_patologias_75[columna]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+    for columna in columnas_reglas_75:
+
+        df_reglas_75[columna] = (
+            df_reglas_75[columna]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+
+    # ========================================================
+    # SOLO PRIORIDAD 1
+    # ========================================================
+
+    df_reglas_75 = df_reglas_75[
+        pd.to_numeric(
+            df_reglas_75[
+                "Prioridad (1=alta)"
+            ],
+            errors="coerce"
+        ) == 1
+    ].copy()
+
+
+    # ========================================================
+    # UNIR POR PATOLOGIA_ID
+    # ========================================================
+
+    df_trabajo_75 = pd.merge(
+        df_patologias_75,
+        df_reglas_75,
+        on="Patologia_ID",
+        how="inner"
+    )
+
+
+    # ========================================================
+    # ESTRUCTURA FINAL
+    # ========================================================
+
+    df_trabajo_75 = df_trabajo_75[
         [
             "Patologia_ID",
             "Patología",
-            "Descripción breve (para cliente)"
-        ]
-    ],
-    df_reglas_75[
-        [
-            "Patologia_ID",
+            "Descripción breve (para cliente)",
             "Prioridad (1=alta)",
             "Segmento/Perfil",
             "Producto principal",
             "Coadyuvantes sugeridos (1-3)"
         ]
-    ],
-    on="Patologia_ID",
-    how="inner"
-)
+    ].drop_duplicates(
+        ignore_index=True
+    )
 
-df_trabajo_75 = df_trabajo_75.drop_duplicates(
-    ignore_index=True
-)
 
-st.session_state["df_trabajo_75"] = df_trabajo_75
+    # ========================================================
+    # GUARDAR EN SESSION STATE
+    # ========================================================
 
-st.success(
-    f"7.5 Parte 1 cargada: {len(df_trabajo_75)} relaciones."
-)
+    st.session_state[
+        "df_trabajo_75"
+    ] = df_trabajo_75.copy()
 
-st.dataframe(
-    df_trabajo_75,
-    use_container_width=True,
-    hide_index=True
-)
 
+    # ========================================================
+    # RESULTADO
+    # ========================================================
+
+    st.success(
+        "7.5 Parte 1 cargada correctamente."
+    )
+
+    st.info(
+        f"Patologías cargadas: "
+        f"{len(df_patologias_75):,}"
+    )
+
+    st.info(
+        f"Reglas de prioridad 1: "
+        f"{len(df_reglas_75):,}"
+    )
+
+    st.info(
+        f"Relaciones Patología-Producto: "
+        f"{len(df_trabajo_75):,}"
+    )
+
+    st.dataframe(
+        df_trabajo_75,
+        use_container_width=True,
+        hide_index=True
+    )
