@@ -10556,3 +10556,194 @@ if preguntas_64:
         )
 
         st.divider()
+# ============================================================
+# 6.4 - PARTE 3
+# VALIDADOR DE PREGUNTAS
+# ============================================================
+
+preguntas_64 = st.session_state.get(
+    "preguntas_generadas_64",
+    []
+)
+
+if preguntas_64:
+
+    st.markdown(
+        "## Validación de preguntas 6.4"
+    )
+
+    st.info(
+        "Revise cada pregunta. "
+        "La opción 1 debe ser la categoría principal "
+        "y la opción 2 la categoría complementaria."
+    )
+
+    for i, pregunta in enumerate(preguntas_64):
+
+        st.markdown(
+            f"### {pregunta['Pregunta_ID']}"
+        )
+
+        st.write(
+            f"**Nivel:** {pregunta['Nivel']}"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"**1.** {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"**2.** {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"**3.** {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"**4.** {pregunta['Respuesta_4']}"
+        )
+
+        st.write(
+            "**Respuestas correctas:** "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            f"Fuente: {pregunta['Fuente_ID']}"
+        )
+
+        estado = pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        )
+
+        st.write(
+            f"**Estado actual:** {estado}"
+        )
+
+        observacion = st.text_input(
+            "Observación del administrador",
+            value=pregunta.get(
+                "Observacion_Administrador",
+                ""
+            ),
+            key=f"observacion_64_{i}"
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            if st.button(
+                "APROBAR",
+                key=f"aprobar_64_{i}"
+            ):
+
+                preguntas_64[i]["Estado"] = (
+                    "APROBADA"
+                )
+
+                preguntas_64[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_64"
+                ] = preguntas_64
+
+                st.rerun()
+
+        with col2:
+
+            if st.button(
+                "RECHAZAR",
+                key=f"rechazar_64_{i}"
+            ):
+
+                preguntas_64[i]["Estado"] = (
+                    "RECHAZADA"
+                )
+
+                preguntas_64[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_64"
+                ] = preguntas_64
+
+                st.rerun()
+
+        st.divider()
+
+
+# ============================================================
+# RESUMEN
+# ============================================================
+
+if preguntas_64:
+
+    aprobadas_64 = sum(
+        1
+        for p in preguntas_64
+        if p.get("Estado") == "APROBADA"
+    )
+
+    rechazadas_64 = sum(
+        1
+        for p in preguntas_64
+        if p.get("Estado") == "RECHAZADA"
+    )
+
+    pendientes_64 = sum(
+        1
+        for p in preguntas_64
+        if p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    st.markdown(
+        "### Resumen de validación"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Aprobadas",
+            aprobadas_64
+        )
+
+    with col2:
+
+        st.metric(
+            "Rechazadas",
+            rechazadas_64
+        )
+
+    with col3:
+
+        st.metric(
+            "Pendientes",
+            pendientes_64
+        )
+
+    if pendientes_64 == 0:
+
+        st.success(
+            "Todas las preguntas fueron "
+            "revisadas."
+        )
+
+        st.info(
+            "La sincronización con el banco "
+            "puede realizarse en la Parte 4."
+        )
