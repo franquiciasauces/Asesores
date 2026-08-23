@@ -10649,4 +10649,279 @@ if preguntas_64:
         f"**Pendientes:** {pendientes}"
     )
 
+# ============================================================
+# 6.4 PARTE 4
+# SINCRONIZAR PREGUNTAS CON BANCO GENERAL
+# ============================================================
+
+GITHUB_USUARIO_64 = "franquiciasauces"
+GITHUB_REPOSITORIO_64 = "Asesores"
+GITHUB_RAMA_64 = "main"
+
+GITHUB_ARCHIVO_64 = (
+    "BANCO_PREGUNTAS_GENERALES.xlsx"
+)
+
+URL_GITHUB_64 = (
+    "https://api.github.com/repos/"
+    f"{GITHUB_USUARIO_64}/"
+    f"{GITHUB_REPOSITORIO_64}/contents/"
+    f"{GITHUB_ARCHIVO_64}"
+)
+
+
+def sincronizar_banco_64():
+
+    preguntas = st.session_state.get(
+        "preguntas_generadas_64",
+        []
+    )
+
+    if not preguntas:
+
+        st.warning(
+            "No hay preguntas para sincronizar."
+        )
+
+        return
+
+    if any(
+        p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+        for p in preguntas
+    ):
+
+        st.error(
+            "Todavía hay preguntas pendientes de revisión."
+        )
+
+        return
+
+    headers = {
+        "Authorization":
+            f"Bearer {GITHUB_TOKEN}",
+
+        "Accept":
+            "application/vnd.github+json"
+    }
+
+    try:
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_64,
+            headers=headers,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            datos = json.loads(
+                respuesta.read().decode("utf-8")
+            )
+
+        sha = datos["sha"]
+
+        contenido = base64.b64decode(
+            datos["content"].replace("\n", "")
+        )
+
+        df_banco = pd.read_excel(
+            contenido
+        )
+
+        total_antes = len(df_banco)
+
+        df_nuevas = pd.DataFrame(
+            preguntas
+        )
+
+        columnas = [
+            "Pregunta_ID",
+            "Modulo",
+            "Tema",
+            "Nivel",
+            "Tipo_Relacion",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Estado",
+            "Observacion_Administrador",
+            "Fecha_Generacion",
+            "Fuente_ID"
+        ]
+
+        df_nuevas = df_nuevas[
+            columnas
+        ].copy()
+
+        if "Pregunta_ID" in df_banco.columns:
+
+            existentes = set(
+                df_banco[
+                    "Pregunta_ID"
+                ]
+                .astype(str)
+                .str.strip()
+            )
+
+            df_nuevas = df_nuevas[
+                ~df_nuevas[
+                    "Pregunta_ID"
+                ]
+                .astype(str)
+                .str.strip()
+                .isin(existentes)
+            ]
+
+        total_nuevas = len(
+            df_nuevas
+        )
+
+        if total_nuevas == 0:
+
+            st.info(
+                "No hay preguntas nuevas para agregar."
+            )
+
+            st.info(
+                f"Preguntas existentes: "
+                f"**{total_antes:,}**"
+            )
+
+            return
+
+        df_final = pd.concat(
+            [
+                df_banco,
+                df_nuevas
+            ],
+            ignore_index=True
+        )
+
+        memoria_64 = io.BytesIO()
+
+        with pd.ExcelWriter(
+            memoria_64,
+            engine="openpyxl"
+        ) as writer:
+
+            df_final.to_excel(
+                writer,
+                index=False,
+                sheet_name="Banco"
+            )
+
+        contenido_nuevo = base64.b64encode(
+            memoria_64.getvalue()
+        ).decode("utf-8")
+
+        datos_actualizacion = {
+
+            "message":
+                "Actualizar BANCO_PREGUNTAS_GENERALES",
+
+            "content":
+                contenido_nuevo,
+
+            "branch":
+                GITHUB_RAMA_64,
+
+            "sha":
+                sha
+        }
+
+        cuerpo = json.dumps(
+            datos_actualizacion
+        ).encode("utf-8")
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_64,
+            data=cuerpo,
+            headers={
+                **headers,
+                "Content-Type":
+                    "application/json"
+            },
+            method="PUT"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            respuesta.read()
+
+        total_despues = len(
+            df_final
+        )
+
+        st.success(
+            "Banco de preguntas actualizado "
+            "correctamente en GitHub."
+        )
+
+        st.info(
+            f"Preguntas existentes antes: "
+            f"**{total_antes:,}**"
+        )
+
+        st.info(
+            f"Preguntas incorporadas: "
+            f"**{total_nuevas:,}**"
+        )
+
+        st.info(
+            f"Preguntas totales después: "
+            f"**{total_despues:,}**"
+        )
+
+        st.dataframe(
+            df_nuevas,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    except Exception as error:
+
+        st.error(
+            "No fue posible actualizar "
+            "BANCO_PREGUNTAS_GENERALES.xlsx."
+        )
+
+        st.exception(error)
+
+
+# ============================================================
+# BOTÓN DE SINCRONIZACIÓN
+# ============================================================
+
+if preguntas_64:
+
+    pendientes_64 = sum(
+        1
+        for p in preguntas_64
+        if p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    if pendientes_64 == 0:
+
+        if st.button(
+            "SINCRONIZAR CON BANCO DE PREGUNTAS",
+            key="sincronizar_banco_64"
+        ):
+
+            sincronizar_banco_64()
+
 
