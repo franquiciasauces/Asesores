@@ -10648,7 +10648,6 @@ if preguntas_64:
         f"**Rechazadas:** {rechazadas} | "
         f"**Pendientes:** {pendientes}"
     )
-
 # ============================================================
 # 6.4 PARTE 4
 # SINCRONIZAR PREGUNTAS CON BANCO GENERAL
@@ -10709,6 +10708,10 @@ def sincronizar_banco_64():
 
     try:
 
+        # ----------------------------------------------------
+        # LEER BANCO EXISTENTE
+        # ----------------------------------------------------
+
         solicitud = urllib.request.Request(
             URL_GITHUB_64,
             headers=headers,
@@ -10734,7 +10737,13 @@ def sincronizar_banco_64():
             contenido
         )
 
-        total_antes = len(df_banco)
+        total_antes = len(
+            df_banco
+        )
+
+        # ----------------------------------------------------
+        # PREGUNTAS VALIDADAS
+        # ----------------------------------------------------
 
         df_nuevas = pd.DataFrame(
             preguntas
@@ -10758,9 +10767,29 @@ def sincronizar_banco_64():
             "Fuente_ID"
         ]
 
+        faltantes = [
+            columna
+            for columna in columnas
+            if columna not in df_nuevas.columns
+        ]
+
+        if faltantes:
+
+            st.error(
+                "6.4 ERROR: faltan columnas "
+                "en las preguntas generadas: "
+                f"{', '.join(faltantes)}"
+            )
+
+            return
+
         df_nuevas = df_nuevas[
             columnas
         ].copy()
+
+        # ----------------------------------------------------
+        # EVITAR DUPLICADOS
+        # ----------------------------------------------------
 
         if "Pregunta_ID" in df_banco.columns:
 
@@ -10778,7 +10807,9 @@ def sincronizar_banco_64():
                 ]
                 .astype(str)
                 .str.strip()
-                .isin(existentes)
+                .isin(
+                    existentes
+                )
             ]
 
         total_nuevas = len(
@@ -10798,6 +10829,10 @@ def sincronizar_banco_64():
 
             return
 
+        # ----------------------------------------------------
+        # AGREGAR AL BANCO
+        # ----------------------------------------------------
+
         df_final = pd.concat(
             [
                 df_banco,
@@ -10806,10 +10841,16 @@ def sincronizar_banco_64():
             ignore_index=True
         )
 
-        memoria_64 = io.BytesIO()
+        # ----------------------------------------------------
+        # CREAR EXCEL EN MEMORIA
+        # ----------------------------------------------------
+
+        import io
+
+        memoria = io.BytesIO()
 
         with pd.ExcelWriter(
-            memoria_64,
+            memoria,
             engine="openpyxl"
         ) as writer:
 
@@ -10820,8 +10861,12 @@ def sincronizar_banco_64():
             )
 
         contenido_nuevo = base64.b64encode(
-            memoria_64.getvalue()
+            memoria.getvalue()
         ).decode("utf-8")
+
+        # ----------------------------------------------------
+        # ACTUALIZAR GITHUB
+        # ----------------------------------------------------
 
         datos_actualizacion = {
 
@@ -10859,6 +10904,10 @@ def sincronizar_banco_64():
         ) as respuesta:
 
             respuesta.read()
+
+        # ----------------------------------------------------
+        # RESULTADO
+        # ----------------------------------------------------
 
         total_despues = len(
             df_final
@@ -10923,5 +10972,4 @@ if preguntas_64:
         ):
 
             sincronizar_banco_64()
-
 
