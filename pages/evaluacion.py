@@ -19760,74 +19760,84 @@ if preguntas_79:
 
         st.divider()
 # ============================================================
-# RESTRICCIONES - PARTE 2
-# VALIDADOR INDIVIDUAL
-# PRODUCTO - PRECAUCIÓN / CONTRAINDICACIÓN
-# NIVEL 1
+# ============================================================
+# 7.8 - PARTE 2
+# VALIDACIÓN INDIVIDUAL
+# RESTRICCIÓN - PRODUCTO - PRECAUCIÓN / CONTRAINDICACIÓN
 # ============================================================
 
-preguntas_rx = st.session_state.get(
-    "preguntas_generadas_rx",
+preguntas_78 = st.session_state.get(
+    "preguntas_generadas_78",
     []
 )
 
-if preguntas_rx:
+if preguntas_78:
 
     st.markdown(
-        "## Restricciones - Validación de preguntas"
+        "## 7.8 - Validación de preguntas"
     )
 
     st.info(
         "Revise cada pregunta individualmente."
     )
 
-    for i, pregunta in enumerate(preguntas_rx):
+    for i, pregunta in enumerate(preguntas_78):
+
+        pregunta_id = str(
+            pregunta.get(
+                "Pregunta_ID",
+                f"RX-{i + 1:06d}"
+            )
+        )
 
         st.markdown(
-            f"### {pregunta['Pregunta_ID']}"
+            f"### {pregunta_id}"
         )
 
         st.write(
-            f"**Nivel:** {pregunta['Nivel']}"
+            f"**Nivel:** {pregunta.get('Nivel', 'Nivel 1')}"
         )
 
         st.write(
-            pregunta["Pregunta"]
+            pregunta.get(
+                "Pregunta",
+                ""
+            )
         )
 
         st.write(
-            f"**1.** {pregunta['Respuesta_1']}"
+            f"**1.** {pregunta.get('Respuesta_1', '')}"
         )
 
         st.write(
-            f"**2.** {pregunta['Respuesta_2']}"
+            f"**2.** {pregunta.get('Respuesta_2', '')}"
         )
 
         st.write(
-            f"**3.** {pregunta['Respuesta_3']}"
+            f"**3.** {pregunta.get('Respuesta_3', '')}"
         )
 
         st.write(
-            f"**4.** {pregunta['Respuesta_4']}"
+            f"**4.** {pregunta.get('Respuesta_4', '')}"
         )
 
         st.write(
             "**Respuesta correcta:** "
-            f"{pregunta['Respuesta_Correcta']}"
+            f"{pregunta.get('Respuesta_Correcta', '')}"
         )
 
         st.caption(
             "Fuente: "
-            f"{pregunta['Fuente_ID']}"
+            f"{pregunta.get('Fuente_ID', '')}"
         )
 
-        estado = pregunta.get(
+        estado_actual = pregunta.get(
             "Estado",
             "PENDIENTE"
         )
 
         st.write(
-            f"**Estado actual:** {estado}"
+            f"**Estado actual:** {estado_actual}"
         )
 
         observacion = st.text_input(
@@ -19836,7 +19846,7 @@ if preguntas_rx:
                 "Observacion_Administrador",
                 ""
             ),
-            key=f"observacion_rx_{i}"
+            key=f"observacion_78_{i}"
         )
 
         col1, col2 = st.columns(2)
@@ -19845,20 +19855,20 @@ if preguntas_rx:
 
             if st.button(
                 "APROBAR",
-                key=f"aprobar_rx_{i}"
+                key=f"aprobar_78_{i}"
             ):
 
-                preguntas_rx[i]["Estado"] = (
+                preguntas_78[i]["Estado"] = (
                     "APROBADA"
                 )
 
-                preguntas_rx[i][
+                preguntas_78[i][
                     "Observacion_Administrador"
                 ] = observacion
 
                 st.session_state[
-                    "preguntas_generadas_rx"
-                ] = preguntas_rx
+                    "preguntas_generadas_78"
+                ] = preguntas_78
 
                 st.rerun()
 
@@ -19866,20 +19876,20 @@ if preguntas_rx:
 
             if st.button(
                 "RECHAZAR",
-                key=f"rechazar_rx_{i}"
+                key=f"rechazar_78_{i}"
             ):
 
-                preguntas_rx[i]["Estado"] = (
+                preguntas_78[i]["Estado"] = (
                     "RECHAZADA"
                 )
 
-                preguntas_rx[i][
+                preguntas_78[i][
                     "Observacion_Administrador"
                 ] = observacion
 
                 st.session_state[
-                    "preguntas_generadas_rx"
-                ] = preguntas_rx
+                    "preguntas_generadas_78"
+                ] = preguntas_78
 
                 st.rerun()
 
@@ -19887,34 +19897,38 @@ if preguntas_rx:
 
 
 # ============================================================
-# RESUMEN DE VALIDACIÓN
+# RESUMEN DE VALIDACIÓN 7.8
 # ============================================================
 
-if preguntas_rx:
+if preguntas_78:
 
-    aprobadas_rx = sum(
+    aprobadas_78 = sum(
         1
-        for p in preguntas_rx
-        if p.get("Estado") == "APROBADA"
+        for pregunta in preguntas_78
+        if pregunta.get(
+            "Estado"
+        ) == "APROBADA"
     )
 
-    rechazadas_rx = sum(
+    rechazadas_78 = sum(
         1
-        for p in preguntas_rx
-        if p.get("Estado") == "RECHAZADA"
+        for pregunta in preguntas_78
+        if pregunta.get(
+            "Estado"
+        ) == "RECHAZADA"
     )
 
-    pendientes_rx = sum(
+    pendientes_78 = sum(
         1
-        for p in preguntas_rx
-        if p.get(
+        for pregunta in preguntas_78
+        if pregunta.get(
             "Estado",
             "PENDIENTE"
         ) == "PENDIENTE"
     )
 
     st.markdown(
-        "### Resumen de validación"
+        "### Resumen de validación 7.8"
     )
 
     col1, col2, col3 = st.columns(3)
@@ -19923,24 +19937,24 @@ if preguntas_rx:
 
         st.metric(
             "Aprobadas",
-            aprobadas_rx
+            aprobadas_78
         )
 
     with col2:
 
         st.metric(
             "Rechazadas",
-            rechazadas_rx
+            rechazadas_78
         )
 
     with col3:
 
         st.metric(
             "Pendientes",
-            pendientes_rx
+            pendientes_78
         )
 
-    if pendientes_rx == 0:
+    if pendientes_78 == 0:
 
         st.success(
             "Todas las preguntas fueron "
