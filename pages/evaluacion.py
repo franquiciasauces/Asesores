@@ -19759,3 +19759,195 @@ if preguntas_79:
         )
 
         st.divider()
+# ============================================================
+# RESTRICCIONES - PARTE 2
+# VALIDADOR INDIVIDUAL
+# PRODUCTO - PRECAUCIÓN / CONTRAINDICACIÓN
+# NIVEL 1
+# ============================================================
+
+preguntas_rx = st.session_state.get(
+    "preguntas_generadas_rx",
+    []
+)
+
+if preguntas_rx:
+
+    st.markdown(
+        "## Restricciones - Validación de preguntas"
+    )
+
+    st.info(
+        "Revise cada pregunta individualmente."
+    )
+
+    for i, pregunta in enumerate(preguntas_rx):
+
+        st.markdown(
+            f"### {pregunta['Pregunta_ID']}"
+        )
+
+        st.write(
+            f"**Nivel:** {pregunta['Nivel']}"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"**1.** {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"**2.** {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"**3.** {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"**4.** {pregunta['Respuesta_4']}"
+        )
+
+        st.write(
+            "**Respuesta correcta:** "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            "Fuente: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        estado = pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        )
+
+        st.write(
+            f"**Estado actual:** {estado}"
+        )
+
+        observacion = st.text_input(
+            "Observación del administrador",
+            value=pregunta.get(
+                "Observacion_Administrador",
+                ""
+            ),
+            key=f"observacion_rx_{i}"
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            if st.button(
+                "APROBAR",
+                key=f"aprobar_rx_{i}"
+            ):
+
+                preguntas_rx[i]["Estado"] = (
+                    "APROBADA"
+                )
+
+                preguntas_rx[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_rx"
+                ] = preguntas_rx
+
+                st.rerun()
+
+        with col2:
+
+            if st.button(
+                "RECHAZAR",
+                key=f"rechazar_rx_{i}"
+            ):
+
+                preguntas_rx[i]["Estado"] = (
+                    "RECHAZADA"
+                )
+
+                preguntas_rx[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_rx"
+                ] = preguntas_rx
+
+                st.rerun()
+
+        st.divider()
+
+
+# ============================================================
+# RESUMEN DE VALIDACIÓN
+# ============================================================
+
+if preguntas_rx:
+
+    aprobadas_rx = sum(
+        1
+        for p in preguntas_rx
+        if p.get("Estado") == "APROBADA"
+    )
+
+    rechazadas_rx = sum(
+        1
+        for p in preguntas_rx
+        if p.get("Estado") == "RECHAZADA"
+    )
+
+    pendientes_rx = sum(
+        1
+        for p in preguntas_rx
+        if p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    st.markdown(
+        "### Resumen de validación"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Aprobadas",
+            aprobadas_rx
+        )
+
+    with col2:
+
+        st.metric(
+            "Rechazadas",
+            rechazadas_rx
+        )
+
+    with col3:
+
+        st.metric(
+            "Pendientes",
+            pendientes_rx
+        )
+
+    if pendientes_rx == 0:
+
+        st.success(
+            "Todas las preguntas fueron "
+            "revisadas individualmente."
+        )
+
+        st.info(
+            "Las preguntas aprobadas quedan "
+            "listas para sincronización."
+        )
