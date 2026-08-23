@@ -15475,3 +15475,1211 @@ if preguntas_75:
         ):
 
             sincronizar_banco_75()
+# ============================================================
+# 7.5 - PARTE 2
+# GENERADOR PATOLOGÍA - DESCRIPCIÓN - PRODUCTO
+# SOLO PRIORIDAD 1
+# ============================================================
+
+
+def normalizar_75(valor):
+
+    if pd.isna(valor):
+
+        return ""
+
+    return " ".join(
+        str(valor)
+        .strip()
+        .lower()
+        .split()
+    )
+
+
+def crear_fuente_75(fila):
+
+    patologia_id = normalizar_75(
+        fila["Patologia_ID"]
+    )
+
+    segmento = normalizar_75(
+        fila["Segmento/Perfil"]
+    )
+
+    producto = normalizar_75(
+        fila["Producto principal"]
+    )
+
+    return (
+        f"{patologia_id}|"
+        f"{segmento}|"
+        f"{producto}"
+    )
+
+
+def siguiente_id_75():
+
+    mayor = 0
+
+    preguntas = st.session_state.get(
+        "preguntas_generadas_75",
+        []
+    )
+
+    for pregunta in preguntas:
+
+        texto = str(
+            pregunta.get(
+                "Pregunta_ID",
+                ""
+            )
+        ).strip()
+
+        if texto.startswith("PTG-PDP-"):
+
+            try:
+
+                numero = int(
+                    texto.replace(
+                        "PTG-PDP-",
+                        ""
+                    )
+                )
+
+                mayor = max(
+                    mayor,
+                    numero
+                )
+
+            except ValueError:
+
+                pass
+
+    return (
+        f"PTG-PDP-{mayor + 1:06d}"
+    )
+
+
+def obtener_fuentes_consumidas_75():
+
+    consumidas = set()
+
+    consumidas.update(
+        st.session_state.get(
+            "fuentes_consumidas_75",
+            set()
+        )
+    )
+
+    return consumidas
+
+
+def obtener_preguntas_generadas_75():
+
+    preguntas = set()
+
+    for pregunta in st.session_state.get(
+        "preguntas_generadas_75",
+        []
+    ):
+
+        texto = normalizar_75(
+            pregunta.get(
+                "Pregunta",
+                ""
+            )
+        )
+
+        if texto:
+
+            preguntas.add(
+                texto
+            )
+
+    return preguntas
+
+
+def generar_relacion_75(
+    df,
+    consumidas,
+    preguntas_existentes
+):
+
+    candidatos = df.copy()
+
+    candidatos = candidatos[
+        pd.to_numeric(
+            candidatos[
+                "Prioridad (1=alta)"
+            ],
+            errors="coerce"
+        ) == 1
+    ].copy()
+
+    if candidatos.empty:
+
+        return None
+
+    candidatos["Fuente_ID"] = (
+        candidatos.apply(
+            crear_fuente_75,
+            axis=1
+        )
+    )
+
+    candidatos = candidatos[
+        ~candidatos[
+            "Fuente_ID"
+        ].isin(
+            consumidas
+        )
+    ].copy()
+
+    if len(candidatos) < 4:
+
+        return None
+
+    candidatos = candidatos.sample(
+        frac=1
+    ).reset_index(
+        drop=True
+    )
+
+    for _, verdadera in candidatos.iterrows():
+
+        descripcion = str(
+            verdadera[
+                "Descripción breve (para cliente)"
+            ]
+        ).strip()
+
+        producto_correcto = str(
+            verdadera[
+                "Producto principal"
+            ]
+        ).strip()
+
+        patologia_id = str(
+            verdadera[
+                "Patologia_ID"
+            ]
+        ).strip()
+
+        patologia = str(
+            verdadera[
+                "Patología"
+            ]
+        ).strip()
+
+        fuente = str(
+            verdadera[
+                "Fuente_ID"
+            ]
+        ).strip()
+
+        if (
+            not descripcion
+            or not producto_correcto
+            or not patologia_id
+            or not patologia
+            or not fuente
+        ):
+
+            continue
+
+        texto_pregunta = (
+            "¿Cuál de los siguientes productos "
+            "es recomendado para una persona "
+            "con la siguiente descripción?"
+        )
+
+        if normalizar_75(
+            texto_pregunta
+        ) in preguntas_existentes:
+
+            continue
+
+        clave_producto = normalizar_75(
+            producto_correcto
+        )
+
+        falsas = candidatos[
+            candidatos["Fuente_ID"] != fuente
+        ].copy()
+
+        falsas["Producto_Falso"] = (
+            falsas[
+                "Producto principal"
+            ]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+        falsas = falsas[
+            falsas[
+                "Producto_Falso"
+            ] != ""
+        ]
+
+        falsas = falsas[
+            falsas[
+                "Producto_Falso"
+            ].map(
+                normalizar_75
+            ) != clave_producto
+        ]
+
+        falsas = falsas.drop_duplicates(
+            subset=[
+                "Producto_Falso"
+            ]
+        )
+
+        if len(falsas) < 3:
+
+            continue
+
+        falsas = falsas.sample(
+            frac=1
+        ).reset_index(
+            drop=True
+        )
+
+        seleccionadas = []
+        claves = set()
+
+        for _, falsa in falsas.iterrows():
+
+            producto = str(
+                falsa[
+                    "Producto_Falso"
+                ]
+            ).strip()
+
+            clave = normalizar_75(
+                producto
+            )
+
+            if not clave:
+
+                continue
+
+            if clave in claves:
+
+                continue
+
+            seleccionadas.append(
+                producto
+            )
+
+            claves.add(
+                clave
+            )
+
+            if len(seleccionadas) == 3:
+
+                break
+
+        if len(seleccionadas) != 3:
+
+            continue
+
+        opciones = [
+            producto_correcto,
+            seleccionadas[0],
+            seleccionadas[1],
+            seleccionadas[2]
+        ]
+
+        opciones = pd.Series(
+            opciones
+        ).sample(
+            frac=1
+        ).tolist()
+
+        opciones_normalizadas = [
+            normalizar_75(x)
+            for x in opciones
+        ]
+
+        if len(
+            set(opciones_normalizadas)
+        ) != 4:
+
+            continue
+
+        correcta = (
+            opciones.index(
+                producto_correcto
+            ) + 1
+        )
+
+        return {
+            "Patologia_ID":
+                patologia_id,
+
+            "Patología":
+                patologia,
+
+            "Descripción":
+                descripcion,
+
+            "Producto":
+                producto_correcto,
+
+            "Opciones":
+                opciones,
+
+            "Correcta":
+                correcta,
+
+            "Fuente_ID":
+                fuente
+        }
+
+    return None
+
+
+def construir_pregunta_75(
+    resultado
+):
+
+    opciones = resultado[
+        "Opciones"
+    ]
+
+    return {
+
+        "Pregunta_ID":
+            siguiente_id_75(),
+
+        "Modulo":
+            "Patología",
+
+        "Tema":
+            "Descripción-Producto",
+
+        "Nivel":
+            "Nivel 1",
+
+        "Tipo_Relacion":
+            "Patología-Descripción-Producto",
+
+        "Pregunta":
+            (
+                "¿Cuál de los siguientes "
+                "productos es recomendado "
+                "para una persona con la "
+                "siguiente descripción de "
+                "patología?"
+            ),
+
+        "Contexto":
+            resultado[
+                "Descripción"
+            ],
+
+        "Respuesta_1":
+            opciones[0],
+
+        "Respuesta_2":
+            opciones[1],
+
+        "Respuesta_3":
+            opciones[2],
+
+        "Respuesta_4":
+            opciones[3],
+
+        "Respuesta_Correcta":
+            str(
+                resultado["Correcta"]
+            ),
+
+        "Estado":
+            "PENDIENTE",
+
+        "Observacion_Administrador":
+            "",
+
+        "Fecha_Generacion":
+            pd.Timestamp.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+
+        "Fuente_ID":
+            resultado[
+                "Fuente_ID"
+            ],
+
+        "Patologia_ID":
+            resultado[
+                "Patologia_ID"
+            ],
+
+        "Patología":
+            resultado[
+                "Patología"
+            ]
+    }
+
+
+def generar_preguntas_75(
+    cantidad
+):
+
+    df = st.session_state.get(
+        "df_trabajo_75",
+        pd.DataFrame()
+    )
+
+    if df.empty:
+
+        return []
+
+    consumidas = (
+        obtener_fuentes_consumidas_75()
+    )
+
+    preguntas_existentes = (
+        obtener_preguntas_generadas_75()
+    )
+
+    preguntas = []
+
+    while len(preguntas) < cantidad:
+
+        resultado = generar_relacion_75(
+            df,
+            consumidas,
+            preguntas_existentes
+        )
+
+        if resultado is None:
+
+            break
+
+        pregunta = construir_pregunta_75(
+            resultado
+        )
+
+        texto = normalizar_75(
+            pregunta["Pregunta"]
+            + " "
+            + pregunta["Contexto"]
+        )
+
+        if texto in preguntas_existentes:
+
+            consumidas.add(
+                resultado["Fuente_ID"]
+            )
+
+            continue
+
+        preguntas.append(
+            pregunta
+        )
+
+        preguntas_existentes.add(
+            texto
+        )
+
+        consumidas.add(
+            resultado["Fuente_ID"]
+        )
+
+    st.session_state[
+        "fuentes_consumidas_75"
+    ] = consumidas
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ DEL GENERADOR 7.5
+# ============================================================
+
+if "df_trabajo_75" in st.session_state:
+
+    st.markdown(
+        "## 7.5 Parte 2 - Generador "
+        "Patología - Descripción - Producto"
+    )
+
+    cantidad_75 = st.number_input(
+        "Cantidad máxima de preguntas",
+        min_value=1,
+        max_value=500,
+        value=10,
+        step=1,
+        key="cantidad_generar_75"
+    )
+
+    st.info(
+        "Solo se utilizan relaciones con "
+        "Prioridad 1."
+    )
+
+    if st.button(
+        "GENERAR PREGUNTAS 7.5",
+        key="generar_preguntas_75"
+    ):
+
+        nuevas_75 = generar_preguntas_75(
+            cantidad_75
+        )
+
+        st.session_state[
+            "preguntas_generadas_75"
+        ] = nuevas_75
+
+        if nuevas_75:
+
+            st.success(
+                f"Se generaron "
+                f"{len(nuevas_75)} preguntas."
+            )
+
+        else:
+
+            st.warning(
+                "No hay suficientes relaciones "
+                "de prioridad 1 disponibles."
+            )
+
+
+# ============================================================
+# MOSTRAR PREGUNTAS GENERADAS 7.5
+# ============================================================
+
+preguntas_75 = st.session_state.get(
+    "preguntas_generadas_75",
+    []
+)
+
+if preguntas_75:
+
+    st.markdown(
+        "### Preguntas generadas 7.5"
+    )
+
+    for pregunta in preguntas_75:
+
+        st.markdown(
+            f"**{pregunta['Pregunta_ID']} — "
+            f"{pregunta['Nivel']}**"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            "**Descripción:**"
+        )
+
+        st.write(
+            pregunta["Contexto"]
+        )
+
+        st.write(
+            f"**1.** "
+            f"{pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"**2.** "
+            f"{pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"**3.** "
+            f"{pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"**4.** "
+            f"{pregunta['Respuesta_4']}"
+        )
+
+        st.caption(
+            "Respuesta correcta: "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            "Fuente: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        st.divider()
+
+
+# ============================================================
+# 7.5 - PARTE 3
+# VALIDACIÓN INDIVIDUAL
+# PATOLOGÍA - DESCRIPCIÓN - PRODUCTO
+# ============================================================
+
+preguntas_75 = st.session_state.get(
+    "preguntas_generadas_75",
+    []
+)
+
+if preguntas_75:
+
+    st.markdown(
+        "## 7.5 Parte 3 - Validación"
+    )
+
+    st.info(
+        "Revise cada pregunta individualmente. "
+        "Una pregunta rechazada no afecta las demás."
+    )
+
+    for i, pregunta in enumerate(
+        preguntas_75
+    ):
+
+        st.markdown(
+            f"### {pregunta['Pregunta_ID']}"
+        )
+
+        st.write(
+            f"**Nivel:** "
+            f"{pregunta['Nivel']}"
+        )
+
+        st.write(
+            f"**Patología:** "
+            f"{pregunta['Patología']}"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            "**Descripción:**"
+        )
+
+        st.write(
+            pregunta["Contexto"]
+        )
+
+        st.write(
+            f"**1.** "
+            f"{pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"**2.** "
+            f"{pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"**3.** "
+            f"{pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"**4.** "
+            f"{pregunta['Respuesta_4']}"
+        )
+
+        st.write(
+            "**Respuesta correcta:** "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            f"Fuente utilizada: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        estado = pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        )
+
+        st.write(
+            f"**Estado actual:** {estado}"
+        )
+
+        observacion = st.text_input(
+            "Observación del administrador",
+            value=pregunta.get(
+                "Observacion_Administrador",
+                ""
+            ),
+            key=f"observacion_75_{i}"
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            if st.button(
+                "APROBAR",
+                key=f"aprobar_75_{i}"
+            ):
+
+                preguntas_75[i][
+                    "Estado"
+                ] = "APROBADA"
+
+                preguntas_75[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_75"
+                ] = preguntas_75
+
+                st.rerun()
+
+        with col2:
+
+            if st.button(
+                "RECHAZAR",
+                key=f"rechazar_75_{i}"
+            ):
+
+                preguntas_75[i][
+                    "Estado"
+                ] = "RECHAZADA"
+
+                preguntas_75[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_75"
+                ] = preguntas_75
+
+                st.rerun()
+
+        st.divider()
+
+
+# ============================================================
+# RESUMEN DE VALIDACIÓN 7.5
+# ============================================================
+
+if preguntas_75:
+
+    aprobadas_75 = sum(
+        1
+        for p in preguntas_75
+        if p.get("Estado") == "APROBADA"
+    )
+
+    rechazadas_75 = sum(
+        1
+        for p in preguntas_75
+        if p.get("Estado") == "RECHAZADA"
+    )
+
+    pendientes_75 = sum(
+        1
+        for p in preguntas_75
+        if p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    st.markdown(
+        "### Resumen de validación 7.5"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Aprobadas",
+            aprobadas_75
+        )
+
+    with col2:
+
+        st.metric(
+            "Rechazadas",
+            rechazadas_75
+        )
+
+    with col3:
+
+        st.metric(
+            "Pendientes",
+            pendientes_75
+        )
+
+    if pendientes_75 == 0:
+
+        st.success(
+            "Todas las preguntas fueron "
+            "revisadas individualmente."
+        )
+
+
+# ============================================================
+# 7.5 - PARTE 4
+# SINCRONIZAR CON BANCO GENERAL
+# ============================================================
+
+GITHUB_USUARIO_75 = "franquiciasauces"
+
+GITHUB_REPOSITORIO_75 = "Asesores"
+
+GITHUB_RAMA_75 = "main"
+
+GITHUB_ARCHIVO_75 = (
+    "BANCO_PREGUNTAS_GENERALES.xlsx"
+)
+
+URL_GITHUB_75 = (
+    "https://api.github.com/repos/"
+    f"{GITHUB_USUARIO_75}/"
+    f"{GITHUB_REPOSITORIO_75}/contents/"
+    f"{GITHUB_ARCHIVO_75}"
+)
+
+
+def sincronizar_banco_75():
+
+    preguntas = st.session_state.get(
+        "preguntas_generadas_75",
+        []
+    )
+
+    if not preguntas:
+
+        st.warning(
+            "No hay preguntas para sincronizar."
+        )
+
+        return
+
+    if any(
+        p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+        for p in preguntas
+    ):
+
+        st.error(
+            "Todavía hay preguntas "
+            "pendientes de revisión."
+        )
+
+        return
+
+    headers = {
+        "Authorization":
+            f"Bearer {GITHUB_TOKEN}",
+
+        "Accept":
+            "application/vnd.github+json"
+    }
+
+    try:
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_75,
+            headers=headers,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            datos = json.loads(
+                respuesta.read().decode(
+                    "utf-8"
+                )
+            )
+
+        sha = datos["sha"]
+
+        contenido = base64.b64decode(
+            datos["content"].replace(
+                "\n",
+                ""
+            )
+        )
+
+        df_banco = pd.read_excel(
+            contenido
+        )
+
+        total_antes = len(
+            df_banco
+        )
+
+        df_nuevas = pd.DataFrame(
+            preguntas
+        )
+
+        columnas = [
+            "Pregunta_ID",
+            "Modulo",
+            "Tema",
+            "Nivel",
+            "Tipo_Relacion",
+            "Pregunta",
+            "Contexto",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Estado",
+            "Observacion_Administrador",
+            "Fecha_Generacion",
+            "Fuente_ID",
+            "Patologia_ID",
+            "Patología"
+        ]
+
+        faltantes = [
+            columna
+            for columna in columnas
+            if columna not in df_nuevas.columns
+        ]
+
+        if faltantes:
+
+            st.error(
+                "7.5 ERROR: faltan columnas "
+                "en las preguntas generadas: "
+                + ", ".join(faltantes)
+            )
+
+            return
+
+        df_nuevas = df_nuevas[
+            columnas
+        ].copy()
+
+        if "Pregunta_ID" in df_banco.columns:
+
+            existentes = set(
+                df_banco[
+                    "Pregunta_ID"
+                ]
+                .astype(str)
+                .str.strip()
+            )
+
+            df_nuevas = df_nuevas[
+                ~df_nuevas[
+                    "Pregunta_ID"
+                ]
+                .astype(str)
+                .str.strip()
+                .isin(
+                    existentes
+                )
+            ].copy()
+
+        if "Pregunta" in df_banco.columns:
+
+            preguntas_existentes = set(
+                df_banco[
+                    "Pregunta"
+                ]
+                .fillna("")
+                .map(
+                    normalizar_75
+                )
+            )
+
+            df_nuevas = df_nuevas[
+                ~df_nuevas[
+                    "Pregunta"
+                ]
+                .map(
+                    normalizar_75
+                )
+                .isin(
+                    preguntas_existentes
+                )
+            ].copy()
+
+        total_nuevas = len(
+            df_nuevas
+        )
+
+        if total_nuevas == 0:
+
+            st.info(
+                "No hay preguntas nuevas "
+                "para agregar."
+            )
+
+            st.info(
+                f"Preguntas existentes: "
+                f"{total_antes:,}"
+            )
+
+            return
+
+        df_final = pd.concat(
+            [
+                df_banco,
+                df_nuevas
+            ],
+            ignore_index=True
+        )
+
+        # ----------------------------------------------------
+        # CREAR ARCHIVO TEMPORAL
+        # NO SE UTILIZA io
+        # ----------------------------------------------------
+
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(
+            suffix=".xlsx",
+            delete=False
+        ) as archivo_temporal:
+
+            ruta_temporal = (
+                archivo_temporal.name
+            )
+
+        with pd.ExcelWriter(
+            ruta_temporal,
+            engine="openpyxl"
+        ) as writer:
+
+            df_final.to_excel(
+                writer,
+                index=False,
+                sheet_name="Banco"
+            )
+
+        with open(
+            ruta_temporal,
+            "rb"
+        ) as archivo:
+
+            contenido_nuevo = (
+                base64.b64encode(
+                    archivo.read()
+                ).decode("utf-8")
+            )
+
+        import os
+
+        os.remove(
+            ruta_temporal
+        )
+
+        datos_actualizacion = {
+
+            "message":
+                "Actualizar BANCO_PREGUNTAS_GENERALES",
+
+            "content":
+                contenido_nuevo,
+
+            "branch":
+                GITHUB_RAMA_75,
+
+            "sha":
+                sha
+        }
+
+        cuerpo = json.dumps(
+            datos_actualizacion
+        ).encode("utf-8")
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_75,
+            data=cuerpo,
+            headers={
+                **headers,
+                "Content-Type":
+                    "application/json"
+            },
+            method="PUT"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            respuesta.read()
+
+        total_despues = len(
+            df_final
+        )
+
+        st.success(
+            "Banco de preguntas actualizado "
+            "correctamente en GitHub."
+        )
+
+        st.info(
+            f"Preguntas existentes antes: "
+            f"{total_antes:,}"
+        )
+
+        st.info(
+            f"Preguntas incorporadas: "
+            f"{total_nuevas:,}"
+        )
+
+        st.info(
+            f"Preguntas totales después: "
+            f"{total_despues:,}"
+        )
+
+        st.dataframe(
+            df_nuevas,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    except Exception as error:
+
+        st.error(
+            "No fue posible actualizar "
+            "BANCO_PREGUNTAS_GENERALES.xlsx."
+        )
+
+        st.exception(error)
+
+
+# ============================================================
+# BOTÓN DE SINCRONIZACIÓN 7.5
+# ============================================================
+
+if preguntas_75:
+
+    pendientes_75 = sum(
+        1
+        for p in preguntas_75
+        if p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    if pendientes_75 == 0:
+
+        if st.button(
+            "SINCRONIZAR CON BANCO DE PREGUNTAS",
+            key="sincronizar_banco_75"
+        ):
+
+            sincronizar_banco_75()
