@@ -11346,81 +11346,77 @@ if "df_fuente_71" in st.session_state:
 
 # 7.2 - PATOLOGÍA / DEFINICIÓN
 
-# GENERADOR NIVEL 1 Y NIVEL 2
+# NIVEL 1 - NIVEL 2 - AMBOS
 
 # ============================================================
 
 def siguiente_id_72():
 
-```
+
 mayor = 0
 
-for fuente in st.session_state.get(
-    "preguntas_generadas_72",
-    []
+for p in st.session_state.get(
+    "preguntas_generadas_72", []
 ):
 
-    numero = re.search(
+    m = re.search(
         r"PTG-DS-(\d+)",
-        str(
-            fuente.get(
-                "Pregunta_ID",
-                ""
-            )
-        )
+        str(p.get("Pregunta_ID", ""))
     )
 
-    if numero:
+    if m:
         mayor = max(
             mayor,
-            int(numero.group(1)
+            int(m.group(1))
         )
 
 return f"PTG-DS-{mayor + 1:06d}"
-```
 
-def generar_definicion_72(
+
+def crear_pregunta_72(
 fila,
 df,
 nivel
 ):
 
-```
-correcta = fila[
-    "Descripción breve (para cliente)"
-].strip()
+
+correcta = str(
+    fila[
+        "Descripción breve (para cliente)"
+    ]
+).strip()
 
 if not correcta:
     return None
 
-candidatos = df[
+otros = df[
     df["Patologia_ID"]
     != fila["Patologia_ID"]
 ].copy()
 
-candidatos = candidatos[
-    candidatos[
+otros = otros[
+    otros[
         "Descripción breve (para cliente)"
-    ].str.strip() != ""
+    ].fillna("").astype(str).str.strip() != ""
 ]
+
+otros = otros.drop_duplicates(
+    subset=[
+        "Descripción breve (para cliente)"
+    ]
+).sample(frac=1)
 
 if nivel == "Nivel 1":
 
-    candidatos = candidatos.sample(
-        frac=1
-    ).drop_duplicates(
-        subset=[
-            "Descripción breve (para cliente)"
-        ]
-    )
-
     falsas = []
 
-    for _, otra in candidatos.iterrows():
+    for _, r in otros.iterrows():
 
-        texto = otra[
-            "Descripción breve (para cliente)"
-        ].strip()
+        texto = str(
+            r[
+                "Descripción breve (para cliente)"
+            ]
+        ).strip()
 
         if normalizar_71(texto) == normalizar_71(correcta):
             continue
@@ -11437,33 +11433,25 @@ if nivel == "Nivel 1":
 
     opciones = pd.Series(
         opciones
-    ).sample(
-        frac=1
-    ).tolist()
+    ).sample(frac=1).tolist()
 
-    correcta_numero = (
-        opciones.index(correcta) + 1
-    )
+    correctas = [
+        str(
+            opciones.index(correcta) + 1
+        )
+    ]
 
 else:
 
-    candidatos = candidatos.sample(
-        frac=1
-    ).drop_duplicates(
-        subset=[
-            "Descripción breve (para cliente)"
-        ]
-    )
-
-    correctas = [correcta]
-
     segunda = None
 
-    for _, otra in candidatos.iterrows():
+    for _, r in otros.iterrows():
 
-        texto = otra[
-            "Descripción breve (para cliente)"
-        ].strip()
+        texto = str(
+            r[
+                "Descripción breve (para cliente)"
+            ]
+        ).strip()
 
         if normalizar_71(texto) != normalizar_71(correcta):
 
@@ -11473,20 +11461,20 @@ else:
     if segunda is None:
         return None
 
-    correctas.append(segunda)
-
     falsas = []
 
-    for _, otra in candidatos.iterrows():
+    for _, r in otros.iterrows():
 
-        texto = otra[
-            "Descripción breve (para cliente)"
-        ].strip()
+        texto = str(
+            r[
+                "Descripción breve (para cliente)"
+            ]
+        ).strip()
 
-        if normalizar_71(texto) in [
-            normalizar_71(x)
-            for x in correctas
-        ]:
+        if normalizar_71(texto) in {
+            normalizar_71(correcta),
+            normalizar_71(segunda)
+        }:
             continue
 
         falsas.append(texto)
@@ -11497,26 +11485,25 @@ else:
     if len(falsas) < 2:
         return None
 
-    opciones = (
-        correctas
-        + falsas
-    )
+    opciones = [
+        correcta,
+        segunda,
+        falsas[0],
+        falsas[1]
+    ]
 
     opciones = pd.Series(
         opciones
-    ).sample(
-        frac=1
-    ).tolist()
+    ).sample(frac=1).tolist()
 
-    correcta_numero = ";".join(
+    correctas = [
         str(i + 1)
-        for i, valor in enumerate(opciones)
-        if normalizar_71(valor)
-        in [
+        for i, x in enumerate(opciones)
+        if normalizar_71(x) in {
             normalizar_71(correcta),
             normalizar_71(segunda)
-        ]
-    )
+        }
+    ]
 
 return {
     "Pregunta_ID": siguiente_id_72(),
@@ -11533,7 +11520,7 @@ return {
     "Respuesta_2": opciones[1],
     "Respuesta_3": opciones[2],
     "Respuesta_4": opciones[3],
-    "Respuesta_Correcta": correcta_numero,
+    "Respuesta_Correcta": ";".join(correctas),
     "Estado": "PENDIENTE",
     "Observacion_Administrador": "",
     "Fecha_Generacion": pd.Timestamp.now().strftime(
@@ -11541,14 +11528,14 @@ return {
     ),
     "Fuente_ID": fila["Fuente_ID"]
 }
-```
+
 
 def generar_preguntas_72(
 cantidad,
 modo
 ):
 
-```
+
 df = st.session_state.get(
     "df_disponible_71",
     pd.DataFrame()
@@ -11557,66 +11544,65 @@ df = st.session_state.get(
 if df.empty:
     return []
 
-usadas = set(
-    st.session_state.get(
-        "fuentes_consumidas_72",
-        set()
-    )
+usadas = st.session_state.get(
+    "fuentes_consumidas_72",
+    set()
 )
 
-candidatas = df[
+disponibles = df[
     ~df["Fuente_ID"].isin(usadas)
 ].copy()
 
+niveles = []
+
+if modo in [
+    "Nivel 1",
+    "Niveles 1 y 2"
+]:
+    niveles.append("Nivel 1")
+
+if modo in [
+    "Nivel 2",
+    "Niveles 1 y 2"
+]:
+    niveles.append("Nivel 2")
+
 preguntas = []
 
-if modo == "Nivel 1":
-    niveles = ["Nivel 1"]
-
-elif modo == "Nivel 2":
-    niveles = ["Nivel 2"]
-
-else:
-    niveles = [
-        "Nivel 1",
-        "Nivel 2"
-    ]
-
-for _, fila in candidatas.sample(
+for _, fila in disponibles.sample(
     frac=1
 ).iterrows():
-
-    if len(preguntas) >= cantidad:
-        break
 
     for nivel in niveles:
 
         if len(preguntas) >= cantidad:
             break
 
-        resultado = generar_definicion_72(
+        pregunta = crear_pregunta_72(
             fila,
             df,
             nivel
         )
 
-        if resultado is None:
-            continue
+        if pregunta is not None:
 
-        preguntas.append(
-            resultado
-        )
+            preguntas.append(
+                pregunta
+            )
 
-        usadas.add(
-            fila["Fuente_ID"]
-        )
+            usadas.add(
+                fila["Fuente_ID"]
+            )
+
+    if len(preguntas) >= cantidad:
+        break
 
 st.session_state[
     "fuentes_consumidas_72"
 ] = usadas
 
 return preguntas
-```
+
 
 # ============================================================
 
@@ -11626,23 +11612,23 @@ return preguntas
 
 if "df_disponible_71" in st.session_state:
 
-```
+
 st.markdown(
     "### 7.2 Patología - Definición"
 )
 
 modo_72 = st.selectbox(
-    "¿Qué nivel desea generar?",
+    "Nivel a generar",
     [
         "Nivel 1",
         "Nivel 2",
         "Niveles 1 y 2"
     ],
-    key="modo_72"
+    key="modo_generacion_72"
 )
 
 cantidad_72 = st.number_input(
-    "Cantidad máxima de preguntas",
+    "Cantidad máxima",
     min_value=1,
     max_value=500,
     value=10,
@@ -11667,21 +11653,20 @@ if st.button(
     if nuevas_72:
 
         st.success(
-            f"Se generaron {len(nuevas_72)} "
-            "preguntas válidas."
+            f"Se generaron {len(nuevas_72)} preguntas."
         )
 
     else:
 
         st.warning(
-            "No fue posible generar preguntas "
+            "No se pudieron generar preguntas "
             "válidas con las relaciones disponibles."
         )
-```
+
 
 # ============================================================
 
-# MOSTRAR RESULTADOS
+# VISUALIZACIÓN
 
 # ============================================================
 
@@ -11692,47 +11677,44 @@ preguntas_72 = st.session_state.get(
 
 if preguntas_72:
 
-```
+
 st.markdown(
     "### Preguntas generadas"
 )
 
-for pregunta in preguntas_72:
+for p in preguntas_72:
 
     st.markdown(
-        f"**{pregunta['Pregunta_ID']} — "
-        f"{pregunta['Nivel']}**"
+        f"**{p['Pregunta_ID']} — {p['Nivel']}**"
+    )
+
+    st.write(p["Pregunta"])
+
+    st.write(
+        f"1. {p['Respuesta_1']}"
     )
 
     st.write(
-        pregunta["Pregunta"]
+        f"2. {p['Respuesta_2']}"
     )
 
     st.write(
-        f"1. {pregunta['Respuesta_1']}"
+        f"3. {p['Respuesta_3']}"
     )
 
     st.write(
-        f"2. {pregunta['Respuesta_2']}"
-    )
-
-    st.write(
-        f"3. {pregunta['Respuesta_3']}"
-    )
-
-    st.write(
-        f"4. {pregunta['Respuesta_4']}"
+        f"4. {p['Respuesta_4']}"
     )
 
     st.caption(
-        "Respuesta correcta: "
-        f"{pregunta['Respuesta_Correcta']}"
+        f"Respuestas correctas: "
+        f"{p['Respuesta_Correcta']}"
     )
 
     st.caption(
-        "Fuente: "
-        f"{pregunta['Fuente_ID']}"
+        f"Fuente: {p['Fuente_ID']}"
     )
 
     st.divider()
-```
+
+
