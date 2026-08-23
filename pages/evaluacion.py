@@ -17951,3 +17951,750 @@ if "df_fuente_78" in st.session_state:
         use_container_width=True,
         hide_index=True
     )
+# ============================================================
+# 7.8 - PARTE 2
+# GENERADOR PRODUCTO - COMPLEMENTARIOS
+# NIVEL 1 Y NIVEL 2
+# ============================================================
+
+
+def obtener_relaciones_consumidas_78():
+
+    consumidas = set()
+
+    df_banco = st.session_state.get(
+        "df_banco_78",
+        pd.DataFrame()
+    )
+
+    if (
+        not df_banco.empty
+        and "Fuente_ID" in df_banco.columns
+    ):
+
+        for valor in df_banco[
+            "Fuente_ID"
+        ].fillna(""):
+
+            for fuente in str(
+                valor
+            ).split(";"):
+
+                fuente = fuente.strip()
+
+                if fuente:
+                    consumidas.add(fuente)
+
+    consumidas.update(
+        st.session_state.get(
+            "fuentes_consumidas_78",
+            set()
+        )
+    )
+
+    return consumidas
+
+
+def siguiente_id_78():
+
+    mayor = 0
+
+    df_banco = st.session_state.get(
+        "df_banco_78",
+        pd.DataFrame()
+    )
+
+    if (
+        not df_banco.empty
+        and "Pregunta_ID" in df_banco.columns
+    ):
+
+        for valor in df_banco[
+            "Pregunta_ID"
+        ].fillna(""):
+
+            texto = str(
+                valor
+            ).strip()
+
+            if texto.startswith("PTCO-"):
+
+                numero = texto.replace(
+                    "PTCO-",
+                    ""
+                )
+
+                if numero.isdigit():
+
+                    mayor = max(
+                        mayor,
+                        int(numero)
+                    )
+
+    for pregunta in st.session_state.get(
+        "preguntas_generadas_78",
+        []
+    ):
+
+        texto = str(
+            pregunta.get(
+                "Pregunta_ID",
+                ""
+            )
+        ).strip()
+
+        if texto.startswith("PTCO-"):
+
+            numero = texto.replace(
+                "PTCO-",
+                ""
+            )
+
+            if numero.isdigit():
+
+                mayor = max(
+                    mayor,
+                    int(numero)
+                )
+
+    return f"PTCO-{mayor + 1:06d}"
+
+
+def obtener_combinaciones_78(
+    texto
+):
+
+    combinaciones = []
+
+    for valor in str(
+        texto
+    ).split(";"):
+
+        valor = valor.strip()
+
+        if valor:
+
+            clave = normalizar_78(
+                valor
+            )
+
+            if clave not in [
+                normalizar_78(x)
+                for x in combinaciones
+            ]:
+
+                combinaciones.append(
+                    valor
+                )
+
+    return combinaciones
+
+
+def generar_nivel_1_78(
+    df_disponible,
+    consumidas
+):
+
+    candidatos = df_disponible[
+        ~df_disponible[
+            "Fuente_ID"
+        ].isin(
+            consumidas
+        )
+    ].copy()
+
+    if len(candidatos) < 4:
+
+        return None
+
+    for _, verdadera in candidatos.iterrows():
+
+        producto = str(
+            verdadera["Producto"]
+        ).strip()
+
+        indicaciones = str(
+            verdadera[
+                "Indicaciones / Escenarios"
+            ]
+        ).strip()
+
+        combinaciones = (
+            obtener_combinaciones_78(
+                verdadera[
+                    "Combinaciones estratégicas"
+                ]
+            )
+        )
+
+        if (
+            not producto
+            or not indicaciones
+            or len(combinaciones) < 1
+        ):
+
+            continue
+
+        correcta = combinaciones[0]
+
+        clave_correcta = normalizar_78(
+            correcta
+        )
+
+        falsas = []
+
+        otros = candidatos[
+            candidatos[
+                "Fuente_ID"
+            ]
+            != verdadera["Fuente_ID"]
+        ].copy()
+
+        for _, falsa in otros.iterrows():
+
+            combinaciones_falsas = (
+                obtener_combinaciones_78(
+                    falsa[
+                        "Combinaciones estratégicas"
+                    ]
+                )
+            )
+
+            for opcion in combinaciones_falsas:
+
+                if normalizar_78(
+                    opcion
+                ) == clave_correcta:
+
+                    continue
+
+                if normalizar_78(
+                    opcion
+                ) in [
+                    normalizar_78(x)
+                    for x in falsas
+                ]:
+
+                    continue
+
+                falsas.append(
+                    opcion
+                )
+
+                if len(falsas) == 3:
+
+                    break
+
+            if len(falsas) == 3:
+
+                break
+
+        if len(falsas) != 3:
+
+            continue
+
+        opciones = [
+            correcta,
+            falsas[0],
+            falsas[1],
+            falsas[2]
+        ]
+
+        opciones = pd.Series(
+            opciones
+        ).sample(
+            frac=1
+        ).tolist()
+
+        correcta_numero = (
+            opciones.index(
+                correcta
+            ) + 1
+        )
+
+        return {
+            "Producto":
+                producto,
+
+            "Indicaciones":
+                indicaciones,
+
+            "Opciones":
+                opciones,
+
+            "Correctas": [
+                correcta_numero
+            ],
+
+            "Fuente_ID":
+                verdadera["Fuente_ID"]
+        }
+
+    return None
+
+
+def generar_nivel_2_78(
+    df_disponible,
+    consumidas
+):
+
+    candidatos = df_disponible[
+        ~df_disponible[
+            "Fuente_ID"
+        ].isin(
+            consumidas
+        )
+    ].copy()
+
+    if len(candidatos) < 3:
+
+        return None
+
+    for _, verdadera in candidatos.iterrows():
+
+        producto = str(
+            verdadera["Producto"]
+        ).strip()
+
+        indicaciones = str(
+            verdadera[
+                "Indicaciones / Escenarios"
+            ]
+        ).strip()
+
+        combinaciones = (
+            obtener_combinaciones_78(
+                verdadera[
+                    "Combinaciones estratégicas"
+                ]
+            )
+        )
+
+        if (
+            not producto
+            or not indicaciones
+            or len(combinaciones) < 2
+        ):
+
+            continue
+
+        correctas = [
+            combinaciones[0],
+            combinaciones[1]
+        ]
+
+        claves_correctas = [
+            normalizar_78(
+                x
+            )
+            for x in correctas
+        ]
+
+        falsas = []
+
+        otros = candidatos[
+            candidatos[
+                "Fuente_ID"
+            ]
+            != verdadera["Fuente_ID"]
+        ].copy()
+
+        for _, falsa in otros.iterrows():
+
+            combinaciones_falsas = (
+                obtener_combinaciones_78(
+                    falsa[
+                        "Combinaciones estratégicas"
+                    ]
+                )
+            )
+
+            for opcion in combinaciones_falsas:
+
+                clave_opcion = normalizar_78(
+                    opcion
+                )
+
+                if clave_opcion in claves_correctas:
+
+                    continue
+
+                if clave_opcion in [
+                    normalizar_78(x)
+                    for x in falsas
+                ]:
+
+                    continue
+
+                falsas.append(
+                    opcion
+                )
+
+                if len(falsas) == 2:
+
+                    break
+
+            if len(falsas) == 2:
+
+                break
+
+        if len(falsas) != 2:
+
+            continue
+
+        opciones = [
+            correctas[0],
+            correctas[1],
+            falsas[0],
+            falsas[1]
+        ]
+
+        opciones = pd.Series(
+            opciones
+        ).sample(
+            frac=1
+        ).tolist()
+
+        posiciones_correctas = []
+
+        for i, opcion in enumerate(
+            opciones
+        ):
+
+            if normalizar_78(
+                opcion
+            ) in claves_correctas:
+
+                posiciones_correctas.append(
+                    i + 1
+                )
+
+        return {
+            "Producto":
+                producto,
+
+            "Indicaciones":
+                indicaciones,
+
+            "Opciones":
+                opciones,
+
+            "Correctas":
+                posiciones_correctas,
+
+            "Fuente_ID":
+                verdadera["Fuente_ID"]
+        }
+
+    return None
+
+
+def construir_pregunta_78(
+    resultado,
+    nivel
+):
+
+    opciones = resultado[
+        "Opciones"
+    ]
+
+    correctas = resultado[
+        "Correctas"
+    ]
+
+    if nivel == "Nivel 1":
+
+        pregunta = (
+            "El producto "
+            f"{resultado['Producto']} "
+            "usualmente se recomienda para "
+            f"{resultado['Indicaciones']}. "
+            "¿Con cuál de las siguientes opciones "
+            "debe recomendarse?"
+        )
+
+    else:
+
+        pregunta = (
+            "El producto "
+            f"{resultado['Producto']} "
+            "usualmente se recomienda para "
+            f"{resultado['Indicaciones']}. "
+            "¿Cuáles de las siguientes opciones "
+            "corresponden a combinaciones estratégicas "
+            "que pueden recomendarse? "
+            "Seleccione las dos opciones correctas."
+        )
+
+    return {
+
+        "Pregunta_ID":
+            siguiente_id_78(),
+
+        "Modulo":
+            "Producto",
+
+        "Tema":
+            "Complementarios",
+
+        "Nivel":
+            nivel,
+
+        "Tipo_Relacion":
+            "Producto-Complementario",
+
+        "Pregunta":
+            pregunta,
+
+        "Respuesta_1":
+            opciones[0],
+
+        "Respuesta_2":
+            opciones[1],
+
+        "Respuesta_3":
+            opciones[2],
+
+        "Respuesta_4":
+            opciones[3],
+
+        "Respuesta_Correcta":
+            ";".join(
+                str(x)
+                for x in sorted(
+                    correctas
+                )
+            ),
+
+        "Estado":
+            "PENDIENTE",
+
+        "Observacion_Administrador":
+            "",
+
+        "Fecha_Generacion":
+            pd.Timestamp.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+
+        "Fuente_ID":
+            resultado["Fuente_ID"]
+    }
+
+
+def generar_preguntas_78(
+    cantidad,
+    modo
+):
+
+    df_disponible = st.session_state.get(
+        "df_disponible_78",
+        pd.DataFrame()
+    )
+
+    if df_disponible.empty:
+
+        return []
+
+    consumidas = (
+        obtener_relaciones_consumidas_78()
+    )
+
+    preguntas = []
+
+    while len(
+        preguntas
+    ) < cantidad:
+
+        if modo == "Nivel 1":
+
+            resultado = generar_nivel_1_78(
+                df_disponible,
+                consumidas
+            )
+
+            nivel = "Nivel 1"
+
+        elif modo == "Nivel 2":
+
+            resultado = generar_nivel_2_78(
+                df_disponible,
+                consumidas
+            )
+
+            nivel = "Nivel 2"
+
+        else:
+
+            resultado = generar_nivel_1_78(
+                df_disponible,
+                consumidas
+            )
+
+            nivel = "Nivel 1"
+
+            if resultado is None:
+
+                resultado = generar_nivel_2_78(
+                    df_disponible,
+                    consumidas
+                )
+
+                nivel = "Nivel 2"
+
+        if resultado is None:
+
+            break
+
+        pregunta = construir_pregunta_78(
+            resultado,
+            nivel
+        )
+
+        preguntas.append(
+            pregunta
+        )
+
+        consumidas.add(
+            resultado["Fuente_ID"]
+        )
+
+    st.session_state[
+        "fuentes_consumidas_78"
+    ] = consumidas
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ DEL GENERADOR 7.8
+# ============================================================
+
+if "df_disponible_78" in st.session_state:
+
+    st.markdown(
+        "### Generador Producto - Complementarios"
+    )
+
+    modo_78 = st.selectbox(
+        "Seleccione el nivel",
+        [
+            "Nivel 1",
+            "Nivel 2",
+            "Niveles 1 y 2"
+        ],
+        key="modo_generacion_78"
+    )
+
+    cantidad_78 = st.number_input(
+        "Cantidad máxima de preguntas",
+        min_value=1,
+        max_value=500,
+        value=10,
+        step=1,
+        key="cantidad_generar_78"
+    )
+
+    if modo_78 == "Nivel 1":
+
+        st.info(
+            "Nivel 1: una combinación estratégica "
+            "correcta y tres opciones falsas."
+        )
+
+    elif modo_78 == "Nivel 2":
+
+        st.info(
+            "Nivel 2: dos combinaciones estratégicas "
+            "correctas y dos opciones falsas."
+        )
+
+    else:
+
+        st.info(
+            "Se generarán preguntas de Nivel 1 "
+            "y Nivel 2 según las relaciones disponibles."
+        )
+
+    if st.button(
+        "GENERAR PREGUNTAS 7.8",
+        key="generar_preguntas_78"
+    ):
+
+        nuevas_78 = generar_preguntas_78(
+            cantidad_78,
+            modo_78
+        )
+
+        if not nuevas_78:
+
+            st.warning(
+                "No hay suficientes relaciones "
+                "disponibles para generar preguntas."
+            )
+
+        else:
+
+            st.session_state[
+                "preguntas_generadas_78"
+            ] = nuevas_78
+
+            st.success(
+                f"Se generaron "
+                f"{len(nuevas_78)} preguntas."
+            )
+
+
+# ============================================================
+# MOSTRAR PREGUNTAS GENERADAS
+# ============================================================
+
+preguntas_78 = st.session_state.get(
+    "preguntas_generadas_78",
+    []
+)
+
+if preguntas_78:
+
+    st.markdown(
+        "### Preguntas generadas 7.8"
+    )
+
+    for pregunta in preguntas_78:
+
+        st.markdown(
+            f"**{pregunta['Pregunta_ID']} — "
+            f"{pregunta['Nivel']}**"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"1. {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"2. {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"3. {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"4. {pregunta['Respuesta_4']}"
+        )
+
+        st.caption(
+            "Respuestas correctas: "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            "Fuente: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        st.divider()
