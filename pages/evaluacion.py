@@ -13775,10 +13775,16 @@ if preguntas_74:
 # PATOLOGÍA - SÍNTOMAS
 # ============================================================
 
-preguntas_74 = st.session_state.get(
-    "preguntas_generadas_74",
-    []
-)
+if "preguntas_generadas_74" in st.session_state:
+
+    preguntas_74 = st.session_state[
+        "preguntas_generadas_74"
+    ]
+
+else:
+
+    preguntas_74 = []
+
 
 if preguntas_74:
 
@@ -13791,9 +13797,7 @@ if preguntas_74:
         "Una pregunta rechazada no afecta las demás."
     )
 
-    for i, pregunta in enumerate(
-        preguntas_74
-    ):
+    for i, pregunta in enumerate(preguntas_74):
 
         st.markdown(
             f"### {pregunta['Pregunta_ID']}"
@@ -13829,26 +13833,22 @@ if preguntas_74:
         )
 
         st.caption(
-            f"Fuente utilizada: "
+            "Fuente utilizada: "
             f"{pregunta['Fuente_ID']}"
         )
 
-        estado = pregunta.get(
-            "Estado",
-            "PENDIENTE"
-        )
-
         st.write(
-            f"**Estado actual:** {estado}"
+            "**Estado actual:** "
+            f"{pregunta.get('Estado', 'PENDIENTE')}"
         )
 
-        observacion = st.text_input(
+        observacion_74 = st.text_input(
             "Observación del administrador",
             value=pregunta.get(
                 "Observacion_Administrador",
                 ""
             ),
-            key=f"observacion_74_{i}"
+            key=f"observacion_validador_74_{i}"
         )
 
         col1, col2 = st.columns(2)
@@ -13857,20 +13857,26 @@ if preguntas_74:
 
             if st.button(
                 "APROBAR",
-                key=f"aprobar_74_{i}"
+                key=f"aprobar_validador_74_{i}"
             ):
 
-                preguntas_74[i][
+                preguntas_actualizadas_74 = (
+                    st.session_state[
+                        "preguntas_generadas_74"
+                    ]
+                )
+
+                preguntas_actualizadas_74[i][
                     "Estado"
                 ] = "APROBADA"
 
-                preguntas_74[i][
+                preguntas_actualizadas_74[i][
                     "Observacion_Administrador"
-                ] = observacion
+                ] = observacion_74
 
                 st.session_state[
                     "preguntas_generadas_74"
-                ] = preguntas_74
+                ] = preguntas_actualizadas_74
 
                 st.rerun()
 
@@ -13878,20 +13884,26 @@ if preguntas_74:
 
             if st.button(
                 "RECHAZAR",
-                key=f"rechazar_74_{i}"
+                key=f"rechazar_validador_74_{i}"
             ):
 
-                preguntas_74[i][
+                preguntas_actualizadas_74 = (
+                    st.session_state[
+                        "preguntas_generadas_74"
+                    ]
+                )
+
+                preguntas_actualizadas_74[i][
                     "Estado"
                 ] = "RECHAZADA"
 
-                preguntas_74[i][
+                preguntas_actualizadas_74[i][
                     "Observacion_Administrador"
-                ] = observacion
+                ] = observacion_74
 
                 st.session_state[
                     "preguntas_generadas_74"
-                ] = preguntas_74
+                ] = preguntas_actualizadas_74
 
                 st.rerun()
 
@@ -13906,20 +13918,20 @@ if preguntas_74:
 
     aprobadas_74 = sum(
         1
-        for p in preguntas_74
-        if p.get("Estado") == "APROBADA"
+        for pregunta in preguntas_74
+        if pregunta.get("Estado") == "APROBADA"
     )
 
     rechazadas_74 = sum(
         1
-        for p in preguntas_74
-        if p.get("Estado") == "RECHAZADA"
+        for pregunta in preguntas_74
+        if pregunta.get("Estado") == "RECHAZADA"
     )
 
     pendientes_74 = sum(
         1
-        for p in preguntas_74
-        if p.get(
+        for pregunta in preguntas_74
+        if pregunta.get(
             "Estado",
             "PENDIENTE"
         ) == "PENDIENTE"
@@ -13959,12 +13971,19 @@ if preguntas_74:
             "revisadas individualmente."
         )
 
-        st.info(
-            "Las preguntas aprobadas quedan "
-            "listas para la sincronización."
-        )
+        if aprobadas_74 > 0:
 
+            st.info(
+                f"{aprobadas_74} preguntas aprobadas "
+                "quedan disponibles para sincronización."
+            )
 
+        if rechazadas_74 > 0:
+
+            st.info(
+                f"{rechazadas_74} preguntas rechazadas "
+                "no serán incorporadas al banco."
+            )
 # ============================================================
 # 7.4 - PARTE 4
 # SINCRONIZAR PREGUNTAS CON BANCO GENERAL
