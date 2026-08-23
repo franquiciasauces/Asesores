@@ -17568,8 +17568,386 @@ if preguntas_77:
             )
 
 # ============================================================
-# 7.8 - PRUEBA
+# 7.8 - COMPLEMENTARIOS
+# PARTE 1 - CARGA Y CONTROL DE FUENTE
 # ============================================================
 
-st.markdown("## 7.8 Complementarios")
+ARCHIVO_FUENTE_78 = (
+    "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
+)
 
+HOJA_FUENTE_78 = "Complementarios"
+
+ARCHIVO_BANCO_78 = (
+    "BANCO_PREGUNTAS_GENERALES.xlsx"
+)
+
+
+# ============================================================
+# FUNCIONES
+# ============================================================
+
+def normalizar_78(valor):
+
+    if pd.isna(valor):
+        return ""
+
+    return (
+        str(valor)
+        .strip()
+        .lower()
+        .replace("\n", " ")
+    )
+
+
+def cargar_fuente_78():
+
+    try:
+
+        df = pd.read_excel(
+            ARCHIVO_FUENTE_78,
+            sheet_name=HOJA_FUENTE_78,
+            engine="openpyxl"
+        )
+
+    except Exception as error:
+
+        st.error(
+            "7.8 ERROR al cargar la hoja "
+            f"{HOJA_FUENTE_78}: {error}"
+        )
+
+        return None
+
+    columnas = [
+        "Producto",
+        "Categoría principal",
+        "Indicaciones / Escenarios",
+        "Modo de acción resumido",
+        "Combinaciones estratégicas"
+    ]
+
+    faltantes = [
+        columna
+        for columna in columnas
+        if columna not in df.columns
+    ]
+
+    if faltantes:
+
+        st.error(
+            "7.8 ERROR: faltan columnas en "
+            f"la hoja {HOJA_FUENTE_78}: "
+            f"{', '.join(faltantes)}"
+        )
+
+        return None
+
+    df = df[columnas].copy()
+
+    for columna in columnas:
+
+        df[columna] = (
+            df[columna]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+    df = df[
+        (df["Producto"] != "")
+        &
+        (df["Indicaciones / Escenarios"] != "")
+        &
+        (df["Combinaciones estratégicas"] != "")
+    ].copy()
+
+    df["Fuente_ID"] = [
+        f"COM-F{i:06d}"
+        for i in range(
+            1,
+            len(df) + 1
+        )
+    ]
+
+    df["_clave"] = (
+        df["Producto"]
+        .map(normalizar_78)
+        + "|"
+        +
+        df["Indicaciones / Escenarios"]
+        .map(normalizar_78)
+        + "|"
+        +
+        df["Combinaciones estratégicas"]
+        .map(normalizar_78)
+    )
+
+    df = (
+        df
+        .drop_duplicates(
+            subset="_clave"
+        )
+        .drop(
+            columns="_clave"
+        )
+        .reset_index(drop=True)
+    )
+
+    return df
+
+
+def cargar_banco_78():
+
+    try:
+
+        df = pd.read_excel(
+            ARCHIVO_BANCO_78,
+            engine="openpyxl"
+        )
+
+    except FileNotFoundError:
+
+        return pd.DataFrame()
+
+    except Exception:
+
+        return pd.DataFrame()
+
+    return df
+
+
+# ============================================================
+# RELACIONES YA UTILIZADAS
+# ============================================================
+
+def obtener_fuentes_usadas_78(
+    df_banco
+):
+
+    usadas = set()
+
+    if df_banco.empty:
+
+        return usadas
+
+    if "Fuente_ID" not in df_banco.columns:
+
+        return usadas
+
+    for valor in df_banco[
+        "Fuente_ID"
+    ].fillna(""):
+
+        for fuente in str(
+            valor
+        ).split(";"):
+
+            fuente = fuente.strip()
+
+            if fuente:
+
+                usadas.add(
+                    fuente
+                )
+
+    return usadas
+
+
+# ============================================================
+# PREGUNTAS EXISTENTES
+# ============================================================
+
+def obtener_preguntas_existentes_78(
+    df_banco
+):
+
+    preguntas = set()
+
+    if df_banco.empty:
+
+        return preguntas
+
+    if "Pregunta" not in df_banco.columns:
+
+        return preguntas
+
+    for pregunta in df_banco[
+        "Pregunta"
+    ].fillna(""):
+
+        clave = normalizar_78(
+            pregunta
+        )
+
+        if clave:
+
+            preguntas.add(
+                clave
+            )
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ 7.8
+# ============================================================
+
+st.markdown(
+    "## 7.8 Complementarios"
+)
+
+st.write(
+    "Carga y control de la hoja "
+    "Complementarios para el generador "
+    "de producto y combinaciones estratégicas."
+)
+
+
+if st.button(
+    "CARGAR Y VALIDAR FUENTE 7.8",
+    key="cargar_fuentes_78"
+):
+
+    df_fuente_78 = (
+        cargar_fuente_78()
+    )
+
+    if df_fuente_78 is None:
+
+        st.stop()
+
+    df_banco_78 = (
+        cargar_banco_78()
+    )
+
+    fuentes_usadas_78 = (
+        obtener_fuentes_usadas_78(
+            df_banco_78
+        )
+    )
+
+    preguntas_existentes_78 = (
+        obtener_preguntas_existentes_78(
+            df_banco_78
+        )
+    )
+
+    df_disponible_78 = (
+        df_fuente_78[
+            ~df_fuente_78[
+                "Fuente_ID"
+            ].isin(
+                fuentes_usadas_78
+            )
+        ]
+        .copy()
+        .reset_index(drop=True)
+    )
+
+    st.session_state[
+        "df_fuente_78"
+    ] = df_fuente_78.copy()
+
+    st.session_state[
+        "df_banco_78"
+    ] = df_banco_78.copy()
+
+    st.session_state[
+        "df_disponible_78"
+    ] = df_disponible_78.copy()
+
+    st.session_state[
+        "fuentes_usadas_78"
+    ] = fuentes_usadas_78
+
+    st.session_state[
+        "preguntas_existentes_78"
+    ] = preguntas_existentes_78
+
+
+# ============================================================
+# MOSTRAR CONTROL
+# ============================================================
+
+if "df_fuente_78" in st.session_state:
+
+    df_fuente_78 = st.session_state[
+        "df_fuente_78"
+    ]
+
+    df_banco_78 = st.session_state[
+        "df_banco_78"
+    ]
+
+    df_disponible_78 = st.session_state[
+        "df_disponible_78"
+    ]
+
+    fuentes_usadas_78 = st.session_state[
+        "fuentes_usadas_78"
+    ]
+
+    preguntas_existentes_78 = st.session_state[
+        "preguntas_existentes_78"
+    ]
+
+    st.success(
+        "7.8 cargó correctamente la hoja "
+        "Complementarios."
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Registros fuente",
+            len(df_fuente_78)
+        )
+
+    with col2:
+
+        st.metric(
+            "Fuentes utilizadas",
+            len(
+                fuentes_usadas_78
+                &
+                set(
+                    df_fuente_78[
+                        "Fuente_ID"
+                    ]
+                )
+            )
+        )
+
+    with col3:
+
+        st.metric(
+            "Registros disponibles",
+            len(df_disponible_78)
+        )
+
+    st.info(
+        "Preguntas existentes en el banco: "
+        f"{len(preguntas_existentes_78):,}"
+    )
+
+    st.markdown(
+        "### Estructura cargada"
+    )
+
+    st.dataframe(
+        df_disponible_78[
+            [
+                "Fuente_ID",
+                "Producto",
+                "Categoría principal",
+                "Indicaciones / Escenarios",
+                "Modo de acción resumido",
+                "Combinaciones estratégicas"
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True
+    )
