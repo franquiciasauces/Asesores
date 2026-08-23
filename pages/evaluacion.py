@@ -16596,3 +16596,550 @@ if preguntas_76:
         ):
 
             sincronizar_banco_76()
+# ============================================================
+# 7.7 - PARTE 1
+# GENERADOR PATOLOGÍA - CONDICIÓN - PRODUCTO + COADYUVANTES
+# NIVEL 2
+# ============================================================
+
+
+def normalizar_77(valor):
+
+    if pd.isna(valor):
+        return ""
+
+    return " ".join(
+        str(valor).strip().lower().split()
+    )
+
+
+def siguiente_id_77():
+
+    mayor = 0
+
+    df_banco = st.session_state.get(
+        "df_banco_77",
+        pd.DataFrame()
+    )
+
+    if (
+        not df_banco.empty
+        and "Pregunta_ID" in df_banco.columns
+    ):
+
+        for valor in df_banco["Pregunta_ID"].fillna(""):
+
+            texto = str(valor).strip()
+
+            if texto.startswith("PTG-PCP-"):
+
+                numero = texto.replace(
+                    "PTG-PCP-",
+                    "",
+                    1
+                )
+
+                if numero.isdigit():
+
+                    mayor = max(
+                        mayor,
+                        int(numero)
+                    )
+
+    for pregunta in st.session_state.get(
+        "preguntas_generadas_77",
+        []
+    ):
+
+        texto = str(
+            pregunta.get(
+                "Pregunta_ID",
+                ""
+            )
+        ).strip()
+
+        if texto.startswith("PTG-PCP-"):
+
+            numero = texto.replace(
+                "PTG-PCP-",
+                "",
+                1
+            )
+
+            if numero.isdigit():
+
+                mayor = max(
+                    mayor,
+                    int(numero)
+                )
+
+    return (
+        f"PTG-PCP-{mayor + 1:06d}"
+    )
+
+
+def obtener_relaciones_consumidas_77():
+
+    consumidas = set()
+
+    df_banco = st.session_state.get(
+        "df_banco_77",
+        pd.DataFrame()
+    )
+
+    if (
+        not df_banco.empty
+        and "Fuente_ID" in df_banco.columns
+    ):
+
+        for valor in df_banco["Fuente_ID"].fillna(""):
+
+            for fuente in str(valor).split(";"):
+
+                fuente = fuente.strip()
+
+                if fuente:
+
+                    consumidas.add(
+                        fuente
+                    )
+
+    consumidas.update(
+        st.session_state.get(
+            "fuentes_consumidas_77",
+            set()
+        )
+    )
+
+    return consumidas
+
+
+def generar_nivel_2_77(
+    df_disponible,
+    consumidas
+):
+
+    candidatos = df_disponible[
+        ~df_disponible["Regla_ID"].isin(
+            consumidas
+        )
+    ].copy()
+
+    if len(candidatos) < 2:
+
+        return None
+
+    candidatos = candidatos.sample(
+        frac=1
+    ).reset_index(
+        drop=True
+    )
+
+    for _, verdadera in candidatos.iterrows():
+
+        regla_id = str(
+            verdadera["Regla_ID"]
+        ).strip()
+
+        patologia_id = str(
+            verdadera["Patologia_ID"]
+        ).strip()
+
+        patologia = str(
+            verdadera["Patología"]
+        ).strip()
+
+        segmento = str(
+            verdadera["Segmento/Perfil"]
+        ).strip()
+
+        condiciones = str(
+            verdadera["Condiciones (lógica)"]
+        ).strip()
+
+        producto = str(
+            verdadera["Producto principal"]
+        ).strip()
+
+        coadyuvantes = str(
+            verdadera["Coadyuvantes sugeridos (1-3)"]
+        ).strip()
+
+        if not regla_id:
+            continue
+
+        if not patologia_id:
+            continue
+
+        if not patologia:
+            continue
+
+        if not segmento:
+            continue
+
+        if not condiciones:
+            continue
+
+        if not producto:
+            continue
+
+        if not coadyuvantes:
+            continue
+
+        lista_coadyuvantes = [
+            x.strip()
+            for x in coadyuvantes.split(";")
+            if x.strip()
+        ]
+
+        if len(lista_coadyuvantes) == 0:
+            continue
+
+        correctas = [
+            producto
+        ]
+
+        correctas.extend(
+            lista_coadyuvantes
+        )
+
+        correctas = list(
+            dict.fromkeys(
+                correctas
+            )
+        )
+
+        if len(correctas) > 4:
+            correctas = correctas[:4]
+
+        falsas = candidatos[
+            candidatos["Regla_ID"]
+            != regla_id
+        ].copy()
+
+        opciones_falsas = []
+
+        for _, falsa in falsas.iterrows():
+
+            producto_falso = str(
+                falsa["Producto principal"]
+            ).strip()
+
+            if not producto_falso:
+                continue
+
+            clave_falso = normalizar_77(
+                producto_falso
+            )
+
+            claves_correctas = [
+                normalizar_77(x)
+                for x in correctas
+            ]
+
+            if clave_falso in claves_correctas:
+                continue
+
+            if clave_falso in [
+                normalizar_77(x)
+                for x in opciones_falsas
+            ]:
+                continue
+
+            opciones_falsas.append(
+                producto_falso
+            )
+
+            if len(opciones_falsas) == 4:
+                break
+
+        if len(opciones_falsas) == 0:
+            continue
+
+        opciones = correctas + opciones_falsas
+
+        opciones = list(
+            dict.fromkeys(
+                opciones
+            )
+        )
+
+        if len(opciones) < 4:
+            continue
+
+        opciones = pd.Series(
+            opciones
+        ).sample(
+            frac=1
+        ).tolist()
+
+        correctas_posiciones = []
+
+        for i, opcion in enumerate(opciones):
+
+            if normalizar_77(opcion) in [
+                normalizar_77(x)
+                for x in correctas
+            ]:
+
+                correctas_posiciones.append(
+                    i + 1
+                )
+
+        return {
+
+            "Regla_ID":
+                regla_id,
+
+            "Patologia_ID":
+                patologia_id,
+
+            "Patología":
+                patologia,
+
+            "Segmento":
+                segmento,
+
+            "Condiciones":
+                condiciones,
+
+            "Opciones":
+                opciones,
+
+            "Correctas":
+                correctas_posiciones
+        }
+
+    return None
+
+
+def construir_pregunta_77(
+    resultado
+):
+
+    opciones = resultado[
+        "Opciones"
+    ]
+
+    correctas = resultado[
+        "Correctas"
+    ]
+
+    return {
+
+        "Pregunta_ID":
+            siguiente_id_77(),
+
+        "Modulo":
+            "Patología",
+
+        "Tema":
+            "Producto y coadyuvantes",
+
+        "Nivel":
+            "Nivel 2",
+
+        "Tipo_Relacion":
+            "Patología-Condición-Producto-Coadyuvantes",
+
+        "Pregunta":
+            (
+                "Para la patología "
+                f"{resultado['Patología']}, "
+                f"si se presenta la siguiente condición: "
+                f"{resultado['Segmento']}. "
+                "¿Cuál de las siguientes opciones "
+                "corresponde al producto principal "
+                "y a los coadyuvantes recomendados? "
+                "Seleccione todas las opciones correctas."
+            ),
+
+        "Respuesta_1":
+            opciones[0],
+
+        "Respuesta_2":
+            opciones[1],
+
+        "Respuesta_3":
+            opciones[2],
+
+        "Respuesta_4":
+            opciones[3],
+
+        "Respuesta_Correcta":
+            ";".join(
+                str(x)
+                for x in sorted(correctas)
+            ),
+
+        "Estado":
+            "PENDIENTE",
+
+        "Observacion_Administrador":
+            "",
+
+        "Fecha_Generacion":
+            pd.Timestamp.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+
+        "Fuente_ID":
+            resultado["Regla_ID"]
+    }
+
+
+def generar_preguntas_77(
+    cantidad
+):
+
+    df_disponible = st.session_state.get(
+        "df_trabajo_77",
+        pd.DataFrame()
+    )
+
+    if df_disponible.empty:
+
+        return []
+
+    consumidas = (
+        obtener_relaciones_consumidas_77()
+    )
+
+    preguntas = []
+
+    while len(preguntas) < cantidad:
+
+        resultado = generar_nivel_2_77(
+            df_disponible,
+            consumidas
+        )
+
+        if resultado is None:
+
+            break
+
+        pregunta = construir_pregunta_77(
+            resultado
+        )
+
+        preguntas.append(
+            pregunta
+        )
+
+        consumidas.add(
+            resultado["Regla_ID"]
+        )
+
+    st.session_state[
+        "fuentes_consumidas_77"
+    ] = consumidas
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ 7.7 PARTE 1
+# ============================================================
+
+if "df_trabajo_77" in st.session_state:
+
+    st.markdown(
+        "### 7.7 Parte 1 - Patología, condición, producto y coadyuvantes"
+    )
+
+    st.info(
+        "Nivel 2: relaciona la patología con una condición "
+        "o segmento y determina el producto principal "
+        "y los coadyuvantes recomendados."
+    )
+
+    cantidad_77 = st.number_input(
+        "¿Cuántas preguntas desea generar?",
+        min_value=1,
+        max_value=500,
+        value=10,
+        step=1,
+        key="cantidad_generar_77"
+    )
+
+    if st.button(
+        "GENERAR PREGUNTAS 7.7",
+        key="generar_preguntas_77"
+    ):
+
+        nuevas_77 = generar_preguntas_77(
+            cantidad_77
+        )
+
+        if not nuevas_77:
+
+            st.warning(
+                "No hay suficientes reglas de prioridad 1 "
+                "disponibles para generar preguntas."
+            )
+
+        else:
+
+            st.session_state[
+                "preguntas_generadas_77"
+            ] = nuevas_77
+
+            st.success(
+                f"Se generaron "
+                f"{len(nuevas_77)} preguntas."
+            )
+
+
+# ============================================================
+# MOSTRAR PREGUNTAS GENERADAS
+# ============================================================
+
+preguntas_77 = st.session_state.get(
+    "preguntas_generadas_77",
+    []
+)
+
+if preguntas_77:
+
+    st.markdown(
+        "### Preguntas generadas 7.7"
+    )
+
+    for pregunta in preguntas_77:
+
+        st.markdown(
+            f"**{pregunta['Pregunta_ID']} — "
+            f"{pregunta['Nivel']}**"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"1. {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"2. {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"3. {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"4. {pregunta['Respuesta_4']}"
+        )
+
+        st.caption(
+            "Respuestas correctas: "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            "Fuente: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        st.divider()
