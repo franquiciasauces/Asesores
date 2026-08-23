@@ -17780,126 +17780,57 @@ if "df_fuente_81" in st.session_state:
         use_container_width=True,
         hide_index=True
     )
+
 # ============================================================
-# 8.2 - RESTRICCIONES
+# 8.1 - PARTE 2
 # GENERADOR PRODUCTO - PRECAUCIÓN / CONTRAINDICACIÓN
 # NIVEL 1
 # ============================================================
 
-def siguiente_id_81():
+def generar_preguntas_81(cantidad):
 
-    mayor = 0
-
-    df_banco = st.session_state.get(
-        "df_banco_81",
+    df = st.session_state.get(
+        "df_disponible_81",
         pd.DataFrame()
     )
 
-    if (
-        not df_banco.empty
-        and "Pregunta_ID" in df_banco.columns
-    ):
+    if df.empty:
+        return []
 
-        for valor in df_banco["Pregunta_ID"].fillna(""):
+    requeridas = [
+        "Fuente_ID",
+        "Producto",
+        "Precaución / Contraindicación"
+    ]
 
-            texto = str(valor).strip()
+    for columna in requeridas:
 
-            if texto.startswith("PTRX-"):
+        if columna not in df.columns:
 
-                try:
-                    numero = int(
-                        texto.replace("PTRX-", "")
-                    )
+            st.error(
+                f"8.1 ERROR: falta la columna {columna}."
+            )
 
-                    mayor = max(
-                        mayor,
-                        numero
-                    )
+            return []
 
-                except ValueError:
-                    pass
+    consumidas = st.session_state.get(
+        "fuentes_consumidas_81",
+        set()
+    ).copy()
 
-    preguntas_actuales = st.session_state.get(
-        "preguntas_generadas_81",
-        []
-    )
+    preguntas = []
 
-    for pregunta in preguntas_actuales:
-
-        texto = str(
-            pregunta.get("Pregunta_ID", "")
-        ).strip()
-
-        if texto.startswith("PTRX-"):
-
-            try:
-                numero = int(
-                    texto.replace("PTRX-", "")
-                )
-
-                mayor = max(
-                    mayor,
-                    numero
-                )
-
-            except ValueError:
-                pass
-
-    return f"PTRX-{mayor + 1:06d}"
-
-
-def obtener_fuentes_consumidas_81():
-
-    consumidas = set()
-
-    df_banco = st.session_state.get(
-        "df_banco_81",
-        pd.DataFrame()
-    )
-
-    if (
-        not df_banco.empty
-        and "Fuente_ID" in df_banco.columns
-    ):
-
-        for valor in df_banco["Fuente_ID"].fillna(""):
-
-            for fuente in str(valor).split(";"):
-
-                fuente = fuente.strip()
-
-                if fuente:
-                    consumidas.add(fuente)
-
-    consumidas.update(
-        st.session_state.get(
-            "fuentes_consumidas_81",
-            set()
-        )
-    )
-
-    return consumidas
-
-
-def generar_relacion_81(
-    df_disponible,
-    consumidas
-):
-
-    candidatos = df_disponible[
-        ~df_disponible["Fuente_ID"].isin(
-            consumidas
-        )
+    candidatos = df[
+        ~df["Fuente_ID"].isin(consumidas)
     ].copy()
 
     candidatos = candidatos[
-        (candidatos["Producto"].fillna("").astype(str).str.strip() != "")
+        (candidatos["Producto"].astype(str).str.strip() != "")
         &
         (
             candidatos[
                 "Precaución / Contraindicación"
             ]
-            .fillna("")
             .astype(str)
             .str.strip()
             != ""
@@ -17907,60 +17838,53 @@ def generar_relacion_81(
     ].copy()
 
     if len(candidatos) < 4:
-        return None
+
+        st.warning(
+            "No hay suficientes restricciones "
+            "disponibles para generar preguntas."
+        )
+
+        return []
 
     candidatos = candidatos.sample(
         frac=1
     ).reset_index(drop=True)
 
-    for _, verdadera in candidatos.iterrows():
+    for _, correcta in candidatos.iterrows():
 
         producto = str(
-            verdadera["Producto"]
+            correcta["Producto"]
         ).strip()
 
-        correcta = str(
-            verdadera[
+        respuesta_correcta = str(
+            correcta[
                 "Precaución / Contraindicación"
             ]
         ).strip()
 
         fuente = str(
-            verdadera["Fuente_ID"]
+            correcta["Fuente_ID"]
         ).strip()
-
-        if not producto or not correcta or not fuente:
-            continue
 
         falsas = candidatos[
             candidatos["Fuente_ID"] != fuente
         ].copy()
 
-        falsas["__respuesta"] = (
+        falsas["respuesta"] = (
             falsas[
                 "Precaución / Contraindicación"
             ]
-            .fillna("")
             .astype(str)
             .str.strip()
         )
 
         falsas = falsas[
-            falsas["__respuesta"] != ""
-        ].copy()
-
-        falsas["__clave"] = (
-            falsas["__respuesta"]
-            .str.lower()
-        )
-
-        falsas = falsas[
-            falsas["__clave"]
-            != correcta.lower()
+            falsas["respuesta"].str.lower()
+            != respuesta_correcta.lower()
         ]
 
         falsas = falsas.drop_duplicates(
-            subset="__clave"
+            subset="respuesta"
         )
 
         if len(falsas) < 3:
@@ -17971,138 +17895,78 @@ def generar_relacion_81(
         )
 
         opciones = [
-            correcta,
-            falsas.iloc[0]["__respuesta"],
-            falsas.iloc[1]["__respuesta"],
-            falsas.iloc[2]["__respuesta"]
+            respuesta_correcta,
+            falsas.iloc[0]["respuesta"],
+            falsas.iloc[1]["respuesta"],
+            falsas.iloc[2]["respuesta"]
         ]
 
-        opciones = pd.Series(
-            opciones
-        ).sample(
-            frac=1
-        ).tolist()
+        np.random.shuffle(opciones)
 
-        respuesta_correcta = (
-            opciones.index(correcta) + 1
+        numero_correcto = (
+            opciones.index(
+                respuesta_correcta
+            ) + 1
         )
 
-        return {
-            "Producto": producto,
-            "Opciones": opciones,
-            "Correcta": respuesta_correcta,
-            "Fuente_ID": fuente
-        }
+        preguntas.append({
 
-    return None
+            "Pregunta_ID":
+                f"PTRX-{len(preguntas) + 1:06d}",
 
+            "Modulo":
+                "Restricciones",
 
-def construir_pregunta_81(
-    resultado
-):
+            "Tema":
+                "Precaución / Contraindicación",
 
-    opciones = resultado["Opciones"]
+            "Nivel":
+                "Nivel 1",
 
-    return {
-        "Pregunta_ID": siguiente_id_81(),
+            "Tipo_Relacion":
+                "Producto-Precaución/Contraindicación",
 
-        "Modulo": "Restricciones",
+            "Pregunta":
+                "Para el producto "
+                f"{producto}, "
+                "¿cuál de las siguientes "
+                "corresponde a una precaución "
+                "o contraindicación para su uso?",
 
-        "Tema": "Precaución / Contraindicación",
+            "Respuesta_1":
+                opciones[0],
 
-        "Nivel": "Nivel 1",
+            "Respuesta_2":
+                opciones[1],
 
-        "Tipo_Relacion":
-            "Producto-Precaución/Contraindicación",
+            "Respuesta_3":
+                opciones[2],
 
-        "Pregunta":
-            "Para el producto "
-            f"{resultado['Producto']}, "
-            "¿cuál de las siguientes corresponde "
-            "a una precaución o contraindicación "
-            "para su uso?",
+            "Respuesta_4":
+                opciones[3],
 
-        "Respuesta_1": opciones[0],
+            "Respuesta_Correcta":
+                str(numero_correcto),
 
-        "Respuesta_2": opciones[1],
+            "Estado":
+                "PENDIENTE",
 
-        "Respuesta_3": opciones[2],
+            "Observacion_Administrador":
+                "",
 
-        "Respuesta_4": opciones[3],
+            "Fecha_Generacion":
+                pd.Timestamp.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
 
-        "Respuesta_Correcta":
-            str(resultado["Correcta"]),
+            "Fuente_ID":
+                fuente
+        })
 
-        "Estado": "PENDIENTE",
+        consumidas.add(fuente)
 
-        "Observacion_Administrador": "",
-
-        "Fecha_Generacion":
-            pd.Timestamp.now().strftime(
-                "%Y-%m-%d %H:%M:%S"
-            ),
-
-        "Fuente_ID":
-            resultado["Fuente_ID"]
-    }
-
-
-def generar_preguntas_81(
-    cantidad
-):
-
-    df_disponible = st.session_state.get(
-        "df_disponible_81",
-        pd.DataFrame()
-    )
-
-    if df_disponible.empty:
-        return []
-
-    columnas_requeridas = [
-        "Fuente_ID",
-        "Producto",
-        "Precaución / Contraindicación"
-    ]
-
-    faltantes = [
-        columna
-        for columna in columnas_requeridas
-        if columna not in df_disponible.columns
-    ]
-
-    if faltantes:
-
-        st.error(
-            "8.2 ERROR: faltan columnas: "
-            + ", ".join(faltantes)
-        )
-
-        return []
-
-    consumidas = obtener_fuentes_consumidas_81()
-
-    preguntas = []
-
-    while len(preguntas) < int(cantidad):
-
-        resultado = generar_relacion_81(
-            df_disponible,
-            consumidas
-        )
-
-        if resultado is None:
+        if len(preguntas) >= int(cantidad):
             break
-
-        pregunta = construir_pregunta_81(
-            resultado
-        )
-
-        preguntas.append(pregunta)
-
-        consumidas.add(
-            resultado["Fuente_ID"]
-        )
 
     st.session_state[
         "fuentes_consumidas_81"
@@ -18112,24 +17976,17 @@ def generar_preguntas_81(
 
 
 # ============================================================
-# INTERFAZ DEL GENERADOR 8.2
+# INTERFAZ 8.1 - PARTE 2
 # ============================================================
 
 if "df_disponible_81" in st.session_state:
 
     st.markdown(
-        "### 8.2 - Generador Producto - Restricción"
-    )
-
-    st.info(
-        "Nivel 1: relaciona cada producto con su "
-        "precaución o contraindicación. "
-        "El contenido completo de la celda se conserva "
-        "como una sola respuesta."
+        "### 8.1 - Generador de preguntas"
     )
 
     cantidad_81 = st.number_input(
-        "Cantidad máxima de preguntas",
+        "Cantidad de preguntas",
         min_value=1,
         max_value=500,
         value=10,
@@ -18138,34 +17995,35 @@ if "df_disponible_81" in st.session_state:
     )
 
     if st.button(
-        "GENERAR PREGUNTAS 8.2",
+        "GENERAR PREGUNTAS 8.1",
         key="generar_preguntas_81"
     ):
 
-        nuevas_81 = generar_preguntas_81(
+        preguntas_nuevas_81 = generar_preguntas_81(
             int(cantidad_81)
         )
 
         st.session_state[
             "preguntas_generadas_81"
-        ] = nuevas_81
+        ] = preguntas_nuevas_81
 
-        if nuevas_81:
+        if preguntas_nuevas_81:
 
             st.success(
-                f"Se generaron {len(nuevas_81)} preguntas."
+                f"Se generaron "
+                f"{len(preguntas_nuevas_81)} preguntas."
             )
 
         else:
 
             st.warning(
-                "No hay suficientes relaciones disponibles "
-                "para generar preguntas."
+                "No fue posible generar preguntas "
+                "con las relaciones disponibles."
             )
 
 
 # ============================================================
-# MOSTRAR PREGUNTAS
+# MOSTRAR PREGUNTAS GENERADAS
 # ============================================================
 
 preguntas_81 = st.session_state.get(
@@ -18176,7 +18034,7 @@ preguntas_81 = st.session_state.get(
 if preguntas_81:
 
     st.markdown(
-        "### Preguntas generadas 8.2"
+        "### Preguntas generadas 8.1"
     )
 
     for pregunta in preguntas_81:
