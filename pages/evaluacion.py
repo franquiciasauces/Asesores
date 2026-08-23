@@ -12018,6 +12018,8 @@ if preguntas_72:
             "listas para la sincronización."
         )
 # ============================================================
+
+# ============================================================
 # 7.2 PARTE 4
 # SINCRONIZAR PREGUNTAS CON BANCO GENERAL
 # ============================================================
@@ -12099,7 +12101,7 @@ def sincronizar_banco_72():
         )
 
         df_banco = pd.read_excel(
-            io.BytesIO(contenido)
+            contenido
         )
 
         total_antes = len(
@@ -12161,9 +12163,12 @@ def sincronizar_banco_72():
             df_nuevas = df_nuevas[
                 ~df_nuevas[
                     "Pregunta_ID"
-                ].astype(str)
+                ]
+                .astype(str)
                 .str.strip()
-                .isin(existentes)
+                .isin(
+                    existentes
+                )
             ]
 
         total_nuevas = len(
@@ -12190,6 +12195,8 @@ def sincronizar_banco_72():
             ],
             ignore_index=True
         )
+
+        import io
 
         memoria = io.BytesIO()
 
