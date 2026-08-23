@@ -17197,7 +17197,7 @@ if preguntas_77:
         )
 # ============================================================
 # 7.7 - PARTE 4
-# SINCRONIZAR PREGUNTAS CON BANCO GENERAL
+# SINCRONIZAR PREGUNTAS APROBADAS CON BANCO GENERAL
 # ============================================================
 
 import io
@@ -17224,21 +17224,46 @@ def sincronizar_banco_77():
     )
 
     if not preguntas:
+
         st.warning(
-            "No hay preguntas para sincronizar."
+            "No hay preguntas 7.7 para sincronizar."
         )
+
         return
 
     pendientes = [
-        p for p in preguntas
-        if p.get("Estado", "PENDIENTE") == "PENDIENTE"
+        pregunta
+        for pregunta in preguntas
+        if pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
     ]
 
     if pendientes:
+
         st.error(
             f"Hay {len(pendientes)} preguntas pendientes "
             "de validación."
         )
+
+        return
+
+    aprobadas = [
+        pregunta
+        for pregunta in preguntas
+        if pregunta.get(
+            "Estado",
+            ""
+        ) == "APROBADA"
+    ]
+
+    if not aprobadas:
+
+        st.warning(
+            "No hay preguntas aprobadas para sincronizar."
+        )
+
         return
 
     headers = {
@@ -17276,7 +17301,9 @@ def sincronizar_banco_77():
 
         total_antes = len(df_banco)
 
-        df_nuevas = pd.DataFrame(preguntas)
+        df_aprobadas = pd.DataFrame(
+            aprobadas
+        )
 
         columnas = [
             "Pregunta_ID",
@@ -17299,57 +17326,85 @@ def sincronizar_banco_77():
         faltantes = [
             columna
             for columna in columnas
-            if columna not in df_nuevas.columns
+            if columna not in df_aprobadas.columns
         ]
 
         if faltantes:
+
             st.error(
                 "7.7 ERROR: faltan columnas: "
                 + ", ".join(faltantes)
             )
+
             return
 
-        df_nuevas = df_nuevas[
+        df_aprobadas = df_aprobadas[
             columnas
         ].copy()
 
-        if "Pregunta_ID" in df_banco.columns:
+        nuevas = 0
+        actualizadas = 0
 
-            existentes = set(
-                df_banco["Pregunta_ID"]
-                .fillna("")
-                .astype(str)
-                .str.strip()
+        if "Pregunta_ID" not in df_banco.columns:
+
+            df_final = pd.concat(
+                [
+                    df_banco,
+                    df_aprobadas
+                ],
+                ignore_index=True
             )
 
-            df_nuevas = df_nuevas[
-                ~df_nuevas["Pregunta_ID"]
-                .astype(str)
-                .str.strip()
-                .isin(existentes)
-            ].copy()
+            nuevas = len(df_aprobadas)
 
-        total_nuevas = len(df_nuevas)
+        else:
 
-        if total_nuevas == 0:
+            df_final = df_banco.copy()
 
-            st.info(
-                "No hay preguntas nuevas para incorporar."
-            )
+            for _, pregunta in df_aprobadas.iterrows():
 
-            st.info(
-                f"El banco conserva {total_antes:,} preguntas."
-            )
+                pregunta_id = str(
+                    pregunta["Pregunta_ID"]
+                ).strip()
 
-            return
+                coincidencias = (
+                    df_final["Pregunta_ID"]
+                    .fillna("")
+                    .astype(str)
+                    .str.strip()
+                    == pregunta_id
+                )
 
-        df_final = pd.concat(
-            [
-                df_banco,
-                df_nuevas
-            ],
-            ignore_index=True
-        )
+                if coincidencias.any():
+
+                    indice = df_final.index[
+                        coincidencias
+                    ][0]
+
+                    for columna in columnas:
+
+                        df_final.at[
+                            indice,
+                            columna
+                        ] = pregunta[columna]
+
+                    actualizadas += 1
+
+                else:
+
+                    df_final = pd.concat(
+                        [
+                            df_final,
+                            pd.DataFrame(
+                                [pregunta]
+                            )
+                        ],
+                        ignore_index=True
+                    )
+
+                    nuevas += 1
+
+        total_despues = len(df_final)
 
         memoria = io.BytesIO()
 
@@ -17369,10 +17424,17 @@ def sincronizar_banco_77():
         ).decode("utf-8")
 
         datos_actualizacion = {
-            "message": "Agregar preguntas 7.7 al banco general",
-            "content": contenido_nuevo,
-            "branch": GITHUB_RAMA_77,
-            "sha": sha
+            "message":
+                "Actualizar preguntas aprobadas 7.7",
+
+            "content":
+                contenido_nuevo,
+
+            "branch":
+                GITHUB_RAMA_77,
+
+            "sha":
+                sha
         }
 
         cuerpo = json.dumps(
@@ -17384,7 +17446,8 @@ def sincronizar_banco_77():
             data=cuerpo,
             headers={
                 **headers,
-                "Content-Type": "application/json"
+                "Content-Type":
+                    "application/json"
             },
             method="PUT"
         )
@@ -17396,26 +17459,35 @@ def sincronizar_banco_77():
 
             respuesta.read()
 
-        total_despues = len(df_final)
-
         st.success(
             "Banco de preguntas actualizado correctamente."
         )
 
         st.info(
-            f"Preguntas antes: {total_antes:,}"
+            f"Preguntas en el banco antes: {total_antes:,}"
         )
 
         st.info(
-            f"Preguntas incorporadas desde 7.7: {total_nuevas:,}"
+            f"Preguntas aprobadas procesadas: "
+            f"{len(aprobadas):,}"
         )
 
         st.info(
-            f"Preguntas después: {total_despues:,}"
+            f"Preguntas nuevas incorporadas: {nuevas:,}"
+        )
+
+        st.info(
+            f"Preguntas existentes actualizadas: "
+            f"{actualizadas:,}"
+        )
+
+        st.info(
+            f"Preguntas en el banco después: "
+            f"{total_despues:,}"
         )
 
         st.dataframe(
-            df_nuevas,
+            df_aprobadas,
             use_container_width=True,
             hide_index=True
         )
@@ -17450,11 +17522,28 @@ if preguntas_77:
         ) == "PENDIENTE"
     )
 
+    aprobadas_77 = sum(
+        1
+        for pregunta in preguntas_77
+        if pregunta.get(
+            "Estado",
+            ""
+        ) == "APROBADA"
+    )
+
     if pendientes_77 == 0:
 
-        if st.button(
-            "SINCRONIZAR 7.7 CON BANCO DE PREGUNTAS",
-            key="sincronizar_banco_77"
-        ):
+        if aprobadas_77 > 0:
 
-            sincronizar_banco_77()
+            if st.button(
+                "SINCRONIZAR APROBADAS 7.7",
+                key="sincronizar_aprobadas_77"
+            ):
+
+                sincronizar_banco_77()
+
+        else:
+
+            st.warning(
+                "No hay preguntas aprobadas para sincronizar."
+            )
