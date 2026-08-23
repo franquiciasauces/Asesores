@@ -10162,3 +10162,397 @@ if (
         use_container_width=True,
         hide_index=True
     )
+
+# ============================================================
+# 6.4 - PARTE 2
+# GENERADOR PRODUCTO - CATEGORÍA PRINCIPAL + COMPLEMENTARIA
+# NIVEL 2
+# ============================================================
+
+def obtener_relaciones_consumidas_64():
+
+    consumidas = set()
+
+    df_banco = st.session_state.get(
+        "df_banco_64",
+        pd.DataFrame()
+    )
+
+    if (
+        not df_banco.empty
+        and "Fuente_ID" in df_banco.columns
+    ):
+
+        for valor in df_banco["Fuente_ID"].fillna(""):
+
+            for fuente in str(valor).split(";"):
+
+                fuente = fuente.strip()
+
+                if fuente:
+                    consumidas.add(fuente)
+
+    consumidas.update(
+        st.session_state.get(
+            "fuentes_consumidas_64",
+            set()
+        )
+    )
+
+    return consumidas
+
+
+def siguiente_id_64():
+
+    mayor = 0
+
+    df_banco = st.session_state.get(
+        "df_banco_64",
+        pd.DataFrame()
+    )
+
+    if (
+        not df_banco.empty
+        and "Pregunta_ID" in df_banco.columns
+    ):
+
+        for valor in df_banco["Pregunta_ID"].fillna(""):
+
+            coincidencia = re.match(
+                r"PTCC-(\d+)",
+                str(valor).strip()
+            )
+
+            if coincidencia:
+                mayor = max(
+                    mayor,
+                    int(coincidencia.group(1))
+                )
+
+    return f"PTCC-{mayor + 1:06d}"
+
+
+def generar_nivel_2_64(
+    df_disponible,
+    consumidas
+):
+
+    candidatos = df_disponible[
+        ~df_disponible["Fuente_ID"].isin(
+            consumidas
+        )
+    ].copy()
+
+    if len(candidatos) < 2:
+        return None
+
+    for _, verdadera in candidatos.iterrows():
+
+        principal = str(
+            verdadera["Categoría principal"]
+        ).strip()
+
+        complementaria = str(
+            verdadera["Categorías complementarias"]
+        ).strip()
+
+        if not principal or not complementaria:
+            continue
+
+        falsas = candidatos[
+            candidatos["Fuente_ID"]
+            != verdadera["Fuente_ID"]
+        ].copy()
+
+        for _, falsa in falsas.iterrows():
+
+            falsa_principal = str(
+                falsa["Categoría principal"]
+            ).strip()
+
+            falsa_complementaria = str(
+                falsa["Categorías complementarias"]
+            ).strip()
+
+            if not falsa_principal or not falsa_complementaria:
+                continue
+
+            if falsa_principal.lower() == principal.lower():
+                continue
+
+            if (
+                falsa_complementaria.lower()
+                == complementaria.lower()
+            ):
+                continue
+
+            opciones = [
+                principal,
+                complementaria,
+                falsa_principal,
+                falsa_complementaria
+            ]
+
+            if len({
+                x.lower()
+                for x in opciones
+            }) != 4:
+                continue
+
+            return {
+                "Producto":
+                    verdadera["Producto"],
+
+                "Correctas": [
+                    principal,
+                    complementaria
+                ],
+
+                "Falsas": [
+                    falsa_principal,
+                    falsa_complementaria
+                ],
+
+                "Fuente_ID":
+                    verdadera["Fuente_ID"]
+                    + ";"
+                    + falsa["Fuente_ID"]
+            }
+
+    return None
+
+
+def construir_pregunta_64(resultado):
+
+    opciones = (
+        resultado["Correctas"]
+        + resultado["Falsas"]
+    )
+
+    np.random.shuffle(opciones)
+
+    correctas = []
+
+    for i, opcion in enumerate(opciones):
+
+        if opcion in resultado["Correctas"]:
+            correctas.append(i + 1)
+
+    return {
+
+        "Pregunta_ID":
+            siguiente_id_64(),
+
+        "Modulo":
+            "Producto",
+
+        "Tema":
+            "Categoría principal y complementaria",
+
+        "Nivel":
+            "Nivel 2",
+
+        "Tipo_Relacion":
+            "Producto-Categoría principal-Categoría complementaria",
+
+        "Pregunta":
+            "¿Cuáles de las siguientes categorías "
+            "corresponden al producto "
+            f"{resultado['Producto']}? "
+            "Seleccione las dos opciones correctas.",
+
+        "Respuesta_1":
+            opciones[0],
+
+        "Respuesta_2":
+            opciones[1],
+
+        "Respuesta_3":
+            opciones[2],
+
+        "Respuesta_4":
+            opciones[3],
+
+        "Respuesta_Correcta":
+            ";".join(
+                str(x)
+                for x in sorted(correctas)
+            ),
+
+        "Estado":
+            "PENDIENTE",
+
+        "Observacion_Administrador":
+            "",
+
+        "Fecha_Generacion":
+            pd.Timestamp.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+
+        "Fuente_ID":
+            resultado["Fuente_ID"]
+    }
+
+
+def generar_preguntas_64(cantidad):
+
+    df_disponible = st.session_state.get(
+        "df_disponible_64",
+        pd.DataFrame()
+    )
+
+    if df_disponible.empty:
+        return []
+
+    consumidas = (
+        obtener_relaciones_consumidas_64()
+    )
+
+    preguntas = []
+
+    while len(preguntas) < cantidad:
+
+        resultado = generar_nivel_2_64(
+            df_disponible,
+            consumidas
+        )
+
+        if resultado is None:
+            break
+
+        pregunta = construir_pregunta_64(
+            resultado
+        )
+
+        preguntas.append(pregunta)
+
+        consumidas.update(
+            resultado["Fuente_ID"].split(";")
+        )
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ
+# ============================================================
+
+if "df_disponible_64" in st.session_state:
+
+    st.markdown(
+        "### Generador Producto - Categorías"
+    )
+
+    cantidad_64 = st.number_input(
+        "¿Cuántas preguntas desea generar?",
+        min_value=1,
+        max_value=500,
+        value=10,
+        step=1,
+        key="cantidad_generar_64"
+    )
+
+    st.info(
+        "Nivel 2: una categoría principal correcta, "
+        "una categoría complementaria correcta "
+        "y dos categorías falsas."
+    )
+
+    if st.button(
+        "GENERAR PREGUNTAS 6.4",
+        key="generar_preguntas_64"
+    ):
+
+        nuevas_64 = generar_preguntas_64(
+            cantidad_64
+        )
+
+        if not nuevas_64:
+
+            st.warning(
+                "No hay suficientes relaciones "
+                "disponibles para generar preguntas."
+            )
+
+        else:
+
+            st.session_state[
+                "preguntas_generadas_64"
+            ] = nuevas_64
+
+            consumidas_64 = st.session_state.get(
+                "fuentes_consumidas_64",
+                set()
+            )
+
+            for pregunta in nuevas_64:
+
+                for fuente in str(
+                    pregunta["Fuente_ID"]
+                ).split(";"):
+
+                    fuente = fuente.strip()
+
+                    if fuente:
+                        consumidas_64.add(fuente)
+
+            st.session_state[
+                "fuentes_consumidas_64"
+            ] = consumidas_64
+
+            st.success(
+                f"Se generaron "
+                f"{len(nuevas_64)} preguntas."
+            )
+
+
+preguntas_64 = st.session_state.get(
+    "preguntas_generadas_64",
+    []
+)
+
+if preguntas_64:
+
+    st.markdown(
+        "### Preguntas generadas"
+    )
+
+    for pregunta in preguntas_64:
+
+        st.markdown(
+            f"**{pregunta['Pregunta_ID']} — "
+            f"{pregunta['Nivel']}**"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"1. {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"2. {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"3. {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"4. {pregunta['Respuesta_4']}"
+        )
+
+        st.caption(
+            "Respuestas correctas: "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            "Fuente: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        st.divider()
