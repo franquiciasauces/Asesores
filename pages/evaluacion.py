@@ -17195,4 +17195,266 @@ if preguntas_77:
             "Las preguntas aprobadas quedan "
             "listas para sincronización."
         )
+# ============================================================
+# 7.7 - PARTE 4
+# SINCRONIZAR PREGUNTAS CON BANCO GENERAL
+# ============================================================
 
+import io
+
+GITHUB_USUARIO_77 = "franquiciasauces"
+GITHUB_REPOSITORIO_77 = "Asesores"
+GITHUB_RAMA_77 = "main"
+
+GITHUB_ARCHIVO_77 = "BANCO_PREGUNTAS_GENERALES.xlsx"
+
+URL_GITHUB_77 = (
+    "https://api.github.com/repos/"
+    f"{GITHUB_USUARIO_77}/"
+    f"{GITHUB_REPOSITORIO_77}/contents/"
+    f"{GITHUB_ARCHIVO_77}"
+)
+
+
+def sincronizar_banco_77():
+
+    preguntas = st.session_state.get(
+        "preguntas_generadas_77",
+        []
+    )
+
+    if not preguntas:
+        st.warning(
+            "No hay preguntas para sincronizar."
+        )
+        return
+
+    pendientes = [
+        p for p in preguntas
+        if p.get("Estado", "PENDIENTE") == "PENDIENTE"
+    ]
+
+    if pendientes:
+        st.error(
+            f"Hay {len(pendientes)} preguntas pendientes "
+            "de validación."
+        )
+        return
+
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json"
+    }
+
+    try:
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_77,
+            headers=headers,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            datos = json.loads(
+                respuesta.read().decode("utf-8")
+            )
+
+        sha = datos["sha"]
+
+        contenido = base64.b64decode(
+            datos["content"].replace("\n", "")
+        )
+
+        df_banco = pd.read_excel(
+            io.BytesIO(contenido),
+            engine="openpyxl"
+        )
+
+        total_antes = len(df_banco)
+
+        df_nuevas = pd.DataFrame(preguntas)
+
+        columnas = [
+            "Pregunta_ID",
+            "Modulo",
+            "Tema",
+            "Nivel",
+            "Tipo_Relacion",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Estado",
+            "Observacion_Administrador",
+            "Fecha_Generacion",
+            "Fuente_ID"
+        ]
+
+        faltantes = [
+            columna
+            for columna in columnas
+            if columna not in df_nuevas.columns
+        ]
+
+        if faltantes:
+            st.error(
+                "7.7 ERROR: faltan columnas: "
+                + ", ".join(faltantes)
+            )
+            return
+
+        df_nuevas = df_nuevas[
+            columnas
+        ].copy()
+
+        if "Pregunta_ID" in df_banco.columns:
+
+            existentes = set(
+                df_banco["Pregunta_ID"]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+            )
+
+            df_nuevas = df_nuevas[
+                ~df_nuevas["Pregunta_ID"]
+                .astype(str)
+                .str.strip()
+                .isin(existentes)
+            ].copy()
+
+        total_nuevas = len(df_nuevas)
+
+        if total_nuevas == 0:
+
+            st.info(
+                "No hay preguntas nuevas para incorporar."
+            )
+
+            st.info(
+                f"El banco conserva {total_antes:,} preguntas."
+            )
+
+            return
+
+        df_final = pd.concat(
+            [
+                df_banco,
+                df_nuevas
+            ],
+            ignore_index=True
+        )
+
+        memoria = io.BytesIO()
+
+        with pd.ExcelWriter(
+            memoria,
+            engine="openpyxl"
+        ) as writer:
+
+            df_final.to_excel(
+                writer,
+                index=False,
+                sheet_name="Banco"
+            )
+
+        contenido_nuevo = base64.b64encode(
+            memoria.getvalue()
+        ).decode("utf-8")
+
+        datos_actualizacion = {
+            "message": "Agregar preguntas 7.7 al banco general",
+            "content": contenido_nuevo,
+            "branch": GITHUB_RAMA_77,
+            "sha": sha
+        }
+
+        cuerpo = json.dumps(
+            datos_actualizacion
+        ).encode("utf-8")
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_77,
+            data=cuerpo,
+            headers={
+                **headers,
+                "Content-Type": "application/json"
+            },
+            method="PUT"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            respuesta.read()
+
+        total_despues = len(df_final)
+
+        st.success(
+            "Banco de preguntas actualizado correctamente."
+        )
+
+        st.info(
+            f"Preguntas antes: {total_antes:,}"
+        )
+
+        st.info(
+            f"Preguntas incorporadas desde 7.7: {total_nuevas:,}"
+        )
+
+        st.info(
+            f"Preguntas después: {total_despues:,}"
+        )
+
+        st.dataframe(
+            df_nuevas,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    except Exception as error:
+
+        st.error(
+            "No fue posible actualizar "
+            "BANCO_PREGUNTAS_GENERALES.xlsx."
+        )
+
+        st.exception(error)
+
+
+# ============================================================
+# BOTÓN DE SINCRONIZACIÓN 7.7
+# ============================================================
+
+preguntas_77 = st.session_state.get(
+    "preguntas_generadas_77",
+    []
+)
+
+if preguntas_77:
+
+    pendientes_77 = sum(
+        1
+        for pregunta in preguntas_77
+        if pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    if pendientes_77 == 0:
+
+        if st.button(
+            "SINCRONIZAR 7.7 CON BANCO DE PREGUNTAS",
+            key="sincronizar_banco_77"
+        ):
+
+            sincronizar_banco_77()
