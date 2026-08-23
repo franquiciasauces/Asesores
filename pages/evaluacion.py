@@ -13287,3 +13287,977 @@ if preguntas_73:
         ):
 
             sincronizar_banco_73()
+# ============================================================
+# 7.4 - PARTE 2
+# GENERADOR PATOLOGÍA - SÍNTOMAS
+# NIVEL 1 Y NIVEL 2
+# ============================================================
+
+def normalizar_74(valor):
+
+    if pd.isna(valor):
+        return ""
+
+    return " ".join(
+        str(valor).strip().lower().split()
+    )
+
+
+def siguiente_id_74():
+
+    mayor = 0
+
+    for pregunta in st.session_state.get(
+        "preguntas_generadas_74",
+        []
+    ):
+
+        texto = str(
+            pregunta.get(
+                "Pregunta_ID",
+                ""
+            )
+        )
+
+        if texto.startswith("PTG-ST-"):
+
+            try:
+
+                numero = int(
+                    texto.replace(
+                        "PTG-ST-",
+                        ""
+                    )
+                )
+
+                mayor = max(
+                    mayor,
+                    numero
+                )
+
+            except ValueError:
+                pass
+
+    return (
+        f"PTG-ST-{mayor + 1:06d}"
+    )
+
+
+def obtener_consumidas_74():
+
+    consumidas = set()
+
+    consumidas.update(
+        st.session_state.get(
+            "fuentes_consumidas_74",
+            set()
+        )
+    )
+
+    return consumidas
+
+
+def generar_nivel_74(
+    df,
+    consumidas,
+    nivel
+):
+
+    candidatos = df[
+        ~df["Fuente_ID"].isin(
+            consumidas
+        )
+    ].copy()
+
+    if len(candidatos) < 4:
+
+        return None
+
+    candidatos = candidatos.sample(
+        frac=1
+    ).reset_index(
+        drop=True
+    )
+
+    for _, verdadera in candidatos.iterrows():
+
+        fuente = str(
+            verdadera["Fuente_ID"]
+        ).strip()
+
+        patologia = str(
+            verdadera["Patología"]
+        ).strip()
+
+        sintomas = str(
+            verdadera[
+                "Síntomas/Señales clave (checklist)"
+            ]
+        ).strip()
+
+        if (
+            not fuente
+            or not patologia
+            or not sintomas
+        ):
+
+            continue
+
+        clave_correcta = normalizar_74(
+            sintomas
+        )
+
+        falsas = candidatos[
+            candidatos["Fuente_ID"] != fuente
+        ].copy()
+
+        falsas["Sintomas"] = (
+            falsas[
+                "Síntomas/Señales clave (checklist)"
+            ]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+        falsas = falsas[
+            falsas["Sintomas"] != ""
+        ]
+
+        falsas = falsas[
+            falsas["Sintomas"].map(
+                normalizar_74
+            ) != clave_correcta
+        ]
+
+        falsas = falsas.drop_duplicates(
+            subset=["Sintomas"]
+        )
+
+        if len(falsas) < 3:
+
+            continue
+
+        falsas = falsas.sample(
+            frac=1
+        ).reset_index(
+            drop=True
+        )
+
+        seleccionadas = []
+
+        for _, falsa in falsas.iterrows():
+
+            texto = falsa[
+                "Sintomas"
+            ]
+
+            clave = normalizar_74(
+                texto
+            )
+
+            if clave in [
+                normalizar_74(x)
+                for x in seleccionadas
+            ]:
+
+                continue
+
+            seleccionadas.append(
+                texto
+            )
+
+            if len(seleccionadas) == 3:
+
+                break
+
+        if len(seleccionadas) != 3:
+
+            continue
+
+        opciones = [
+            sintomas,
+            seleccionadas[0],
+            seleccionadas[1],
+            seleccionadas[2]
+        ]
+
+        opciones = pd.Series(
+            opciones
+        ).sample(
+            frac=1
+        ).tolist()
+
+        correcta = (
+            opciones.index(
+                sintomas
+            ) + 1
+        )
+
+        return {
+            "Patología": patologia,
+            "Opciones": opciones,
+            "Correcta": correcta,
+            "Fuente_ID": fuente,
+            "Nivel": nivel
+        }
+
+    return None
+
+
+def construir_pregunta_74(
+    resultado
+):
+
+    opciones = resultado[
+        "Opciones"
+    ]
+
+    return {
+
+        "Pregunta_ID":
+            siguiente_id_74(),
+
+        "Modulo":
+            "Patología",
+
+        "Tema":
+            "Síntomas",
+
+        "Nivel":
+            resultado["Nivel"],
+
+        "Tipo_Relacion":
+            "Patología-Síntomas",
+
+        "Pregunta":
+            (
+                "¿Cuáles de las siguientes "
+                "opciones corresponden a los "
+                "síntomas o señales clave de la "
+                f"patología {resultado['Patología']}?"
+            ),
+
+        "Respuesta_1":
+            opciones[0],
+
+        "Respuesta_2":
+            opciones[1],
+
+        "Respuesta_3":
+            opciones[2],
+
+        "Respuesta_4":
+            opciones[3],
+
+        "Respuesta_Correcta":
+            str(
+                resultado["Correcta"]
+            ),
+
+        "Estado":
+            "PENDIENTE",
+
+        "Observacion_Administrador":
+            "",
+
+        "Fecha_Generacion":
+            pd.Timestamp.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+
+        "Fuente_ID":
+            resultado["Fuente_ID"]
+    }
+
+
+def generar_preguntas_74(
+    cantidad,
+    modo
+):
+
+    df = st.session_state.get(
+        "df_disponible_71",
+        pd.DataFrame()
+    )
+
+    if df.empty:
+
+        return []
+
+    consumidas = (
+        obtener_consumidas_74()
+    )
+
+    preguntas = []
+
+    if modo == "Nivel 1":
+
+        niveles = [
+            "Nivel 1"
+        ]
+
+    elif modo == "Nivel 2":
+
+        niveles = [
+            "Nivel 2"
+        ]
+
+    else:
+
+        niveles = [
+            "Nivel 1",
+            "Nivel 2"
+        ]
+
+    while len(preguntas) < cantidad:
+
+        generado = False
+
+        for nivel in niveles:
+
+            if len(preguntas) >= cantidad:
+
+                break
+
+            resultado = generar_nivel_74(
+                df,
+                consumidas,
+                nivel
+            )
+
+            if resultado is None:
+
+                continue
+
+            pregunta = construir_pregunta_74(
+                resultado
+            )
+
+            preguntas.append(
+                pregunta
+            )
+
+            consumidas.add(
+                resultado["Fuente_ID"]
+            )
+
+            generado = True
+
+        if not generado:
+
+            break
+
+    st.session_state[
+        "fuentes_consumidas_74"
+    ] = consumidas
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ DEL GENERADOR 7.4
+# ============================================================
+
+if "df_disponible_71" in st.session_state:
+
+    st.markdown(
+        "### 7.4 Parte 2 - Generador "
+        "Patología - Síntomas"
+    )
+
+    modo_74 = st.selectbox(
+        "Seleccione el nivel",
+        [
+            "Nivel 1",
+            "Nivel 2",
+            "Niveles 1 y 2"
+        ],
+        key="modo_generacion_74"
+    )
+
+    cantidad_74 = st.number_input(
+        "Cantidad máxima de preguntas",
+        min_value=1,
+        max_value=500,
+        value=10,
+        step=1,
+        key="cantidad_generar_74"
+    )
+
+    if st.button(
+        "GENERAR PREGUNTAS 7.4",
+        key="generar_preguntas_74"
+    ):
+
+        nuevas_74 = generar_preguntas_74(
+            cantidad_74,
+            modo_74
+        )
+
+        st.session_state[
+            "preguntas_generadas_74"
+        ] = nuevas_74
+
+        if nuevas_74:
+
+            st.success(
+                f"Se generaron "
+                f"{len(nuevas_74)} preguntas."
+            )
+
+        else:
+
+            st.warning(
+                "No hay suficientes relaciones "
+                "disponibles para generar preguntas."
+            )
+
+
+# ============================================================
+# MOSTRAR PREGUNTAS GENERADAS 7.4
+# ============================================================
+
+preguntas_74 = st.session_state.get(
+    "preguntas_generadas_74",
+    []
+)
+
+if preguntas_74:
+
+    st.markdown(
+        "### Preguntas generadas 7.4"
+    )
+
+    for pregunta in preguntas_74:
+
+        st.markdown(
+            f"**{pregunta['Pregunta_ID']} — "
+            f"{pregunta['Nivel']}**"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"1. {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"2. {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"3. {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"4. {pregunta['Respuesta_4']}"
+        )
+
+        st.caption(
+            "Respuesta correcta: "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            "Fuente: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        st.divider()
+
+
+# ============================================================
+# 7.4 - PARTE 3
+# VALIDACIÓN INDIVIDUAL DE PREGUNTAS
+# PATOLOGÍA - SÍNTOMAS
+# ============================================================
+
+preguntas_74 = st.session_state.get(
+    "preguntas_generadas_74",
+    []
+)
+
+if preguntas_74:
+
+    st.markdown(
+        "## 7.4 - Validación de preguntas"
+    )
+
+    st.info(
+        "Revise cada pregunta individualmente. "
+        "Una pregunta rechazada no afecta las demás."
+    )
+
+    for i, pregunta in enumerate(
+        preguntas_74
+    ):
+
+        st.markdown(
+            f"### {pregunta['Pregunta_ID']}"
+        )
+
+        st.write(
+            f"**Nivel:** {pregunta['Nivel']}"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"**1.** {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"**2.** {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"**3.** {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"**4.** {pregunta['Respuesta_4']}"
+        )
+
+        st.write(
+            "**Respuesta correcta:** "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            f"Fuente utilizada: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        estado = pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        )
+
+        st.write(
+            f"**Estado actual:** {estado}"
+        )
+
+        observacion = st.text_input(
+            "Observación del administrador",
+            value=pregunta.get(
+                "Observacion_Administrador",
+                ""
+            ),
+            key=f"observacion_74_{i}"
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            if st.button(
+                "APROBAR",
+                key=f"aprobar_74_{i}"
+            ):
+
+                preguntas_74[i][
+                    "Estado"
+                ] = "APROBADA"
+
+                preguntas_74[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_74"
+                ] = preguntas_74
+
+                st.rerun()
+
+        with col2:
+
+            if st.button(
+                "RECHAZAR",
+                key=f"rechazar_74_{i}"
+            ):
+
+                preguntas_74[i][
+                    "Estado"
+                ] = "RECHAZADA"
+
+                preguntas_74[i][
+                    "Observacion_Administrador"
+                ] = observacion
+
+                st.session_state[
+                    "preguntas_generadas_74"
+                ] = preguntas_74
+
+                st.rerun()
+
+        st.divider()
+
+
+# ============================================================
+# RESUMEN DE VALIDACIÓN 7.4
+# ============================================================
+
+if preguntas_74:
+
+    aprobadas_74 = sum(
+        1
+        for p in preguntas_74
+        if p.get("Estado") == "APROBADA"
+    )
+
+    rechazadas_74 = sum(
+        1
+        for p in preguntas_74
+        if p.get("Estado") == "RECHAZADA"
+    )
+
+    pendientes_74 = sum(
+        1
+        for p in preguntas_74
+        if p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    st.markdown(
+        "### Resumen de validación 7.4"
+    )
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Aprobadas",
+            aprobadas_74
+        )
+
+    with col2:
+
+        st.metric(
+            "Rechazadas",
+            rechazadas_74
+        )
+
+    with col3:
+
+        st.metric(
+            "Pendientes",
+            pendientes_74
+        )
+
+    if pendientes_74 == 0:
+
+        st.success(
+            "Todas las preguntas fueron "
+            "revisadas individualmente."
+        )
+
+        st.info(
+            "Las preguntas aprobadas quedan "
+            "listas para la sincronización."
+        )
+
+
+# ============================================================
+# 7.4 - PARTE 4
+# SINCRONIZAR PREGUNTAS CON BANCO GENERAL
+# ============================================================
+
+GITHUB_USUARIO_74 = "franquiciasauces"
+GITHUB_REPOSITORIO_74 = "Asesores"
+GITHUB_RAMA_74 = "main"
+
+GITHUB_ARCHIVO_74 = (
+    "BANCO_PREGUNTAS_GENERALES.xlsx"
+)
+
+URL_GITHUB_74 = (
+    "https://api.github.com/repos/"
+    f"{GITHUB_USUARIO_74}/"
+    f"{GITHUB_REPOSITORIO_74}/contents/"
+    f"{GITHUB_ARCHIVO_74}"
+)
+
+
+def sincronizar_banco_74():
+
+    preguntas = st.session_state.get(
+        "preguntas_generadas_74",
+        []
+    )
+
+    if not preguntas:
+
+        st.warning(
+            "No hay preguntas para sincronizar."
+        )
+
+        return
+
+    if any(
+        p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+        for p in preguntas
+    ):
+
+        st.error(
+            "Todavía hay preguntas pendientes de revisión."
+        )
+
+        return
+
+    headers = {
+        "Authorization":
+            f"Bearer {GITHUB_TOKEN}",
+
+        "Accept":
+            "application/vnd.github+json"
+    }
+
+    try:
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_74,
+            headers=headers,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            datos = json.loads(
+                respuesta.read().decode("utf-8")
+            )
+
+        sha = datos["sha"]
+
+        contenido = base64.b64decode(
+            datos["content"].replace("\n", "")
+        )
+
+        df_banco = pd.read_excel(
+            contenido
+        )
+
+        total_antes = len(
+            df_banco
+        )
+
+        df_nuevas = pd.DataFrame(
+            preguntas
+        )
+
+        columnas = [
+            "Pregunta_ID",
+            "Modulo",
+            "Tema",
+            "Nivel",
+            "Tipo_Relacion",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Estado",
+            "Observacion_Administrador",
+            "Fecha_Generacion",
+            "Fuente_ID"
+        ]
+
+        faltantes = [
+            columna
+            for columna in columnas
+            if columna not in df_nuevas.columns
+        ]
+
+        if faltantes:
+
+            st.error(
+                "7.4 ERROR: faltan columnas "
+                "en las preguntas generadas: "
+                f"{', '.join(faltantes)}"
+            )
+
+            return
+
+        df_nuevas = df_nuevas[
+            columnas
+        ].copy()
+
+        if "Pregunta_ID" in df_banco.columns:
+
+            existentes = set(
+                df_banco[
+                    "Pregunta_ID"
+                ]
+                .astype(str)
+                .str.strip()
+            )
+
+            df_nuevas = df_nuevas[
+                ~df_nuevas[
+                    "Pregunta_ID"
+                ]
+                .astype(str)
+                .str.strip()
+                .isin(
+                    existentes
+                )
+            ]
+
+        total_nuevas = len(
+            df_nuevas
+        )
+
+        if total_nuevas == 0:
+
+            st.info(
+                "No hay preguntas nuevas para agregar."
+            )
+
+            st.info(
+                f"Preguntas existentes: "
+                f"**{total_antes:,}**"
+            )
+
+            return
+
+        df_final = pd.concat(
+            [
+                df_banco,
+                df_nuevas
+            ],
+            ignore_index=True
+        )
+
+        import io
+
+        memoria = io.BytesIO()
+
+        with pd.ExcelWriter(
+            memoria,
+            engine="openpyxl"
+        ) as writer:
+
+            df_final.to_excel(
+                writer,
+                index=False,
+                sheet_name="Banco"
+            )
+
+        contenido_nuevo = base64.b64encode(
+            memoria.getvalue()
+        ).decode("utf-8")
+
+        datos_actualizacion = {
+
+            "message":
+                "Actualizar BANCO_PREGUNTAS_GENERALES",
+
+            "content":
+                contenido_nuevo,
+
+            "branch":
+                GITHUB_RAMA_74,
+
+            "sha":
+                sha
+        }
+
+        cuerpo = json.dumps(
+            datos_actualizacion
+        ).encode("utf-8")
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_74,
+            data=cuerpo,
+            headers={
+                **headers,
+                "Content-Type":
+                    "application/json"
+            },
+            method="PUT"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            respuesta.read()
+
+        total_despues = len(
+            df_final
+        )
+
+        st.success(
+            "Banco de preguntas actualizado "
+            "correctamente en GitHub."
+        )
+
+        st.info(
+            f"Preguntas existentes antes: "
+            f"**{total_antes:,}**"
+        )
+
+        st.info(
+            f"Preguntas incorporadas: "
+            f"**{total_nuevas:,}**"
+        )
+
+        st.info(
+            f"Preguntas totales después: "
+            f"**{total_despues:,}**"
+        )
+
+        st.dataframe(
+            df_nuevas,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    except Exception as error:
+
+        st.error(
+            "No fue posible actualizar "
+            "BANCO_PREGUNTAS_GENERALES.xlsx."
+        )
+
+        st.exception(error)
+
+
+# ============================================================
+# BOTÓN DE SINCRONIZACIÓN 7.4
+# ============================================================
+
+if preguntas_74:
+
+    pendientes_74 = sum(
+        1
+        for p in preguntas_74
+        if p.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    if pendientes_74 == 0:
+
+        if st.button(
+            "SINCRONIZAR CON BANCO DE PREGUNTAS",
+            key="sincronizar_banco_74"
+        ):
+
+            sincronizar_banco_74()
