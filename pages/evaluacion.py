@@ -17566,3 +17566,148 @@ if preguntas_77:
             st.warning(
                 "No hay preguntas aprobadas para sincronizar."
             )
+# ============================================================
+# 7.8 - PARTE 1
+# CARGAR HOJA COMPLEMENTARIOS
+# ============================================================
+
+ARCHIVO_FUENTE_78 = (
+    "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
+)
+
+HOJA_FUENTE_78 = "Complementarios"
+
+
+if st.button(
+    "CARGAR COMPLEMENTARIOS",
+    key="cargar_complementarios_78"
+):
+
+    try:
+
+        df_complementarios_78 = pd.read_excel(
+            ARCHIVO_FUENTE_78,
+            sheet_name=HOJA_FUENTE_78,
+            engine="openpyxl"
+        )
+
+        columnas_78 = [
+            "Producto",
+            "Categoría principal",
+            "Indicaciones / Escenarios",
+            "Modo de acción resumido",
+            "Combinaciones estratégicas"
+        ]
+
+        faltantes_78 = [
+            columna
+            for columna in columnas_78
+            if columna not in df_complementarios_78.columns
+        ]
+
+        if faltantes_78:
+
+            st.error(
+                "7.8 ERROR: faltan columnas en "
+                "la hoja Complementarios: "
+                + ", ".join(faltantes_78)
+            )
+
+        else:
+
+            df_complementarios_78 = (
+                df_complementarios_78[
+                    columnas_78
+                ].copy()
+            )
+
+            for columna in columnas_78:
+
+                df_complementarios_78[columna] = (
+                    df_complementarios_78[columna]
+                    .fillna("")
+                    .astype(str)
+                    .str.strip()
+                )
+
+            df_complementarios_78 = (
+                df_complementarios_78[
+                    (
+                        df_complementarios_78[
+                            "Producto"
+                        ] != ""
+                    )
+                    &
+                    (
+                        df_complementarios_78[
+                            "Indicaciones / Escenarios"
+                        ] != ""
+                    )
+                    &
+                    (
+                        df_complementarios_78[
+                            "Combinaciones estratégicas"
+                        ] != ""
+                    )
+                ]
+                .drop_duplicates()
+                .reset_index(drop=True)
+            )
+
+            df_complementarios_78[
+                "Fuente_ID"
+            ] = [
+                f"COM-{i:06d}"
+                for i in range(
+                    1,
+                    len(df_complementarios_78) + 1
+                )
+            ]
+
+            st.session_state[
+                "df_complementarios_78"
+            ] = df_complementarios_78.copy()
+
+            st.success(
+                f"Complementarios cargó "
+                f"{len(df_complementarios_78)} "
+                "relaciones disponibles."
+            )
+
+            st.dataframe(
+                df_complementarios_78,
+                use_container_width=True,
+                hide_index=True
+            )
+
+
+# ============================================================
+# MOSTRAR DATAFRAME CARGADO
+# ============================================================
+
+if "df_complementarios_78" in st.session_state:
+
+    df_complementarios_78 = (
+        st.session_state[
+            "df_complementarios_78"
+        ]
+    )
+
+    st.markdown(
+        "### Fuente Complementarios cargada"
+    )
+
+    st.dataframe(
+        df_complementarios_78[
+            [
+                "Fuente_ID",
+                "Producto",
+                "Categoría principal",
+                "Indicaciones / Escenarios",
+                "Modo de acción resumido",
+                "Combinaciones estratégicas"
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True
+    )
