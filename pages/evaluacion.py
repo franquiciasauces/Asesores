@@ -18672,3 +18672,434 @@ if preguntas_78:
             "Las preguntas aprobadas quedan "
             "listas para la sincronización."
         )
+# ============================================================
+# 7.8 - PARTE 4
+# SINCRONIZAR PREGUNTAS CON BANCO GENERAL
+# ============================================================
+
+GITHUB_USUARIO_78 = "franquiciasauces"
+GITHUB_REPOSITORIO_78 = "Asesores"
+GITHUB_RAMA_78 = "main"
+
+GITHUB_ARCHIVO_78 = (
+    "BANCO_PREGUNTAS_GENERALES.xlsx"
+)
+
+URL_GITHUB_78 = (
+    "https://api.github.com/repos/"
+    f"{GITHUB_USUARIO_78}/"
+    f"{GITHUB_REPOSITORIO_78}/contents/"
+    f"{GITHUB_ARCHIVO_78}"
+)
+
+
+def sincronizar_banco_78():
+
+    preguntas = st.session_state.get(
+        "preguntas_generadas_78",
+        []
+    )
+
+    if not preguntas:
+
+        st.warning(
+            "No hay preguntas para sincronizar."
+        )
+
+        return
+
+    preguntas_aprobadas = [
+        pregunta
+        for pregunta in preguntas
+        if pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "APROBADA"
+    ]
+
+    if not preguntas_aprobadas:
+
+        st.warning(
+            "No hay preguntas aprobadas "
+            "para sincronizar."
+        )
+
+        return
+
+    headers = {
+        "Authorization":
+            f"Bearer {GITHUB_TOKEN}",
+
+        "Accept":
+            "application/vnd.github+json"
+    }
+
+    try:
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_78,
+            headers=headers,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            datos = json.loads(
+                respuesta.read().decode(
+                    "utf-8"
+                )
+            )
+
+        sha = datos["sha"]
+
+        contenido = base64.b64decode(
+            datos["content"].replace(
+                "\n",
+                ""
+            )
+        )
+
+        import io
+
+        memoria_entrada = io.BytesIO(
+            contenido
+        )
+
+        df_banco = pd.read_excel(
+            memoria_entrada,
+            engine="openpyxl"
+        )
+
+        total_antes = len(
+            df_banco
+        )
+
+        columnas = [
+            "Pregunta_ID",
+            "Modulo",
+            "Tema",
+            "Nivel",
+            "Tipo_Relacion",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Estado",
+            "Observacion_Administrador",
+            "Fecha_Generacion",
+            "Fuente_ID"
+        ]
+
+        df_nuevas = pd.DataFrame(
+            preguntas_aprobadas
+        )
+
+        faltantes = [
+            columna
+            for columna in columnas
+            if columna not in df_nuevas.columns
+        ]
+
+        if faltantes:
+
+            st.error(
+                "7.8 ERROR: faltan columnas "
+                "en las preguntas generadas: "
+                + ", ".join(faltantes)
+            )
+
+            return
+
+        df_nuevas = df_nuevas[
+            columnas
+        ].copy()
+
+        if "Pregunta_ID" not in df_banco.columns:
+
+            st.error(
+                "7.8 ERROR: el banco no contiene "
+                "la columna Pregunta_ID."
+            )
+
+            return
+
+        df_banco["Pregunta_ID"] = (
+            df_banco["Pregunta_ID"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+        df_nuevas["Pregunta_ID"] = (
+            df_nuevas["Pregunta_ID"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+        ids_existentes = set(
+            df_banco[
+                "Pregunta_ID"
+            ]
+        )
+
+        ids_nuevos = set()
+
+        filas_nuevas = []
+
+        filas_actualizadas = []
+
+        for _, pregunta in df_nuevas.iterrows():
+
+            pregunta_id = (
+                pregunta["Pregunta_ID"]
+            )
+
+            if not pregunta_id:
+
+                continue
+
+            if pregunta_id in ids_nuevos:
+
+                continue
+
+            ids_nuevos.add(
+                pregunta_id
+            )
+
+            if pregunta_id in ids_existentes:
+
+                filas_actualizadas.append(
+                    pregunta
+                )
+
+            else:
+
+                filas_nuevas.append(
+                    pregunta
+                )
+
+        actualizadas_78 = len(
+            filas_actualizadas
+        )
+
+        nuevas_78 = len(
+            filas_nuevas
+        )
+
+        if (
+            actualizadas_78 == 0
+            and nuevas_78 == 0
+        ):
+
+            st.info(
+                "No hay cambios nuevos para "
+                "sincronizar."
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # ACTUALIZAR PREGUNTAS YA EXISTENTES
+        # ----------------------------------------------------
+
+        for pregunta in filas_actualizadas:
+
+            pregunta_id = (
+                pregunta["Pregunta_ID"]
+            )
+
+            indice = df_banco.index[
+                df_banco["Pregunta_ID"]
+                == pregunta_id
+            ]
+
+            if len(indice) == 0:
+
+                continue
+
+            indice = indice[0]
+
+            for columna in columnas:
+
+                df_banco.at[
+                    indice,
+                    columna
+                ] = pregunta[columna]
+
+        # ----------------------------------------------------
+        # AGREGAR PREGUNTAS NUEVAS
+        # ----------------------------------------------------
+
+        if filas_nuevas:
+
+            df_nuevas_agregar = pd.DataFrame(
+                filas_nuevas
+            )
+
+            df_banco = pd.concat(
+                [
+                    df_banco,
+                    df_nuevas_agregar
+                ],
+                ignore_index=True
+            )
+
+        df_final = df_banco.copy()
+
+        # ----------------------------------------------------
+        # CREAR ARCHIVO EXCEL
+        # ----------------------------------------------------
+
+        memoria_salida = io.BytesIO()
+
+        with pd.ExcelWriter(
+            memoria_salida,
+            engine="openpyxl"
+        ) as writer:
+
+            df_final.to_excel(
+                writer,
+                index=False,
+                sheet_name="Banco"
+            )
+
+        contenido_nuevo = base64.b64encode(
+            memoria_salida.getvalue()
+        ).decode(
+            "utf-8"
+        )
+
+        # ----------------------------------------------------
+        # ACTUALIZAR GITHUB
+        # ----------------------------------------------------
+
+        datos_actualizacion = {
+
+            "message":
+                "Actualizar preguntas 7.8 - Complementarios",
+
+            "content":
+                contenido_nuevo,
+
+            "branch":
+                GITHUB_RAMA_78,
+
+            "sha":
+                sha
+        }
+
+        cuerpo = json.dumps(
+            datos_actualizacion
+        ).encode(
+            "utf-8"
+        )
+
+        solicitud = urllib.request.Request(
+            URL_GITHUB_78,
+            data=cuerpo,
+            headers={
+                **headers,
+                "Content-Type":
+                    "application/json"
+            },
+            method="PUT"
+        )
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            respuesta.read()
+
+        total_despues = len(
+            df_final
+        )
+
+        st.success(
+            "Banco de preguntas actualizado "
+            "correctamente en GitHub."
+        )
+
+        st.info(
+            f"Preguntas existentes antes: "
+            f"{total_antes:,}"
+        )
+
+        st.info(
+            f"Preguntas nuevas incorporadas: "
+            f"{nuevas_78:,}"
+        )
+
+        st.info(
+            f"Preguntas aprobadas actualizadas: "
+            f"{actualizadas_78:,}"
+        )
+
+        st.info(
+            f"Preguntas totales después: "
+            f"{total_despues:,}"
+        )
+
+        st.dataframe(
+            df_nuevas,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    except Exception as error:
+
+        st.error(
+            "No fue posible actualizar "
+            "BANCO_PREGUNTAS_GENERALES.xlsx."
+        )
+
+        st.exception(error)
+
+
+# ============================================================
+# BOTÓN DE SINCRONIZACIÓN 7.8
+# ============================================================
+
+if preguntas_78:
+
+    aprobadas_78 = sum(
+        1
+        for pregunta in preguntas_78
+        if pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "APROBADA"
+    )
+
+    pendientes_78 = sum(
+        1
+        for pregunta in preguntas_78
+        if pregunta.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    if aprobadas_78 > 0:
+
+        if pendientes_78 > 0:
+
+            st.warning(
+                f"Hay {pendientes_78} preguntas "
+                "pendientes. Solo se sincronizarán "
+                "las aprobadas."
+            )
+
+        if st.button(
+            "SINCRONIZAR 7.8 CON BANCO DE PREGUNTAS",
+            key="sincronizar_banco_78"
+        ):
+
+            sincronizar_banco_78()
