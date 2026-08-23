@@ -14973,6 +14973,8 @@ if preguntas_75:
 
         st.divider()
 # ============================================================
+
+# ============================================================
 # 7.5 - PARTE 3
 # VALIDACIÓN INDIVIDUAL DE PREGUNTAS
 # PATOLOGÍA - PRODUCTO
@@ -14994,9 +14996,7 @@ if preguntas_75:
         "Una pregunta rechazada no afecta las demás."
     )
 
-    for i, pregunta in enumerate(
-        preguntas_75
-    ):
+    for i, pregunta in enumerate(preguntas_75):
 
         st.markdown(
             f"### {pregunta['Pregunta_ID']}"
@@ -15063,9 +15063,9 @@ if preguntas_75:
                 key=f"aprobar_75_{i}"
             ):
 
-                preguntas_75[i][
-                    "Estado"
-                ] = "APROBADA"
+                preguntas_75[i]["Estado"] = (
+                    "APROBADA"
+                )
 
                 preguntas_75[i][
                     "Observacion_Administrador"
@@ -15084,9 +15084,9 @@ if preguntas_75:
                 key=f"rechazar_75_{i}"
             ):
 
-                preguntas_75[i][
-                    "Estado"
-                ] = "RECHAZADA"
+                preguntas_75[i]["Estado"] = (
+                    "RECHAZADA"
+                )
 
                 preguntas_75[i][
                     "Observacion_Administrador"
@@ -15110,17 +15110,13 @@ if preguntas_75:
     aprobadas_75 = sum(
         1
         for p in preguntas_75
-        if p.get(
-            "Estado"
-        ) == "APROBADA"
+        if p.get("Estado") == "APROBADA"
     )
 
     rechazadas_75 = sum(
         1
         for p in preguntas_75
-        if p.get(
-            "Estado"
-        ) == "RECHAZADA"
+        if p.get("Estado") == "RECHAZADA"
     )
 
     pendientes_75 = sum(
@@ -15327,9 +15323,7 @@ def sincronizar_banco_75():
                 ]
                 .astype(str)
                 .str.strip()
-                .isin(
-                    existentes
-                )
+                .isin(existentes)
             ]
 
         total_nuevas = len(
@@ -15357,6 +15351,8 @@ def sincronizar_banco_75():
             ],
             ignore_index=True
         )
+
+        import io
 
         memoria = io.BytesIO()
 
