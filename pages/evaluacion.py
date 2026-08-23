@@ -9680,6 +9680,7 @@ if preguntas_63:
 
             sincronizar_banco_63()
 
+
 # ============================================================
 # 6.4 - PRODUCTO / CATEGORÍA PRINCIPAL + COMPLEMENTARIA
 # PARTE 1 - CARGA Y CONTROL DE FUENTE
@@ -10161,4 +10162,3 @@ if (
         use_container_width=True,
         hide_index=True
     )
-
