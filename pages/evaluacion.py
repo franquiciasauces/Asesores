@@ -23065,3 +23065,528 @@ if st.session_state.get(
         "únicamente Módulo + Tipo_Relacion + Nivel. "
         "La columna Tema queda fuera del proceso."
     )
+# ============================================================
+# 10.2 - ANÁLISIS Y DISPONIBILIDAD DEL BANCO
+# ============================================================
+# ENTRADA:
+#     df_banco_101
+#
+# FUENTE:
+#     BANCO_PREGUNTAS_GENERALES.xlsx
+#     cargado por 10.1
+#
+# CLASIFICACIÓN:
+#     Módulo
+#     Tipo_Relacion
+#     Nivel
+#
+# NO UTILIZA:
+#     Tema
+#
+# REGLA:
+#     1 evaluación = 10 preguntas
+#
+# SALIDAS:
+#     df_aprobadas_102
+#     resumen_disponibilidad_102
+#
+# 10.2 NO consume preguntas.
+# 10.2 NO modifica el banco.
+# ============================================================
+
+
+# ============================================================
+# VERIFICAR QUE 10.1 HAYA CARGADO EL BANCO
+# ============================================================
+
+if not st.session_state.get(
+    "banco_101_cargado",
+    False
+):
+
+    st.warning(
+        "Primero debe cargar el Banco General "
+        "desde 10.1."
+    )
+
+else:
+
+    # ========================================================
+    # RECUPERAR FUENTE DE 10.1
+    # ========================================================
+
+    df_banco_101 = st.session_state.get(
+        "df_banco_101",
+        pd.DataFrame()
+    ).copy()
+
+
+    # ========================================================
+    # FUNCIÓN DE ANÁLISIS
+    # ========================================================
+
+    def analizar_disponibilidad_102(
+        df_banco_101
+    ):
+
+        # ----------------------------------------------------
+        # COLUMNAS NECESARIAS
+        # ----------------------------------------------------
+
+        columnas_requeridas_102 = [
+            "Pregunta_ID",
+            "Modulo",
+            "Tipo_Relacion",
+            "Nivel",
+            "Estado"
+        ]
+
+        faltantes_102 = [
+            columna
+            for columna in columnas_requeridas_102
+            if columna not in df_banco_101.columns
+        ]
+
+        if faltantes_102:
+
+            st.error(
+                "10.2 ERROR: faltan columnas en "
+                "df_banco_101: "
+                + ", ".join(faltantes_102)
+            )
+
+            return None, None
+
+
+        # ----------------------------------------------------
+        # SOLO APROBADAS
+        # ----------------------------------------------------
+
+        df_aprobadas_102 = df_banco_101[
+            df_banco_101["Estado"]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+            == "APROBADA"
+        ].copy()
+
+
+        # ----------------------------------------------------
+        # VALIDAR ESTRUCTURA
+        # ----------------------------------------------------
+
+        df_aprobadas_102 = df_aprobadas_102[
+            (
+                df_aprobadas_102["Pregunta_ID"]
+                .astype(str)
+                .str.strip()
+                != ""
+            )
+            &
+            (
+                df_aprobadas_102["Modulo"]
+                .astype(str)
+                .str.strip()
+                != ""
+            )
+            &
+            (
+                df_aprobadas_102["Tipo_Relacion"]
+                .astype(str)
+                .str.strip()
+                != ""
+            )
+            &
+            (
+                df_aprobadas_102["Nivel"]
+                .astype(str)
+                .str.strip()
+                != ""
+            )
+        ].copy()
+
+
+        # ----------------------------------------------------
+        # TOTALIZAR POR:
+        #
+        # MODULO
+        # TIPO_RELACION
+        # NIVEL
+        # ----------------------------------------------------
+
+        if df_aprobadas_102.empty:
+
+            resumen_102 = pd.DataFrame(
+                columns=[
+                    "Modulo",
+                    "Tipo_Relacion",
+                    "Nivel",
+                    "Preguntas_Disponibles",
+                    "Evaluaciones_Completas",
+                    "Preguntas_Sobrantes"
+                ]
+            )
+
+        else:
+
+            resumen_102 = (
+                df_aprobadas_102
+                .groupby(
+                    [
+                        "Modulo",
+                        "Tipo_Relacion",
+                        "Nivel"
+                    ],
+                    dropna=False
+                )
+                .size()
+                .reset_index(
+                    name="Preguntas_Disponibles"
+                )
+            )
+
+
+            # ------------------------------------------------
+            # EVALUACIONES COMPLETAS DE 10
+            # ------------------------------------------------
+
+            resumen_102[
+                "Evaluaciones_Completas"
+            ] = (
+                resumen_102[
+                    "Preguntas_Disponibles"
+                ]
+                // 10
+            )
+
+
+            # ------------------------------------------------
+            # SOBRANTES
+            # ------------------------------------------------
+
+            resumen_102[
+                "Preguntas_Sobrantes"
+            ] = (
+                resumen_102[
+                    "Preguntas_Disponibles"
+                ]
+                % 10
+            )
+
+
+            # ------------------------------------------------
+            # ORDEN
+            # ------------------------------------------------
+
+            resumen_102 = (
+                resumen_102
+                .sort_values(
+                    [
+                        "Modulo",
+                        "Tipo_Relacion",
+                        "Nivel"
+                    ]
+                )
+                .reset_index(drop=True)
+            )
+
+
+        return (
+            df_aprobadas_102.reset_index(
+                drop=True
+            ),
+            resumen_102
+        )
+
+
+    # ========================================================
+    # INTERFAZ 10.2
+    # ========================================================
+
+    st.markdown(
+        "## 10.2 - Análisis y disponibilidad"
+    )
+
+    st.info(
+        "El banco se clasifica exclusivamente por "
+        "Módulo + Tipo_Relacion + Nivel. "
+        "La columna Tema no interviene."
+    )
+
+
+    if st.button(
+        "ANALIZAR DISPONIBILIDAD DEL BANCO",
+        key="analizar_disponibilidad_102"
+    ):
+
+        resultado_102 = (
+            analizar_disponibilidad_102(
+                df_banco_101
+            )
+        )
+
+        if resultado_102[0] is not None:
+
+            (
+                df_aprobadas_102,
+                resumen_102
+            ) = resultado_102
+
+
+            # ------------------------------------------------
+            # GUARDAR RESULTADOS
+            # ------------------------------------------------
+
+            st.session_state[
+                "df_aprobadas_102"
+            ] = df_aprobadas_102.copy()
+
+            st.session_state[
+                "resumen_disponibilidad_102"
+            ] = resumen_102.copy()
+
+            st.session_state[
+                "analisis_102_realizado"
+            ] = True
+
+
+    # ========================================================
+    # MOSTRAR RESULTADOS
+    # ========================================================
+
+    if st.session_state.get(
+        "analisis_102_realizado",
+        False
+    ):
+
+        df_aprobadas_102 = st.session_state.get(
+            "df_aprobadas_102",
+            pd.DataFrame()
+        )
+
+        resumen_102 = st.session_state.get(
+            "resumen_disponibilidad_102",
+            pd.DataFrame()
+        )
+
+
+        # ====================================================
+        # CONTADORES GENERALES
+        # ====================================================
+
+        total_aprobadas_102 = len(
+            df_aprobadas_102
+        )
+
+        grupos_102 = len(
+            resumen_102
+        )
+
+        evaluaciones_102 = (
+            int(
+                resumen_102[
+                    "Evaluaciones_Completas"
+                ].sum()
+            )
+            if not resumen_102.empty
+            else 0
+        )
+
+        sobrantes_102 = (
+            int(
+                resumen_102[
+                    "Preguntas_Sobrantes"
+                ].sum()
+            )
+            if not resumen_102.empty
+            else 0
+        )
+
+
+        # ====================================================
+        # MÉTRICAS
+        # ====================================================
+
+        st.markdown(
+            "### Estado actual del banco"
+        )
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+
+            st.metric(
+                "Preguntas aprobadas",
+                f"{total_aprobadas_102:,}"
+            )
+
+        with col2:
+
+            st.metric(
+                "Grupos",
+                f"{grupos_102:,}"
+            )
+
+        with col3:
+
+            st.metric(
+                "Evaluaciones posibles",
+                f"{evaluaciones_102:,}"
+            )
+
+        with col4:
+
+            st.metric(
+                "Preguntas sobrantes",
+                f"{sobrantes_102:,}"
+            )
+
+
+        # ====================================================
+        # TABLA DE DISPONIBILIDAD
+        # ====================================================
+
+        st.markdown(
+            "### Disponibilidad por Módulo / Relación / Nivel"
+        )
+
+        if resumen_102.empty:
+
+            st.warning(
+                "No hay preguntas aprobadas disponibles "
+                "para estructurar evaluaciones."
+            )
+
+        else:
+
+            st.dataframe(
+                resumen_102[
+                    [
+                        "Modulo",
+                        "Tipo_Relacion",
+                        "Nivel",
+                        "Preguntas_Disponibles",
+                        "Evaluaciones_Completas",
+                        "Preguntas_Sobrantes"
+                    ]
+                ],
+                use_container_width=True,
+                hide_index=True
+            )
+
+
+        # ====================================================
+        # DETALLE POR MÓDULO
+        # ====================================================
+
+        if not resumen_102.empty:
+
+            st.markdown(
+                "### Resumen por módulo"
+            )
+
+            resumen_modulo_102 = (
+                resumen_102
+                .groupby(
+                    "Modulo",
+                    as_index=False
+                )
+                .agg(
+                    Preguntas_Disponibles=(
+                        "Preguntas_Disponibles",
+                        "sum"
+                    ),
+                    Evaluaciones_Completas=(
+                        "Evaluaciones_Completas",
+                        "sum"
+                    ),
+                    Preguntas_Sobrantes=(
+                        "Preguntas_Sobrantes",
+                        "sum"
+                    )
+                )
+            )
+
+            st.dataframe(
+                resumen_modulo_102,
+                use_container_width=True,
+                hide_index=True
+            )
+
+
+        # ====================================================
+        # DETALLE POR RELACIÓN
+        # ====================================================
+
+        if not resumen_102.empty:
+
+            st.markdown(
+                "### Resumen por Tipo_Relacion"
+            )
+
+            resumen_relacion_102 = (
+                resumen_102
+                .groupby(
+                    "Tipo_Relacion",
+                    as_index=False
+                )
+                .agg(
+                    Preguntas_Disponibles=(
+                        "Preguntas_Disponibles",
+                        "sum"
+                    ),
+                    Evaluaciones_Completas=(
+                        "Evaluaciones_Completas",
+                        "sum"
+                    ),
+                    Preguntas_Sobrantes=(
+                        "Preguntas_Sobrantes",
+                        "sum"
+                    )
+                )
+            )
+
+            st.dataframe(
+                resumen_relacion_102,
+                use_container_width=True,
+                hide_index=True
+            )
+
+
+        # ====================================================
+        # REGLAS PARA 10.3
+        # ====================================================
+
+        st.markdown(
+            "### Reglas para la generación de evaluaciones"
+        )
+
+        st.write(
+            "• Cada evaluación tendrá exactamente "
+            "10 preguntas."
+        )
+
+        st.write(
+            "• Las preguntas se agrupan por "
+            "Módulo + Tipo_Relacion + Nivel."
+        )
+
+        st.write(
+            "• Una pregunta utilizada en una evaluación "
+            "no podrá reutilizarse en otra."
+        )
+
+        st.write(
+            "• Las preguntas sobrantes permanecen "
+            "disponibles."
+        )
+
+        st.write(
+            "• Si un grupo tiene menos de 10 preguntas "
+            "disponibles, no genera una evaluación completa."
+        )
+
+        st.write(
+            "• 10.2 solamente analiza; no consume ni "
+            "modifica preguntas."
+        )
