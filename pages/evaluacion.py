@@ -23432,125 +23432,208 @@ if st.session_state.get(
     )
 
 # ============================================================
-# FITOASISTE - 10.2.A
-# CRUCE REAL BANCO GENERAL + PREGUNTAS_EVALUACIONES
+# FITOASISTE
+# 10.2.A - CRUCE REAL DE DISPONIBILIDAD
 # ============================================================
 
-st.markdown("## 10.2.A - Cruce y disponibilidad")
+st.markdown("## 10.2.A - Cruce real Banco General / Persistencia")
 
 # ------------------------------------------------------------
-# 1. TOMAR LOS DATAFRAMES QUE YA CARGÓ 10.1
+# CONFIGURACIÓN
 # ------------------------------------------------------------
 
-df_banco = st.session_state.get(
-    "df_banco_101",
-    pd.DataFrame()
-).copy()
+GITHUB_USUARIO_102A = "franquiciasauces"
+GITHUB_REPOSITORIO_102A = "Asesores"
+GITHUB_RAMA_102A = "main"
 
-df_persistencia = st.session_state.get(
-    "df_preguntas_evaluaciones_101",
-    pd.DataFrame()
-).copy()
+ARCHIVO_BANCO_102A = "BANCO_PREGUNTAS_GENERALES.xlsx"
+ARCHIVO_PERSISTENCIA_102A = "page/PREGUNTAS_EVALUACIONES.csv"
 
-if df_banco.empty:
-    st.error("10.2.A: no existe el Banco General cargado por 10.1.")
-    st.stop()
 
-if df_persistencia.empty:
-    st.warning(
-        "10.2.A: PREGUNTAS_EVALUACIONES.csv no tiene registros."
+# ============================================================
+# LEER ARCHIVO DE GITHUB
+# ============================================================
+
+def leer_github_102a(ruta):
+
+    token = st.secrets["GITHUB_TOKEN"]
+
+    url = (
+        f"https://api.github.com/repos/"
+        f"{GITHUB_USUARIO_102A}/"
+        f"{GITHUB_REPOSITORIO_102A}/contents/"
+        f"{ruta}?ref={GITHUB_RAMA_102A}"
     )
 
-# ------------------------------------------------------------
-# 2. VERIFICAR COLUMNAS EXACTAS
-# ------------------------------------------------------------
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json"
+        }
+    )
 
-columnas_banco = ["Pregunta_ID", "Modulo", "Tema", "Nivel",
-                  "Tipo_Relacion", "Estado"]
+    with urllib.request.urlopen(
+        request,
+        timeout=30
+    ) as response:
 
-columnas_persistencia = [
+        datos = json.loads(
+            response.read().decode("utf-8")
+        )
+
+    contenido = base64.b64decode(
+        datos["content"].replace("\n", "")
+    )
+
+    return contenido
+
+
+# ============================================================
+# CARGAR BANCO GENERAL
+# ============================================================
+
+try:
+
+    contenido_banco_102a = leer_github_102a(
+        ARCHIVO_BANCO_102A
+    )
+
+    df_banco_102a = pd.read_excel(
+        io.BytesIO(contenido_banco_102a),
+        dtype=str
+    ).fillna("")
+
+except Exception as error:
+
+    st.error(
+        "10.2.A ERROR cargando "
+        "BANCO_PREGUNTAS_GENERALES.xlsx"
+    )
+
+    st.exception(error)
+
+    st.stop()
+
+
+# ============================================================
+# CARGAR PREGUNTAS_EVALUACIONES
+# ============================================================
+
+try:
+
+    contenido_persistencia_102a = leer_github_102a(
+        ARCHIVO_PERSISTENCIA_102A
+    )
+
+    df_persistencia_102a = pd.read_csv(
+        io.BytesIO(contenido_persistencia_102a),
+        dtype=str
+    ).fillna("")
+
+except Exception as error:
+
+    st.error(
+        "10.2.A ERROR cargando "
+        "PREGUNTAS_EVALUACIONES.csv"
+    )
+
+    st.exception(error)
+
+    st.stop()
+
+
+# ============================================================
+# VALIDAR COLUMNAS REALES
+# ============================================================
+
+columnas_banco_102a = [
+    "Pregunta_ID",
+    "Modulo",
+    "Tema",
+    "Nivel",
+    "Tipo_Relacion",
+    "Estado"
+]
+
+columnas_persistencia_102a = [
     "Pregunta_ID",
     "Estado_Validacion",
     "Estado_Uso"
 ]
 
-faltantes_banco = [
-    c for c in columnas_banco
-    if c not in df_banco.columns
+faltantes_banco_102a = [
+    c for c in columnas_banco_102a
+    if c not in df_banco_102a.columns
 ]
 
-faltantes_persistencia = [
-    c for c in columnas_persistencia
-    if c not in df_persistencia.columns
+faltantes_persistencia_102a = [
+    c for c in columnas_persistencia_102a
+    if c not in df_persistencia_102a.columns
 ]
 
-if faltantes_banco:
+if faltantes_banco_102a:
+
     st.error(
-        "10.2.A: faltan columnas en Banco General: "
-        + ", ".join(faltantes_banco)
+        "Faltan columnas en el Banco General: "
+        + ", ".join(faltantes_banco_102a)
     )
+
     st.stop()
 
-if faltantes_persistencia:
+if faltantes_persistencia_102a:
+
     st.error(
-        "10.2.A: faltan columnas en PREGUNTAS_EVALUACIONES.csv: "
-        + ", ".join(faltantes_persistencia)
+        "Faltan columnas en PREGUNTAS_EVALUACIONES.csv: "
+        + ", ".join(faltantes_persistencia_102a)
     )
+
     st.stop()
 
-# ------------------------------------------------------------
-# 3. NORMALIZAR SOLO LA LLAVE DEL CRUCE
-# ------------------------------------------------------------
 
-df_banco["Pregunta_ID"] = (
-    df_banco["Pregunta_ID"]
-    .fillna("")
+# ============================================================
+# NORMALIZAR LA LLAVE
+# ============================================================
+
+df_banco_102a["Pregunta_ID"] = (
+    df_banco_102a["Pregunta_ID"]
     .astype(str)
     .str.strip()
 )
 
-df_persistencia["Pregunta_ID"] = (
-    df_persistencia["Pregunta_ID"]
-    .fillna("")
+df_persistencia_102a["Pregunta_ID"] = (
+    df_persistencia_102a["Pregunta_ID"]
     .astype(str)
     .str.strip()
 )
 
-df_persistencia["Estado_Validacion"] = (
-    df_persistencia["Estado_Validacion"]
-    .fillna("")
+df_persistencia_102a["Estado_Validacion"] = (
+    df_persistencia_102a["Estado_Validacion"]
     .astype(str)
     .str.strip()
     .str.upper()
 )
 
-df_persistencia["Estado_Uso"] = (
-    df_persistencia["Estado_Uso"]
-    .fillna("")
-    .astype(str)
-    .str.strip()
-    .str.upper()
-)
 
-# ------------------------------------------------------------
-# 4. UNA SOLA FILA POR Pregunta_ID EN LA PERSISTENCIA
-#    Se conserva el último registro de cada pregunta.
-# ------------------------------------------------------------
+# ============================================================
+# UNA SOLA FILA DE PERSISTENCIA POR Pregunta_ID
+# ============================================================
 
-df_persistencia = (
-    df_persistencia
+df_persistencia_102a = (
+    df_persistencia_102a
     .drop_duplicates(
         subset=["Pregunta_ID"],
         keep="last"
     )
 )
 
-# ------------------------------------------------------------
-# 5. CRUCE REAL
-# ------------------------------------------------------------
 
-df_disponibilidad_102 = df_banco.merge(
-    df_persistencia[
+# ============================================================
+# CRUCE REAL
+# ============================================================
+
+df_disponibilidad_102a = df_banco_102a.merge(
+    df_persistencia_102a[
         [
             "Pregunta_ID",
             "Estado_Validacion",
@@ -23558,107 +23641,166 @@ df_disponibilidad_102 = df_banco.merge(
         ]
     ],
     on="Pregunta_ID",
-    how="left",
-    indicator=True
+    how="left"
 )
 
-# ------------------------------------------------------------
-# 6. CLASIFICAR DISPONIBILIDAD
-# ------------------------------------------------------------
 
-df_disponibilidad_102["Estado_Cruce"] = "DISPONIBLE"
+# ============================================================
+# ESTADO REAL DE DISPONIBILIDAD
+# ============================================================
 
-# Rechazada directamente en Banco General
-df_disponibilidad_102.loc[
-    df_disponibilidad_102["Estado"].str.upper() == "RECHAZADA",
-    "Estado_Cruce"
-] = "RECHAZADA_BANCO"
-
-# Ya fue aprobada en validación
-df_disponibilidad_102.loc[
-    df_disponibilidad_102["Estado_Validacion"] == "APROBADA",
-    "Estado_Cruce"
-] = "CONSUMIDA_APROBADA"
-
-# Ya fue rechazada en validación
-df_disponibilidad_102.loc[
-    df_disponibilidad_102["Estado_Validacion"] == "RECHAZADA",
-    "Estado_Cruce"
-] = "CONSUMIDA_RECHAZADA"
-
-# AÚN NO SE UTILIZA sigue disponible
-df_disponibilidad_102.loc[
-    df_disponibilidad_102["Estado_Validacion"] == "AÚN NO SE UTILIZA",
-    "Estado_Cruce"
+df_disponibilidad_102a[
+    "Disponibilidad_102A"
 ] = "DISPONIBLE"
 
-# ------------------------------------------------------------
-# 7. GUARDAR PARA 10.2.B Y 10.3
-# ------------------------------------------------------------
+
+# RECHAZADA EN BANCO GENERAL
+df_disponibilidad_102a.loc[
+    df_disponibilidad_102a["Estado"]
+    .str.upper()
+    .eq("RECHAZADA"),
+    "Disponibilidad_102A"
+] = "NO DISPONIBLE - RECHAZADA BANCO"
+
+
+# APROBADA EN VALIDACIÓN
+df_disponibilidad_102a.loc[
+    df_disponibilidad_102a["Estado_Validacion"]
+    .eq("APROBADA"),
+    "Disponibilidad_102A"
+] = "NO DISPONIBLE - APROBADA"
+
+
+# RECHAZADA EN VALIDACIÓN
+df_disponibilidad_102a.loc[
+    df_disponibilidad_102a["Estado_Validacion"]
+    .eq("RECHAZADA"),
+    "Disponibilidad_102A"
+] = "NO DISPONIBLE - RECHAZADA VALIDACION"
+
+
+# AÚN NO SE UTILIZA = DISPONIBLE
+df_disponibilidad_102a.loc[
+    df_disponibilidad_102a["Estado_Validacion"]
+    .eq("AÚN NO SE UTILIZA"),
+    "Disponibilidad_102A"
+] = "DISPONIBLE"
+
+
+# ============================================================
+# GUARDAR RESULTADO PARA 10.2.B / 10.3
+# ============================================================
 
 st.session_state[
-    "df_disponibilidad_102"
-] = df_disponibilidad_102.copy()
+    "df_disponibilidad_102a"
+] = df_disponibilidad_102a.copy()
 
-# ------------------------------------------------------------
-# 8. PRELIMINAR OBLIGATORIO
-# ------------------------------------------------------------
 
-total_banco = len(df_banco)
+# ============================================================
+# RESULTADO MÍNIMO DEL CRUCE
+# ============================================================
 
-en_persistencia = int(
+total_banco_102a = len(
+    df_banco_102a
+)
+
+ids_persistencia_102a = set(
+    df_persistencia_102a["Pregunta_ID"]
+)
+
+ids_banco_102a = set(
+    df_banco_102a["Pregunta_ID"]
+)
+
+en_persistencia_102a = len(
+    ids_banco_102a
+    & ids_persistencia_102a
+)
+
+aprobadas_102a = int(
     (
-        df_disponibilidad_102["_merge"] == "both"
+        df_disponibilidad_102a[
+            "Disponibilidad_102A"
+        ]
+        == "NO DISPONIBLE - APROBADA"
     ).sum()
 )
 
-consumidas_aprobadas = int(
+rechazadas_validacion_102a = int(
     (
-        df_disponibilidad_102["Estado_Cruce"]
-        == "CONSUMIDA_APROBADA"
+        df_disponibilidad_102a[
+            "Disponibilidad_102A"
+        ]
+        == "NO DISPONIBLE - RECHAZADA VALIDACION"
     ).sum()
 )
 
-consumidas_rechazadas = int(
+rechazadas_banco_102a = int(
     (
-        df_disponibilidad_102["Estado_Cruce"]
-        == "CONSUMIDA_RECHAZADA"
+        df_disponibilidad_102a[
+            "Disponibilidad_102A"
+        ]
+        == "NO DISPONIBLE - RECHAZADA BANCO"
     ).sum()
 )
 
-rechazadas_banco = int(
+disponibles_102a = int(
     (
-        df_disponibilidad_102["Estado_Cruce"]
-        == "RECHAZADA_BANCO"
-    ).sum()
-)
-
-disponibles = int(
-    (
-        df_disponibilidad_102["Estado_Cruce"]
+        df_disponibilidad_102a[
+            "Disponibilidad_102A"
+        ]
         == "DISPONIBLE"
     ).sum()
 )
 
-st.markdown("### Preliminar del cruce")
+
+# ============================================================
+# MOSTRAR PRELIMINAR
+# ============================================================
+
+st.markdown("### Resultado del cruce")
 
 c1, c2, c3, c4, c5, c6 = st.columns(6)
 
-c1.metric("Banco", total_banco)
-c2.metric("En persistencia", en_persistencia)
-c3.metric("Aprobadas", consumidas_aprobadas)
-c4.metric("Rechazadas validación", consumidas_rechazadas)
-c5.metric("Rechazadas banco", rechazadas_banco)
-c6.metric("Disponibles", disponibles)
+c1.metric(
+    "Preguntas Banco",
+    total_banco_102a
+)
 
-# ------------------------------------------------------------
-# 9. DETALLE DEL CRUCE
-# ------------------------------------------------------------
+c2.metric(
+    "Encontradas en persistencia",
+    en_persistencia_102a
+)
 
-st.markdown("### Detalle del cruce")
+c3.metric(
+    "Aprobadas",
+    aprobadas_102a
+)
+
+c4.metric(
+    "Rechazadas validación",
+    rechazadas_validacion_102a
+)
+
+c5.metric(
+    "Rechazadas banco",
+    rechazadas_banco_102a
+)
+
+c6.metric(
+    "Disponibles",
+    disponibles_102a
+)
+
+
+# ============================================================
+# VERIFICACIÓN VISUAL DEL CRUCE
+# ============================================================
+
+st.markdown("### Verificación de preguntas cruzadas")
 
 st.dataframe(
-    df_disponibilidad_102[
+    df_disponibilidad_102a[
         [
             "Pregunta_ID",
             "Modulo",
@@ -23668,7 +23810,7 @@ st.dataframe(
             "Estado",
             "Estado_Validacion",
             "Estado_Uso",
-            "Estado_Cruce"
+            "Disponibilidad_102A"
         ]
     ],
     use_container_width=True,
