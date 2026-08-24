@@ -24112,27 +24112,215 @@ else:
                                     )
 
 # ============================================================
-# 10.4 - GENERADOR FÍSICO DE EVALUACIONES
+# 10.4 - PREPARACIÓN Y VALIDACIÓN INDIVIDUAL DE EVALUACIONES
 #
-# FUENTE:
-#     df_disponibles_103
+# REGLAS:
+#   - Trabaja únicamente con:
+#       Módulo + Tipo_Relacion + Nivel
+#   - No utiliza Tema para estructurar evaluaciones.
+#   - Cada evaluación tiene código automático.
+#   - Las preguntas se muestran individualmente.
+#   - APROBADA       -> queda reservada para la evaluación.
+#   - RECHAZADA      -> queda descartada.
+#   - NO APLICA AÚN  -> vuelve a quedar disponible.
+#   - No modifica todavía BANCO_PREGUNTAS_GENERALES.xlsx.
+#   - La sincronización se hará posteriormente en /evaluaciones/
 #
-# CONFIGURACIÓN:
-#     configuracion_evaluacion_103
+# ENTRADA PRINCIPAL:
+#   Banco de preguntas general cargado por 10.1
 #
-# NO UTILIZA:
-#     Tema
-#
-# NO MODIFICA TODAVÍA:
-#     BANCO_PREGUNTAS_GENERALES.xlsx
-#
-# LAS PREGUNTAS SE RESERVAN TEMPORALMENTE.
-# LA DECISIÓN DEFINITIVA SE HARÁ EN EL VALIDADOR.
+# SALIDA:
+#   Evaluaciones preparadas en session_state
 # ============================================================
 
 
 # ============================================================
-# FUNCIÓN PARA GENERAR CÓDIGO DE EVALUACIÓN
+# CONFIGURACIÓN
+# ============================================================
+
+COLUMNAS_EVALUACION_104 = [
+    "Pregunta_ID",
+    "Modulo",
+    "Tema",
+    "Nivel",
+    "Tipo_Relacion",
+    "Pregunta",
+    "Respuesta_1",
+    "Respuesta_2",
+    "Respuesta_3",
+    "Respuesta_4",
+    "Respuesta_Correcta",
+    "Estado",
+    "Observacion_Administrador",
+    "Fecha_Generacion",
+    "Fuente_ID"
+]
+
+
+# ============================================================
+# OBTENER BANCO GENERAL
+#
+# 10.1 puede haber utilizado diferentes nombres internos.
+# Buscamos primero el banco que normalmente utiliza el módulo.
+# ============================================================
+
+def obtener_banco_104():
+
+    posibles_claves_104 = [
+        "df_banco_general_101",
+        "df_banco_101",
+        "df_banco_102",
+        "df_banco_103",
+        "df_banco_104",
+        "df_banco_general",
+        "banco_preguntas_general",
+        "df_banco"
+    ]
+
+    for clave_104 in posibles_claves_104:
+
+        valor_104 = st.session_state.get(
+            clave_104
+        )
+
+        if isinstance(valor_104, pd.DataFrame):
+
+            if not valor_104.empty:
+
+                if "Pregunta_ID" in valor_104.columns:
+
+                    return valor_104.copy()
+
+    return pd.DataFrame()
+
+
+# ============================================================
+# NORMALIZAR TEXTO
+# ============================================================
+
+def normalizar_texto_104(valor):
+
+    if pd.isna(valor):
+
+        return ""
+
+    return (
+        str(valor)
+        .strip()
+    )
+
+
+# ============================================================
+# CÓDIGO DE MÓDULO
+# ============================================================
+
+def codigo_modulo_104(modulo):
+
+    texto = normalizar_texto_104(
+        modulo
+    ).lower()
+
+    if "patolog" in texto:
+        return "PAT"
+
+    if "producto" in texto:
+        return "PRO"
+
+    if "restric" in texto:
+        return "RES"
+
+    if "complement" in texto:
+        return "COM"
+
+    # Código genérico para módulos futuros
+    limpio = (
+        texto
+        .replace(" ", "")
+        .replace("_", "")
+        .replace("-", "")
+    )
+
+    if limpio:
+
+        return limpio[:3].upper()
+
+    return "MOD"
+
+
+# ============================================================
+# CÓDIGO DEL TIPO DE RELACIÓN
+#
+# No se utiliza Tema.
+# El código identifica el tipo de evaluación.
+# ============================================================
+
+def codigo_relacion_104(tipo_relacion):
+
+    texto = normalizar_texto_104(
+        tipo_relacion
+    ).lower()
+
+    if "defin" in texto:
+        return "DEF"
+
+    if "causa" in texto:
+        return "CAU"
+
+    if "sintom" in texto:
+        return "SIN"
+
+    if (
+        "descripcion" in texto
+        or "descripción" in texto
+    ):
+        return "DES"
+
+    if "componente" in texto:
+        return "COM"
+
+    if "accion" in texto or "acción" in texto:
+        return "ACC"
+
+    if "categoria" in texto or "categoría" in texto:
+        return "CAT"
+
+    if "alternativa" in texto:
+        return "ALT"
+
+    if "motivo" in texto:
+        return "MOT"
+
+    if (
+        "precauc" in texto
+        or "contraindic" in texto
+        or "restric" in texto
+    ):
+        return "RES"
+
+    if "complement" in texto:
+        return "CMP"
+
+    limpio = (
+        texto
+        .replace(" ", "")
+        .replace("_", "")
+        .replace("-", "")
+    )
+
+    if limpio:
+
+        return limpio[:3].upper()
+
+    return "REL"
+
+
+# ============================================================
+# SIGUIENTE CÓDIGO DE EVALUACIÓN
+#
+# Ejemplo:
+# EVAL-PAT-CAU-N1-0001
+# EVAL-PRO-ACC-N1-0001
+# EVAL-RES-ALT-N1-0001
 # ============================================================
 
 def siguiente_codigo_evaluacion_104(
@@ -24141,673 +24329,669 @@ def siguiente_codigo_evaluacion_104(
     nivel
 ):
 
+    codigo_modulo = codigo_modulo_104(
+        modulo
+    )
+
+    codigo_relacion = codigo_relacion_104(
+        tipo_relacion
+    )
+
+    nivel_texto = normalizar_texto_104(
+        nivel
+    ).upper()
+
+    if "NIVEL 1" in nivel_texto:
+        codigo_nivel = "N1"
+
+    elif "NIVEL 2" in nivel_texto:
+        codigo_nivel = "N2"
+
+    else:
+        codigo_nivel = (
+            nivel_texto
+            .replace(" ", "")
+            .replace("-", "")
+        )
+
+        if not codigo_nivel:
+            codigo_nivel = "NX"
+
+    prefijo = (
+        f"EVAL-{codigo_modulo}-"
+        f"{codigo_relacion}-"
+        f"{codigo_nivel}-"
+    )
+
     evaluaciones_104 = st.session_state.get(
-        "evaluaciones_generadas_104",
+        "evaluaciones_preparadas_104",
         []
     )
 
-    # --------------------------------------------------------
-    # PREFIJOS
-    # --------------------------------------------------------
+    mayor = 0
 
-    modulo_texto_104 = str(
-        modulo
-    ).strip().upper()
+    for evaluacion in evaluaciones_104:
 
-    relacion_texto_104 = str(
-        tipo_relacion
-    ).strip().upper()
-
-    nivel_texto_104 = str(
-        nivel
-    ).strip().upper()
-
-    # --------------------------------------------------------
-    # CÓDIGOS CORTOS Y ESTABLES
-    # --------------------------------------------------------
-
-    if "PATOLOG" in modulo_texto_104:
-
-        prefijo_modulo_104 = "PAT"
-
-    elif "PRODUCTO" in modulo_texto_104:
-
-        prefijo_modulo_104 = "PRO"
-
-    elif "RESTRICC" in modulo_texto_104:
-
-        prefijo_modulo_104 = "RES"
-
-    elif "COMPLEMENT" in modulo_texto_104:
-
-        prefijo_modulo_104 = "COM"
-
-    else:
-
-        prefijo_modulo_104 = "GEN"
-
-    # --------------------------------------------------------
-    # NIVEL
-    # --------------------------------------------------------
-
-    if "NIVEL 1" in nivel_texto_104:
-
-        prefijo_nivel_104 = "N1"
-
-    elif "NIVEL 2" in nivel_texto_104:
-
-        prefijo_nivel_104 = "N2"
-
-    else:
-
-        prefijo_nivel_104 = "NX"
-
-    # --------------------------------------------------------
-    # RELACIÓN
-    # --------------------------------------------------------
-
-    mapa_relaciones_104 = {
-
-        "PATOLOGIA-DEFINICION":
-            "DEF",
-
-        "PATOLOGIA-CAUSAS":
-            "CAU",
-
-        "PATOLOGIA-SINTOMAS":
-            "SIN",
-
-        "PATOLOGIA-PRODUCTO":
-            "PRO",
-
-        "PATOLOGIA-DESCIPRACION-PRODUCTO":
-            "DES",
-
-        "PATOLOGIA-DESCRIPCION-PRODUCTO":
-            "DES",
-
-        "ACCION GENERAL":
-            "ACC",
-
-        "COMPONENTE - ACCION":
-            "CMP",
-
-        "CATEGORIA PRINCIPAL":
-            "CAT",
-
-        "CATEGORIA PRINCIPAL Y COMPLEMENTARIA":
-            "CAC",
-
-        "PRODUCTO-MOTIVO":
-            "MOT",
-
-        "PRODUCTO-RESTRICCION-MOTIVO":
-            "PRM",
-
-        "PRODUCTO-RESTRICCION":
-            "RES",
-
-        "PRODUCTO-PRECAUCIÓN/CONTRAINDICACIÓN":
-            "PRE",
-
-        "PRODUCTO-PRECAUCIÓN/CONTRAINDICACIÓN-MOTIVO":
-            "PRM",
-
-        "PRODUCTO-ALTERNATIVAS SEGURAS":
-            "ALT",
-
-        "PRODUCTO-COMPLEMENTARIOS":
-            "COM"
-    }
-
-    relacion_normalizada_104 = (
-        relacion_texto_104
-        .replace("_", "-")
-        .replace("  ", " ")
-    )
-
-    prefijo_relacion_104 = (
-        mapa_relaciones_104.get(
-            relacion_normalizada_104,
-            "REL"
-        )
-    )
-
-    # --------------------------------------------------------
-    # BUSCAR MAYOR CONSECUTIVO EXISTENTE
-    # --------------------------------------------------------
-
-    mayor_104 = 0
-
-    for evaluacion_104 in evaluaciones_104:
-
-        codigo_104 = str(
-            evaluacion_104.get(
+        codigo = normalizar_texto_104(
+            evaluacion.get(
                 "Evaluacion_ID",
                 ""
             )
-        ).strip()
+        )
 
-        partes_104 = codigo_104.split("-")
+        if not codigo.startswith(prefijo):
+            continue
 
-        if len(partes_104) >= 4:
+        numero = codigo.replace(
+            prefijo,
+            ""
+        )
 
-            try:
+        try:
 
-                numero_104 = int(
-                    partes_104[-1]
-                )
+            mayor = max(
+                mayor,
+                int(numero)
+            )
 
-                mayor_104 = max(
-                    mayor_104,
-                    numero_104
-                )
+        except ValueError:
 
-            except ValueError:
-
-                pass
+            pass
 
     return (
-        f"EVAL-{prefijo_modulo_104}-"
-        f"{prefijo_relacion_104}-"
-        f"{prefijo_nivel_104}-"
-        f"{mayor_104 + 1:04d}"
+        f"{prefijo}{mayor + 1:04d}"
     )
 
 
 # ============================================================
-# FUNCIÓN PRINCIPAL
+# OBTENER PREGUNTAS YA RESERVADAS
+#
+# APROBADA = ya utilizada.
+# PENDIENTE dentro de otra evaluación = reservada temporalmente.
+#
+# NO APLICA AÚN NO se incluye aquí.
 # ============================================================
 
-def generar_evaluaciones_104():
+def preguntas_no_disponibles_104():
 
-    # ========================================================
-    # RECUPERAR CONFIGURACIÓN DE 10.3
-    # ========================================================
+    no_disponibles = set()
 
-    configuracion_104 = st.session_state.get(
-        "configuracion_evaluacion_103",
-        None
+    evaluaciones_104 = st.session_state.get(
+        "evaluaciones_preparadas_104",
+        []
     )
 
-    if not configuracion_104:
+    for evaluacion in evaluaciones_104:
 
-        st.warning(
-            "10.4: primero debe seleccionar y preparar "
-            "una evaluación en 10.3."
+        preguntas = evaluacion.get(
+            "Preguntas",
+            []
         )
 
-        return []
-
-    modulo_104 = str(
-        configuracion_104.get(
-            "Modulo",
+        estado_evaluacion = evaluacion.get(
+            "Estado",
             ""
         )
-    ).strip()
 
-    relacion_104 = str(
-        configuracion_104.get(
-            "Tipo_Relacion",
-            ""
-        )
-    ).strip()
+        for pregunta in preguntas:
 
-    nivel_104 = str(
-        configuracion_104.get(
-            "Nivel",
-            ""
-        )
-    ).strip()
-
-    cantidad_104 = int(
-        configuracion_104.get(
-            "Cantidad",
-            1
-        )
-    )
-
-    # ========================================================
-    # CARGAR PREGUNTAS DISPONIBLES
-    # ========================================================
-
-    df_disponibles_104 = st.session_state.get(
-        "df_disponibles_103",
-        pd.DataFrame()
-    )
-
-    if df_disponibles_104.empty:
-
-        st.warning(
-            "10.4: no hay preguntas disponibles."
-        )
-
-        return []
-
-    # ========================================================
-    # COLUMNAS NECESARIAS
-    # ========================================================
-
-    columnas_104 = [
-        "Pregunta_ID",
-        "Modulo",
-        "Tipo_Relacion",
-        "Nivel",
-        "Pregunta",
-        "Respuesta_1",
-        "Respuesta_2",
-        "Respuesta_3",
-        "Respuesta_4",
-        "Respuesta_Correcta",
-        "Estado",
-        "Observacion_Administrador",
-        "Fecha_Generacion",
-        "Fuente_ID"
-    ]
-
-    faltantes_104 = [
-        columna
-        for columna in columnas_104
-        if columna not in df_disponibles_104.columns
-    ]
-
-    if faltantes_104:
-
-        st.error(
-            "10.4 ERROR: faltan columnas en el banco: "
-            + ", ".join(
-                faltantes_104
+            pregunta_id = normalizar_texto_104(
+                pregunta.get(
+                    "Pregunta_ID",
+                    ""
+                )
             )
-        )
 
-        return []
+            estado = normalizar_texto_104(
+                pregunta.get(
+                    "Estado_Evaluacion",
+                    ""
+                )
+            )
 
-    # ========================================================
-    # FILTRAR EXACTAMENTE LA COMBINACIÓN SELECCIONADA
-    # ========================================================
+            # Solo quedan consumidas las aprobadas
+            # o las que están pendientes dentro
+            # de una evaluación activa.
 
-    candidatos_104 = df_disponibles_104[
-        (
-            df_disponibles_104["Modulo"]
-            .astype(str)
-            .str.strip()
-            == modulo_104
-        )
-        &
-        (
-            df_disponibles_104["Tipo_Relacion"]
-            .astype(str)
-            .str.strip()
-            == relacion_104
-        )
-        &
-        (
-            df_disponibles_104["Nivel"]
-            .astype(str)
-            .str.strip()
-            == nivel_104
-        )
-    ].copy()
+            if (
+                estado in [
+                    "APROBADA",
+                    "PENDIENTE"
+                ]
+                and pregunta_id
+            ):
 
-    # ========================================================
-    # RESERVAS TEMPORALES
-    # ========================================================
+                no_disponibles.add(
+                    pregunta_id
+                )
 
-    preguntas_reservadas_104 = st.session_state.get(
-        "preguntas_reservadas_104",
-        set()
-    )
+    return no_disponibles
 
-    if not isinstance(
-        preguntas_reservadas_104,
-        set
-    ):
 
-        preguntas_reservadas_104 = set(
-            preguntas_reservadas_104
-        )
+# ============================================================
+# CONTAR DISPONIBILIDAD
+# ============================================================
 
-    candidatos_104 = candidatos_104[
-        ~candidatos_104[
-            "Pregunta_ID"
-        ]
+def disponibilidad_104(
+    banco,
+    modulo,
+    tipo_relacion,
+    nivel
+):
+
+    if banco.empty:
+        return 0
+
+    candidatos = banco[
+        banco["Modulo"]
         .astype(str)
         .str.strip()
-        .isin(
-            preguntas_reservadas_104
+        .str.lower()
+        ==
+        str(modulo)
+        .strip()
+        .lower()
+    ]
+
+    candidatos = candidatos[
+        candidatos["Tipo_Relacion"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        ==
+        str(tipo_relacion)
+        .strip()
+        .lower()
+    ]
+
+    candidatos = candidatos[
+        candidatos["Nivel"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        ==
+        str(nivel)
+        .strip()
+        .lower()
+    ]
+
+    # Solo aprobadas del banco general
+    if "Estado" in candidatos.columns:
+
+        candidatos = candidatos[
+            candidatos["Estado"]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+            ==
+            "APROBADA"
+        ]
+
+    no_disponibles = preguntas_no_disponibles_104()
+
+    if no_disponibles:
+
+        candidatos = candidatos[
+            ~candidatos["Pregunta_ID"]
+            .astype(str)
+            .str.strip()
+            .isin(
+                no_disponibles
+            )
+        ]
+
+    return len(candidatos)
+
+
+# ============================================================
+# PREPARAR UNA EVALUACIÓN
+# ============================================================
+
+def preparar_evaluacion_104(
+    modulo,
+    tipo_relacion,
+    nivel,
+    cantidad
+):
+
+    banco = obtener_banco_104()
+
+    if banco.empty:
+
+        st.error(
+            "10.4 ERROR: no se encontró el Banco "
+            "de Preguntas General en memoria."
         )
+
+        return None
+
+    faltantes = [
+        columna
+        for columna in [
+            "Pregunta_ID",
+            "Modulo",
+            "Nivel",
+            "Tipo_Relacion",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Estado"
+        ]
+        if columna not in banco.columns
+    ]
+
+    if faltantes:
+
+        st.error(
+            "10.4 ERROR: faltan columnas en el "
+            "Banco General: "
+            + ", ".join(faltantes)
+        )
+
+        return None
+
+    # --------------------------------------------------------
+    # FILTRAR POR MÓDULO + RELACIÓN + NIVEL
+    # --------------------------------------------------------
+
+    candidatos = banco[
+        banco["Modulo"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        ==
+        str(modulo)
+        .strip()
+        .lower()
     ].copy()
 
-    # ========================================================
-    # VALIDAR DISPONIBILIDAD
-    # ========================================================
+    candidatos = candidatos[
+        candidatos["Tipo_Relacion"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        ==
+        str(tipo_relacion)
+        .strip()
+        .lower()
+    ].copy()
+
+    candidatos = candidatos[
+        candidatos["Nivel"]
+        .astype(str)
+        .str.strip()
+        .str.lower()
+        ==
+        str(nivel)
+        .strip()
+        .lower()
+    ].copy()
+
+    # --------------------------------------------------------
+    # SOLO PREGUNTAS APROBADAS DEL BANCO
+    # --------------------------------------------------------
+
+    candidatos = candidatos[
+        candidatos["Estado"]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+        ==
+        "APROBADA"
+    ].copy()
+
+    # --------------------------------------------------------
+    # EXCLUIR PREGUNTAS YA UTILIZADAS
+    # --------------------------------------------------------
+
+    no_disponibles = preguntas_no_disponibles_104()
+
+    if no_disponibles:
+
+        candidatos = candidatos[
+            ~candidatos["Pregunta_ID"]
+            .astype(str)
+            .str.strip()
+            .isin(
+                no_disponibles
+            )
+        ].copy()
+
+    # --------------------------------------------------------
+    # ALEATORIZAR
+    # --------------------------------------------------------
+
+    candidatos = candidatos.sample(
+        frac=1
+    ).reset_index(drop=True)
 
     disponibles_104 = len(
-        candidatos_104
+        candidatos
     )
 
     if disponibles_104 == 0:
 
         st.warning(
-            "No quedan preguntas disponibles para "
-            "la combinación seleccionada."
+            "No hay preguntas disponibles para "
+            "esta combinación de Módulo + "
+            "Tipo_Relacion + Nivel."
         )
 
-        return []
+        return None
 
-    # ========================================================
-    # NO PEDIR MÁS PREGUNTAS DE LAS EXISTENTES
-    # ========================================================
-
-    cantidad_solicitada_104 = (
-        cantidad_104 * 10
-    )
-
-    cantidad_real_104 = min(
-        disponibles_104,
-        cantidad_solicitada_104
-    )
-
-    # ========================================================
-    # ALEATORIZAR
+    # --------------------------------------------------------
+    # MÁXIMO DISPONIBLE
     #
-    # Cada pregunta solamente puede entrar una vez
-    # en esta generación.
-    # ========================================================
+    # Si pide 10 y quedan 5:
+    # se genera la evaluación con 5.
+    # --------------------------------------------------------
 
-    candidatos_104 = candidatos_104.sample(
-        frac=1,
-        random_state=None
-    ).reset_index(
-        drop=True
+    cantidad_real = min(
+        int(cantidad),
+        disponibles_104
     )
 
-    seleccionadas_104 = candidatos_104.iloc[
-        :cantidad_real_104
-    ].copy()
+    seleccionadas = candidatos.head(
+        cantidad_real
+    ).copy()
 
-    # ========================================================
-    # CREAR BLOQUES
-    # ========================================================
-
-    evaluaciones_nuevas_104 = []
-
-    for inicio_104 in range(
-        0,
-        len(seleccionadas_104),
-        10
-    ):
-
-        bloque_104 = seleccionadas_104.iloc[
-            inicio_104:
-            inicio_104 + 10
-        ].copy()
-
-        if bloque_104.empty:
-            continue
-
-        # ----------------------------------------------------
-        # CÓDIGO DE EVALUACIÓN
-        # ----------------------------------------------------
-
-        evaluacion_id_104 = (
-            siguiente_codigo_evaluacion_104(
-                modulo_104,
-                relacion_104,
-                nivel_104
-            )
+    codigo_evaluacion = (
+        siguiente_codigo_evaluacion_104(
+            modulo,
+            tipo_relacion,
+            nivel
         )
+    )
 
-        # ----------------------------------------------------
-        # PREGUNTAS DEL BLOQUE
-        # ----------------------------------------------------
+    preguntas = []
 
-        preguntas_evaluacion_104 = []
+    for _, fila in seleccionadas.iterrows():
 
-        for _, fila_104 in bloque_104.iterrows():
+        pregunta = {}
 
-            pregunta_104 = {
-                "Pregunta_ID":
-                    str(
-                        fila_104[
-                            "Pregunta_ID"
-                        ]
-                    ).strip(),
+        for columna in COLUMNAS_EVALUACION_104:
 
-                "Modulo":
-                    str(
-                        fila_104[
-                            "Modulo"
-                        ]
-                    ).strip(),
+            if columna in fila.index:
 
-                "Tipo_Relacion":
-                    str(
-                        fila_104[
-                            "Tipo_Relacion"
-                        ]
-                    ).strip(),
+                valor = fila[columna]
 
-                "Nivel":
-                    str(
-                        fila_104[
-                            "Nivel"
-                        ]
-                    ).strip(),
+                if pd.isna(valor):
+                    valor = ""
 
-                "Pregunta":
-                    fila_104[
-                        "Pregunta"
-                    ],
-
-                "Respuesta_1":
-                    fila_104[
-                        "Respuesta_1"
-                    ],
-
-                "Respuesta_2":
-                    fila_104[
-                        "Respuesta_2"
-                    ],
-
-                "Respuesta_3":
-                    fila_104[
-                        "Respuesta_3"
-                    ],
-
-                "Respuesta_4":
-                    fila_104[
-                        "Respuesta_4"
-                    ],
-
-                "Respuesta_Correcta":
-                    fila_104[
-                        "Respuesta_Correcta"
-                    ],
-
-                "Estado_Banco":
-                    fila_104[
-                        "Estado"
-                    ],
-
-                "Observacion_Administrador":
-                    fila_104[
-                        "Observacion_Administrador"
-                    ],
-
-                "Fecha_Generacion":
-                    fila_104[
-                        "Fecha_Generacion"
-                    ],
-
-                "Fuente_ID":
-                    fila_104[
-                        "Fuente_ID"
-                    ],
-
-                # --------------------------------------------
-                # ESTADO DENTRO DE LA EVALUACIÓN
-                # --------------------------------------------
-
-                "Estado_Evaluacion":
-                    "PENDIENTE"
-            }
-
-            preguntas_evaluacion_104.append(
-                pregunta_104
-            )
-
-            # --------------------------------------------
-            # RESERVAR PREGUNTA
-            # --------------------------------------------
-
-            preguntas_reservadas_104.add(
-                str(
-                    fila_104[
-                        "Pregunta_ID"
-                    ]
+                pregunta[columna] = str(
+                    valor
                 ).strip()
-            )
 
-        # ----------------------------------------------------
-        # REGISTRAR EVALUACIÓN
-        # ----------------------------------------------------
+            else:
 
-        evaluacion_104 = {
+                pregunta[columna] = ""
 
-            "Evaluacion_ID":
-                evaluacion_id_104,
+        # Estado independiente dentro
+        # de la evaluación
+        pregunta[
+            "Estado_Evaluacion"
+        ] = "PENDIENTE"
 
-            "Modulo":
-                modulo_104,
+        pregunta[
+            "Observacion_Evaluacion"
+        ] = ""
 
-            "Tipo_Relacion":
-                relacion_104,
-
-            "Nivel":
-                nivel_104,
-
-            "Cantidad_Preguntas":
-                len(
-                    preguntas_evaluacion_104
-                ),
-
-            "Estado":
-                "PENDIENTE",
-
-            "Preguntas":
-                preguntas_evaluacion_104
-        }
-
-        evaluaciones_nuevas_104.append(
-            evaluacion_104
+        preguntas.append(
+            pregunta
         )
 
-    # ========================================================
-    # GUARDAR RESERVAS
-    # ========================================================
+    evaluacion = {
 
-    st.session_state[
-        "preguntas_reservadas_104"
-    ] = preguntas_reservadas_104
+        "Evaluacion_ID":
+            codigo_evaluacion,
 
-    # ========================================================
-    # ACUMULAR EVALUACIONES GENERADAS
-    # ========================================================
+        "Modulo":
+            normalizar_texto_104(
+                modulo
+            ),
 
-    evaluaciones_existentes_104 = (
-        st.session_state.get(
-            "evaluaciones_generadas_104",
-            []
-        )
+        "Tipo_Relacion":
+            normalizar_texto_104(
+                tipo_relacion
+            ),
+
+        "Nivel":
+            normalizar_texto_104(
+                nivel
+            ),
+
+        "Cantidad_Solicitada":
+            int(cantidad),
+
+        "Cantidad_Generada":
+            len(preguntas),
+
+        "Estado":
+            "EN_VALIDACION",
+
+        "Fecha_Creacion":
+            pd.Timestamp.now().strftime(
+                "%Y-%m-%d %H:%M:%S"
+            ),
+
+        "Preguntas":
+            preguntas
+    }
+
+    evaluaciones = st.session_state.get(
+        "evaluaciones_preparadas_104",
+        []
+    ).copy()
+
+    evaluaciones.append(
+        evaluacion
     )
 
-    evaluaciones_existentes_104.extend(
-        evaluaciones_nuevas_104
-    )
-
     st.session_state[
-        "evaluaciones_generadas_104"
-    ] = evaluaciones_existentes_104
+        "evaluaciones_preparadas_104"
+    ] = evaluaciones
 
-    return evaluaciones_nuevas_104
+    return evaluacion
 
 
 # ============================================================
-# INTERFAZ 10.4
+# INTERFAZ DE PREPARACIÓN
 # ============================================================
 
-st.markdown(
-    "## 10.4 - Generación de evaluaciones"
-)
+banco_104 = obtener_banco_104()
 
-configuracion_104 = st.session_state.get(
-    "configuracion_evaluacion_103",
-    None
-)
+if not banco_104.empty:
 
-if not configuracion_104:
-
-    st.info(
-        "Seleccione primero el módulo, tipo de relación "
-        "y nivel en 10.3."
+    st.markdown(
+        "## 10.4 - Preparación y validación "
+        "de evaluación"
     )
 
-else:
-
     st.info(
-        "Configuración seleccionada: "
-        f"{configuracion_104['Modulo']} | "
-        f"{configuracion_104['Tipo_Relacion']} | "
-        f"{configuracion_104['Nivel']} | "
-        f"{configuracion_104['Cantidad']} "
-        "evaluación(es)"
+        "Seleccione Módulo, Tipo_Relacion y Nivel. "
+        "La evaluación se construye únicamente con "
+        "preguntas aprobadas del Banco General."
     )
 
-    if st.button(
-        "GENERAR EVALUACIÓN(ES)",
-        key="boton_generar_evaluaciones_104"
-    ):
+    # --------------------------------------------------------
+    # VALORES DISPONIBLES
+    # --------------------------------------------------------
 
-        nuevas_evaluaciones_104 = (
-            generar_evaluaciones_104()
+    modulos_104 = sorted(
+        banco_104["Modulo"]
+        .dropna()
+        .astype(str)
+        .str.strip()
+        .loc[
+            lambda x: x != ""
+        ]
+        .unique()
+        .tolist()
+    )
+
+    if modulos_104:
+
+        modulo_104 = st.selectbox(
+            "Módulo",
+            modulos_104,
+            key="seleccion_modulo_104"
         )
 
-        if nuevas_evaluaciones_104:
+        relaciones_104 = sorted(
+            banco_104[
+                banco_104["Modulo"]
+                .astype(str)
+                .str.strip()
+                ==
+                modulo_104
+            ]["Tipo_Relacion"]
+            .dropna()
+            .astype(str)
+            .str.strip()
+            .loc[
+                lambda x: x != ""
+            ]
+            .unique()
+            .tolist()
+        )
 
-            st.success(
-                f"Se generaron "
-                f"{len(nuevas_evaluaciones_104)} "
-                "evaluación(es)."
+        if relaciones_104:
+
+            tipo_relacion_104 = st.selectbox(
+                "Tipo de relación",
+                relaciones_104,
+                key="seleccion_relacion_104"
             )
+
+            niveles_104 = sorted(
+                banco_104[
+                    (
+                        banco_104["Modulo"]
+                        .astype(str)
+                        .str.strip()
+                        ==
+                        modulo_104
+                    )
+                    &
+                    (
+                        banco_104["Tipo_Relacion"]
+                        .astype(str)
+                        .str.strip()
+                        ==
+                        tipo_relacion_104
+                    )
+                ]["Nivel"]
+                .dropna()
+                .astype(str)
+                .str.strip()
+                .loc[
+                    lambda x: x != ""
+                ]
+                .unique()
+                .tolist()
+            )
+
+            if niveles_104:
+
+                nivel_104 = st.selectbox(
+                    "Nivel",
+                    niveles_104,
+                    key="seleccion_nivel_104"
+                )
+
+                disponibles_actuales_104 = (
+                    disponibilidad_104(
+                        banco_104,
+                        modulo_104,
+                        tipo_relacion_104,
+                        nivel_104
+                    )
+                )
+
+                st.metric(
+                    "Preguntas disponibles",
+                    disponibles_actuales_104
+                )
+
+                cantidad_104 = st.number_input(
+                    "Cantidad de preguntas "
+                    "solicitadas",
+                    min_value=1,
+                    max_value=10,
+                    value=min(
+                        10,
+                        max(
+                            1,
+                            disponibles_actuales_104
+                        )
+                    ),
+                    step=1,
+                    key="cantidad_evaluacion_104"
+                )
+
+                if st.button(
+                    "PREPARAR EVALUACIÓN",
+                    key="preparar_evaluacion_104"
+                ):
+
+                    preparar_evaluacion_104(
+                        modulo_104,
+                        tipo_relacion_104,
+                        nivel_104,
+                        int(cantidad_104)
+                    )
+
+            else:
+
+                st.warning(
+                    "No existen niveles disponibles "
+                    "para este tipo de relación."
+                )
 
         else:
 
             st.warning(
-                "No fue posible generar evaluaciones "
-                "con las preguntas disponibles."
+                "No existen tipos de relación "
+                "disponibles para este módulo."
             )
+
+else:
+
+    st.warning(
+        "10.4: no hay Banco General disponible "
+        "en memoria. Ejecute 10.1 antes de utilizar "
+        "esta sección."
+    )
 
 
 # ============================================================
-# MOSTRAR EVALUACIONES GENERADAS
+# VALIDACIÓN INDIVIDUAL DE EVALUACIONES
 # ============================================================
 
 evaluaciones_104 = st.session_state.get(
-    "evaluaciones_generadas_104",
+    "evaluaciones_preparadas_104",
     []
 )
 
 if evaluaciones_104:
 
     st.markdown(
-        "### Evaluaciones preparadas"
+        "## Evaluaciones preparadas"
     )
 
-    for evaluacion_104 in evaluaciones_104:
+    for indice_eval_104, evaluacion_104 in enumerate(
+        evaluaciones_104
+    ):
+
+        evaluacion_id_104 = evaluacion_104[
+            "Evaluacion_ID"
+        ]
 
         st.markdown(
-            f"#### {evaluacion_104['Evaluacion_ID']}"
+            f"### {evaluacion_id_104}"
         )
 
         st.write(
@@ -24826,52 +25010,358 @@ if evaluaciones_104:
         )
 
         st.write(
-            f"**Preguntas:** "
-            f"{evaluacion_104['Cantidad_Preguntas']}"
+            f"**Preguntas generadas:** "
+            f"{evaluacion_104['Cantidad_Generada']}"
         )
 
-        st.write(
-            f"**Estado:** "
-            f"{evaluacion_104['Estado']}"
+        # ----------------------------------------------------
+        # CONTADORES
+        # ----------------------------------------------------
+
+        preguntas_eval_104 = evaluacion_104[
+            "Preguntas"
+        ]
+
+        aprobadas_eval_104 = sum(
+            1
+            for pregunta in preguntas_eval_104
+            if pregunta.get(
+                "Estado_Evaluacion"
+            ) == "APROBADA"
         )
 
-        st.caption(
-            "Las preguntas quedan pendientes "
-            "de validación individual."
+        rechazadas_eval_104 = sum(
+            1
+            for pregunta in preguntas_eval_104
+            if pregunta.get(
+                "Estado_Evaluacion"
+            ) == "RECHAZADA"
         )
+
+        no_aplica_eval_104 = sum(
+            1
+            for pregunta in preguntas_eval_104
+            if pregunta.get(
+                "Estado_Evaluacion"
+            ) == "NO APLICA AÚN"
+        )
+
+        pendientes_eval_104 = sum(
+            1
+            for pregunta in preguntas_eval_104
+            if pregunta.get(
+                "Estado_Evaluacion",
+                "PENDIENTE"
+            ) == "PENDIENTE"
+        )
+
+        col1_104, col2_104, col3_104, col4_104 = (
+            st.columns(4)
+        )
+
+        with col1_104:
+
+            st.metric(
+                "Aprobadas",
+                aprobadas_eval_104
+            )
+
+        with col2_104:
+
+            st.metric(
+                "Rechazadas",
+                rechazadas_eval_104
+            )
+
+        with col3_104:
+
+            st.metric(
+                "No aplica aún",
+                no_aplica_eval_104
+            )
+
+        with col4_104:
+
+            st.metric(
+                "Pendientes",
+                pendientes_eval_104
+            )
+
+        # ====================================================
+        # PREGUNTAS
+        # ====================================================
+
+        for indice_pregunta_104, pregunta_104 in enumerate(
+            preguntas_eval_104
+        ):
+
+            estado_actual_104 = pregunta_104.get(
+                "Estado_Evaluacion",
+                "PENDIENTE"
+            )
+
+            pregunta_id_104 = pregunta_104.get(
+                "Pregunta_ID",
+                ""
+            )
+
+            st.markdown(
+                f"#### Pregunta "
+                f"{indice_pregunta_104 + 1} "
+                f"— {pregunta_id_104}"
+            )
+
+            st.write(
+                pregunta_104.get(
+                    "Pregunta",
+                    ""
+                )
+            )
+
+            st.write(
+                "1. "
+                + pregunta_104.get(
+                    "Respuesta_1",
+                    ""
+                )
+            )
+
+            st.write(
+                "2. "
+                + pregunta_104.get(
+                    "Respuesta_2",
+                    ""
+                )
+            )
+
+            st.write(
+                "3. "
+                + pregunta_104.get(
+                    "Respuesta_3",
+                    ""
+                )
+            )
+
+            st.write(
+                "4. "
+                + pregunta_104.get(
+                    "Respuesta_4",
+                    ""
+                )
+            )
+
+            st.caption(
+                "Respuesta correcta: "
+                + pregunta_104.get(
+                    "Respuesta_Correcta",
+                    ""
+                )
+            )
+
+            st.caption(
+                "Fuente: "
+                + pregunta_104.get(
+                    "Fuente_ID",
+                    ""
+                )
+            )
+
+            # ------------------------------------------------
+            # OBSERVACIÓN
+            # ------------------------------------------------
+
+            observacion_104 = st.text_input(
+                "Observación",
+                value=pregunta_104.get(
+                    "Observacion_Evaluacion",
+                    ""
+                ),
+                key=(
+                    f"obs_104_"
+                    f"{indice_eval_104}_"
+                    f"{indice_pregunta_104}"
+                )
+            )
+
+            # ------------------------------------------------
+            # ESTADO ACTUAL
+            # ------------------------------------------------
+
+            st.write(
+                f"Estado actual: "
+                f"**{estado_actual_104}**"
+            )
+
+            col_a_104, col_r_104, col_n_104 = (
+                st.columns(3)
+            )
+
+            with col_a_104:
+
+                if st.button(
+                    "APROBAR",
+                    key=(
+                        f"aprobar_104_"
+                        f"{indice_eval_104}_"
+                        f"{indice_pregunta_104}"
+                    )
+                ):
+
+                    pregunta_104[
+                        "Estado_Evaluacion"
+                    ] = "APROBADA"
+
+                    pregunta_104[
+                        "Observacion_Evaluacion"
+                    ] = observacion_104
+
+                    st.session_state[
+                        "evaluaciones_preparadas_104"
+                    ] = evaluaciones_104
+
+                    st.rerun()
+
+            with col_r_104:
+
+                if st.button(
+                    "RECHAZAR",
+                    key=(
+                        f"rechazar_104_"
+                        f"{indice_eval_104}_"
+                        f"{indice_pregunta_104}"
+                    )
+                ):
+
+                    pregunta_104[
+                        "Estado_Evaluacion"
+                    ] = "RECHAZADA"
+
+                    pregunta_104[
+                        "Observacion_Evaluacion"
+                    ] = observacion_104
+
+                    st.session_state[
+                        "evaluaciones_preparadas_104"
+                    ] = evaluaciones_104
+
+                    st.rerun()
+
+            with col_n_104:
+
+                if st.button(
+                    "NO APLICA AÚN",
+                    key=(
+                        f"no_aplica_104_"
+                        f"{indice_eval_104}_"
+                        f"{indice_pregunta_104}"
+                    )
+                ):
+
+                    pregunta_104[
+                        "Estado_Evaluacion"
+                    ] = "NO APLICA AÚN"
+
+                    pregunta_104[
+                        "Observacion_Evaluacion"
+                    ] = observacion_104
+
+                    st.session_state[
+                        "evaluaciones_preparadas_104"
+                    ] = evaluaciones_104
+
+                    st.rerun()
+
+            st.divider()
+
+        # ====================================================
+        # ESTADO FINAL DE LA EVALUACIÓN
+        # ====================================================
+
+        if pendientes_eval_104 == 0:
+
+            if aprobadas_eval_104 > 0:
+
+                evaluacion_104[
+                    "Estado"
+                ] = "VALIDADA"
+
+                st.success(
+                    f"{evaluacion_id_104}: "
+                    f"validación terminada. "
+                    f"{aprobadas_eval_104} preguntas "
+                    f"aprobadas."
+                )
+
+            else:
+
+                evaluacion_104[
+                    "Estado"
+                ] = "SIN_PREGUNTAS_APROBADAS"
+
+                st.warning(
+                    f"{evaluacion_id_104}: no tiene "
+                    "preguntas aprobadas."
+                )
+
+        else:
+
+            evaluacion_104[
+                "Estado"
+            ] = "EN_VALIDACION"
+
+            st.info(
+                f"{evaluacion_id_104}: todavía hay "
+                f"{pendientes_eval_104} preguntas "
+                "pendientes de revisión."
+            )
+
+        # ====================================================
+        # DISPONIBILIDAD POSTERIOR
+        # ====================================================
+
+        banco_actual_104 = obtener_banco_104()
+
+        disponibles_despues_104 = (
+            disponibilidad_104(
+                banco_actual_104,
+                evaluacion_104["Modulo"],
+                evaluacion_104["Tipo_Relacion"],
+                evaluacion_104["Nivel"]
+            )
+        )
+
+        # Las NO APLICA AÚN deben volver a quedar
+        # disponibles. Por eso se calcula explícitamente.
+
+        ids_no_aplica_104 = {
+            pregunta.get(
+                "Pregunta_ID",
+                ""
+            )
+            for pregunta in preguntas_eval_104
+            if pregunta.get(
+                "Estado_Evaluacion"
+            ) == "NO APLICA AÚN"
+        }
+
+        st.info(
+            "Preguntas disponibles para otra "
+            "evaluación de esta misma combinación: "
+            f"{disponibles_despues_104:,}"
+        )
+
+        if ids_no_aplica_104:
+
+            st.caption(
+                f"{len(ids_no_aplica_104)} pregunta(s) "
+                "marcada(s) como NO APLICA AÚN "
+                "queda(n) disponible(s) para otra "
+                "evaluación."
+            )
 
         st.divider()
 
 
 # ============================================================
-# DISPONIBILIDAD DESPUÉS DE LA PREPARACIÓN
+# FIN 10.4
 # ============================================================
-
-df_disponibles_104 = st.session_state.get(
-    "df_disponibles_103",
-    pd.DataFrame()
-)
-
-reservadas_104 = st.session_state.get(
-    "preguntas_reservadas_104",
-    set()
-)
-
-if not df_disponibles_104.empty:
-
-    disponibles_reales_104 = df_disponibles_104[
-        ~df_disponibles_104[
-            "Pregunta_ID"
-        ]
-        .astype(str)
-        .str.strip()
-        .isin(
-            reservadas_104
-        )
-    ]
-
-    st.info(
-        "Preguntas disponibles para futuras "
-        "evaluaciones: "
-        f"{len(disponibles_reales_104):,}"
-    )
