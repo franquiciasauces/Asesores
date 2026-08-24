@@ -21902,3 +21902,307 @@ if preguntas_92:
         )
 
         st.divider()
+# ============================================================
+# 9.3 - PARTE 3
+# VALIDADOR DE PREGUNTAS
+# COMPLEMENTARIOS
+# PRODUCTO - USO REGULAR / COMBINACIONES ESTRATÉGICAS
+# NIVEL 1
+#
+# ENTRADA:
+#     preguntas_generadas_92
+#
+# SALIDA:
+#     df_banco_92
+# ============================================================
+
+
+preguntas_92 = st.session_state.get(
+    "preguntas_generadas_92",
+    []
+)
+
+
+# ============================================================
+# VALIDADOR
+# ============================================================
+
+if preguntas_92:
+
+    st.markdown(
+        "### 9.3 - Validación de preguntas"
+    )
+
+    st.info(
+        "Revise cada pregunta y apruebe o rechace "
+        "individualmente."
+    )
+
+    for i, pregunta_92 in enumerate(
+        preguntas_92
+    ):
+
+        pregunta_id_92 = pregunta_92.get(
+            "Pregunta_ID",
+            f"PTCP-{i + 1:06d}"
+        )
+
+        st.markdown(
+            f"#### {pregunta_id_92}"
+        )
+
+        # ----------------------------------------------------
+        # PREGUNTA
+        # ----------------------------------------------------
+
+        st.write(
+            pregunta_92.get(
+                "Pregunta",
+                ""
+            )
+        )
+
+        # ----------------------------------------------------
+        # OPCIONES
+        # ----------------------------------------------------
+
+        st.write(
+            "1. "
+            + str(
+                pregunta_92.get(
+                    "Respuesta_1",
+                    ""
+                )
+            )
+        )
+
+        st.write(
+            "2. "
+            + str(
+                pregunta_92.get(
+                    "Respuesta_2",
+                    ""
+                )
+            )
+        )
+
+        st.write(
+            "3. "
+            + str(
+                pregunta_92.get(
+                    "Respuesta_3",
+                    ""
+                )
+            )
+        )
+
+        st.write(
+            "4. "
+            + str(
+                pregunta_92.get(
+                    "Respuesta_4",
+                    ""
+                )
+            )
+        )
+
+        # ----------------------------------------------------
+        # RESPUESTA CORRECTA
+        # ----------------------------------------------------
+
+        st.caption(
+            "Respuesta correcta: "
+            + str(
+                pregunta_92.get(
+                    "Respuesta_Correcta",
+                    ""
+                )
+            )
+        )
+
+        # ----------------------------------------------------
+        # FUENTE
+        # ----------------------------------------------------
+
+        st.caption(
+            "Fuente: "
+            + str(
+                pregunta_92.get(
+                    "Fuente_ID",
+                    ""
+                )
+            )
+        )
+
+        # ----------------------------------------------------
+        # ESTADO ACTUAL
+        # ----------------------------------------------------
+
+        estado_92 = pregunta_92.get(
+            "Estado",
+            "PENDIENTE"
+        )
+
+        st.write(
+            f"Estado: {estado_92}"
+        )
+
+        # ----------------------------------------------------
+        # OBSERVACIÓN DEL ADMINISTRADOR
+        # ----------------------------------------------------
+
+        observacion_92 = st.text_input(
+            "Observación del administrador",
+            value=pregunta_92.get(
+                "Observacion_Administrador",
+                ""
+            ),
+            key=f"observacion_complementarios_92_{i}"
+        )
+
+        col1_92, col2_92 = st.columns(2)
+
+        # ====================================================
+        # APROBAR
+        # ====================================================
+
+        with col1_92:
+
+            if st.button(
+                "APROBAR",
+                key=f"aprobar_complementarios_92_{i}"
+            ):
+
+                preguntas_92[i][
+                    "Estado"
+                ] = "APROBADA"
+
+                preguntas_92[i][
+                    "Observacion_Administrador"
+                ] = observacion_92
+
+                # --------------------------------------------
+                # ACTUALIZAR PREGUNTAS
+                # --------------------------------------------
+
+                st.session_state[
+                    "preguntas_generadas_92"
+                ] = preguntas_92
+
+                # --------------------------------------------
+                # ACTUALIZAR DATAFRAME 9.2
+                # --------------------------------------------
+
+                st.session_state[
+                    "df_banco_92"
+                ] = pd.DataFrame(
+                    preguntas_92
+                )
+
+                st.rerun()
+
+        # ====================================================
+        # RECHAZAR
+        # ====================================================
+
+        with col2_92:
+
+            if st.button(
+                "RECHAZAR",
+                key=f"rechazar_complementarios_92_{i}"
+            ):
+
+                preguntas_92[i][
+                    "Estado"
+                ] = "RECHAZADA"
+
+                preguntas_92[i][
+                    "Observacion_Administrador"
+                ] = observacion_92
+
+                # --------------------------------------------
+                # ACTUALIZAR PREGUNTAS
+                # --------------------------------------------
+
+                st.session_state[
+                    "preguntas_generadas_92"
+                ] = preguntas_92
+
+                # --------------------------------------------
+                # ACTUALIZAR DATAFRAME 9.2
+                # --------------------------------------------
+
+                st.session_state[
+                    "df_banco_92"
+                ] = pd.DataFrame(
+                    preguntas_92
+                )
+
+                st.rerun()
+
+        st.divider()
+
+
+# ============================================================
+# RESUMEN DE VALIDACIÓN 9.3
+# ============================================================
+
+if preguntas_92:
+
+    aprobadas_92 = sum(
+        1
+        for pregunta_92 in preguntas_92
+        if pregunta_92.get(
+            "Estado"
+        ) == "APROBADA"
+    )
+
+    rechazadas_92 = sum(
+        1
+        for pregunta_92 in preguntas_92
+        if pregunta_92.get(
+            "Estado"
+        ) == "RECHAZADA"
+    )
+
+    pendientes_92 = sum(
+        1
+        for pregunta_92 in preguntas_92
+        if pregunta_92.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    st.markdown(
+        "### Resumen de validación 9.3"
+    )
+
+    col1_92, col2_92, col3_92 = st.columns(3)
+
+    with col1_92:
+
+        st.metric(
+            "Aprobadas",
+            aprobadas_92
+        )
+
+    with col2_92:
+
+        st.metric(
+            "Rechazadas",
+            rechazadas_92
+        )
+
+    with col3_92:
+
+        st.metric(
+            "Pendientes",
+            pendientes_92
+        )
+
+    if pendientes_92 == 0:
+
+        st.success(
+            "Todas las preguntas fueron revisadas."
+        )
