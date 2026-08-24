@@ -20264,3 +20264,283 @@ if preguntas_85:
         )
 
         st.divider()
+# ============================================================
+# 8.3 - PARTE 3
+# VALIDADOR DE PREGUNTAS
+# PRODUCTO / ALTERNATIVAS SEGURAS
+# NIVEL 1
+#
+# ENTRADA:
+#     preguntas_generadas_85
+#
+# SALIDA:
+#     df_banco_85
+# ============================================================
+
+
+preguntas_85 = st.session_state.get(
+    "preguntas_generadas_85",
+    []
+)
+
+
+# ============================================================
+# VALIDACIÓN INDIVIDUAL
+# ============================================================
+
+if preguntas_85:
+
+    st.markdown(
+        "### 8.3 - Validación de preguntas"
+    )
+
+    st.info(
+        "Revise cada pregunta y apruebe o rechace "
+        "individualmente."
+    )
+
+    for i, pregunta_85 in enumerate(
+        preguntas_85
+    ):
+
+        pregunta_id_85 = pregunta_85.get(
+            "Pregunta_ID",
+            f"PTRS-{i + 1:06d}"
+        )
+
+        st.markdown(
+            f"#### {pregunta_id_85}"
+        )
+
+        # ----------------------------------------------------
+        # PREGUNTA
+        # ----------------------------------------------------
+
+        st.write(
+            pregunta_85.get(
+                "Pregunta",
+                ""
+            )
+        )
+
+        # ----------------------------------------------------
+        # OPCIONES
+        # ----------------------------------------------------
+
+        st.write(
+            f"1. {pregunta_85.get('Respuesta_1', '')}"
+        )
+
+        st.write(
+            f"2. {pregunta_85.get('Respuesta_2', '')}"
+        )
+
+        st.write(
+            f"3. {pregunta_85.get('Respuesta_3', '')}"
+        )
+
+        st.write(
+            f"4. {pregunta_85.get('Respuesta_4', '')}"
+        )
+
+        # ----------------------------------------------------
+        # RESPUESTA CORRECTA
+        # ----------------------------------------------------
+
+        st.caption(
+            "Respuesta correcta: "
+            + str(
+                pregunta_85.get(
+                    "Respuesta_Correcta",
+                    ""
+                )
+            )
+        )
+
+        # ----------------------------------------------------
+        # FUENTE
+        # ----------------------------------------------------
+
+        st.caption(
+            "Fuente: "
+            + str(
+                pregunta_85.get(
+                    "Fuente_ID",
+                    ""
+                )
+            )
+        )
+
+        # ----------------------------------------------------
+        # ESTADO
+        # ----------------------------------------------------
+
+        estado_85 = pregunta_85.get(
+            "Estado",
+            "PENDIENTE"
+        )
+
+        st.write(
+            f"Estado: {estado_85}"
+        )
+
+        # ----------------------------------------------------
+        # OBSERVACIÓN DEL ADMINISTRADOR
+        # ----------------------------------------------------
+
+        observacion_85 = st.text_input(
+            "Observación del administrador",
+            value=pregunta_85.get(
+                "Observacion_Administrador",
+                ""
+            ),
+            key=f"observacion_alternativas_85_{i}"
+        )
+
+        col1_85, col2_85 = st.columns(2)
+
+        # ====================================================
+        # APROBAR
+        # ====================================================
+
+        with col1_85:
+
+            if st.button(
+                "APROBAR",
+                key=f"aprobar_alternativas_85_{i}"
+            ):
+
+                preguntas_85[i][
+                    "Estado"
+                ] = "APROBADA"
+
+                preguntas_85[i][
+                    "Observacion_Administrador"
+                ] = observacion_85
+
+                # --------------------------------------------
+                # ACTUALIZAR LISTA
+                # --------------------------------------------
+
+                st.session_state[
+                    "preguntas_generadas_85"
+                ] = preguntas_85
+
+                # --------------------------------------------
+                # ACTUALIZAR DATAFRAME 8.3
+                # --------------------------------------------
+
+                st.session_state[
+                    "df_banco_85"
+                ] = pd.DataFrame(
+                    preguntas_85
+                )
+
+                st.rerun()
+
+        # ====================================================
+        # RECHAZAR
+        # ====================================================
+
+        with col2_85:
+
+            if st.button(
+                "RECHAZAR",
+                key=f"rechazar_alternativas_85_{i}"
+            ):
+
+                preguntas_85[i][
+                    "Estado"
+                ] = "RECHAZADA"
+
+                preguntas_85[i][
+                    "Observacion_Administrador"
+                ] = observacion_85
+
+                # --------------------------------------------
+                # ACTUALIZAR LISTA
+                # --------------------------------------------
+
+                st.session_state[
+                    "preguntas_generadas_85"
+                ] = preguntas_85
+
+                # --------------------------------------------
+                # ACTUALIZAR DATAFRAME 8.3
+                # --------------------------------------------
+
+                st.session_state[
+                    "df_banco_85"
+                ] = pd.DataFrame(
+                    preguntas_85
+                )
+
+                st.rerun()
+
+        st.divider()
+
+
+# ============================================================
+# RESUMEN DE VALIDACIÓN 8.3
+# ============================================================
+
+if preguntas_85:
+
+    aprobadas_85 = sum(
+        1
+        for pregunta_85 in preguntas_85
+        if pregunta_85.get(
+            "Estado"
+        ) == "APROBADA"
+    )
+
+    rechazadas_85 = sum(
+        1
+        for pregunta_85 in preguntas_85
+        if pregunta_85.get(
+            "Estado"
+        ) == "RECHAZADA"
+    )
+
+    pendientes_85 = sum(
+        1
+        for pregunta_85 in preguntas_85
+        if pregunta_85.get(
+            "Estado",
+            "PENDIENTE"
+        ) == "PENDIENTE"
+    )
+
+    st.markdown(
+        "### Resumen de validación 8.3"
+    )
+
+    col1_85, col2_85, col3_85 = st.columns(3)
+
+    with col1_85:
+
+        st.metric(
+            "Aprobadas",
+            aprobadas_85
+        )
+
+    with col2_85:
+
+        st.metric(
+            "Rechazadas",
+            rechazadas_85
+        )
+
+    with col3_85:
+
+        st.metric(
+            "Pendientes",
+            pendientes_85
+        )
+
+    if pendientes_85 == 0:
+
+        st.success(
+            "Todas las preguntas 8.3 "
+            "fueron revisadas."
+        )
