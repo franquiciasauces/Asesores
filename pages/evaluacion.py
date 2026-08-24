@@ -18140,36 +18140,50 @@ if preguntas_81:
         st.divider()
 
 # ============================================================
-# 8.1 - PARTE 3
+# 8.2 - PARTE 3
 # VALIDADOR DE PREGUNTAS
-# PRODUCTO - PRECAUCIÓN / CONTRAINDICACIÓN
+# PRODUCTO / CONTRAINDICACIÓN - MOTIVO
+# NIVEL 1
+#
+# ENTRADA:
+#     preguntas_generadas_83
+#
+# SALIDA / BANCO:
+#     df_banco_83
 # ============================================================
 
-preguntas_81 = st.session_state.get(
-    "preguntas_generadas_81",
+
+preguntas_83 = st.session_state.get(
+    "preguntas_generadas_83",
     []
 )
 
-if preguntas_81:
+
+if preguntas_83:
 
     st.markdown(
-        "### 8.1 - Validación de preguntas"
+        "### 8.2 - Validación de preguntas"
     )
 
     st.info(
-        "Revise cada pregunta y apruebe o rechace individualmente."
+        "Revise cada pregunta y apruebe o rechace "
+        "individualmente."
     )
 
-    for i, pregunta in enumerate(preguntas_81):
+    for i, pregunta in enumerate(preguntas_83):
 
         pregunta_id = pregunta.get(
             "Pregunta_ID",
-            f"PTRX-{i + 1:06d}"
+            f"PTRM-{i + 1:06d}"
         )
 
         st.markdown(
             f"#### {pregunta_id}"
         )
+
+        # ----------------------------------------------------
+        # PREGUNTA
+        # ----------------------------------------------------
 
         st.write(
             pregunta.get(
@@ -18177,6 +18191,10 @@ if preguntas_81:
                 ""
             )
         )
+
+        # ----------------------------------------------------
+        # OPCIONES
+        # ----------------------------------------------------
 
         st.write(
             f"1. {pregunta.get('Respuesta_1', '')}"
@@ -18194,6 +18212,10 @@ if preguntas_81:
             f"4. {pregunta.get('Respuesta_4', '')}"
         )
 
+        # ----------------------------------------------------
+        # RESPUESTA CORRECTA
+        # ----------------------------------------------------
+
         st.caption(
             "Respuesta correcta: "
             + str(
@@ -18203,6 +18225,10 @@ if preguntas_81:
                 )
             )
         )
+
+        # ----------------------------------------------------
+        # FUENTE
+        # ----------------------------------------------------
 
         st.caption(
             "Fuente: "
@@ -18214,6 +18240,10 @@ if preguntas_81:
             )
         )
 
+        # ----------------------------------------------------
+        # ESTADO
+        # ----------------------------------------------------
+
         estado = pregunta.get(
             "Estado",
             "PENDIENTE"
@@ -18223,56 +18253,82 @@ if preguntas_81:
             f"Estado: {estado}"
         )
 
+        # ----------------------------------------------------
+        # OBSERVACIÓN
+        # ----------------------------------------------------
+
         observacion = st.text_input(
             "Observación del administrador",
             value=pregunta.get(
                 "Observacion_Administrador",
                 ""
             ),
-            key=f"observacion_precaucion_81_{i}"
+            key=f"observacion_restricciones_83_{i}"
         )
 
         col1, col2 = st.columns(2)
+
+        # ====================================================
+        # APROBAR
+        # ====================================================
 
         with col1:
 
             if st.button(
                 "APROBAR",
-                key=f"aprobar_precaucion_81_{i}"
+                key=f"aprobar_restricciones_83_{i}"
             ):
 
-                preguntas_81[i]["Estado"] = (
+                preguntas_83[i]["Estado"] = (
                     "APROBADA"
                 )
 
-                preguntas_81[i][
+                preguntas_83[i][
                     "Observacion_Administrador"
                 ] = observacion
 
                 st.session_state[
-                    "preguntas_generadas_81"
-                ] = preguntas_81
+                    "preguntas_generadas_83"
+                ] = preguntas_83
+
+                # Actualizar DataFrame 8.3
+                st.session_state[
+                    "df_banco_83"
+                ] = pd.DataFrame(
+                    preguntas_83
+                )
 
                 st.rerun()
+
+        # ====================================================
+        # RECHAZAR
+        # ====================================================
 
         with col2:
 
             if st.button(
                 "RECHAZAR",
-                key=f"rechazar_precaucion_81_{i}"
+                key=f"rechazar_restricciones_83_{i}"
             ):
 
-                preguntas_81[i]["Estado"] = (
+                preguntas_83[i]["Estado"] = (
                     "RECHAZADA"
                 )
 
-                preguntas_81[i][
+                preguntas_83[i][
                     "Observacion_Administrador"
                 ] = observacion
 
                 st.session_state[
-                    "preguntas_generadas_81"
-                ] = preguntas_81
+                    "preguntas_generadas_83"
+                ] = preguntas_83
+
+                # Actualizar DataFrame 8.3
+                st.session_state[
+                    "df_banco_83"
+                ] = pd.DataFrame(
+                    preguntas_83
+                )
 
                 st.rerun()
 
@@ -18280,26 +18336,30 @@ if preguntas_81:
 
 
 # ============================================================
-# RESUMEN DE VALIDACIÓN
+# RESUMEN DE VALIDACIÓN 8.2
 # ============================================================
 
-if preguntas_81:
+if preguntas_83:
 
-    aprobadas_81 = sum(
+    aprobadas_83 = sum(
         1
-        for pregunta in preguntas_81
-        if pregunta.get("Estado") == "APROBADA"
+        for pregunta in preguntas_83
+        if pregunta.get(
+            "Estado"
+        ) == "APROBADA"
     )
 
-    rechazadas_81 = sum(
+    rechazadas_83 = sum(
         1
-        for pregunta in preguntas_81
-        if pregunta.get("Estado") == "RECHAZADA"
+        for pregunta in preguntas_83
+        if pregunta.get(
+            "Estado"
+        ) == "RECHAZADA"
     )
 
-    pendientes_81 = sum(
+    pendientes_83 = sum(
         1
-        for pregunta in preguntas_81
+        for pregunta in preguntas_83
         if pregunta.get(
             "Estado",
             "PENDIENTE"
@@ -18307,7 +18367,7 @@ if preguntas_81:
     )
 
     st.markdown(
-        "### Resumen de validación 8.1"
+        "### Resumen de validación 8.2"
     )
 
     col1, col2, col3 = st.columns(3)
@@ -18316,24 +18376,24 @@ if preguntas_81:
 
         st.metric(
             "Aprobadas",
-            aprobadas_81
+            aprobadas_83
         )
 
     with col2:
 
         st.metric(
             "Rechazadas",
-            rechazadas_81
+            rechazadas_83
         )
 
     with col3:
 
         st.metric(
             "Pendientes",
-            pendientes_81
+            pendientes_83
         )
 
-    if pendientes_81 == 0:
+    if pendientes_83 == 0:
 
         st.success(
             "Todas las preguntas fueron revisadas."
@@ -18811,7 +18871,7 @@ def siguiente_id_83():
 
 
 # ============================================================
-# GENERADOR 8.2
+# GENERADOR 8.2 restriccion producto motivo
 # ============================================================
 
 def generar_preguntas_83(cantidad):
