@@ -22697,62 +22697,65 @@ if aprobadas_92 > 0:
 
         sincronizar_92()
 
+
 # ============================================================
-# 10.1 - CARGA Y RECONSTRUCCIÓN DEL ESTADO DEL MÓDULO 10
-# ============================================================
-#
-# FUNCIÓN:
-#   1. Cargar BANCO_PREGUNTAS_GENERALES.xlsx desde el
-#      repositorio principal.
-#
-#   2. Leer la persistencia existente en /page/
-#
-#   3. Reconstruir el estado histórico de:
-#        - evaluaciones existentes
-#        - preguntas utilizadas
-#        - preguntas rechazadas
-#        - preguntas disponibles
-#        - códigos de evaluación existentes
+# 10.1 - CARGA Y CONTROL DE FUENTES DEL MÓDULO 10
 #
 # IMPORTANTE:
 #
-#   pages/evaluacion.py
-#       = aplicativo
+# BANCO_PREGUNTAS_GENERALES.xlsx
+#     -> SOLO LECTURA
+#     -> NO SE MODIFICA
 #
-#   page/
-#       = persistencia de evaluaciones
+# ARCHIVOS PERSISTENTES DE EVALUACIÓN
+#     -> SE LEEN DESDE /page/
+#     -> SI NO EXISTEN, SE INFORMA
+#     -> 10.1 NO LOS CREA NI LOS MODIFICA
 #
-#   10.1 NO genera evaluaciones.
-#   10.1 NO valida preguntas.
-#   10.1 NO consume preguntas.
-#   10.1 NO modifica GitHub.
+# 10.1 NO:
+#     - genera evaluaciones
+#     - consume preguntas
+#     - valida preguntas
+#     - cambia estados del banco
 #
-#   10.2, 10.3 y 10.4 utilizarán el estado
-#   reconstruido por este módulo.
-#
+# 10.1 SOLO:
+#     - carga el banco general
+#     - carga el registro persistente de preguntas
+#     - carga el registro persistente de evaluaciones
+#     - deja las tres fuentes disponibles para 10.2+
 # ============================================================
 
 
 # ============================================================
-# CONFIGURACIÓN GITHUB
+# CONFIGURACIÓN
 # ============================================================
 
 GITHUB_USUARIO_101 = "franquiciasauces"
 GITHUB_REPOSITORIO_101 = "Asesores"
 GITHUB_RAMA_101 = "main"
 
-GITHUB_ARCHIVO_BANCO_101 = (
-    "BANCO_PREGUNTAS_GENERALES.xlsx"
+ARCHIVO_BANCO_101 = "BANCO_PREGUNTAS_GENERALES.xlsx"
+
+# ------------------------------------------------------------
+# IMPORTANTE:
+# Estos son archivos INDEPENDIENTES del banco general.
+# Se encuentran dentro de /page/
+# ------------------------------------------------------------
+
+ARCHIVO_PREGUNTAS_101 = (
+    "page/PREGUNTAS_EVALUACIONES.csv"
 )
 
-GITHUB_CARPETA_PERSISTENCIA_101 = "page"
+ARCHIVO_EVALUACIONES_101 = (
+    "page/EVALUACIONES.csv"
+)
 
 
 # ============================================================
-# URL BASE API GITHUB
+# URL BASE DE GITHUB
 # ============================================================
 
-URL_API_GITHUB_101 = (
+URL_BASE_GITHUB_101 = (
     "https://api.github.com/repos/"
     + GITHUB_USUARIO_101
     + "/"
@@ -22762,75 +22765,7 @@ URL_API_GITHUB_101 = (
 
 
 # ============================================================
-# COLUMNAS DEL BANCO GENERAL
-#
-# TEMA SE CONSERVA.
-#
-# NO SE UTILIZA PARA CONSTRUIR LA EVALUACIÓN.
-# ============================================================
-
-COLUMNAS_BANCO_101 = [
-    "Pregunta_ID",
-    "Modulo",
-    "Tema",
-    "Nivel",
-    "Tipo_Relacion",
-    "Pregunta",
-    "Respuesta_1",
-    "Respuesta_2",
-    "Respuesta_3",
-    "Respuesta_4",
-    "Respuesta_Correcta",
-    "Estado",
-    "Observacion_Administrador",
-    "Fecha_Generacion",
-    "Fuente_ID"
-]
-
-
-# ============================================================
-# COLUMNAS DEL REGISTRO DE EVALUACIONES
-#
-# Este DataFrame representa el historial de evaluaciones
-# existentes.
-# ============================================================
-
-COLUMNAS_EVALUACIONES_101 = [
-    "Evaluacion_ID",
-    "Modulo",
-    "Tipo_Relacion",
-    "Nivel",
-    "Cantidad_Solicitada",
-    "Cantidad_Generada",
-    "Estado",
-    "Fecha_Creacion",
-    "Fecha_Validacion"
-]
-
-
-# ============================================================
-# COLUMNAS DEL REGISTRO DE PREGUNTAS UTILIZADAS
-#
-# Una pregunta queda consumida cuando pertenece a una
-# evaluación que fue validada/aprobada.
-#
-# También se registra el historial de rechazo.
-# ============================================================
-
-COLUMNAS_PREGUNTAS_EVALUACION_101 = [
-    "Pregunta_ID",
-    "Evaluacion_ID",
-    "Modulo",
-    "Tipo_Relacion",
-    "Nivel",
-    "Estado",
-    "Fecha",
-    "Observacion"
-]
-
-
-# ============================================================
-# FUNCIÓN: HEADERS GITHUB
+# ENCABEZADO GITHUB
 # ============================================================
 
 def headers_github_101():
@@ -22846,56 +22781,45 @@ def headers_github_101():
 
 
 # ============================================================
-# FUNCIÓN: OBTENER RECURSO DE GITHUB
+# LEER ARCHIVO DESDE GITHUB
+#
+# Devuelve:
+#     contenido
+#     sha
+#
+# Si no existe:
+#     (None, None)
+#
+# NO CREA NI MODIFICA ARCHIVOS.
 # ============================================================
 
-def obtener_recurso_github_101(
-    ruta
+def leer_archivo_github_101(
+    ruta_archivo
 ):
 
     url = (
-        URL_API_GITHUB_101
-        + ruta
+        URL_BASE_GITHUB_101
+        + ruta_archivo
     )
-
-    solicitud = urllib.request.Request(
-        url,
-        headers=headers_github_101(),
-        method="GET"
-    )
-
-    with urllib.request.urlopen(
-        solicitud,
-        timeout=30
-    ) as respuesta:
-
-        return json.loads(
-            respuesta.read().decode(
-                "utf-8"
-            )
-        )
-
-
-# ============================================================
-# FUNCIÓN: CARGAR ARCHIVO BINARIO DESDE GITHUB
-# ============================================================
-
-def cargar_archivo_github_101(
-    ruta
-):
 
     try:
 
-        datos = obtener_recurso_github_101(
-            ruta
+        solicitud = urllib.request.Request(
+            url,
+            headers=headers_github_101(),
+            method="GET"
         )
 
-        if not isinstance(
-            datos,
-            dict
-        ):
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
 
-            return None, None
+            datos = json.loads(
+                respuesta.read().decode(
+                    "utf-8"
+                )
+            )
 
         if "content" not in datos:
 
@@ -22913,34 +22837,58 @@ def cargar_archivo_github_101(
             datos.get("sha")
         )
 
-    except Exception:
+    except urllib.error.HTTPError as error:
+
+        # ----------------------------------------------------
+        # 404 = el archivo todavía no existe.
+        # Esto NO es un error fatal para 10.1.
+        # ----------------------------------------------------
+
+        if error.code == 404:
+
+            return None, None
+
+        st.error(
+            f"10.1 ERROR leyendo {ruta_archivo}: "
+            f"HTTP {error.code}"
+        )
+
+        return None, None
+
+    except Exception as error:
+
+        st.error(
+            f"10.1 ERROR leyendo {ruta_archivo}: "
+            f"{error}"
+        )
 
         return None, None
 
 
 # ============================================================
-# FUNCIÓN: CARGAR BANCO GENERAL
+# CARGAR BANCO GENERAL
+#
+# ESTE ARCHIVO NO SE MODIFICA.
 # ============================================================
 
 def cargar_banco_general_101():
 
-    try:
+    contenido, sha = (
+        leer_archivo_github_101(
+            ARCHIVO_BANCO_101
+        )
+    )
 
-        contenido, sha = (
-            cargar_archivo_github_101(
-                GITHUB_ARCHIVO_BANCO_101
-            )
+    if contenido is None:
+
+        st.error(
+            "10.1 ERROR: no fue posible cargar "
+            "BANCO_PREGUNTAS_GENERALES.xlsx."
         )
 
-        if contenido is None:
+        return None
 
-            st.error(
-                "10.1 ERROR: no fue posible encontrar "
-                "BANCO_PREGUNTAS_GENERALES.xlsx "
-                "en el repositorio principal."
-            )
-
-            return None
+    try:
 
         memoria = io.BytesIO(
             contenido
@@ -22951,476 +22899,78 @@ def cargar_banco_general_101():
             engine="openpyxl"
         )
 
-        # ----------------------------------------------------
-        # VALIDAR COLUMNAS
-        # ----------------------------------------------------
-
-        faltantes = [
-            columna
-            for columna in COLUMNAS_BANCO_101
-            if columna not in df.columns
-        ]
-
-        if faltantes:
-
-            st.error(
-                "10.1 ERROR: faltan columnas en "
-                "BANCO_PREGUNTAS_GENERALES.xlsx: "
-                + ", ".join(faltantes)
-            )
-
-            return None
-
-        # ----------------------------------------------------
-        # CONSERVAR ORDEN
-        # ----------------------------------------------------
-
-        df = df[
-            COLUMNAS_BANCO_101
-        ].copy()
-
-        # ----------------------------------------------------
-        # NORMALIZAR CAMPOS DE CONTROL
-        # ----------------------------------------------------
-
-        columnas_texto = [
-            "Pregunta_ID",
-            "Modulo",
-            "Tema",
-            "Nivel",
-            "Tipo_Relacion",
-            "Estado",
-            "Fuente_ID"
-        ]
-
-        for columna in columnas_texto:
-
-            df[columna] = (
-                df[columna]
-                .fillna("")
-                .astype(str)
-                .str.strip()
-            )
-
-        # ----------------------------------------------------
-        # ELIMINAR FILAS SIN ID
-        #
-        # Una pregunta sin Pregunta_ID no puede tener
-        # trazabilidad.
-        # ----------------------------------------------------
-
-        df = df[
-            df["Pregunta_ID"] != ""
-        ].copy()
-
-        # ----------------------------------------------------
-        # DETECTAR IDS DUPLICADOS
-        # ----------------------------------------------------
-
-        duplicados = (
-            df["Pregunta_ID"]
-            .duplicated(
-                keep=False
-            )
-        )
-
-        if duplicados.any():
-
-            ids_duplicados = sorted(
-                df.loc[
-                    duplicados,
-                    "Pregunta_ID"
-                ]
-                .astype(str)
-                .unique()
-                .tolist()
-            )
-
-            st.warning(
-                "10.1 ADVERTENCIA: existen "
-                f"{len(ids_duplicados)} "
-                "Pregunta_ID duplicados en el banco. "
-                "No se eliminaron automáticamente."
-            )
-
-            st.session_state[
-                "ids_preguntas_duplicados_101"
-            ] = ids_duplicados
-
-        else:
-
-            st.session_state[
-                "ids_preguntas_duplicados_101"
-            ] = []
-
-        # ----------------------------------------------------
-        # GUARDAR SHA
-        # ----------------------------------------------------
-
-        st.session_state[
-            "sha_banco_general_101"
-        ] = sha
-
-        return df.reset_index(
-            drop=True
-        )
-
     except Exception as error:
 
         st.error(
-            "10.1 ERROR: no fue posible cargar "
+            "10.1 ERROR leyendo "
             "BANCO_PREGUNTAS_GENERALES.xlsx."
         )
 
-        st.exception(
-            error
+        st.exception(error)
+
+        return None
+
+
+    # ========================================================
+    # COLUMNAS DEL BANCO
+    #
+    # TEMA SE CONSERVA SI EXISTE.
+    #
+    # NO SE ELIMINA DEL BANCO.
+    # ========================================================
+
+    columnas_minimas = [
+
+        "Pregunta_ID",
+        "Modulo",
+        "Tipo_Relacion",
+        "Nivel",
+        "Pregunta",
+
+        "Respuesta_1",
+        "Respuesta_2",
+        "Respuesta_3",
+        "Respuesta_4",
+
+        "Respuesta_Correcta",
+
+        "Estado",
+        "Observacion_Administrador",
+        "Fecha_Generacion",
+        "Fuente_ID"
+    ]
+
+
+    faltantes = [
+        columna
+        for columna in columnas_minimas
+        if columna not in df.columns
+    ]
+
+    if faltantes:
+
+        st.error(
+            "10.1 ERROR: faltan columnas en "
+            "BANCO_PREGUNTAS_GENERALES.xlsx: "
+            + ", ".join(faltantes)
         )
 
         return None
 
 
-# ============================================================
-# FUNCIÓN: LISTAR ARCHIVOS DE /page/
-#
-# NO presupone todavía nombres exactos.
-#
-# Esto permite que 10.1 encuentre los archivos persistentes
-# que ya existan.
-# ============================================================
-
-def listar_archivos_page_101():
-
-    try:
-
-        datos = obtener_recurso_github_101(
-            GITHUB_CARPETA_PERSISTENCIA_101
-        )
-
-        if not isinstance(
-            datos,
-            list
-        ):
-
-            return []
-
-        archivos = []
-
-        for elemento in datos:
-
-            if elemento.get(
-                "type"
-            ) == "file":
-
-                archivos.append(
-                    {
-                        "name":
-                            elemento.get(
-                                "name",
-                                ""
-                            ),
-
-                        "path":
-                            elemento.get(
-                                "path",
-                                ""
-                            ),
-
-                        "download_url":
-                            elemento.get(
-                                "download_url"
-                            )
-                    }
-                )
-
-        return archivos
-
-    except Exception as error:
-
-        st.warning(
-            "10.1: no fue posible leer la carpeta "
-            "/page/. El banco sí puede continuar "
-            "cargándose."
-        )
-
-        return []
-
-
-# ============================================================
-# FUNCIÓN: LEER CSV DE /page/
-# ============================================================
-
-def leer_csv_page_101(
-    ruta
-):
-
-    try:
-
-        contenido, sha = (
-            cargar_archivo_github_101(
-                ruta
-            )
-        )
-
-        if contenido is None:
-
-            return pd.DataFrame()
-
-        memoria = io.BytesIO(
-            contenido
-        )
-
-        df = pd.read_csv(
-            memoria
-        )
-
-        return df
-
-    except Exception:
-
-        return pd.DataFrame()
-
-
-# ============================================================
-# FUNCIÓN: IDENTIFICAR ARCHIVOS DE CONTROL
-#
-# Se aceptan los nombres principales.
-#
-# También se permite que existan variantes futuras.
-# ============================================================
-
-def identificar_archivos_control_101(
-    archivos
-):
-
-    resultado = {
-
-        "evaluaciones": None,
-
-        "preguntas": None
-
-    }
-
-    nombres_evaluaciones = {
-
-        "REGISTRO_EVALUACIONES.csv",
-        "EVALUACIONES.csv",
-        "REGISTRO_EVALUACIONES_104.csv"
-
-    }
-
-    nombres_preguntas = {
-
-        "REGISTRO_PREGUNTAS_EVALUACION.csv",
-        "PREGUNTAS_UTILIZADAS_EVALUACIONES.csv",
-        "PREGUNTAS_EVALUACION.csv",
-        "REGISTRO_PREGUNTAS_104.csv"
-
-    }
-
-    # --------------------------------------------------------
-    # PRIMERA PASADA: NOMBRES EXACTOS
-    # --------------------------------------------------------
-
-    for archivo in archivos:
-
-        nombre = archivo[
-            "name"
-        ]
-
-        if nombre in nombres_evaluaciones:
-
-            resultado[
-                "evaluaciones"
-            ] = archivo["path"]
-
-        if nombre in nombres_preguntas:
-
-            resultado[
-                "preguntas"
-            ] = archivo["path"]
-
-    # --------------------------------------------------------
-    # SEGUNDA PASADA: DETECCIÓN FLEXIBLE
-    # --------------------------------------------------------
-
-    if resultado["evaluaciones"] is None:
-
-        for archivo in archivos:
-
-            nombre = archivo[
-                "name"
-            ].upper()
-
-            if (
-                "EVALUACION"
-                in nombre
-                and nombre.endswith(
-                    ".CSV"
-                )
-                and "PREGUNTA"
-                not in nombre
-            ):
-
-                resultado[
-                    "evaluaciones"
-                ] = archivo["path"]
-
-                break
-
-    if resultado["preguntas"] is None:
-
-        for archivo in archivos:
-
-            nombre = archivo[
-                "name"
-            ].upper()
-
-            if (
-                "PREGUNTA"
-                in nombre
-                and (
-                    "UTILIZ"
-                    in nombre
-                    or "EVALU"
-                    in nombre
-                    or "REGISTRO"
-                    in nombre
-                )
-                and nombre.endswith(
-                    ".CSV"
-                )
-            ):
-
-                resultado[
-                    "preguntas"
-                ] = archivo["path"]
-
-                break
-
-    return resultado
-
-
-# ============================================================
-# FUNCIÓN: NORMALIZAR REGISTRO DE EVALUACIONES
-# ============================================================
-
-def normalizar_registro_evaluaciones_101(
-    df
-):
-
-    if df.empty:
-
-        return pd.DataFrame(
-            columns=COLUMNAS_EVALUACIONES_101
-        )
-
-    df = df.copy()
-
-    # --------------------------------------------------------
-    # CREAR COLUMNAS FALTANTES
-    # --------------------------------------------------------
-
-    for columna in COLUMNAS_EVALUACIONES_101:
-
-        if columna not in df.columns:
-
-            df[columna] = ""
-
-    df = df[
-        COLUMNAS_EVALUACIONES_101
-    ].copy()
-
-    # --------------------------------------------------------
-    # NORMALIZAR TEXTO
-    # --------------------------------------------------------
-
-    for columna in [
-        "Evaluacion_ID",
-        "Modulo",
-        "Tipo_Relacion",
-        "Nivel",
-        "Estado",
-        "Fecha_Creacion",
-        "Fecha_Validacion"
-    ]:
-
-        df[columna] = (
-            df[columna]
-            .fillna("")
-            .astype(str)
-            .str.strip()
-        )
-
-    # --------------------------------------------------------
-    # ELIMINAR EVALUACIONES SIN ID
-    # --------------------------------------------------------
-
-    df = df[
-        df["Evaluacion_ID"] != ""
-    ].copy()
-
-    # --------------------------------------------------------
-    # UNA EVALUACIÓN ES ÚNICA POR CÓDIGO
-    # --------------------------------------------------------
-
-    df = df.drop_duplicates(
-        subset=[
-            "Evaluacion_ID"
-        ],
-        keep="last"
-    )
-
-    return df.reset_index(
-        drop=True
-    )
-
-
-# ============================================================
-# FUNCIÓN: NORMALIZAR REGISTRO DE PREGUNTAS
-# ============================================================
-
-def normalizar_registro_preguntas_101(
-    df
-):
-
-    if df.empty:
-
-        return pd.DataFrame(
-            columns=
-            COLUMNAS_PREGUNTAS_EVALUACION_101
-        )
-
-    df = df.copy()
-
-    # --------------------------------------------------------
-    # CREAR COLUMNAS FALTANTES
-    # --------------------------------------------------------
-
-    for columna in (
-        COLUMNAS_PREGUNTAS_EVALUACION_101
-    ):
-
-        if columna not in df.columns:
-
-            df[columna] = ""
-
-    df = df[
-        COLUMNAS_PREGUNTAS_EVALUACION_101
-    ].copy()
-
-    # --------------------------------------------------------
-    # NORMALIZAR TEXTO
-    # --------------------------------------------------------
+    # ========================================================
+    # NORMALIZAR CAMPOS DE IDENTIFICACIÓN
+    #
+    # NO CAMBIAMOS ESTADOS.
+    # ========================================================
 
     for columna in [
         "Pregunta_ID",
-        "Evaluacion_ID",
         "Modulo",
         "Tipo_Relacion",
         "Nivel",
         "Estado",
-        "Fecha",
-        "Observacion"
+        "Fuente_ID"
     ]:
 
         df[columna] = (
@@ -23430,13 +22980,15 @@ def normalizar_registro_preguntas_101(
             .str.strip()
         )
 
-    # --------------------------------------------------------
-    # ELIMINAR REGISTROS SIN ID
-    # --------------------------------------------------------
 
-    df = df[
-        df["Pregunta_ID"] != ""
-    ].copy()
+    # ========================================================
+    # GUARDAR SHA DEL BANCO
+    # ========================================================
+
+    st.session_state[
+        "sha_banco_general_101"
+    ] = sha
+
 
     return df.reset_index(
         drop=True
@@ -23444,585 +22996,112 @@ def normalizar_registro_preguntas_101(
 
 
 # ============================================================
-# FUNCIÓN: RECONSTRUIR ESTADO DE PREGUNTAS
-# ============================================================
-
-def reconstruir_estado_preguntas_101(
-    df_banco,
-    df_registro_preguntas,
-    df_registro_evaluaciones
-):
-
-    # --------------------------------------------------------
-    # COPIA DEL BANCO
-    # --------------------------------------------------------
-
-    df_estado = df_banco.copy()
-
-    # --------------------------------------------------------
-    # ESTADO PERSISTENTE POR PREGUNTA
-    #
-    # Valores principales:
-    #
-    #   DISPONIBLE
-    #   USADA
-    #   RECHAZADA
-    #
-    # --------------------------------------------------------
-
-    df_estado[
-        "Estado_Evaluacion"
-    ] = "DISPONIBLE"
-
-    df_estado[
-        "Evaluacion_ID"
-    ] = ""
-
-    # --------------------------------------------------------
-    # SI NO HAY REGISTRO HISTÓRICO
-    # NO HAY NADA MÁS QUE RECONSTRUIR.
-    # --------------------------------------------------------
-
-    if df_registro_preguntas.empty:
-
-        return df_estado
-
-    # --------------------------------------------------------
-    # CONJUNTOS DE ESTADOS
-    # --------------------------------------------------------
-
-    estados_consumidos = {
-        "APROBADA",
-        "VALIDADA",
-        "USADA",
-        "CONSUMIDA"
-    }
-
-    estados_rechazados = {
-        "RECHAZADA"
-    }
-
-    # --------------------------------------------------------
-    # RECORRER HISTORIAL
-    # --------------------------------------------------------
-
-    for _, registro in (
-        df_registro_preguntas.iterrows()
-    ):
-
-        pregunta_id = str(
-            registro.get(
-                "Pregunta_ID",
-                ""
-            )
-        ).strip()
-
-        if not pregunta_id:
-            continue
-
-        estado = str(
-            registro.get(
-                "Estado",
-                ""
-            )
-        ).strip().upper()
-
-        evaluacion_id = str(
-            registro.get(
-                "Evaluacion_ID",
-                ""
-            )
-        ).strip()
-
-        # ----------------------------------------------------
-        # PREGUNTA CONSUMIDA
-        # ----------------------------------------------------
-
-        if estado in estados_consumidos:
-
-            mask = (
-                df_estado[
-                    "Pregunta_ID"
-                ]
-                .astype(str)
-                .str.strip()
-                ==
-                pregunta_id
-            )
-
-            df_estado.loc[
-                mask,
-                "Estado_Evaluacion"
-            ] = "USADA"
-
-            df_estado.loc[
-                mask,
-                "Evaluacion_ID"
-            ] = evaluacion_id
-
-        # ----------------------------------------------------
-        # PREGUNTA RECHAZADA
-        # ----------------------------------------------------
-
-        elif estado in estados_rechazados:
-
-            mask = (
-                df_estado[
-                    "Pregunta_ID"
-                ]
-                .astype(str)
-                .str.strip()
-                ==
-                pregunta_id
-            )
-
-            df_estado.loc[
-                mask,
-                "Estado_Evaluacion"
-            ] = "RECHAZADA"
-
-            df_estado.loc[
-                mask,
-                "Evaluacion_ID"
-            ] = evaluacion_id
-
-    return df_estado
-
-
-# ============================================================
-# FUNCIÓN: RECONSTRUIR CÓDIGOS DE EVALUACIÓN
-# ============================================================
-
-def reconstruir_codigos_evaluacion_101(
-    df_evaluaciones
-):
-
-    codigos = set()
-
-    if df_evaluaciones.empty:
-
-        return codigos
-
-    for codigo in (
-        df_evaluaciones[
-            "Evaluacion_ID"
-        ]
-        .astype(str)
-        .str.strip()
-    ):
-
-        if codigo:
-
-            codigos.add(
-                codigo
-            )
-
-    return codigos
-
-
-# ============================================================
-# FUNCIÓN: OBTENER SIGUIENTE CONSECUTIVO
+# CARGAR REGISTRO DE PREGUNTAS
 #
-# ESTA FUNCIÓN NO GENERA LA EVALUACIÓN.
+# ESTE ES EL ARCHIVO QUE CONTROLARÁ EL CONSUMO.
 #
-# SOLO DETERMINA EL SIGUIENTE NÚMERO BASÁNDOSE EN EL
-# REGISTRO PERSISTENTE CARGADO.
+# NO SE ESCRIBE DESDE 10.1.
 # ============================================================
 
-def siguiente_consecutivo_101(
-    modulo,
-    tipo_relacion,
-    nivel
-):
+def cargar_registro_preguntas_101():
 
-    def codigo_modulo(modulo):
+    contenido, sha = (
+        leer_archivo_github_101(
+            ARCHIVO_PREGUNTAS_101
+        )
+    )
 
-        texto = str(
-            modulo
-        ).strip().lower()
+    if contenido is None:
 
-        if "patolog" in texto:
-            return "PAT"
+        return (
+            pd.DataFrame(),
+            None,
+            False
+        )
 
-        if "producto" in texto:
-            return "PRO"
+    try:
 
-        if "restric" in texto:
-            return "RES"
-
-        if "complement" in texto:
-            return "COM"
-
-        limpio = (
-            texto
-            .replace(" ", "")
-            .replace("_", "")
-            .replace("-", "")
+        df = pd.read_csv(
+            io.BytesIO(
+                contenido
+            )
         )
 
         return (
-            limpio[:3].upper()
-            if limpio
-            else "MOD"
+            df,
+            sha,
+            True
         )
 
-    def codigo_relacion(relacion):
+    except Exception as error:
 
-        texto = str(
-            relacion
-        ).strip().lower()
+        st.error(
+            "10.1 ERROR leyendo "
+            "PREGUNTAS_EVALUACIONES.csv."
+        )
 
-        if "defin" in texto:
-            return "DEF"
+        st.exception(error)
 
-        if "causa" in texto:
-            return "CAU"
+        return (
+            pd.DataFrame(),
+            sha,
+            False
+        )
 
-        if "sintom" in texto:
-            return "SIN"
 
-        if (
-            "descripcion" in texto
-            or "descripción" in texto
-        ):
-            return "DES"
+# ============================================================
+# CARGAR REGISTRO DE EVALUACIONES
+#
+# ESTE ARCHIVO CONTIENE LOS CÓDIGOS DE EVALUACIÓN
+# Y SU TRAZABILIDAD.
+#
+# NO SE ESCRIBE DESDE 10.1.
+# ============================================================
 
-        if "componente" in texto:
-            return "COM"
+def cargar_registro_evaluaciones_101():
 
-        if (
-            "accion" in texto
-            or "acción" in texto
-        ):
-            return "ACC"
+    contenido, sha = (
+        leer_archivo_github_101(
+            ARCHIVO_EVALUACIONES_101
+        )
+    )
 
-        if (
-            "categoria" in texto
-            or "categoría" in texto
-        ):
-            return "CAT"
+    if contenido is None:
 
-        if "alternativa" in texto:
-            return "ALT"
+        return (
+            pd.DataFrame(),
+            None,
+            False
+        )
 
-        if "motivo" in texto:
-            return "MOT"
+    try:
 
-        if (
-            "precauc" in texto
-            or "contraindic" in texto
-            or "restric" in texto
-        ):
-            return "RES"
-
-        if "complement" in texto:
-            return "CMP"
-
-        limpio = (
-            texto
-            .replace(" ", "")
-            .replace("_", "")
-            .replace("-", "")
+        df = pd.read_csv(
+            io.BytesIO(
+                contenido
+            )
         )
 
         return (
-            limpio[:3].upper()
-            if limpio
-            else "REL"
+            df,
+            sha,
+            True
         )
 
-    texto_nivel = str(
-        nivel
-    ).strip().upper()
+    except Exception as error:
 
-    if "NIVEL 1" in texto_nivel:
-        codigo_nivel = "N1"
-
-    elif "NIVEL 2" in texto_nivel:
-        codigo_nivel = "N2"
-
-    else:
-
-        codigo_nivel = (
-            texto_nivel
-            .replace(" ", "")
-            .replace("-", "")
+        st.error(
+            "10.1 ERROR leyendo "
+            "EVALUACIONES.csv."
         )
 
-        if not codigo_nivel:
-            codigo_nivel = "NX"
+        st.exception(error)
 
-    prefijo = (
-        f"EVAL-"
-        f"{codigo_modulo(modulo)}-"
-        f"{codigo_relacion(tipo_relacion)}-"
-        f"{codigo_nivel}-"
-    )
-
-    mayor = 0
-
-    codigos = st.session_state.get(
-        "codigos_evaluaciones_101",
-        set()
-    )
-
-    for codigo in codigos:
-
-        codigo = str(
-            codigo
-        ).strip()
-
-        if not codigo.startswith(
-            prefijo
-        ):
-            continue
-
-        numero = codigo[
-            len(prefijo):
-        ]
-
-        try:
-
-            mayor = max(
-                mayor,
-                int(numero)
-            )
-
-        except Exception:
-
-            continue
-
-    return (
-        f"{prefijo}"
-        f"{mayor + 1:04d}"
-    )
-
-
-# ============================================================
-# FUNCIÓN PRINCIPAL DE RECONSTRUCCIÓN
-# ============================================================
-
-def reconstruir_estado_modulo_101():
-
-    # ========================================================
-    # 1. CARGAR BANCO
-    # ========================================================
-
-    df_banco = (
-        cargar_banco_general_101()
-    )
-
-    if df_banco is None:
-
-        return False
-
-
-    # ========================================================
-    # 2. LISTAR /PAGE/
-    # ========================================================
-
-    archivos_page = (
-        listar_archivos_page_101()
-    )
-
-    st.session_state[
-        "archivos_page_101"
-    ] = archivos_page
-
-
-    # ========================================================
-    # 3. IDENTIFICAR ARCHIVOS DE CONTROL
-    # ========================================================
-
-    archivos_control = (
-        identificar_archivos_control_101(
-            archivos_page
+        return (
+            pd.DataFrame(),
+            sha,
+            False
         )
-    )
-
-
-    # ========================================================
-    # 4. CARGAR REGISTRO DE EVALUACIONES
-    # ========================================================
-
-    if archivos_control[
-        "evaluaciones"
-    ]:
-
-        df_evaluaciones = (
-            leer_csv_page_101(
-                archivos_control[
-                    "evaluaciones"
-                ]
-            )
-        )
-
-    else:
-
-        df_evaluaciones = pd.DataFrame()
-
-
-    df_evaluaciones = (
-        normalizar_registro_evaluaciones_101(
-            df_evaluaciones
-        )
-    )
-
-
-    # ========================================================
-    # 5. CARGAR REGISTRO DE PREGUNTAS
-    # ========================================================
-
-    if archivos_control[
-        "preguntas"
-    ]:
-
-        df_preguntas = (
-            leer_csv_page_101(
-                archivos_control[
-                    "preguntas"
-                ]
-            )
-        )
-
-    else:
-
-        df_preguntas = pd.DataFrame()
-
-
-    df_preguntas = (
-        normalizar_registro_preguntas_101(
-            df_preguntas
-        )
-    )
-
-
-    # ========================================================
-    # 6. RECONSTRUIR ESTADO
-    # ========================================================
-
-    df_estado = (
-        reconstruir_estado_preguntas_101(
-            df_banco,
-            df_preguntas,
-            df_evaluaciones
-        )
-    )
-
-
-    # ========================================================
-    # 7. CREAR CONJUNTOS DE CONTROL
-    # ========================================================
-
-    preguntas_usadas = set(
-        df_estado.loc[
-            df_estado[
-                "Estado_Evaluacion"
-            ]
-            .astype(str)
-            .str.upper()
-            ==
-            "USADA",
-            "Pregunta_ID"
-        ]
-        .astype(str)
-        .str.strip()
-        .tolist()
-    )
-
-    preguntas_rechazadas = set(
-        df_estado.loc[
-            df_estado[
-                "Estado_Evaluacion"
-            ]
-            .astype(str)
-            .str.upper()
-            ==
-            "RECHAZADA",
-            "Pregunta_ID"
-        ]
-        .astype(str)
-        .str.strip()
-        .tolist()
-    )
-
-    preguntas_disponibles = set(
-        df_estado.loc[
-            df_estado[
-                "Estado_Evaluacion"
-            ]
-            .astype(str)
-            .str.upper()
-            ==
-            "DISPONIBLE",
-            "Pregunta_ID"
-        ]
-        .astype(str)
-        .str.strip()
-        .tolist()
-    )
-
-
-    # ========================================================
-    # 8. RECONSTRUIR CÓDIGOS
-    # ========================================================
-
-    codigos_evaluaciones = (
-        reconstruir_codigos_evaluacion_101(
-            df_evaluaciones
-        )
-    )
-
-
-    # ========================================================
-    # 9. GUARDAR TODO EN SESSION STATE
-    # ========================================================
-
-    st.session_state[
-        "df_banco_101"
-    ] = df_banco.copy()
-
-    st.session_state[
-        "df_evaluaciones_101"
-    ] = df_evaluaciones.copy()
-
-    st.session_state[
-        "df_preguntas_evaluacion_101"
-    ] = df_preguntas.copy()
-
-    st.session_state[
-        "df_estado_preguntas_101"
-    ] = df_estado.copy()
-
-    st.session_state[
-        "preguntas_usadas_101"
-    ] = preguntas_usadas
-
-    st.session_state[
-        "preguntas_rechazadas_101"
-    ] = preguntas_rechazadas
-
-    st.session_state[
-        "preguntas_disponibles_101"
-    ] = preguntas_disponibles
-
-    st.session_state[
-        "codigos_evaluaciones_101"
-    ] = codigos_evaluaciones
-
-    st.session_state[
-        "rutas_control_page_101"
-    ] = archivos_control
-
-    st.session_state[
-        "banco_101_cargado"
-    ] = True
-
-    st.session_state[
-        "estado_101_reconstruido"
-    ] = True
-
-    return True
 
 
 # ============================================================
@@ -24030,45 +23109,130 @@ def reconstruir_estado_modulo_101():
 # ============================================================
 
 st.markdown(
-    "## 10.1 - Carga y control del Banco General"
+    "## 10.1 - Carga y control de fuentes"
 )
 
 st.info(
-    "10.1 carga el Banco General desde el repositorio "
-    "principal y reconstruye el estado persistente de "
-    "las evaluaciones y preguntas almacenado en /page/."
+    "10.1 carga el Banco General y los registros "
+    "persistentes del módulo de evaluación. "
+    "El Banco General no se modifica."
 )
 
 
 # ============================================================
-# BOTÓN DE CARGA Y RECONSTRUCCIÓN
+# BOTÓN DE CARGA
 # ============================================================
 
 if st.button(
-    "CARGAR BANCO Y RECONSTRUIR ESTADO",
-    key="cargar_banco_reconstruir_101"
+    "CARGAR FUENTES DEL MÓDULO 10",
+    key="cargar_fuentes_101"
 ):
 
-    resultado = (
-        reconstruir_estado_modulo_101()
+    # ========================================================
+    # 1. BANCO GENERAL
+    # ========================================================
+
+    df_banco_101 = (
+        cargar_banco_general_101()
     )
 
-    if resultado:
+
+    if df_banco_101 is not None:
+
+        st.session_state[
+            "df_banco_101"
+        ] = df_banco_101.copy()
+
+        st.session_state[
+            "banco_101_cargado"
+        ] = True
+
+
+        # ====================================================
+        # 2. REGISTRO DE PREGUNTAS
+        # ====================================================
+
+        (
+            df_preguntas_101,
+            sha_preguntas_101,
+            existe_preguntas_101
+        ) = (
+            cargar_registro_preguntas_101()
+        )
+
+        st.session_state[
+            "df_preguntas_evaluaciones_101"
+        ] = df_preguntas_101.copy()
+
+        st.session_state[
+            "sha_preguntas_evaluaciones_101"
+        ] = sha_preguntas_101
+
+        st.session_state[
+            "registro_preguntas_101_existe"
+        ] = existe_preguntas_101
+
+
+        # ====================================================
+        # 3. REGISTRO DE EVALUACIONES
+        # ====================================================
+
+        (
+            df_evaluaciones_101,
+            sha_evaluaciones_101,
+            existe_evaluaciones_101
+        ) = (
+            cargar_registro_evaluaciones_101()
+        )
+
+        st.session_state[
+            "df_evaluaciones_101"
+        ] = df_evaluaciones_101.copy()
+
+        st.session_state[
+            "sha_evaluaciones_101"
+        ] = sha_evaluaciones_101
+
+        st.session_state[
+            "registro_evaluaciones_101_existe"
+        ] = existe_evaluaciones_101
+
+
+        # ====================================================
+        # LIMPIAR RESULTADOS DE ANÁLISIS ANTERIORES
+        #
+        # Porque acaba de cambiar la fuente.
+        # ====================================================
+
+        st.session_state.pop(
+            "df_aprobadas_102",
+            None
+        )
+
+        st.session_state.pop(
+            "resumen_disponibilidad_102",
+            None
+        )
+
+        st.session_state.pop(
+            "analisis_102_realizado",
+            None
+        )
+
 
         st.success(
-            "10.1: Banco General y estado persistente "
-            "cargados correctamente."
+            "Fuentes del módulo 10 cargadas correctamente."
         )
 
         st.rerun()
 
 
 # ============================================================
-# MOSTRAR ESTADO SI YA FUE CARGADO
+# MOSTRAR INFORMACIÓN DE LAS FUENTES
 # ============================================================
 
 if st.session_state.get(
-    "estado_101_reconstruido",
+    "banco_101_cargado",
     False
 ):
 
@@ -24077,110 +23241,29 @@ if st.session_state.get(
         pd.DataFrame()
     )
 
-    df_evaluaciones_101 = (
-        st.session_state.get(
-            "df_evaluaciones_101",
-            pd.DataFrame()
-        )
-    )
-
-    df_preguntas_evaluacion_101 = (
-        st.session_state.get(
-            "df_preguntas_evaluacion_101",
-            pd.DataFrame()
-        )
-    )
-
-    df_estado_preguntas_101 = (
-        st.session_state.get(
-            "df_estado_preguntas_101",
-            pd.DataFrame()
-        )
-    )
-
 
     # ========================================================
-    # CONTADORES
+    # BANCO GENERAL
     # ========================================================
+
+    st.markdown(
+        "### 1. Banco general de preguntas"
+    )
 
     total_banco_101 = len(
         df_banco_101
     )
 
-    aprobadas_banco_101 = int(
-        (
-            df_banco_101[
-                "Estado"
-            ]
-            .astype(str)
-            .str.upper()
-            ==
-            "APROBADA"
-        ).sum()
-    )
-
-    rechazadas_banco_101 = int(
-        (
-            df_banco_101[
-                "Estado"
-            ]
-            .astype(str)
-            .str.upper()
-            ==
-            "RECHAZADA"
-        ).sum()
-    )
-
-    pendientes_banco_101 = int(
-        (
-            df_banco_101[
-                "Estado"
-            ]
-            .astype(str)
-            .str.upper()
-            ==
-            "PENDIENTE"
-        ).sum()
+    duplicadas_101 = int(
+        df_banco_101[
+            "Pregunta_ID"
+        ]
+        .duplicated()
+        .sum()
     )
 
 
-    usadas_101 = len(
-        st.session_state.get(
-            "preguntas_usadas_101",
-            set()
-        )
-    )
-
-    rechazadas_evaluacion_101 = len(
-        st.session_state.get(
-            "preguntas_rechazadas_101",
-            set()
-        )
-    )
-
-    disponibles_101 = len(
-        st.session_state.get(
-            "preguntas_disponibles_101",
-            set()
-        )
-    )
-
-    total_evaluaciones_101 = len(
-        df_evaluaciones_101
-    )
-
-
-    # ========================================================
-    # CONTROL GENERAL
-    # ========================================================
-
-    st.markdown(
-        "### Estado reconstruido del módulo 10"
-    )
-
-    col1_101, col2_101, col3_101, col4_101 = (
-        st.columns(4)
-    )
+    col1_101, col2_101 = st.columns(2)
 
     with col1_101:
 
@@ -24192,201 +23275,158 @@ if st.session_state.get(
     with col2_101:
 
         st.metric(
-            "Preguntas aprobadas",
-            f"{aprobadas_banco_101:,}"
-        )
-
-    with col3_101:
-
-        st.metric(
-            "Preguntas usadas",
-            f"{usadas_101:,}"
-        )
-
-    with col4_101:
-
-        st.metric(
-            "Preguntas disponibles",
-            f"{disponibles_101:,}"
+            "Pregunta_ID duplicados",
+            f"{duplicadas_101:,}"
         )
 
 
-    col5_101, col6_101, col7_101, col8_101 = (
-        st.columns(4)
+    if duplicadas_101 > 0:
+
+        st.warning(
+            "El Banco General contiene "
+            f"{duplicadas_101:,} registros con "
+            "Pregunta_ID duplicado. "
+            "10.1 no los modifica."
+        )
+
+    else:
+
+        st.success(
+            "No se encontraron Pregunta_ID duplicados "
+            "en el Banco General."
+        )
+
+
+    st.caption(
+        "Este archivo es únicamente fuente de lectura. "
+        "10.4 no debe modificarlo."
     )
-
-    with col5_101:
-
-        st.metric(
-            "Preguntas rechazadas",
-            f"{rechazadas_evaluacion_101:,}"
-        )
-
-    with col6_101:
-
-        st.metric(
-            "Pendientes en banco",
-            f"{pendientes_banco_101:,}"
-        )
-
-    with col7_101:
-
-        st.metric(
-            "Evaluaciones existentes",
-            f"{total_evaluaciones_101:,}"
-        )
-
-    with col8_101:
-
-        st.metric(
-            "Códigos registrados",
-            f"{len(st.session_state.get('codigos_evaluaciones_101', set())):,}"
-        )
 
 
     # ========================================================
-    # ESTADO DE ARCHIVOS PERSISTENTES
+    # REGISTRO PERSISTENTE DE PREGUNTAS
     # ========================================================
 
     st.markdown(
-        "### Persistencia encontrada en /page/"
+        "### 2. Registro persistente de preguntas"
     )
 
-    rutas_control_101 = st.session_state.get(
-        "rutas_control_page_101",
-        {}
+    df_preguntas_101 = st.session_state.get(
+        "df_preguntas_evaluaciones_101",
+        pd.DataFrame()
     )
 
-    if rutas_control_101.get(
-        "evaluaciones"
-    ):
-
-        st.success(
-            "Registro de evaluaciones encontrado: "
-            + rutas_control_101[
-                "evaluaciones"
-            ]
+    existe_preguntas_101 = (
+        st.session_state.get(
+            "registro_preguntas_101_existe",
+            False
         )
+    )
 
-    else:
 
-        st.warning(
-            "No se encontró todavía un registro "
-            "persistente de evaluaciones en /page/."
-        )
-
-    if rutas_control_101.get(
-        "preguntas"
-    ):
-
-        st.success(
-            "Registro de preguntas encontrado: "
-            + rutas_control_101[
-                "preguntas"
-            ]
-        )
-
-    else:
+    if not existe_preguntas_101:
 
         st.warning(
             "No se encontró todavía un registro "
             "persistente de preguntas en /page/."
         )
 
-
-    # ========================================================
-    # RESUMEN DE EVALUACIONES
-    # ========================================================
-
-    if not df_evaluaciones_101.empty:
-
-        st.markdown(
-            "### Evaluaciones existentes"
-        )
-
-        st.dataframe(
-            df_evaluaciones_101,
-            use_container_width=True,
-            hide_index=True
-        )
-
-
-    # ========================================================
-    # RESUMEN DE ESTADO DE PREGUNTAS
-    # ========================================================
-
-    if not df_estado_preguntas_101.empty:
-
-        st.markdown(
-            "### Estado de las preguntas"
-        )
-
-        resumen_estado_101 = (
-            df_estado_preguntas_101[
-                "Estado_Evaluacion"
-            ]
-            .value_counts()
-            .rename_axis(
-                "Estado"
-            )
-            .reset_index(
-                name="Cantidad"
-            )
-        )
-
-        st.dataframe(
-            resumen_estado_101,
-            use_container_width=True,
-            hide_index=True
-        )
-
-
-    # ========================================================
-    # CONTROL DE CÓDIGOS
-    # ========================================================
-
-    st.markdown(
-        "### Códigos de evaluaciones ya utilizados"
-    )
-
-    codigos_101 = sorted(
-        st.session_state.get(
-            "codigos_evaluaciones_101",
-            set()
-        )
-    )
-
-    if codigos_101:
-
-        st.write(
-            codigos_101
+        st.caption(
+            "Esto es normal si todavía no se ha "
+            "generado la primera evaluación."
         )
 
     else:
 
-        st.info(
-            "Todavía no existen códigos persistentes "
-            "de evaluaciones."
+        st.success(
+            "Registro persistente de preguntas "
+            "encontrado en /page/."
+        )
+
+        st.metric(
+            "Registros de preguntas",
+            f"{len(df_preguntas_101):,}"
         )
 
 
     # ========================================================
-    # PRÓXIMO CONSECUTIVO DE EJEMPLO
-    #
-    # SOLO DEMOSTRACIÓN.
-    # NO CREA NINGUNA EVALUACIÓN.
+    # REGISTRO PERSISTENTE DE EVALUACIONES
     # ========================================================
 
     st.markdown(
-        "### Control del consecutivo"
+        "### 3. Registro persistente de evaluaciones"
     )
 
-    st.caption(
-        "El siguiente código se calculará utilizando "
-        "los códigos persistentes encontrados en /page/. "
-        "No depende únicamente de session_state."
+    df_evaluaciones_101 = st.session_state.get(
+        "df_evaluaciones_101",
+        pd.DataFrame()
+    )
+
+    existe_evaluaciones_101 = (
+        st.session_state.get(
+            "registro_evaluaciones_101_existe",
+            False
+        )
     )
 
 
-# ============================================================
-# FIN 10.1
+    if not existe_evaluaciones_101:
+
+        st.warning(
+            "No se encontró todavía un registro "
+            "persistente de evaluaciones en /page/."
+        )
+
+        st.caption(
+            "Esto es normal si todavía no se ha "
+            "generado la primera evaluación."
+        )
+
+    else:
+
+        st.success(
+            "Registro persistente de evaluaciones "
+            "encontrado en /page/."
+        )
+
+        st.metric(
+            "Evaluaciones registradas",
+            f"{len(df_evaluaciones_101):,}"
+        )
+
+
+    # ========================================================
+    # CONTROL DE TRAZABILIDAD
+    # ========================================================
+
+    st.markdown(
+        "### Control de trazabilidad"
+    )
+
+    st.write(
+        "El módulo 10 utiliza tres fuentes separadas:"
+    )
+
+    st.write(
+        "1. **BANCO_PREGUNTAS_GENERALES.xlsx** → "
+        "fuente original de preguntas."
+    )
+
+    st.write(
+        "2. **PREGUNTAS_EVALUACIONES.csv** → "
+        "registro persistente del consumo y estado "
+        "de cada pregunta."
+    )
+
+    st.write(
+        "3. **EVALUACIONES.csv** → "
+        "registro persistente de las evaluaciones "
+        "generadas y sus códigos."
+    )
+
+    st.info(
+        "10.1 solamente lee estas fuentes. "
+        "La creación y actualización de los registros "
+        "persistentes corresponde a las etapas posteriores "
+        "del módulo 10."
+    )
