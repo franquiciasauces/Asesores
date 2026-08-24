@@ -23591,1063 +23591,522 @@ else:
             "modifica preguntas."
         )
 
+
+
 # ============================================================
-# 10.3 - PREPARADOR DE EVALUACIONES
-# ============================================================
-# OBJETIVO:
-#   Permitir seleccionar UNA evaluación específica mediante:
-#
-#       Módulo
-#       Tipo_Relacion
-#       Nivel
-#
-#   y preparar exactamente 10 preguntas.
-#
-# IMPORTANTE:
-#   - NO utiliza Tema para estructurar la evaluación.
-#   - NO sincroniza todavía con GitHub.
-#   - NO consume definitivamente las preguntas.
-#   - Las preguntas no seleccionadas permanecen disponibles.
-#   - La evaluación preparada pasa posteriormente al validador.
+# 10.3 - PREPARACIÓN DE EVALUACIONES
+# SELECCIÓN DE EVALUACIÓN
 #
 # FUENTE:
-#   df_banco_81
+#     df_banco_101
 #
-# SALIDA:
-#   evaluacion_preparada_103
-# ============================================================
-
-
-# ============================================================
-# COLUMNAS DEL BANCO GENERAL
-# ============================================================
-
-COLUMNAS_BANCO_103 = [
-
-    "Pregunta_ID",
-    "Modulo",
-    "Tema",
-    "Nivel",
-    "Tipo_Relacion",
-    "Pregunta",
-    "Respuesta_1",
-    "Respuesta_2",
-    "Respuesta_3",
-    "Respuesta_4",
-    "Respuesta_Correcta",
-    "Estado",
-    "Observacion_Administrador",
-    "Fecha_Generacion",
-    "Fuente_ID"
-]
-
-
-# ============================================================
-# OBTENER BANCO GENERAL
-# ============================================================
-
-def obtener_banco_general_103():
-
-    df = st.session_state.get(
-        "df_banco_81",
-        pd.DataFrame()
-    )
-
-    if isinstance(df, pd.DataFrame) and not df.empty:
-
-        return df.copy()
-
-    return pd.DataFrame()
-
-
-# ============================================================
-# OBTENER PREGUNTAS YA CONSUMIDAS
+# NO RECARGA EL EXCEL
+# NO DEPENDE DE 10.2
 #
-# IMPORTANTE:
-# Este registro corresponde solamente a preguntas que
-# ya fueron incorporadas definitivamente a evaluaciones.
+# ESTRUCTURA:
+#     Módulo
+#     Tipo_Relacion
+#     Nivel
 #
-# Las preguntas simplemente preparadas NO se consideran
-# consumidas todavía.
+# TEMA:
+#     NO SE UTILIZA
 # ============================================================
-
-def obtener_preguntas_consumidas_103():
-
-    consumidas = st.session_state.get(
-        "preguntas_consumidas_evaluaciones_103",
-        set()
-    )
-
-    if not isinstance(
-        consumidas,
-        (set, list, tuple)
-    ):
-
-        return set()
-
-    return {
-        str(valor).strip()
-        for valor in consumidas
-        if str(valor).strip()
-    }
 
 
 # ============================================================
-# ABREVIAR MÓDULO
+# CARGAR EL BANCO DESDE LA MEMORIA DE 10.1
 # ============================================================
 
-def codigo_modulo_103(modulo):
-
-    texto = (
-        str(modulo)
-        .strip()
-        .lower()
-    )
-
-    equivalencias = {
-
-        "patologias": "PAT",
-        "patología": "PAT",
-        "patologia": "PAT",
-
-        "producto": "PROD",
-
-        "restricciones": "REST",
-        "restricción": "REST",
-        "restriccion": "REST",
-
-        "complementarios": "COMP"
-    }
-
-    if texto in equivalencias:
-
-        return equivalencias[texto]
-
-    texto = (
-        texto
-        .replace("á", "a")
-        .replace("é", "e")
-        .replace("í", "i")
-        .replace("ó", "o")
-        .replace("ú", "u")
-    )
-
-    texto = "".join(
-        caracter
-        for caracter in texto
-        if caracter.isalnum()
-    )
-
-    return (
-        texto.upper()[:6]
-        if texto
-        else "MOD"
-    )
-
-
-# ============================================================
-# ABREVIAR TIPO DE RELACIÓN
-# ============================================================
-
-def codigo_relacion_103(relacion):
-
-    texto = (
-        str(relacion)
-        .strip()
-        .lower()
-    )
-
-    equivalencias = {
-
-        # ----------------------------------------------------
-        # PATOLOGÍAS
-        # ----------------------------------------------------
-
-        "patología-definición":
-            "DEF",
-
-        "patologia-definicion":
-            "DEF",
-
-        "patología-causas":
-            "CAU",
-
-        "patologia-causas":
-            "CAU",
-
-        "patología-sintomas":
-            "SINT",
-
-        "patologia-sintomas":
-            "SINT",
-
-        "patología-producto":
-            "PROD",
-
-        "patologia-producto":
-            "PROD",
-
-        "patología-descripción-producto":
-            "DESC",
-
-        "patologia-descripcion-producto":
-            "DESC",
-
-        # ----------------------------------------------------
-        # PRODUCTO
-        # ----------------------------------------------------
-
-        "acción general":
-            "ACCGEN",
-
-        "accion general":
-            "ACCGEN",
-
-        "componente - acción":
-            "COMPACC",
-
-        "componente-acción":
-            "COMPACC",
-
-        "componente-accion":
-            "COMPACC",
-
-        "categoría principal":
-            "CAT",
-
-        "categoria principal":
-            "CAT",
-
-        "categoría principal y complementaria":
-            "CATCOMP",
-
-        "categoria principal y complementaria":
-            "CATCOMP",
-
-        # ----------------------------------------------------
-        # RESTRICCIONES
-        # ----------------------------------------------------
-
-        "producto_motivo":
-            "MOT",
-
-        "producto-motivo":
-            "MOT",
-
-        "producto_restricción_motivo":
-            "RESMOT",
-
-        "producto-restriccion-motivo":
-            "RESMOT",
-
-        "producto_restriccion":
-            "RESTR",
-
-        "producto-restricción":
-            "RESTR",
-
-        "producto-precaución/contraindicación":
-            "RESTR",
-
-        "producto-precaución/contraindicación-motivo":
-            "RESMOT",
-
-        "producto_alternativas seguras":
-            "ALT",
-
-        "producto-alternativas seguras":
-            "ALT",
-
-        "producto-alternativas-seguras":
-            "ALT",
-
-        # ----------------------------------------------------
-        # COMPLEMENTARIOS
-        # ----------------------------------------------------
-
-        "producto-complementario":
-            "COMP",
-
-        "producto-complementarios":
-            "COMP"
-    }
-
-    if texto in equivalencias:
-
-        return equivalencias[texto]
-
-    texto = (
-        texto
-        .replace("á", "a")
-        .replace("é", "e")
-        .replace("í", "i")
-        .replace("ó", "o")
-        .replace("ú", "u")
-    )
-
-    texto = (
-        texto
-        .replace("/", "")
-        .replace("_", "")
-        .replace("-", "")
-        .replace(" ", "")
-    )
-
-    texto = "".join(
-        caracter
-        for caracter in texto
-        if caracter.isalnum()
-    )
-
-    return (
-        texto.upper()[:10]
-        if texto
-        else "REL"
-    )
-
-
-# ============================================================
-# ABREVIAR NIVEL
-# ============================================================
-
-def codigo_nivel_103(nivel):
-
-    texto = (
-        str(nivel)
-        .strip()
-        .lower()
-    )
-
-    if "nivel 1" in texto:
-
-        return "N1"
-
-    if "nivel 2" in texto:
-
-        return "N2"
-
-    if "nivel 3" in texto:
-
-        return "N3"
-
-    texto = (
-        texto
-        .replace(" ", "")
-        .upper()
-    )
-
-    return (
-        texto[:4]
-        if texto
-        else "NX"
-    )
-
-
-# ============================================================
-# SIGUIENTE CÓDIGO DE EVALUACIÓN
-# ============================================================
-
-def siguiente_codigo_evaluacion_103(
-    modulo,
-    relacion,
-    nivel
-):
-
-    prefijo = (
-        "EVAL-"
-        + codigo_modulo_103(modulo)
-        + "-"
-        + codigo_relacion_103(relacion)
-        + "-"
-        + codigo_nivel_103(nivel)
-        + "-"
-    )
-
-    mayor = 0
-
-    # --------------------------------------------------------
-    # EVALUACIONES YA PREPARADAS
-    # --------------------------------------------------------
-
-    evaluaciones = st.session_state.get(
-        "evaluaciones_preparadas_103",
-        []
-    )
-
-    if isinstance(
-        evaluaciones,
-        list
-    ):
-
-        for evaluacion in evaluaciones:
-
-            codigo = str(
-                evaluacion.get(
-                    "Evaluacion_ID",
-                    ""
-                )
-            ).strip()
-
-            if codigo.startswith(prefijo):
-
-                try:
-
-                    numero = int(
-                        codigo.replace(
-                            prefijo,
-                            ""
-                        )
-                    )
-
-                    mayor = max(
-                        mayor,
-                        numero
-                    )
-
-                except ValueError:
-
-                    pass
-
-    # --------------------------------------------------------
-    # EVALUACIÓN ACTUAL
-    # --------------------------------------------------------
-
-    evaluacion_actual = st.session_state.get(
-        "evaluacion_preparada_103",
-        {}
-    )
-
-    if isinstance(
-        evaluacion_actual,
-        dict
-    ):
-
-        codigo = str(
-            evaluacion_actual.get(
-                "Evaluacion_ID",
-                ""
-            )
-        ).strip()
-
-        if codigo.startswith(prefijo):
-
-            try:
-
-                numero = int(
-                    codigo.replace(
-                        prefijo,
-                        ""
-                    )
-                )
-
-                mayor = max(
-                    mayor,
-                    numero
-                )
-
-            except ValueError:
-
-                pass
-
-    return (
-        prefijo
-        + f"{mayor + 1:03d}"
-    )
-
-
-# ============================================================
-# OBTENER DISPONIBLES PARA UNA COMBINACIÓN
-# ============================================================
-
-def obtener_disponibles_103(
-    modulo,
-    relacion,
-    nivel
-):
-
-    df_banco = obtener_banco_general_103()
-
-    if df_banco.empty:
-
-        return pd.DataFrame()
-
-    # --------------------------------------------------------
-    # SOLO APROBADAS
-    # --------------------------------------------------------
-
-    df = df_banco[
-        df_banco["Estado"]
-        .astype(str)
-        .str.strip()
-        .str.upper()
-        == "APROBADA"
-    ].copy()
-
-    # --------------------------------------------------------
-    # MÓDULO
-    # --------------------------------------------------------
-
-    df = df[
-        df["Modulo"]
-        .astype(str)
-        .str.strip()
-        ==
-        str(modulo).strip()
-    ].copy()
-
-    # --------------------------------------------------------
-    # TIPO DE RELACIÓN
-    # --------------------------------------------------------
-
-    df = df[
-        df["Tipo_Relacion"]
-        .astype(str)
-        .str.strip()
-        ==
-        str(relacion).strip()
-    ].copy()
-
-    # --------------------------------------------------------
-    # NIVEL
-    # --------------------------------------------------------
-
-    df = df[
-        df["Nivel"]
-        .astype(str)
-        .str.strip()
-        ==
-        str(nivel).strip()
-    ].copy()
-
-    # --------------------------------------------------------
-    # PREGUNTAS CONSUMIDAS
-    # --------------------------------------------------------
-
-    consumidas = (
-        obtener_preguntas_consumidas_103()
-    )
-
-    if consumidas:
-
-        df = df[
-            ~df["Pregunta_ID"]
-            .astype(str)
-            .str.strip()
-            .isin(consumidas)
-        ].copy()
-
-    # --------------------------------------------------------
-    # IDS VÁLIDOS
-    # --------------------------------------------------------
-
-    df = df[
-        df["Pregunta_ID"]
-        .astype(str)
-        .str.strip()
-        != ""
-    ].copy()
-
-    return df.reset_index(
-        drop=True
-    )
-
-
-# ============================================================
-# PREPARAR UNA SOLA EVALUACIÓN
-# ============================================================
-
-def preparar_evaluacion_103(
-    modulo,
-    relacion,
-    nivel
-):
-
-    df_disponibles = obtener_disponibles_103(
-        modulo,
-        relacion,
-        nivel
-    )
-
-    total_disponibles = len(
-        df_disponibles
-    )
-
-    # --------------------------------------------------------
-    # NO SE PUEDE CREAR UNA EVALUACIÓN INCOMPLETA
-    # --------------------------------------------------------
-
-    if total_disponibles < 10:
-
-        st.warning(
-            f"Solo quedan {total_disponibles} "
-            "preguntas disponibles para esta "
-            "combinación. "
-            "Se requieren 10 para preparar "
-            "una nueva evaluación."
-        )
-
-        return None
-
-    # --------------------------------------------------------
-    # TOMAR EXACTAMENTE 10
-    #
-    # LAS RESTANTES QUEDAN EN COLA.
-    # --------------------------------------------------------
-
-    seleccion = df_disponibles.sample(
-        n=10
-    ).copy()
-
-    seleccion = seleccion[
-        COLUMNAS_BANCO_103
-    ].reset_index(
-        drop=True
-    )
-
-    # --------------------------------------------------------
-    # CÓDIGO DE EVALUACIÓN
-    # --------------------------------------------------------
-
-    evaluacion_id = (
-        siguiente_codigo_evaluacion_103(
-            modulo,
-            relacion,
-            nivel
-        )
-    )
-
-    # --------------------------------------------------------
-    # CALCULAR COLA
-    # --------------------------------------------------------
-
-    restantes = (
-        total_disponibles - 10
-    )
-
-    # --------------------------------------------------------
-    # CREAR OBJETO DE EVALUACIÓN
-    # --------------------------------------------------------
-
-    evaluacion = {
-
-        "Evaluacion_ID":
-            evaluacion_id,
-
-        "Modulo":
-            str(modulo).strip(),
-
-        "Tipo_Relacion":
-            str(relacion).strip(),
-
-        "Nivel":
-            str(nivel).strip(),
-
-        "Cantidad_Preguntas":
-            10,
-
-        "Preguntas_Disponibles_Antes":
-            total_disponibles,
-
-        "Preguntas_En_Cola":
-            restantes,
-
-        "Estado":
-            "EN_REVISION",
-
-        "Preguntas":
-            seleccion.to_dict(
-                orient="records"
-            ),
-
-        "Preguntas_ID":
-            seleccion[
-                "Pregunta_ID"
-            ]
-            .astype(str)
-            .str.strip()
-            .tolist()
-    }
-
-    # --------------------------------------------------------
-    # GUARDAR EVALUACIÓN ACTUAL
-    # --------------------------------------------------------
-
-    st.session_state[
-        "evaluacion_preparada_103"
-    ] = evaluacion
-
-    return evaluacion
-
-
-# ============================================================
-# INTERFAZ 10.3
-# ============================================================
-
-st.markdown(
-    "## 10.3 — Preparación de evaluaciones"
+df_banco_101 = st.session_state.get(
+    "df_banco_101",
+    pd.DataFrame()
 )
 
-st.info(
-    "Seleccione el módulo, el Tipo_Relacion y el nivel "
-    "para preparar una evaluación de exactamente "
-    "10 preguntas."
-)
-
-df_banco_103 = (
-    obtener_banco_general_103()
-)
 
 # ============================================================
-# VERIFICAR QUE 10.1 REALMENTE DEJÓ EL BANCO
+# VALIDAR QUE 10.1 CARGÓ EL BANCO
 # ============================================================
 
-if df_banco_103.empty:
+if df_banco_101.empty:
 
-    st.warning(
-        "10.3 no encontró el banco general en memoria. "
-        "Verifique que 10.1 haya cargado correctamente "
-        "BANCO_PREGUNTAS_GENERALES.xlsx."
+    st.error(
+        "10.3 ERROR: no se encontró el banco general "
+        "cargado por 10.1."
     )
 
 else:
 
+    # ========================================================
+    # COLUMNAS NECESARIAS
+    # ========================================================
+
+    columnas_103 = [
+        "Pregunta_ID",
+        "Modulo",
+        "Tipo_Relacion",
+        "Nivel",
+        "Pregunta",
+        "Respuesta_1",
+        "Respuesta_2",
+        "Respuesta_3",
+        "Respuesta_4",
+        "Respuesta_Correcta",
+        "Estado",
+        "Fuente_ID"
+    ]
+
     faltantes_103 = [
         columna
-        for columna in COLUMNAS_BANCO_103
-        if columna not in df_banco_103.columns
+        for columna in columnas_103
+        if columna not in df_banco_101.columns
     ]
 
     if faltantes_103:
 
         st.error(
-            "10.3 ERROR: faltan columnas en el "
-            "Banco de Preguntas Generales: "
-            + ", ".join(
-                faltantes_103
-            )
+            "10.3 ERROR: faltan columnas en "
+            "BANCO_PREGUNTAS_GENERALES.xlsx: "
+            + ", ".join(faltantes_103)
         )
 
     else:
 
-        # ----------------------------------------------------
-        # SOLO APROBADAS
-        # ----------------------------------------------------
+        # ====================================================
+        # CONSERVAR SOLO PREGUNTAS APROBADAS
+        # ====================================================
 
-        df_aprobadas_103 = df_banco_103[
-            df_banco_103["Estado"]
+        df_disponibles_103 = df_banco_101[
+            df_banco_101["Estado"]
             .astype(str)
             .str.strip()
             .str.upper()
-            ==
-            "APROBADA"
+            == "APROBADA"
         ].copy()
 
-        # ----------------------------------------------------
-        # MÓDULOS
-        # ----------------------------------------------------
+        # ====================================================
+        # PREGUNTAS YA UTILIZADAS EN EVALUACIONES
+        #
+        # Estas preguntas NO pueden volver a utilizarse.
+        # ====================================================
 
-        modulos_103 = sorted(
-            [
-                valor
-                for valor in
-                df_aprobadas_103[
-                    "Modulo"
-                ]
-                .dropna()
+        preguntas_usadas_103 = st.session_state.get(
+            "preguntas_usadas_evaluaciones_103",
+            set()
+        )
+
+        if not isinstance(
+            preguntas_usadas_103,
+            set
+        ):
+
+            preguntas_usadas_103 = set(
+                preguntas_usadas_103
+            )
+
+        # ====================================================
+        # ELIMINAR PREGUNTAS YA UTILIZADAS
+        # ====================================================
+
+        df_disponibles_103 = df_disponibles_103[
+            ~df_disponibles_103[
+                "Pregunta_ID"
+            ]
+            .astype(str)
+            .str.strip()
+            .isin(
+                preguntas_usadas_103
+            )
+        ].copy()
+
+        # ====================================================
+        # GUARDAR DISPONIBILIDAD ACTUAL
+        # ====================================================
+
+        st.session_state[
+            "df_disponibles_103"
+        ] = df_disponibles_103.reset_index(
+            drop=True
+        )
+
+        st.session_state[
+            "preguntas_usadas_evaluaciones_103"
+        ] = preguntas_usadas_103
+
+        # ====================================================
+        # ENCABEZADO
+        # ====================================================
+
+        st.markdown(
+            "## 10.3 - Preparación de evaluaciones"
+        )
+
+        st.info(
+            "Las evaluaciones se estructuran únicamente "
+            "por Módulo, Tipo_Relacion y Nivel. "
+            "El campo Tema no se utiliza."
+        )
+
+        # ====================================================
+        # RESUMEN GENERAL
+        # ====================================================
+
+        total_banco_103 = len(
+            df_banco_101
+        )
+
+        total_aprobadas_103 = len(
+            df_banco_101[
+                df_banco_101["Estado"]
                 .astype(str)
                 .str.strip()
-                .unique()
-                if valor
+                .str.upper()
+                == "APROBADA"
             ]
         )
 
-        if not modulos_103:
+        total_disponibles_103 = len(
+            df_disponibles_103
+        )
+
+        total_usadas_103 = len(
+            preguntas_usadas_103
+        )
+
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+
+            st.metric(
+                "Preguntas en banco",
+                total_banco_103
+            )
+
+        with col2:
+
+            st.metric(
+                "Preguntas aprobadas",
+                total_aprobadas_103
+            )
+
+        with col3:
+
+            st.metric(
+                "Preguntas utilizadas",
+                total_usadas_103
+            )
+
+        with col4:
+
+            st.metric(
+                "Preguntas disponibles",
+                total_disponibles_103
+            )
+
+        # ====================================================
+        # SI NO HAY DISPONIBLES
+        # ====================================================
+
+        if df_disponibles_103.empty:
 
             st.warning(
-                "No hay preguntas APROBADAS "
-                "disponibles."
+                "No hay preguntas aprobadas disponibles "
+                "para generar nuevas evaluaciones."
             )
 
         else:
 
-            modulo_103 = st.selectbox(
-                "1. Módulo",
-                modulos_103,
-                key="selector_modulo_evaluacion_103"
+            # =================================================
+            # ANÁLISIS POR MÓDULO / RELACIÓN / NIVEL
+            # =================================================
+
+            resumen_103 = (
+                df_disponibles_103
+                .groupby(
+                    [
+                        "Modulo",
+                        "Tipo_Relacion",
+                        "Nivel"
+                    ],
+                    dropna=False
+                )
+                .size()
+                .reset_index(
+                    name="Preguntas_disponibles"
+                )
             )
 
-            # ------------------------------------------------
-            # RELACIONES DEL MÓDULO
-            # ------------------------------------------------
+            resumen_103[
+                "Evaluaciones_maximas"
+            ] = (
+                resumen_103[
+                    "Preguntas_disponibles"
+                ]
+                // 10
+            )
 
-            df_modulo_103 = (
-                df_aprobadas_103[
-                    df_aprobadas_103[
-                        "Modulo"
+            # Si quedan entre 1 y 9 preguntas,
+            # también puede generarse una evaluación
+            # parcial con esas preguntas.
+
+            resumen_103[
+                "Preguntas_restantes"
+            ] = (
+                resumen_103[
+                    "Preguntas_disponibles"
+                ]
+                % 10
+            )
+
+            resumen_103[
+                "Puede_generar_evaluacion"
+            ] = (
+                resumen_103[
+                    "Preguntas_disponibles"
+                ] > 0
+            )
+
+            # ================================================
+            # MOSTRAR TABLA
+            # ================================================
+
+            st.markdown(
+                "### Disponibilidad por módulo, relación y nivel"
+            )
+
+            st.dataframe(
+                resumen_103[
+                    [
+                        "Modulo",
+                        "Tipo_Relacion",
+                        "Nivel",
+                        "Preguntas_disponibles",
+                        "Evaluaciones_maximas",
+                        "Preguntas_restantes",
+                        "Puede_generar_evaluacion"
                     ]
-                    .astype(str)
-                    .str.strip()
-                    ==
-                    str(modulo_103).strip()
-                ].copy()
+                ],
+                use_container_width=True,
+                hide_index=True
             )
 
-            relaciones_103 = sorted(
-                [
-                    valor
-                    for valor in
-                    df_modulo_103[
+            # =================================================
+            # SELECCIÓN DE EVALUACIÓN
+            # =================================================
+
+            st.markdown(
+                "### Seleccionar evaluación a generar"
+            )
+
+            modulos_103 = sorted(
+                resumen_103[
+                    "Modulo"
+                ]
+                .dropna()
+                .astype(str)
+                .unique()
+                .tolist()
+            )
+
+            if modulos_103:
+
+                modulo_seleccionado_103 = st.selectbox(
+                    "Módulo",
+                    modulos_103,
+                    key="modulo_evaluacion_103"
+                )
+
+                resumen_modulo_103 = resumen_103[
+                    resumen_103[
+                        "Modulo"
+                    ].astype(str)
+                    == str(
+                        modulo_seleccionado_103
+                    )
+                ].copy()
+
+                relaciones_103 = sorted(
+                    resumen_modulo_103[
                         "Tipo_Relacion"
                     ]
                     .dropna()
                     .astype(str)
-                    .str.strip()
                     .unique()
-                    if valor
-                ]
-            )
-
-            if not relaciones_103:
-
-                st.warning(
-                    "No hay Tipos_Relacion disponibles "
-                    "para este módulo."
+                    .tolist()
                 )
 
-            else:
+                if relaciones_103:
 
-                relacion_103 = st.selectbox(
-                    "2. Tipo_Relacion",
-                    relaciones_103,
-                    key="selector_relacion_evaluacion_103"
-                )
+                    relacion_seleccionada_103 = (
+                        st.selectbox(
+                            "Tipo de relación",
+                            relaciones_103,
+                            key="relacion_evaluacion_103"
+                        )
+                    )
 
-                # ------------------------------------------------
-                # NIVELES
-                # ------------------------------------------------
-
-                df_relacion_103 = (
-                    df_modulo_103[
-                        df_modulo_103[
-                            "Tipo_Relacion"
+                    resumen_relacion_103 = (
+                        resumen_modulo_103[
+                            resumen_modulo_103[
+                                "Tipo_Relacion"
+                            ].astype(str)
+                            ==
+                            str(
+                                relacion_seleccionada_103
+                            )
                         ]
-                        .astype(str)
-                        .str.strip()
-                        ==
-                        str(relacion_103).strip()
-                    ].copy()
-                )
+                        .copy()
+                    )
 
-                niveles_103 = sorted(
-                    [
-                        valor
-                        for valor in
-                        df_relacion_103[
+                    niveles_103 = sorted(
+                        resumen_relacion_103[
                             "Nivel"
                         ]
                         .dropna()
                         .astype(str)
-                        .str.strip()
                         .unique()
-                        if valor
-                    ]
-                )
-
-                if not niveles_103:
-
-                    st.warning(
-                        "No hay niveles disponibles "
-                        "para este Tipo_Relacion."
+                        .tolist()
                     )
 
-                else:
+                    if niveles_103:
 
-                    nivel_103 = st.selectbox(
-                        "3. Nivel",
-                        niveles_103,
-                        key="selector_nivel_evaluacion_103"
-                    )
-
-                    # --------------------------------------------
-                    # DISPONIBILIDAD REAL
-                    # --------------------------------------------
-
-                    df_disponibles_103 = (
-                        obtener_disponibles_103(
-                            modulo_103,
-                            relacion_103,
-                            nivel_103
-                        )
-                    )
-
-                    disponibles_103 = len(
-                        df_disponibles_103
-                    )
-
-                    evaluaciones_posibles_103 = (
-                        disponibles_103 // 10
-                    )
-
-                    preguntas_cola_103 = (
-                        disponibles_103 % 10
-                    )
-
-                    # --------------------------------------------
-                    # CONTADORES
-                    # --------------------------------------------
-
-                    st.markdown(
-                        "### Disponibilidad actual"
-                    )
-
-                    col1_103, col2_103, col3_103 = (
-                        st.columns(3)
-                    )
-
-                    with col1_103:
-
-                        st.metric(
-                            "Preguntas disponibles",
-                            disponibles_103
+                        nivel_seleccionado_103 = (
+                            st.selectbox(
+                                "Nivel",
+                                niveles_103,
+                                key="nivel_evaluacion_103"
+                            )
                         )
 
-                    with col2_103:
-
-                        st.metric(
-                            "Evaluaciones completas posibles",
-                            evaluaciones_posibles_103
-                        )
-
-                    with col3_103:
-
-                        st.metric(
-                            "Preguntas en cola",
-                            preguntas_cola_103
-                        )
-
-                    # --------------------------------------------
-                    # ALERTA
-                    # --------------------------------------------
-
-                    if disponibles_103 < 10:
-
-                        st.warning(
-                            "No hay suficientes preguntas "
-                            "para una evaluación completa "
-                            "de 10. Las preguntas permanecen "
-                            "disponibles para cuando se "
-                            "incorporen nuevas preguntas."
-                        )
-
-                    else:
-
-                        st.success(
-                            "Hay suficientes preguntas "
-                            "para preparar una evaluación."
-                        )
-
-                        # ----------------------------------------
-                        # BOTÓN
-                        # ----------------------------------------
-
-                        if st.button(
-                            "PREPARAR EVALUACIÓN DE 10 PREGUNTAS",
-                            key="boton_preparar_evaluacion_103"
-                        ):
-
-                            evaluacion_103 = (
-                                preparar_evaluacion_103(
-                                    modulo_103,
-                                    relacion_103,
-                                    nivel_103
+                        fila_103 = (
+                            resumen_relacion_103[
+                                resumen_relacion_103[
+                                    "Nivel"
+                                ].astype(str)
+                                ==
+                                str(
+                                    nivel_seleccionado_103
                                 )
+                            ]
+                        )
+
+                        if not fila_103.empty:
+
+                            disponibles_103 = int(
+                                fila_103.iloc[0][
+                                    "Preguntas_disponibles"
+                                ]
                             )
 
-                            if evaluacion_103:
+                            max_evaluaciones_103 = (
+                                disponibles_103 // 10
+                            )
 
-                                st.success(
-                                    "Evaluación preparada: "
-                                    f"{evaluacion_103['Evaluacion_ID']}"
+                            restantes_103 = (
+                                disponibles_103 % 10
+                            )
+
+                            st.info(
+                                f"Disponibles para esta "
+                                f"combinación: "
+                                f"{disponibles_103}"
+                            )
+
+                            st.info(
+                                f"Evaluaciones completas "
+                                f"posibles de 10 preguntas: "
+                                f"{max_evaluaciones_103}"
+                            )
+
+                            if restantes_103 > 0:
+
+                                st.warning(
+                                    f"Quedan {restantes_103} "
+                                    "preguntas que no completan "
+                                    "otro bloque de 10. "
+                                    "Permanecerán disponibles "
+                                    "para una evaluación posterior."
+                                )
+
+                            # =================================
+                            # CANTIDAD DE EVALUACIONES
+                            # =================================
+
+                            if disponibles_103 > 0:
+
+                                cantidad_maxima_103 = max(
+                                    1,
+                                    (disponibles_103 + 9) // 10
+                                )
+
+                                cantidad_evaluaciones_103 = (
+                                    st.number_input(
+                                        "Cantidad de evaluaciones "
+                                        "a preparar",
+                                        min_value=1,
+                                        max_value=
+                                        cantidad_maxima_103,
+                                        value=1,
+                                        step=1,
+                                        key=
+                                        "cantidad_evaluaciones_103"
+                                    )
+                                )
+
+                                preguntas_necesarias_103 = (
+                                    min(
+                                        disponibles_103,
+                                        int(
+                                            cantidad_evaluaciones_103
+                                        ) * 10
+                                    )
                                 )
 
                                 st.info(
-                                    "Las preguntas todavía "
-                                    "NO han sido consumidas "
-                                    "definitivamente. "
-                                    "Primero deben pasar por "
-                                    "el validador."
+                                    f"Se utilizarán "
+                                    f"{preguntas_necesarias_103} "
+                                    "preguntas. "
+                                    f"Quedarán "
+                                    f"{disponibles_103 - preguntas_necesarias_103} "
+                                    "disponibles después."
                                 )
 
+                                # =================================
+                                # GUARDAR SELECCIÓN
+                                # =================================
 
-# ============================================================
-# MOSTRAR EVALUACIÓN PREPARADA
-# ============================================================
+                                if st.button(
+                                    "PREPARAR EVALUACIONES",
+                                    key=
+                                    "preparar_evaluaciones_103"
+                                ):
 
-evaluacion_103 = st.session_state.get(
-    "evaluacion_preparada_103",
-    {}
-)
+                                    st.session_state[
+                                        "configuracion_evaluacion_103"
+                                    ] = {
 
-if evaluacion_103:
+                                        "Modulo":
+                                            modulo_seleccionado_103,
 
-    st.markdown(
-        "### Evaluación preparada"
-    )
+                                        "Tipo_Relacion":
+                                            relacion_seleccionada_103,
 
-    st.write(
-        "**Código de evaluación:** "
-        f"{evaluacion_103['Evaluacion_ID']}"
-    )
+                                        "Nivel":
+                                            nivel_seleccionado_103,
 
-    st.write(
-        "**Módulo:** "
-        f"{evaluacion_103['Modulo']}"
-    )
+                                        "Cantidad":
+                                            int(
+                                                cantidad_evaluaciones_103
+                                            )
+                                    }
 
-    st.write(
-        "**Tipo_Relacion:** "
-        f"{evaluacion_103['Tipo_Relacion']}"
-    )
+                                    st.success(
+                                        "Configuración de "
+                                        "evaluación preparada."
+                                    )
 
-    st.write(
-        "**Nivel:** "
-        f"{evaluacion_103['Nivel']}"
-    )
-
-    st.write(
-        "**Preguntas:** 10"
-    )
-
-    st.info(
-        "Preguntas disponibles antes: "
-        f"{evaluacion_103['Preguntas_Disponibles_Antes']}"
-    )
-
-    st.info(
-        "Preguntas que permanecen en cola: "
-        f"{evaluacion_103['Preguntas_En_Cola']}"
-    )
-
-    st.markdown(
-        "### Preguntas seleccionadas"
-    )
-
-    df_evaluacion_103 = pd.DataFrame(
-        evaluacion_103[
-            "Preguntas"
-        ]
-    )
-
-    st.dataframe(
-        df_evaluacion_103[
-            [
-                "Pregunta_ID",
-                "Modulo",
-                "Tipo_Relacion",
-                "Nivel",
-                "Pregunta"
-            ]
-        ],
-        use_container_width=True,
-        hide_index=True
-    )
+                                    st.info(
+                                        "El siguiente módulo "
+                                        "10.4 utilizará esta "
+                                        "configuración para "
+                                        "seleccionar las preguntas."
+                                    )
