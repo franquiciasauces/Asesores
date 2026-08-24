@@ -26837,3 +26837,1659 @@ else:
 # ============================================================
 # FIN 10.3
 # ============================================================
+# ============================================================
+# FITOASISTE
+# 10.4 - VALIDADOR TEMPORAL DE EVALUACIONES
+# ============================================================
+#
+# FLUJO:
+#
+#   10.3
+#      |
+#      | genera evaluación temporal
+#      v
+#   df_evaluacion_103
+#      |
+#      v
+#   10.4
+#      |
+#      | crea copia temporal de validación
+#      v
+#   df_validacion_104
+#      |
+#      | validación humana
+#      |
+#      +--> APROBADA
+#      +--> RECHAZADA
+#      +--> AÚN NO SE UTILIZA
+#      |
+#      v
+#   resultado temporal
+#      |
+#      v
+#   SIGUIENTE ETAPA
+#      |
+#      v
+#   PERSISTENCIA DEFINITIVA
+#
+#
+# IMPORTANTE:
+#
+# 10.4 NO:
+#
+#   - lee EVALUACIONES.csv
+#   - lee PREGUNTAS_EVALUACIONES.csv
+#   - escribe EVALUACIONES.csv
+#   - escribe PREGUNTAS_EVALUACIONES.csv
+#   - modifica BANCO_PREGUNTAS_GENERALES.xlsx
+#   - sincroniza GitHub
+#   - reemplaza preguntas rechazadas
+#   - completa nuevamente una evaluación
+#
+# 10.4 SOLAMENTE trabaja con el temporal generado por 10.3.
+#
+# ============================================================
+
+
+# ============================================================
+# IMPORTACIONES
+# ============================================================
+
+import pandas as pd
+import streamlit as st
+
+
+# ============================================================
+# CONSTANTES
+# ============================================================
+
+ESTADO_APROBADA_104 = "APROBADA"
+
+ESTADO_RECHAZADA_104 = "RECHAZADA"
+
+ESTADO_NO_UTILIZA_104 = "AÚN NO SE UTILIZA"
+
+ESTADO_PENDIENTE_104 = "PENDIENTE"
+
+
+# ============================================================
+# COLUMNAS ORIGINALES QUE DEBEN VENIR DE 10.3
+# ============================================================
+
+COLUMNAS_EVALUACION_103_104 = [
+
+    "Pregunta_ID",
+    "Pregunta",
+    "Respuesta_1",
+    "Respuesta_2",
+    "Respuesta_3",
+    "Respuesta_4",
+    "Respuesta_Correcta"
+
+]
+
+
+# ============================================================
+# NORMALIZAR TEXTO
+# ============================================================
+
+def texto_104(
+    valor_104
+):
+
+    if pd.isna(
+        valor_104
+    ):
+
+        return ""
+
+    return (
+        str(
+            valor_104
+        )
+        .strip()
+    )
+
+
+# ============================================================
+# CREAR TEMPORAL DE VALIDACIÓN
+#
+# IMPORTANTE:
+#
+# Recibe la evaluación de 10.3 y crea una COPIA.
+#
+# No modifica df_evaluacion_103.
+# ============================================================
+
+def crear_temporal_validacion_104(
+    df_evaluacion_103
+):
+
+    if (
+        df_evaluacion_103 is None
+        or
+        df_evaluacion_103.empty
+    ):
+
+        return None
+
+
+    df_validacion_104 = (
+        df_evaluacion_103
+        .copy()
+    )
+
+
+    # --------------------------------------------------------
+    # Estado inicial de validación
+    # --------------------------------------------------------
+
+    if (
+        "Estado_Validacion"
+        not in
+        df_validacion_104.columns
+    ):
+
+        df_validacion_104[
+            "Estado_Validacion"
+        ] = ESTADO_PENDIENTE_104
+
+    else:
+
+        estados_existentes_104 = (
+
+            df_validacion_104[
+                "Estado_Validacion"
+            ]
+
+            .astype(str)
+
+            .str.strip()
+
+        )
+
+
+        # Los vacíos se consideran pendientes.
+        df_validacion_104.loc[
+            estados_existentes_104 == "",
+            "Estado_Validacion"
+        ] = ESTADO_PENDIENTE_104
+
+
+    # --------------------------------------------------------
+    # Copia interna de seguridad del Pregunta_ID
+    #
+    # NO se muestra como columna final.
+    # --------------------------------------------------------
+
+    df_validacion_104[
+        "_Pregunta_ID_104"
+    ] = (
+
+        df_validacion_104[
+            "Pregunta_ID"
+        ]
+
+        .astype(str)
+
+        .str.strip()
+
+    )
+
+
+    return df_validacion_104
+
+
+# ============================================================
+# VALIDAR ESTRUCTURA DE 10.3
+# ============================================================
+
+def validar_estructura_103_104(
+    df_evaluacion_103
+):
+
+    if (
+        df_evaluacion_103 is None
+        or
+        df_evaluacion_103.empty
+    ):
+
+        return False
+
+
+    faltantes_104 = [
+
+        columna_104
+
+        for columna_104
+        in COLUMNAS_EVALUACION_103_104
+
+        if columna_104
+        not in df_evaluacion_103.columns
+
+    ]
+
+
+    if faltantes_104:
+
+        st.error(
+
+            "10.4 ERROR: la evaluación temporal "
+            "generada por 10.3 no contiene las "
+            "columnas necesarias: "
+
+            + ", ".join(
+                faltantes_104
+            )
+
+        )
+
+        return False
+
+
+    # --------------------------------------------------------
+    # Pregunta_ID no puede estar vacío.
+    # --------------------------------------------------------
+
+    ids_104 = (
+
+        df_evaluacion_103[
+            "Pregunta_ID"
+        ]
+
+        .astype(str)
+
+        .str.strip()
+
+    )
+
+
+    if (
+        ids_104 == ""
+    ).any():
+
+        st.error(
+
+            "10.4 ERROR: la evaluación temporal "
+            "contiene uno o más Pregunta_ID vacíos."
+
+        )
+
+        return False
+
+
+    # --------------------------------------------------------
+    # Pregunta_ID no puede estar repetido.
+    # --------------------------------------------------------
+
+    if ids_104.duplicated().any():
+
+        st.error(
+
+            "10.4 ERROR: la evaluación temporal "
+            "contiene Pregunta_ID duplicados."
+
+        )
+
+        return False
+
+
+    return True
+
+
+# ============================================================
+# INICIALIZACIÓN
+#
+# 10.4 solamente puede trabajar si 10.3 preparó una
+# evaluación en esta misma sesión.
+# ============================================================
+
+df_evaluacion_103 = st.session_state.get(
+
+    "df_evaluacion_103",
+
+    pd.DataFrame()
+
+)
+
+
+evaluacion_preparada_103 = (
+    st.session_state.get(
+        "evaluacion_preparada_103",
+        False
+    )
+)
+
+
+# ============================================================
+# ENCABEZADO
+# ============================================================
+
+st.markdown(
+    "## 10.4 - Validador de evaluaciones"
+)
+
+
+st.info(
+
+    "Este módulo valida temporalmente la evaluación "
+    "preparada por 10.3. Ningún archivo persistente "
+    "será modificado en esta etapa."
+
+)
+
+
+# ============================================================
+# VERIFICAR QUE 10.3 HAYA GENERADO UNA EVALUACIÓN
+# ============================================================
+
+if (
+
+    not evaluacion_preparada_103
+
+    or
+
+    df_evaluacion_103.empty
+
+):
+
+    st.warning(
+
+        "10.4 todavía no tiene una evaluación temporal "
+        "para validar."
+
+    )
+
+    st.info(
+
+        "Primero genere una evaluación en 10.3. "
+        "Después regrese a 10.4."
+
+    )
+
+
+else:
+
+    # ========================================================
+    # VALIDAR ESTRUCTURA
+    # ========================================================
+
+    estructura_correcta_104 = (
+
+        validar_estructura_103_104(
+
+            df_evaluacion_103
+
+        )
+
+    )
+
+
+    if estructura_correcta_104:
+
+        # ====================================================
+        # IDENTIFICAR EVALUACION_ID
+        # ====================================================
+
+        evaluacion_id_104 = (
+
+            st.session_state.get(
+
+                "evaluacion_id_103",
+
+                ""
+
+            )
+
+        )
+
+
+        # ====================================================
+        # CREAR TEMPORAL DE VALIDACIÓN
+        #
+        # SOLO SE CREA UNA VEZ.
+        #
+        # Si el usuario cambia estados y Streamlit hace
+        # rerun, NO se vuelve a crear desde cero.
+        # ====================================================
+
+        if (
+
+            "df_validacion_104"
+
+            not in
+
+            st.session_state
+
+        ):
+
+            temporal_104 = (
+
+                crear_temporal_validacion_104(
+
+                    df_evaluacion_103
+
+                )
+
+            )
+
+
+            if temporal_104 is None:
+
+                st.error(
+
+                    "10.4 ERROR: no fue posible "
+                    "crear el temporal de validación."
+
+                )
+
+            else:
+
+                st.session_state[
+                    "df_validacion_104"
+                ] = temporal_104
+
+
+                st.session_state[
+                    "validacion_104_iniciada"
+                ] = True
+
+
+        # ====================================================
+        # RECUPERAR TEMPORAL
+        # ====================================================
+
+        df_validacion_104 = (
+
+            st.session_state.get(
+
+                "df_validacion_104",
+
+                pd.DataFrame()
+
+            )
+
+        )
+
+
+        if not df_validacion_104.empty:
+
+            # =================================================
+            # ENCABEZADO DE LA EVALUACIÓN
+            # =================================================
+
+            st.markdown(
+                "### Evaluación en validación"
+            )
+
+
+            col1_104, col2_104, col3_104 = (
+                st.columns(3)
+            )
+
+
+            with col1_104:
+
+                st.metric(
+
+                    "Preguntas recibidas",
+
+                    len(
+                        df_validacion_104
+                    )
+
+                )
+
+
+            with col2_104:
+
+                st.metric(
+
+                    "Evaluación temporal",
+
+                    evaluacion_id_104
+
+                )
+
+
+            with col3_104:
+
+                modulo_104 = texto_104(
+
+                    df_validacion_104.iloc[0].get(
+
+                        "Modulo_Evaluacion",
+
+                        ""
+
+                    )
+
+                )
+
+
+                st.metric(
+
+                    "Módulo",
+
+                    modulo_104
+                    if modulo_104
+                    else "—"
+
+                )
+
+
+            # =================================================
+            # INFORMACIÓN
+            # =================================================
+
+            st.info(
+
+                "Las preguntas que usted rechace o marque "
+                "como 'AÚN NO SE UTILIZA' NO serán "
+                "reemplazadas. La cantidad final será "
+                "exactamente la cantidad de preguntas "
+                "que permanezcan APROBADAS."
+
+            )
+
+
+            # =================================================
+            # RESUMEN ACTUAL
+            # =================================================
+
+            def obtener_resumen_104(
+                df_104
+            ):
+
+                estados_104 = (
+
+                    df_104[
+                        "Estado_Validacion"
+                    ]
+
+                    .astype(str)
+
+                    .str.strip()
+
+                    .str.upper()
+
+                )
+
+
+                aprobadas_104 = int(
+
+                    (
+                        estados_104
+                        ==
+                        ESTADO_APROBADA_104
+                    )
+
+                    .sum()
+
+                )
+
+
+                rechazadas_104 = int(
+
+                    (
+                        estados_104
+                        ==
+                        ESTADO_RECHAZADA_104
+                    )
+
+                    .sum()
+
+                )
+
+
+                no_utilizadas_104 = int(
+
+                    estados_104
+
+                    .isin(
+
+                        [
+
+                            ESTADO_NO_UTILIZA_104,
+
+                            "AUN NO SE UTILIZA"
+
+                        ]
+
+                    )
+
+                    .sum()
+
+                )
+
+
+                pendientes_104 = int(
+
+                    len(
+                        df_104
+                    )
+
+                    -
+                    aprobadas_104
+                    -
+                    rechazadas_104
+                    -
+                    no_utilizadas_104
+
+                )
+
+
+                return (
+
+                    aprobadas_104,
+
+                    rechazadas_104,
+
+                    no_utilizadas_104,
+
+                    pendientes_104
+
+                )
+
+
+            (
+                aprobadas_resumen_104,
+                rechazadas_resumen_104,
+                no_utilizadas_resumen_104,
+                pendientes_resumen_104
+            ) = obtener_resumen_104(
+
+                df_validacion_104
+
+            )
+
+
+            # =================================================
+            # MOSTRAR RESUMEN
+            # =================================================
+
+            st.markdown(
+                "### Estado de validación"
+            )
+
+
+            col1_104, col2_104, col3_104, col4_104 = (
+                st.columns(4)
+            )
+
+
+            with col1_104:
+
+                st.metric(
+
+                    "Aprobadas",
+
+                    aprobadas_resumen_104
+
+                )
+
+
+            with col2_104:
+
+                st.metric(
+
+                    "Rechazadas",
+
+                    rechazadas_resumen_104
+
+                )
+
+
+            with col3_104:
+
+                st.metric(
+
+                    "Aún no se utilizan",
+
+                    no_utilizadas_resumen_104
+
+                )
+
+
+            with col4_104:
+
+                st.metric(
+
+                    "Pendientes",
+
+                    pendientes_resumen_104
+
+                )
+
+
+            # =================================================
+            # OPCIÓN 1
+            # APROBAR BLOQUE COMPLETO
+            # =================================================
+
+            st.markdown(
+                "### Opción 1 — Aprobar bloque completo"
+            )
+
+
+            st.write(
+
+                "Esta opción marca todas las preguntas "
+                "de esta evaluación como APROBADAS."
+
+            )
+
+
+            if st.button(
+
+                "APROBAR TODA LA EVALUACIÓN",
+
+                key="aprobar_toda_evaluacion_104"
+
+            ):
+
+                df_actualizado_104 = (
+
+                    st.session_state[
+                        "df_validacion_104"
+                    ]
+
+                    .copy()
+
+                )
+
+
+                df_actualizado_104[
+                    "Estado_Validacion"
+                ] = ESTADO_APROBADA_104
+
+
+                st.session_state[
+                    "df_validacion_104"
+                ] = (
+
+                    df_actualizado_104
+
+                    .copy()
+
+                )
+
+
+                st.session_state[
+                    "validacion_104_completa"
+                ] = True
+
+
+                st.session_state[
+                    "validacion_104_guardada_temporal"
+                ] = True
+
+
+                st.success(
+
+                    "Toda la evaluación quedó "
+                    "marcada temporalmente como APROBADA."
+
+                )
+
+
+                st.info(
+
+                    "Todavía NO se ha guardado ningún "
+                    "archivo y NO se ha sincronizado GitHub."
+
+                )
+
+
+                st.rerun()
+
+
+            # =================================================
+            # OPCIÓN 2
+            # VALIDACIÓN INDIVIDUAL
+            # =================================================
+
+            st.markdown(
+                "### Opción 2 — Validar individualmente"
+            )
+
+
+            st.write(
+
+                "Seleccione el resultado correspondiente "
+                "para cada pregunta."
+
+            )
+
+
+            st.caption(
+
+                "APROBADA = la pregunta permanece. "
+                "RECHAZADA = la pregunta se elimina del "
+                "resultado final. "
+                "AÚN NO SE UTILIZA = la pregunta también "
+                "queda fuera del resultado final."
+
+            )
+
+
+            # =================================================
+            # FORMULARIO
+            # =================================================
+
+            cambios_104 = {}
+
+
+            for (
+                posicion_104,
+                indice_104
+            ) in enumerate(
+
+                df_validacion_104.index
+
+            ):
+
+                fila_104 = (
+
+                    df_validacion_104.loc[
+                        indice_104
+                    ]
+
+                )
+
+
+                pregunta_id_104 = texto_104(
+
+                    fila_104[
+                        "Pregunta_ID"
+                    ]
+
+                )
+
+
+                pregunta_texto_104 = texto_104(
+
+                    fila_104[
+                        "Pregunta"
+                    ]
+
+                )
+
+
+                estado_actual_104 = texto_104(
+
+                    fila_104[
+                        "Estado_Validacion"
+                    ]
+
+                )
+
+
+                # --------------------------------------------
+                # NORMALIZAR ESTADO
+                # --------------------------------------------
+
+                estado_normalizado_104 = (
+
+                    estado_actual_104
+                    .upper()
+                    .strip()
+
+                )
+
+
+                if (
+
+                    estado_normalizado_104
+
+                    ==
+
+                    "AUN NO SE UTILIZA"
+
+                ):
+
+                    estado_normalizado_104 = (
+
+                        ESTADO_NO_UTILIZA_104
+
+                    )
+
+
+                if (
+
+                    estado_normalizado_104
+
+                    not in
+
+                    [
+
+                        ESTADO_PENDIENTE_104,
+
+                        ESTADO_APROBADA_104,
+
+                        ESTADO_RECHAZADA_104,
+
+                        ESTADO_NO_UTILIZA_104
+
+                    ]
+
+                ):
+
+                    estado_normalizado_104 = (
+
+                        ESTADO_PENDIENTE_104
+
+                    )
+
+
+                # --------------------------------------------
+                # MOSTRAR PREGUNTA
+                # --------------------------------------------
+
+                st.markdown(
+
+                    f"#### Pregunta {posicion_104 + 1}"
+
+                )
+
+
+                st.caption(
+
+                    f"Pregunta_ID: {pregunta_id_104}"
+
+                )
+
+
+                st.write(
+
+                    pregunta_texto_104
+
+                )
+
+
+                # --------------------------------------------
+                # MOSTRAR RESPUESTAS
+                # --------------------------------------------
+
+                respuestas_104 = [
+
+                    texto_104(
+                        fila_104[
+                            "Respuesta_1"
+                        ]
+                    ),
+
+                    texto_104(
+                        fila_104[
+                            "Respuesta_2"
+                        ]
+                    ),
+
+                    texto_104(
+                        fila_104[
+                            "Respuesta_3"
+                        ]
+                    ),
+
+                    texto_104(
+                        fila_104[
+                            "Respuesta_4"
+                        ]
+                    )
+
+                ]
+
+
+                for (
+                    numero_respuesta_104,
+                    respuesta_104
+                ) in enumerate(
+
+                    respuestas_104,
+
+                    start=1
+
+                ):
+
+                    if respuesta_104:
+
+                        st.write(
+
+                            f"**Respuesta "
+                            f"{numero_respuesta_104}:** "
+                            f"{respuesta_104}"
+
+                        )
+
+
+                # --------------------------------------------
+                # ESTADO
+                # --------------------------------------------
+
+                opciones_estado_104 = [
+
+                    ESTADO_PENDIENTE_104,
+
+                    ESTADO_APROBADA_104,
+
+                    ESTADO_RECHAZADA_104,
+
+                    ESTADO_NO_UTILIZA_104
+
+                ]
+
+
+                estado_seleccionado_104 = st.radio(
+
+                    "Validación",
+
+                    opciones_estado_104,
+
+                    index=(
+
+                        opciones_estado_104.index(
+
+                            estado_normalizado_104
+
+                        )
+
+                    ),
+
+                    key=(
+
+                        "validacion_104_"
+
+                        + str(
+                            evaluacion_id_104
+                        )
+
+                        + "_"
+
+                        + str(
+                            pregunta_id_104
+                        )
+
+                    ),
+
+                    horizontal=True
+
+                )
+
+
+                cambios_104[
+                    indice_104
+                ] = estado_seleccionado_104
+
+
+                st.divider()
+
+
+            # =================================================
+            # GUARDAR VALIDACIÓN TEMPORAL
+            # =================================================
+
+            if st.button(
+
+                "GUARDAR VALIDACIÓN TEMPORAL",
+
+                key="guardar_validacion_temporal_104"
+
+            ):
+
+                df_actualizado_104 = (
+
+                    st.session_state[
+                        "df_validacion_104"
+                    ]
+
+                    .copy()
+
+                )
+
+
+                # --------------------------------------------
+                # APLICAR ESTADOS
+                # --------------------------------------------
+
+                for (
+                    indice_104,
+                    estado_104
+                ) in cambios_104.items():
+
+                    df_actualizado_104.loc[
+
+                        indice_104,
+
+                        "Estado_Validacion"
+
+                    ] = estado_104
+
+
+                # --------------------------------------------
+                # GUARDAR SOLAMENTE EN SESSION STATE
+                # --------------------------------------------
+
+                st.session_state[
+                    "df_validacion_104"
+                ] = (
+
+                    df_actualizado_104
+
+                    .copy()
+
+                )
+
+
+                st.session_state[
+                    "validacion_104_guardada_temporal"
+                ] = True
+
+
+                st.success(
+
+                    "La validación quedó guardada "
+                    "temporalmente."
+
+                )
+
+
+                st.info(
+
+                    "No se modificó ningún archivo. "
+                    "El resultado está solamente en memoria "
+                    "y queda disponible para la siguiente etapa."
+
+                )
+
+
+                st.rerun()
+
+
+            # =================================================
+            # RESULTADO TEMPORAL
+            # =================================================
+
+            st.markdown(
+                "### Resultado temporal de la validación"
+            )
+
+
+            df_resultado_104 = (
+
+                st.session_state[
+                    "df_validacion_104"
+                ]
+
+                .copy()
+
+            )
+
+
+            (
+                aprobadas_final_104,
+                rechazadas_final_104,
+                no_utilizadas_final_104,
+                pendientes_final_104
+            ) = obtener_resumen_104(
+
+                df_resultado_104
+
+            )
+
+
+            # =================================================
+            # MOSTRAR RESUMEN FINAL
+            # =================================================
+
+            col1_104, col2_104, col3_104, col4_104 = (
+                st.columns(4)
+            )
+
+
+            with col1_104:
+
+                st.metric(
+
+                    "APROBADAS",
+
+                    aprobadas_final_104
+
+                )
+
+
+            with col2_104:
+
+                st.metric(
+
+                    "RECHAZADAS",
+
+                    rechazadas_final_104
+
+                )
+
+
+            with col3_104:
+
+                st.metric(
+
+                    "AÚN NO SE UTILIZA",
+
+                    no_utilizadas_final_104
+
+                )
+
+
+            with col4_104:
+
+                st.metric(
+
+                    "PENDIENTES",
+
+                    pendientes_final_104
+
+                )
+
+
+            # =================================================
+            # DETERMINAR SI ESTÁ COMPLETA
+            # =================================================
+
+            validacion_completa_104 = (
+
+                pendientes_final_104 == 0
+
+            )
+
+
+            if validacion_completa_104:
+
+                st.success(
+
+                    "La evaluación ya tiene una decisión "
+                    "para todas sus preguntas."
+
+                )
+
+            else:
+
+                st.warning(
+
+                    f"Todavía quedan "
+                    f"{pendientes_final_104} "
+                    "preguntas pendientes de validación."
+
+                )
+
+
+            # =================================================
+            # MOSTRAR SOLAMENTE LAS QUE PERMANECERÍAN
+            # =================================================
+
+            st.markdown(
+
+                "### Preguntas que permanecerían "
+
+            )
+
+
+            df_aprobadas_final_104 = (
+
+                df_resultado_104[
+
+                    df_resultado_104[
+                        "Estado_Validacion"
+                    ]
+
+                    .astype(str)
+
+                    .str.strip()
+
+                    .str.upper()
+
+                    == ESTADO_APROBADA_104
+
+                ]
+
+                .copy()
+
+            )
+
+
+            if df_aprobadas_final_104.empty:
+
+                st.info(
+
+                    "Actualmente no hay preguntas "
+                    "marcadas como APROBADAS."
+
+                )
+
+            else:
+
+                st.dataframe(
+
+                    df_aprobadas_final_104[
+
+                        [
+
+                            "Pregunta_ID",
+
+                            "Pregunta",
+
+                            "Respuesta_1",
+
+                            "Respuesta_2",
+
+                            "Respuesta_3",
+
+                            "Respuesta_4",
+
+                            "Respuesta_Correcta"
+
+                        ]
+
+                    ],
+
+                    use_container_width=True,
+
+                    hide_index=True
+
+                )
+
+
+            # =================================================
+            # RESULTADO DEFINITIVO DEL TEMPORAL
+            # =================================================
+
+            if validacion_completa_104:
+
+                st.markdown(
+
+                    "### Resultado listo para persistencia"
+
+                )
+
+
+                st.info(
+
+                    f"La evaluación comenzó con "
+                    f"{len(df_resultado_104)} preguntas. "
+
+                    f"Después de la validación quedan "
+                    f"{aprobadas_final_104} preguntas "
+                    f"APROBADAS. "
+
+                    f"{rechazadas_final_104} fueron "
+                    f"RECHAZADAS y "
+                    f"{no_utilizadas_final_104} quedaron "
+                    f"como 'AÚN NO SE UTILIZA'."
+
+                )
+
+
+                st.warning(
+
+                    "Este resultado TODAVÍA NO es persistente. "
+                    "La siguiente etapa será la encargada de "
+                    "tomar este temporal y sincronizarlo."
+
+                )
+
+
+                # =============================================
+                # BANDERA PARA LA SIGUIENTE ETAPA
+                # =============================================
+
+                st.session_state[
+                    "validacion_104_completa"
+                ] = True
+
+
+                st.session_state[
+                    "resultado_validacion_104"
+                ] = (
+
+                    df_resultado_104
+
+                    .copy()
+
+                )
+
+
+                st.session_state[
+                    "preguntas_aprobadas_104"
+                ] = (
+
+                    df_aprobadas_final_104
+
+                    .copy()
+
+                )
+
+
+                # =============================================
+                # IDS APROBADOS
+                # =============================================
+
+                st.session_state[
+                    "ids_aprobados_104"
+                ] = (
+
+                    df_aprobadas_final_104[
+                        "Pregunta_ID"
+                    ]
+
+                    .astype(str)
+
+                    .str.strip()
+
+                    .tolist()
+
+                )
+
+
+                # =============================================
+                # IDS RECHAZADOS
+                # =============================================
+
+                df_rechazadas_104 = (
+
+                    df_resultado_104[
+
+                        df_resultado_104[
+                            "Estado_Validacion"
+                        ]
+
+                        .astype(str)
+
+                        .str.strip()
+
+                        .str.upper()
+
+                        == ESTADO_RECHAZADA_104
+
+                    ]
+
+                )
+
+
+                st.session_state[
+                    "ids_rechazados_104"
+                ] = (
+
+                    df_rechazadas_104[
+                        "Pregunta_ID"
+                    ]
+
+                    .astype(str)
+
+                    .str.strip()
+
+                    .tolist()
+
+                )
+
+
+                # =============================================
+                # IDS AÚN NO UTILIZADOS
+                # =============================================
+
+                df_no_utilizadas_104 = (
+
+                    df_resultado_104[
+
+                        df_resultado_104[
+                            "Estado_Validacion"
+                        ]
+
+                        .astype(str)
+
+                        .str.strip()
+
+                        .str.upper()
+
+                        .isin(
+
+                            [
+
+                                ESTADO_NO_UTILIZA_104,
+
+                                "AUN NO SE UTILIZA"
+
+                            ]
+
+                        )
+
+                    ]
+
+                )
+
+
+                st.session_state[
+                    "ids_no_utilizados_104"
+                ] = (
+
+                    df_no_utilizadas_104[
+                        "Pregunta_ID"
+                    ]
+
+                    .astype(str)
+
+                    .str.strip()
+
+                    .tolist()
+
+                )
+
+
+                st.success(
+
+                    "10.4 terminó la validación temporal. "
+                    "El resultado está listo para la "
+                    "siguiente etapa de persistencia."
+
+                )
+
+
+            else:
+
+                # =============================================
+                # SI TODAVÍA NO ESTÁ COMPLETA
+                # =============================================
+
+                st.session_state[
+                    "validacion_104_completa"
+                ] = False
+
+
+# ============================================================
+# CONTROL FINAL
+# ============================================================
+
+if st.session_state.get(
+
+    "validacion_104_completa",
+
+    False
+
+):
+
+    st.markdown(
+        "### CONTROL DE 10.4"
+    )
+
+
+    st.write(
+
+        "✓ Evaluación recibida desde 10.3"
+
+    )
+
+
+    st.write(
+
+        "✓ Validación realizada en un temporal"
+
+    )
+
+
+    st.write(
+
+        "✓ Pregunta_ID originales conservados"
+
+    )
+
+
+    st.write(
+
+        "✓ Preguntas rechazadas no fueron reemplazadas"
+
+    )
+
+
+    st.write(
+
+        "✓ Preguntas 'AÚN NO SE UTILIZA' no fueron reemplazadas"
+
+    )
+
+
+    st.write(
+
+        "✓ No se modificó BANCO_PREGUNTAS_GENERALES.xlsx"
+
+    )
+
+
+    st.write(
+
+        "✓ No se modificó EVALUACIONES.csv"
+
+    )
+
+
+    st.write(
+
+        "✓ No se modificó PREGUNTAS_EVALUACIONES.csv"
+
+    )
+
+
+    st.write(
+
+        "✓ No se sincronizó GitHub"
+
+    )
+
+
+    st.success(
+
+        "El resultado temporal de 10.4 está listo "
+        "para la siguiente etapa."
+
+    )
+
+
+# ============================================================
+# FIN 10.4
+# ============================================================
