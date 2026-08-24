@@ -18731,3 +18731,483 @@ if aprobadas_81 > 0:
     ):
 
         sincronizar_81()
+# ============================================================
+# 8.2 - PARTE 2
+# GENERADOR PREGUNTAS RESTRICCIÓN
+# PRODUCTO / CONTRAINDICACIÓN - MOTIVO
+# NIVEL 1
+# ============================================================
+
+def siguiente_id_restricciones():
+
+    # --------------------------------------------------------
+    # Busca el último ID ya generado
+    # --------------------------------------------------------
+    df_preguntas = st.session_state.get(
+        "df_preguntas_restricciones",
+        pd.DataFrame()
+    )
+
+    mayor = 0
+
+    if (
+        not df_preguntas.empty
+        and "Pregunta_ID" in df_preguntas.columns
+    ):
+
+        for valor in df_preguntas["Pregunta_ID"].fillna(""):
+
+            texto = str(valor).strip()
+
+            if texto.startswith("PTRM-"):
+
+                try:
+
+                    numero = int(
+                        texto.replace("PTRM-", "")
+                    )
+
+                    mayor = max(
+                        mayor,
+                        numero
+                    )
+
+                except ValueError:
+                    pass
+
+    # --------------------------------------------------------
+    # También revisa preguntas generadas durante la sesión
+    # --------------------------------------------------------
+    preguntas = st.session_state.get(
+        "preguntas_generadas_restricciones",
+        []
+    )
+
+    for pregunta in preguntas:
+
+        texto = str(
+            pregunta.get("Pregunta_ID", "")
+        ).strip()
+
+        if texto.startswith("PTRM-"):
+
+            try:
+
+                numero = int(
+                    texto.replace("PTRM-", "")
+                )
+
+                mayor = max(
+                    mayor,
+                    numero
+                )
+
+            except ValueError:
+                pass
+
+    return f"PTRM-{mayor + 1:06d}"
+
+
+# ============================================================
+# GENERADOR
+# ============================================================
+
+def generar_preguntas_restricciones(cantidad):
+
+    # --------------------------------------------------------
+    # DataFrame fuente
+    # --------------------------------------------------------
+    df = st.session_state.get(
+        "df_disponible_restricciones",
+        pd.DataFrame()
+    )
+
+    if df.empty:
+        return []
+
+    # --------------------------------------------------------
+    # Columnas obligatorias
+    # NO se utiliza "Tipo"
+    # --------------------------------------------------------
+    columnas = [
+        "Restriccion_ID",
+        "Producto",
+        "Precaución / Contraindicación",
+        "Motivo",
+        "Alternativas seguras"
+    ]
+
+    faltantes = [
+        columna
+        for columna in columnas
+        if columna not in df.columns
+    ]
+
+    if faltantes:
+
+        st.error(
+            "8.2 ERROR: faltan columnas: "
+            + ", ".join(faltantes)
+        )
+
+        return []
+
+    # --------------------------------------------------------
+    # Fuentes ya utilizadas
+    # --------------------------------------------------------
+    consumidas = st.session_state.get(
+        "fuentes_consumidas_restricciones",
+        set()
+    ).copy()
+
+    # --------------------------------------------------------
+    # Candidatos
+    # --------------------------------------------------------
+    candidatos = df[
+        ~df["Restriccion_ID"].astype(str).isin(
+            {
+                str(x)
+                for x in consumidas
+            }
+        )
+    ].copy()
+
+    # --------------------------------------------------------
+    # Limpieza mínima
+    # NO se modifica el contenido de las columnas
+    # --------------------------------------------------------
+    candidatos = candidatos[
+        (candidatos["Restriccion_ID"].astype(str).str.strip() != "")
+        &
+        (candidatos["Producto"].astype(str).str.strip() != "")
+        &
+        (
+            candidatos[
+                "Precaución / Contraindicación"
+            ]
+            .astype(str)
+            .str.strip()
+            != ""
+        )
+        &
+        (
+            candidatos["Motivo"]
+            .astype(str)
+            .str.strip()
+            != ""
+        )
+    ].copy()
+
+    if candidatos.empty:
+
+        st.warning(
+            "No hay restricciones disponibles "
+            "para generar preguntas."
+        )
+
+        return []
+
+    # --------------------------------------------------------
+    # Aleatorizar candidatos
+    # --------------------------------------------------------
+    candidatos = candidatos.sample(
+        frac=1
+    ).reset_index(drop=True)
+
+    preguntas = []
+
+    # ========================================================
+    # GENERACIÓN
+    # ========================================================
+
+    for _, fila in candidatos.iterrows():
+
+        restriccion_id = str(
+            fila["Restriccion_ID"]
+        ).strip()
+
+        producto = str(
+            fila["Producto"]
+        ).strip()
+
+        # ----------------------------------------------------
+        # IMPORTANTE:
+        # Se conserva COMPLETA la celda.
+        # No se separa.
+        # No se resume.
+        # No se interpreta.
+        # ----------------------------------------------------
+        contraindicacion = str(
+            fila[
+                "Precaución / Contraindicación"
+            ]
+        ).strip()
+
+        # ----------------------------------------------------
+        # Motivo correcto
+        # ----------------------------------------------------
+        correcta = str(
+            fila["Motivo"]
+        ).strip()
+
+        # ----------------------------------------------------
+        # Buscar motivos distractores
+        # ----------------------------------------------------
+        falsas = candidatos[
+            candidatos["Restriccion_ID"].astype(str)
+            != restriccion_id
+        ].copy()
+
+        falsas["respuesta"] = (
+            falsas["Motivo"]
+            .astype(str)
+            .str.strip()
+        )
+
+        # Eliminar el mismo motivo de la respuesta correcta
+        falsas = falsas[
+            falsas["respuesta"].str.lower()
+            != correcta.lower()
+        ]
+
+        # Eliminar duplicados
+        falsas = falsas.drop_duplicates(
+            subset="respuesta"
+        )
+
+        if len(falsas) < 3:
+            continue
+
+        # ----------------------------------------------------
+        # Seleccionar 3 distractores
+        # ----------------------------------------------------
+        falsas = falsas.sample(
+            n=3
+        )
+
+        opciones = [
+            correcta,
+            str(
+                falsas.iloc[0]["respuesta"]
+            ).strip(),
+            str(
+                falsas.iloc[1]["respuesta"]
+            ).strip(),
+            str(
+                falsas.iloc[2]["respuesta"]
+            ).strip()
+        ]
+
+        # ----------------------------------------------------
+        # Mezclar opciones
+        # ----------------------------------------------------
+        np.random.shuffle(
+            opciones
+        )
+
+        correcta_numero = (
+            opciones.index(correcta) + 1
+        )
+
+        # ====================================================
+        # CONSTRUIR PREGUNTA
+        # ====================================================
+
+        pregunta = {
+
+            "Pregunta_ID":
+                siguiente_id_restricciones(),
+
+            "Modulo":
+                "Restricciones",
+
+            "Tema":
+                "Producto / Contraindicación - Motivo",
+
+            "Nivel":
+                "Nivel 1",
+
+            "Tipo_Relacion":
+                "Producto-Precaución/Contraindicación-Motivo",
+
+            "Pregunta":
+                f"{producto} puede generar "
+                "contraindicaciones asociadas a "
+                f"{contraindicacion} "
+                "debido a que:",
+
+            "Respuesta_1":
+                opciones[0],
+
+            "Respuesta_2":
+                opciones[1],
+
+            "Respuesta_3":
+                opciones[2],
+
+            "Respuesta_4":
+                opciones[3],
+
+            "Respuesta_Correcta":
+                str(correcta_numero),
+
+            "Estado":
+                "PENDIENTE",
+
+            "Observacion_Administrador":
+                "",
+
+            "Fecha_Generacion":
+                pd.Timestamp.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+
+            "Fuente_ID":
+                restriccion_id
+        }
+
+        preguntas.append(
+            pregunta
+        )
+
+        consumidas.add(
+            restriccion_id
+        )
+
+        if len(preguntas) >= int(cantidad):
+            break
+
+    # --------------------------------------------------------
+    # Guardar fuentes consumidas
+    # --------------------------------------------------------
+    st.session_state[
+        "fuentes_consumidas_restricciones"
+    ] = consumidas
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ DEL GENERADOR
+# ============================================================
+
+if "df_disponible_restricciones" in st.session_state:
+
+    st.markdown(
+        "### 8.2 - Generador de preguntas de restricciones"
+    )
+
+    st.info(
+        "Nivel 1: Producto → Precaución / "
+        "Contraindicación → Motivo. "
+        "La información completa de la "
+        "precaución/contraindicación se conserva "
+        "en la pregunta."
+    )
+
+    cantidad_restricciones = st.number_input(
+        "Cantidad de preguntas",
+        min_value=1,
+        max_value=500,
+        value=10,
+        step=1,
+        key="cantidad_generar_restricciones"
+    )
+
+    if st.button(
+        "GENERAR PREGUNTAS 8.2",
+        key="generar_preguntas_restricciones"
+    ):
+
+        nuevas_restricciones = (
+            generar_preguntas_restricciones(
+                int(cantidad_restricciones)
+            )
+        )
+
+        # ----------------------------------------------------
+        # Lista de preguntas generadas
+        # ----------------------------------------------------
+        st.session_state[
+            "preguntas_generadas_restricciones"
+        ] = nuevas_restricciones
+
+        # ----------------------------------------------------
+        # DataFrame de preguntas
+        # ESTE ES EL DATAFRAME DE SALIDA DEL GENERADOR
+        # ----------------------------------------------------
+        if nuevas_restricciones:
+
+            st.session_state[
+                "df_preguntas_restricciones"
+            ] = pd.DataFrame(
+                nuevas_restricciones
+            )
+
+            st.success(
+                f"Se generaron "
+                f"{len(nuevas_restricciones)} "
+                "preguntas de restricciones."
+            )
+
+        else:
+
+            st.warning(
+                "No fue posible generar preguntas "
+                "con las relaciones disponibles."
+            )
+
+
+# ============================================================
+# MOSTRAR PREGUNTAS
+# ============================================================
+
+preguntas_restricciones = st.session_state.get(
+    "preguntas_generadas_restricciones",
+    []
+)
+
+if preguntas_restricciones:
+
+    st.markdown(
+        "### Preguntas generadas 8.2"
+    )
+
+    for pregunta in preguntas_restricciones:
+
+        st.markdown(
+            f"**{pregunta['Pregunta_ID']} — "
+            f"{pregunta['Nivel']}**"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"1. {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"2. {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"3. {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"4. {pregunta['Respuesta_4']}"
+        )
+
+        st.caption(
+            "Respuesta correcta: "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            "Fuente: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        st.divider()
