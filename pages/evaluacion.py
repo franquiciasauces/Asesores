@@ -21323,3 +21323,582 @@ if "df_fuente_91" in st.session_state:
         use_container_width=True,
         hide_index=True
     )
+# ============================================================
+# 9.2 - PARTE 2
+# GENERADOR DE PREGUNTAS
+# PRODUCTO - USO REGULAR / COMBINACIONES ESTRATÉGICAS
+# NIVEL 1
+#
+# FUENTE:
+#     df_disponible_91
+#
+# SALIDA:
+#     df_banco_92
+# ============================================================
+
+
+# ============================================================
+# GENERAR SIGUIENTE ID
+# ============================================================
+
+def siguiente_id_92():
+
+    df_banco_92 = st.session_state.get(
+        "df_banco_92",
+        pd.DataFrame()
+    )
+
+    mayor_92 = 0
+
+    # --------------------------------------------------------
+    # REVISAR DATAFRAME 9.2
+    # --------------------------------------------------------
+
+    if (
+        not df_banco_92.empty
+        and "Pregunta_ID" in df_banco_92.columns
+    ):
+
+        for valor_92 in df_banco_92[
+            "Pregunta_ID"
+        ].fillna(""):
+
+            texto_92 = str(
+                valor_92
+            ).strip()
+
+            if texto_92.startswith("PTCP-"):
+
+                try:
+
+                    numero_92 = int(
+                        texto_92.replace(
+                            "PTCP-",
+                            ""
+                        )
+                    )
+
+                    mayor_92 = max(
+                        mayor_92,
+                        numero_92
+                    )
+
+                except ValueError:
+
+                    pass
+
+    # --------------------------------------------------------
+    # REVISAR PREGUNTAS GENERADAS EN SESIÓN
+    # --------------------------------------------------------
+
+    preguntas_92 = st.session_state.get(
+        "preguntas_generadas_92",
+        []
+    )
+
+    for pregunta_92 in preguntas_92:
+
+        texto_92 = str(
+            pregunta_92.get(
+                "Pregunta_ID",
+                ""
+            )
+        ).strip()
+
+        if texto_92.startswith("PTCP-"):
+
+            try:
+
+                numero_92 = int(
+                    texto_92.replace(
+                        "PTCP-",
+                        ""
+                    )
+                )
+
+                mayor_92 = max(
+                    mayor_92,
+                    numero_92
+                )
+
+            except ValueError:
+
+                pass
+
+    return (
+        f"PTCP-{mayor_92 + 1:06d}"
+    )
+
+
+# ============================================================
+# GENERADOR
+# ============================================================
+
+def generar_preguntas_92(cantidad):
+
+    # --------------------------------------------------------
+    # LA FUENTE ES df_disponible_91
+    # --------------------------------------------------------
+
+    df_92 = st.session_state.get(
+        "df_disponible_91",
+        pd.DataFrame()
+    )
+
+    if df_92.empty:
+
+        st.warning(
+            "9.2: no hay registros disponibles "
+            "en df_disponible_91."
+        )
+
+        return []
+
+    # --------------------------------------------------------
+    # COLUMNAS NECESARIAS
+    # --------------------------------------------------------
+
+    columnas_92 = [
+        "Fuente_ID",
+        "Producto",
+        "Indicaciones / Escenarios",
+        "Combinaciones estratégicas"
+    ]
+
+    faltantes_92 = [
+        columna_92
+        for columna_92 in columnas_92
+        if columna_92 not in df_92.columns
+    ]
+
+    if faltantes_92:
+
+        st.error(
+            "9.2 ERROR: faltan columnas en "
+            "df_disponible_91: "
+            + ", ".join(
+                faltantes_92
+            )
+        )
+
+        return []
+
+    # --------------------------------------------------------
+    # FUENTES YA CONSUMIDAS DURANTE ESTA SESIÓN
+    # --------------------------------------------------------
+
+    consumidas_92 = st.session_state.get(
+        "fuentes_consumidas_92",
+        set()
+    ).copy()
+
+    # --------------------------------------------------------
+    # CANDIDATOS
+    # --------------------------------------------------------
+
+    candidatos_92 = df_92[
+        ~df_92["Fuente_ID"].astype(str).isin(
+            {
+                str(x)
+                for x in consumidas_92
+            }
+        )
+    ].copy()
+
+    # --------------------------------------------------------
+    # VALIDAR CAMPOS NECESARIOS
+    # --------------------------------------------------------
+
+    candidatos_92 = candidatos_92[
+        (
+            candidatos_92[
+                "Fuente_ID"
+            ]
+            .astype(str)
+            .str.strip()
+            != ""
+        )
+        &
+        (
+            candidatos_92[
+                "Producto"
+            ]
+            .astype(str)
+            .str.strip()
+            != ""
+        )
+        &
+        (
+            candidatos_92[
+                "Indicaciones / Escenarios"
+            ]
+            .astype(str)
+            .str.strip()
+            != ""
+        )
+        &
+        (
+            candidatos_92[
+                "Combinaciones estratégicas"
+            ]
+            .astype(str)
+            .str.strip()
+            != ""
+        )
+    ].copy()
+
+    if candidatos_92.empty:
+
+        st.warning(
+            "9.2: no hay registros completos "
+            "disponibles para generar preguntas."
+        )
+
+        return []
+
+    # --------------------------------------------------------
+    # ALEATORIZAR CANDIDATOS
+    # --------------------------------------------------------
+
+    candidatos_92 = (
+        candidatos_92
+        .sample(frac=1)
+        .reset_index(drop=True)
+    )
+
+    preguntas_92 = []
+
+    # ========================================================
+    # GENERACIÓN DE PREGUNTAS
+    # ========================================================
+
+    for _, fila_92 in candidatos_92.iterrows():
+
+        fuente_92 = str(
+            fila_92[
+                "Fuente_ID"
+            ]
+        ).strip()
+
+        producto_92 = str(
+            fila_92[
+                "Producto"
+            ]
+        ).strip()
+
+        indicaciones_92 = str(
+            fila_92[
+                "Indicaciones / Escenarios"
+            ]
+        ).strip()
+
+        correcta_92 = str(
+            fila_92[
+                "Combinaciones estratégicas"
+            ]
+        ).strip()
+
+        # ----------------------------------------------------
+        # BUSCAR DISTRACTORES
+        #
+        # Un distractor NO puede tener:
+        # 1. La misma fuente
+        # 2. La misma combinación estratégica
+        #
+        # Esto es indispensable porque dos productos pueden
+        # compartir exactamente la misma combinación.
+        # ----------------------------------------------------
+
+        falsas_92 = candidatos_92[
+            candidatos_92[
+                "Fuente_ID"
+            ].astype(str)
+            != fuente_92
+        ].copy()
+
+        falsas_92["respuesta"] = (
+            falsas_92[
+                "Combinaciones estratégicas"
+            ]
+            .astype(str)
+            .str.strip()
+        )
+
+        # ----------------------------------------------------
+        # EXCLUIR LA COMBINACIÓN CORRECTA
+        # ----------------------------------------------------
+
+        falsas_92 = falsas_92[
+            falsas_92[
+                "respuesta"
+            ].str.casefold()
+            != correcta_92.casefold()
+        ].copy()
+
+        # ----------------------------------------------------
+        # ELIMINAR RESPUESTAS DUPLICADAS
+        #
+        # Si varios productos tienen la misma combinación,
+        # esa combinación cuenta como una sola alternativa.
+        # ----------------------------------------------------
+
+        falsas_92 = falsas_92.drop_duplicates(
+            subset="respuesta"
+        )
+
+        # ----------------------------------------------------
+        # SE NECESITAN 3 DISTRACTORES DIFERENTES
+        # ----------------------------------------------------
+
+        if len(falsas_92) < 3:
+
+            continue
+
+        falsas_92 = falsas_92.sample(
+            n=3
+        )
+
+        # ----------------------------------------------------
+        # CONSTRUIR LAS 4 OPCIONES
+        # ----------------------------------------------------
+
+        opciones_92 = [
+            correcta_92,
+            str(
+                falsas_92.iloc[0][
+                    "respuesta"
+                ]
+            ).strip(),
+            str(
+                falsas_92.iloc[1][
+                    "respuesta"
+                ]
+            ).strip(),
+            str(
+                falsas_92.iloc[2][
+                    "respuesta"
+                ]
+            ).strip()
+        ]
+
+        # ----------------------------------------------------
+        # MEZCLAR OPCIONES
+        # ----------------------------------------------------
+
+        np.random.shuffle(
+            opciones_92
+        )
+
+        correcta_numero_92 = (
+            opciones_92.index(
+                correcta_92
+            ) + 1
+        )
+
+        # ====================================================
+        # CREAR PREGUNTA
+        # ====================================================
+
+        pregunta_92 = {
+
+            "Pregunta_ID":
+                siguiente_id_92(),
+
+            "Modulo":
+                "Complementarios",
+
+            "Tema":
+                "Producto - "
+                "Uso regular / "
+                "Combinaciones estratégicas",
+
+            "Nivel":
+                "Nivel 1",
+
+            "Tipo_Relacion":
+                "Producto-Uso regular-Combinaciones estratégicas",
+
+            "Pregunta":
+                "Para el producto "
+                f"{producto_92}, "
+                "cuyo uso regular se relaciona con "
+                f"{indicaciones_92}, "
+                "¿cuál de las siguientes corresponde "
+                "a sus combinaciones estratégicas?",
+
+            "Respuesta_1":
+                opciones_92[0],
+
+            "Respuesta_2":
+                opciones_92[1],
+
+            "Respuesta_3":
+                opciones_92[2],
+
+            "Respuesta_4":
+                opciones_92[3],
+
+            "Respuesta_Correcta":
+                str(
+                    correcta_numero_92
+                ),
+
+            "Estado":
+                "PENDIENTE",
+
+            "Observacion_Administrador":
+                "",
+
+            "Fecha_Generacion":
+                pd.Timestamp.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+
+            "Fuente_ID":
+                fuente_92
+        }
+
+        preguntas_92.append(
+            pregunta_92
+        )
+
+        # ----------------------------------------------------
+        # MARCAR FUENTE COMO CONSUMIDA
+        # ----------------------------------------------------
+
+        consumidas_92.add(
+            fuente_92
+        )
+
+        if len(preguntas_92) >= int(cantidad):
+
+            break
+
+    # --------------------------------------------------------
+    # PERSISTIR FUENTES CONSUMIDAS
+    # --------------------------------------------------------
+
+    st.session_state[
+        "fuentes_consumidas_92"
+    ] = consumidas_92
+
+    return preguntas_92
+
+
+# ============================================================
+# INTERFAZ DEL GENERADOR 9.2
+# ============================================================
+
+if "df_disponible_91" in st.session_state:
+
+    st.markdown(
+        "### 9.2 - Generador de preguntas"
+    )
+
+    st.info(
+        "Nivel 1: Producto + uso regular "
+        "(Indicaciones / Escenarios) → "
+        "Combinaciones estratégicas."
+    )
+
+    cantidad_92 = st.number_input(
+        "Cantidad de preguntas",
+        min_value=1,
+        max_value=500,
+        value=10,
+        step=1,
+        key="cantidad_generar_92"
+    )
+
+    if st.button(
+        "GENERAR PREGUNTAS 9.2",
+        key="generar_preguntas_92"
+    ):
+
+        nuevas_92 = generar_preguntas_92(
+            int(cantidad_92)
+        )
+
+        st.session_state[
+            "preguntas_generadas_92"
+        ] = nuevas_92
+
+        # ----------------------------------------------------
+        # CREAR DATAFRAME DE SALIDA 9.2
+        # ----------------------------------------------------
+
+        if nuevas_92:
+
+            st.session_state[
+                "df_banco_92"
+            ] = pd.DataFrame(
+                nuevas_92
+            )
+
+            st.success(
+                f"Se generaron "
+                f"{len(nuevas_92)} "
+                "preguntas de Nivel 1."
+            )
+
+        else:
+
+            st.warning(
+                "No fue posible generar preguntas "
+                "con las relaciones disponibles."
+            )
+
+
+# ============================================================
+# MOSTRAR PREGUNTAS GENERADAS
+# ============================================================
+
+preguntas_92 = st.session_state.get(
+    "preguntas_generadas_92",
+    []
+)
+
+if preguntas_92:
+
+    st.markdown(
+        "### Preguntas generadas 9.2"
+    )
+
+    for pregunta_92 in preguntas_92:
+
+        st.markdown(
+            f"**{pregunta_92['Pregunta_ID']} — "
+            f"{pregunta_92['Nivel']}**"
+        )
+
+        st.write(
+            pregunta_92["Pregunta"]
+        )
+
+        st.write(
+            f"1. {pregunta_92['Respuesta_1']}"
+        )
+
+        st.write(
+            f"2. {pregunta_92['Respuesta_2']}"
+        )
+
+        st.write(
+            f"3. {pregunta_92['Respuesta_3']}"
+        )
+
+        st.write(
+            f"4. {pregunta_92['Respuesta_4']}"
+        )
+
+        st.caption(
+            "Respuesta correcta: "
+            f"{pregunta_92['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            "Fuente: "
+            f"{pregunta_92['Fuente_ID']}"
+        )
+
+        st.divider()
