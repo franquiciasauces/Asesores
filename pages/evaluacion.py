@@ -23432,403 +23432,248 @@ if st.session_state.get(
     )
 
 # ============================================================
-# 10.2 A — CRUCE REAL BANCO GENERAL + PERSISTENCIA
+# FITOASISTE - 10.2.A
+# CRUCE REAL BANCO GENERAL + PREGUNTAS_EVALUACIONES
 # ============================================================
 
-def ejecutar_cruce_102():
+st.markdown("## 10.2.A - Cruce y disponibilidad")
 
-    # --------------------------------------------------------
-    # 1. TOMAR EL BANCO QUE YA CARGO 10.1
-    # --------------------------------------------------------
+# ------------------------------------------------------------
+# 1. TOMAR LOS DATAFRAMES QUE YA CARGÓ 10.1
+# ------------------------------------------------------------
 
-    df_banco_102 = st.session_state.get(
-        "df_banco_101",
-        pd.DataFrame()
-    ).copy()
+df_banco = st.session_state.get(
+    "df_banco_101",
+    pd.DataFrame()
+).copy()
 
-    if df_banco_102.empty:
+df_persistencia = st.session_state.get(
+    "df_preguntas_evaluaciones_101",
+    pd.DataFrame()
+).copy()
 
-        st.error(
-            "10.2 A: el Banco General no está disponible "
-            "en df_banco_101."
-        )
+if df_banco.empty:
+    st.error("10.2.A: no existe el Banco General cargado por 10.1.")
+    st.stop()
 
-        return None
-
-
-    # --------------------------------------------------------
-    # 2. LEER LA PERSISTENCIA REAL
-    # --------------------------------------------------------
-
-    df_persistencia_102 = leer_csv_github_102(
-        "page/PREGUNTAS_EVALUACIONES.csv"
+if df_persistencia.empty:
+    st.warning(
+        "10.2.A: PREGUNTAS_EVALUACIONES.csv no tiene registros."
     )
 
-    if df_persistencia_102.empty:
+# ------------------------------------------------------------
+# 2. VERIFICAR COLUMNAS EXACTAS
+# ------------------------------------------------------------
 
-        st.error(
-            "10.2 A: PREGUNTAS_EVALUACIONES.csv "
-            "está vacío o no pudo cargarse."
-        )
+columnas_banco = ["Pregunta_ID", "Modulo", "Tema", "Nivel",
+                  "Tipo_Relacion", "Estado"]
 
-        return None
+columnas_persistencia = [
+    "Pregunta_ID",
+    "Estado_Validacion",
+    "Estado_Uso"
+]
 
+faltantes_banco = [
+    c for c in columnas_banco
+    if c not in df_banco.columns
+]
 
-    # --------------------------------------------------------
-    # 3. VERIFICAR LAS COLUMNAS EXACTAS
-    # --------------------------------------------------------
+faltantes_persistencia = [
+    c for c in columnas_persistencia
+    if c not in df_persistencia.columns
+]
 
-    columnas_persistencia_102 = [
-        "Evaluacion_ID",
-        "Pregunta_ID",
-        "Modulo",
-        "Tipo_Relacion",
-        "Nivel",
-        "Pregunta",
-        "Respuesta_1",
-        "Respuesta_2",
-        "Respuesta_3",
-        "Respuesta_4",
-        "Respuesta_Correcta",
-        "Estado_Validacion",
-        "Estado_Uso",
-        "Fecha_Persistencia"
-    ]
-
-    faltantes_102 = [
-        c
-        for c in columnas_persistencia_102
-        if c not in df_persistencia_102.columns
-    ]
-
-    if faltantes_102:
-
-        st.error(
-            "10.2 A: faltan columnas en "
-            "PREGUNTAS_EVALUACIONES.csv: "
-            + ", ".join(faltantes_102)
-        )
-
-        return None
-
-
-    # --------------------------------------------------------
-    # 4. NORMALIZAR SOLAMENTE Pregunta_ID
-    # --------------------------------------------------------
-
-    df_banco_102["Pregunta_ID"] = (
-        df_banco_102["Pregunta_ID"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .str.upper()
+if faltantes_banco:
+    st.error(
+        "10.2.A: faltan columnas en Banco General: "
+        + ", ".join(faltantes_banco)
     )
+    st.stop()
 
-    df_persistencia_102["Pregunta_ID"] = (
-        df_persistencia_102["Pregunta_ID"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .str.upper()
+if faltantes_persistencia:
+    st.error(
+        "10.2.A: faltan columnas en PREGUNTAS_EVALUACIONES.csv: "
+        + ", ".join(faltantes_persistencia)
     )
+    st.stop()
 
+# ------------------------------------------------------------
+# 3. NORMALIZAR SOLO LA LLAVE DEL CRUCE
+# ------------------------------------------------------------
 
-    # --------------------------------------------------------
-    # 5. NORMALIZAR ESTADOS DE LA PERSISTENCIA
-    # --------------------------------------------------------
+df_banco["Pregunta_ID"] = (
+    df_banco["Pregunta_ID"]
+    .fillna("")
+    .astype(str)
+    .str.strip()
+)
 
-    df_persistencia_102["Estado_Validacion"] = (
-        df_persistencia_102["Estado_Validacion"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .str.upper()
+df_persistencia["Pregunta_ID"] = (
+    df_persistencia["Pregunta_ID"]
+    .fillna("")
+    .astype(str)
+    .str.strip()
+)
+
+df_persistencia["Estado_Validacion"] = (
+    df_persistencia["Estado_Validacion"]
+    .fillna("")
+    .astype(str)
+    .str.strip()
+    .str.upper()
+)
+
+df_persistencia["Estado_Uso"] = (
+    df_persistencia["Estado_Uso"]
+    .fillna("")
+    .astype(str)
+    .str.strip()
+    .str.upper()
+)
+
+# ------------------------------------------------------------
+# 4. UNA SOLA FILA POR Pregunta_ID EN LA PERSISTENCIA
+#    Se conserva el último registro de cada pregunta.
+# ------------------------------------------------------------
+
+df_persistencia = (
+    df_persistencia
+    .drop_duplicates(
+        subset=["Pregunta_ID"],
+        keep="last"
     )
+)
 
-    df_persistencia_102["Estado_Uso"] = (
-        df_persistencia_102["Estado_Uso"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .str.upper()
-    )
+# ------------------------------------------------------------
+# 5. CRUCE REAL
+# ------------------------------------------------------------
 
-
-    # --------------------------------------------------------
-    # 6. ELIMINAR IDS VACIOS
-    # --------------------------------------------------------
-
-    df_persistencia_102 = (
-        df_persistencia_102[
-            df_persistencia_102["Pregunta_ID"] != ""
+df_disponibilidad_102 = df_banco.merge(
+    df_persistencia[
+        [
+            "Pregunta_ID",
+            "Estado_Validacion",
+            "Estado_Uso"
         ]
-        .copy()
-    )
+    ],
+    on="Pregunta_ID",
+    how="left",
+    indicator=True
+)
 
+# ------------------------------------------------------------
+# 6. CLASIFICAR DISPONIBILIDAD
+# ------------------------------------------------------------
 
-    # --------------------------------------------------------
-    # 7. UNA SOLA FILA POR Pregunta_ID
-    #
-    # NO CONTAMOS DISTRACTORES.
-    # CADA Pregunta_ID = UNA PREGUNTA.
-    # --------------------------------------------------------
+df_disponibilidad_102["Estado_Cruce"] = "DISPONIBLE"
 
-    persistencia_ids_102 = (
-        df_persistencia_102[
-            [
-                "Pregunta_ID",
-                "Estado_Validacion",
-                "Estado_Uso"
-            ]
+# Rechazada directamente en Banco General
+df_disponibilidad_102.loc[
+    df_disponibilidad_102["Estado"].str.upper() == "RECHAZADA",
+    "Estado_Cruce"
+] = "RECHAZADA_BANCO"
+
+# Ya fue aprobada en validación
+df_disponibilidad_102.loc[
+    df_disponibilidad_102["Estado_Validacion"] == "APROBADA",
+    "Estado_Cruce"
+] = "CONSUMIDA_APROBADA"
+
+# Ya fue rechazada en validación
+df_disponibilidad_102.loc[
+    df_disponibilidad_102["Estado_Validacion"] == "RECHAZADA",
+    "Estado_Cruce"
+] = "CONSUMIDA_RECHAZADA"
+
+# AÚN NO SE UTILIZA sigue disponible
+df_disponibilidad_102.loc[
+    df_disponibilidad_102["Estado_Validacion"] == "AÚN NO SE UTILIZA",
+    "Estado_Cruce"
+] = "DISPONIBLE"
+
+# ------------------------------------------------------------
+# 7. GUARDAR PARA 10.2.B Y 10.3
+# ------------------------------------------------------------
+
+st.session_state[
+    "df_disponibilidad_102"
+] = df_disponibilidad_102.copy()
+
+# ------------------------------------------------------------
+# 8. PRELIMINAR OBLIGATORIO
+# ------------------------------------------------------------
+
+total_banco = len(df_banco)
+
+en_persistencia = int(
+    (
+        df_disponibilidad_102["_merge"] == "both"
+    ).sum()
+)
+
+consumidas_aprobadas = int(
+    (
+        df_disponibilidad_102["Estado_Cruce"]
+        == "CONSUMIDA_APROBADA"
+    ).sum()
+)
+
+consumidas_rechazadas = int(
+    (
+        df_disponibilidad_102["Estado_Cruce"]
+        == "CONSUMIDA_RECHAZADA"
+    ).sum()
+)
+
+rechazadas_banco = int(
+    (
+        df_disponibilidad_102["Estado_Cruce"]
+        == "RECHAZADA_BANCO"
+    ).sum()
+)
+
+disponibles = int(
+    (
+        df_disponibilidad_102["Estado_Cruce"]
+        == "DISPONIBLE"
+    ).sum()
+)
+
+st.markdown("### Preliminar del cruce")
+
+c1, c2, c3, c4, c5, c6 = st.columns(6)
+
+c1.metric("Banco", total_banco)
+c2.metric("En persistencia", en_persistencia)
+c3.metric("Aprobadas", consumidas_aprobadas)
+c4.metric("Rechazadas validación", consumidas_rechazadas)
+c5.metric("Rechazadas banco", rechazadas_banco)
+c6.metric("Disponibles", disponibles)
+
+# ------------------------------------------------------------
+# 9. DETALLE DEL CRUCE
+# ------------------------------------------------------------
+
+st.markdown("### Detalle del cruce")
+
+st.dataframe(
+    df_disponibilidad_102[
+        [
+            "Pregunta_ID",
+            "Modulo",
+            "Tema",
+            "Nivel",
+            "Tipo_Relacion",
+            "Estado",
+            "Estado_Validacion",
+            "Estado_Uso",
+            "Estado_Cruce"
         ]
-        .drop_duplicates(
-            subset=["Pregunta_ID"],
-            keep="last"
-        )
-        .copy()
-    )
-
-
-    # --------------------------------------------------------
-    # 8. CRUCE REAL
-    #
-    # BANCO GENERAL
-    # LEFT JOIN
-    # PREGUNTAS_EVALUACIONES
-    #
-    # LA LLAVE ES Pregunta_ID
-    # --------------------------------------------------------
-
-    cruce_102 = df_banco_102.merge(
-        persistencia_ids_102,
-        on="Pregunta_ID",
-        how="left",
-        suffixes=(
-            "_BANCO",
-            "_PERSISTENCIA"
-        )
-    )
-
-
-    # --------------------------------------------------------
-    # 9. MARCAR SI LA PREGUNTA APARECE EN PERSISTENCIA
-    # --------------------------------------------------------
-
-    cruce_102["Esta_en_Persistencia_102"] = (
-        cruce_102["Estado_Uso"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        != ""
-    )
-
-
-    # --------------------------------------------------------
-    # 10. CONSUMO REAL
-    #
-    # SOLAMENTE Estado_Uso = USADA
-    #
-    # NO se descuentan las cuatro respuestas.
-    # --------------------------------------------------------
-
-    cruce_102["Consumida_102"] = (
-        cruce_102["Estado_Uso"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .str.upper()
-        == "USADA"
-    )
-
-
-    # --------------------------------------------------------
-    # 11. GUARDAR EL CRUCE
-    # --------------------------------------------------------
-
-    st.session_state[
-        "df_cruce_disponibilidad_102"
-    ] = cruce_102.copy()
-
-
-    # --------------------------------------------------------
-    # 12. RESULTADOS INMEDIATOS
-    # --------------------------------------------------------
-
-    total_banco_102 = len(
-        df_banco_102
-    )
-
-    total_persistencia_102 = len(
-        df_persistencia_102
-    )
-
-    ids_consumidos_102 = int(
-        cruce_102["Consumida_102"].sum()
-    )
-
-    ids_encontrados_102 = int(
-        cruce_102[
-            "Esta_en_Persistencia_102"
-        ].sum()
-    )
-
-    ids_no_encontrados_102 = (
-        total_persistencia_102
-        -
-        len(
-            set(
-                df_persistencia_102[
-                    "Pregunta_ID"
-                ]
-            )
-            &
-            set(
-                df_banco_102[
-                    "Pregunta_ID"
-                ]
-            )
-        )
-    )
-
-
-    # --------------------------------------------------------
-    # 13. ALERTAS
-    # --------------------------------------------------------
-
-    st.markdown(
-        "### 10.2 A — Resultado del cruce"
-    )
-
-    col_a1, col_a2, col_a3, col_a4 = st.columns(4)
-
-    with col_a1:
-        st.metric(
-            "Preguntas en Banco",
-            total_banco_102
-        )
-
-    with col_a2:
-        st.metric(
-            "Registros persistentes",
-            total_persistencia_102
-        )
-
-    with col_a3:
-        st.metric(
-            "Preguntas encontradas en Banco",
-            ids_encontrados_102
-        )
-
-    with col_a4:
-        st.metric(
-            "Preguntas USADAS",
-            ids_consumidos_102
-        )
-
-
-    # --------------------------------------------------------
-    # 14. ALERTA CRITICA
-    # --------------------------------------------------------
-
-    if ids_consumidos_102 == 0:
-
-        st.error(
-            "10.2 A ALERTA CRITICA: "
-            "el cruce encontró 0 preguntas USADAS "
-            "en el Banco General."
-        )
-
-        st.warning(
-            "NO continúe con el Bloque B todavía. "
-            "Primero debemos verificar este cruce."
-        )
-
-    else:
-
-        st.success(
-            "10.2 A: CRUCE EXITOSO. "
-            f"Se encontraron {ids_consumidos_102} "
-            "preguntas USADAS dentro del Banco General."
-        )
-
-
-    # --------------------------------------------------------
-    # 15. MOSTRAR LAS PREGUNTAS QUE FUERON ENCONTRADAS
-    # --------------------------------------------------------
-
-    preguntas_usadas_102 = (
-        cruce_102[
-            cruce_102["Consumida_102"]
-        ][
-            [
-                "Pregunta_ID",
-                "Modulo",
-                "Tipo_Relacion",
-                "Nivel",
-                "Estado",
-                "Estado_Validacion",
-                "Estado_Uso"
-            ]
-        ]
-        .copy()
-    )
-
-    st.markdown(
-        "### Preguntas del Banco que ya fueron utilizadas"
-    )
-
-    if preguntas_usadas_102.empty:
-
-        st.warning(
-            "No se encontró ninguna pregunta usada."
-        )
-
-    else:
-
-        st.dataframe(
-            preguntas_usadas_102,
-            use_container_width=True,
-            hide_index=True
-        )
-
-
-    # --------------------------------------------------------
-    # 16. IDS DE PERSISTENCIA QUE NO EXISTEN EN BANCO
-    # --------------------------------------------------------
-
-    ids_banco_102 = set(
-        df_banco_102["Pregunta_ID"]
-    )
-
-    ids_persistencia_102 = set(
-        df_persistencia_102["Pregunta_ID"]
-    )
-
-    ids_huerfanos_102 = (
-        ids_persistencia_102
-        -
-        ids_banco_102
-    )
-
-
-    if ids_huerfanos_102:
-
-        st.warning(
-            "10.2 A: existen "
-            f"{len(ids_huerfanos_102)} "
-            "Pregunta_ID en la persistencia "
-            "que NO existen actualmente en el Banco General."
-        )
-
-    else:
-
-        st.success(
-            "10.2 A: todos los Pregunta_ID de la "
-            "persistencia existen en el Banco General."
-        )
-
-
-    return cruce_102
+    ],
+    use_container_width=True,
+    hide_index=True
+)
 ============================================================
 # FIN 10.2
 # ============================================================
