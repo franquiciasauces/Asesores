@@ -28573,62 +28573,30 @@ else:
                 "de convertir este resultado temporal "
                 "en persistencia."
             )
+
 # ============================================================
 # FITOASISTE
 # 10.5 - PERSISTENCIA DEFINITIVA DE EVALUACIONES
 # ============================================================
 #
-# FUNCIÓN
-# ------------------------------------------------------------
-# Convierte el resultado temporal de 10.4 en persistencia
-# definitiva dentro de /page/.
+# FUENTE ÚNICA DE VALIDACIÓN:
 #
-# FUENTES
-# ------------------------------------------------------------
+#     st.session_state["df_evaluacion_validada_104"]
 #
-# 1. BANCO_PREGUNTAS_GENERALES.xlsx
-#       -> NO SE MODIFICA
+# ESTADO VÁLIDO:
 #
-# 2. df_evaluacion_validada_104
-#       -> resultado temporal generado por 10.4
+#     Estado_Validacion_104
 #
-# 3. page/EVALUACIONES.csv
-#       -> registro persistente de evaluaciones
+# ARCHIVOS:
 #
-# 4. page/PREGUNTAS_EVALUACIONES.csv
-#       -> registro persistente de preguntas utilizadas
+#     page/EVALUACIONES.csv
+#     page/PREGUNTAS_EVALUACIONES.csv
+#     page/EVALUACION/<Evaluacion_ID>.csv
 #
+# BANCO GENERAL:
 #
-# RESULTADO
-# ------------------------------------------------------------
-#
-# A. EVALUACIONES.csv
-#       -> una fila por evaluación
-#
-# B. PREGUNTAS_EVALUACIONES.csv
-#       -> una fila por pregunta de cada evaluación
-#
-#
-# REGLAS
-# ------------------------------------------------------------
-#
-# - Nunca modifica el Banco General.
-# - Nunca cambia Pregunta_ID.
-# - Nunca reutiliza un código de evaluación.
-# - Nunca duplica una evaluación ya persistida.
-# - Las preguntas rechazadas NO se reemplazan.
-# - Las preguntas "AÚN NO SE UTILIZA" NO se reemplazan.
-# - Las preguntas APROBADAS quedan registradas como USADA.
-# - Las preguntas RECHAZADAS quedan registradas como RECHAZADA.
-# - Las preguntas AÚN NO SE UTILIZA quedan registradas
-#   con ese estado y NO se marcan como USADA.
-#
-# IMPORTANTE
-# ------------------------------------------------------------
-#
-# 10.5 solamente persiste lo que 10.4 ya validó.
-# No vuelve a validar.
-# No genera preguntas nuevas.
+#     SOLO LECTURA
+#     NO SE MODIFICA
 # ============================================================
 
 
@@ -28651,9 +28619,7 @@ import streamlit as st
 # ============================================================
 
 GITHUB_USUARIO_105 = "franquiciasauces"
-
 GITHUB_REPOSITORIO_105 = "Asesores"
-
 GITHUB_RAMA_105 = "main"
 
 
@@ -28662,11 +28628,8 @@ GITHUB_RAMA_105 = "main"
 # ============================================================
 
 try:
-
     GITHUB_TOKEN_105 = st.secrets["GITHUB_TOKEN"]
-
 except Exception:
-
     GITHUB_TOKEN_105 = ""
 
 
@@ -28674,30 +28637,66 @@ except Exception:
 # ARCHIVOS PERSISTENTES
 # ============================================================
 
-ARCHIVO_PREGUNTAS_105 = (
-    "page/PREGUNTAS_EVALUACIONES.csv"
-)
-
 ARCHIVO_EVALUACIONES_105 = (
     "page/EVALUACIONES.csv"
 )
 
-
-# ============================================================
-# CARPETA DE EVALUACIONES INDIVIDUALES
-# ============================================================
-#
-# Cada evaluación persistida tendrá además un archivo propio.
-#
-# Ejemplo:
-#
-# page/EVALUACION/MOD01_REL01_0001.csv
-#
-# ============================================================
+ARCHIVO_PREGUNTAS_105 = (
+    "page/PREGUNTAS_EVALUACIONES.csv"
+)
 
 CARPETA_EVALUACIONES_105 = (
     "page/EVALUACION"
 )
+
+
+# ============================================================
+# COLUMNAS DE EVALUACIONES.CSV
+# ============================================================
+
+COLUMNAS_EVALUACIONES_105 = [
+
+    "Evaluacion_ID",
+    "Modulo",
+    "Tipo_Relacion",
+    "Nivel",
+    "Cantidad_Preguntas",
+    "Preguntas_Aprobadas",
+    "Preguntas_Rechazadas",
+    "Preguntas_No_Utilizadas",
+    "Estado_Evaluacion",
+    "Fecha_Persistencia"
+
+]
+
+
+# ============================================================
+# COLUMNAS DE PREGUNTAS_EVALUACIONES.CSV
+# ============================================================
+
+COLUMNAS_PREGUNTAS_105 = [
+
+    "Evaluacion_ID",
+    "Pregunta_ID",
+    "Modulo",
+    "Tipo_Relacion",
+    "Nivel",
+
+    "Pregunta",
+
+    "Respuesta_1",
+    "Respuesta_2",
+    "Respuesta_3",
+    "Respuesta_4",
+
+    "Respuesta_Correcta",
+
+    "Estado_Validacion",
+    "Estado_Uso",
+
+    "Fecha_Persistencia"
+
+]
 
 
 # ============================================================
@@ -28706,50 +28705,52 @@ CARPETA_EVALUACIONES_105 = (
 
 def headers_github_105():
 
-    headers_105 = {
-        "Accept": "application/vnd.github+json"
-    }
-
-    if GITHUB_TOKEN_105:
-
-        headers_105[
-            "Authorization"
-        ] = (
+    return {
+        "Authorization": (
             f"Bearer {GITHUB_TOKEN_105}"
+        ),
+        "Accept": (
+            "application/vnd.github+json"
         )
-
-    return headers_105
+    }
 
 
 # ============================================================
-# CONSTRUIR URL GITHUB
+# URL GITHUB
 # ============================================================
 
 def construir_url_github_105(
-    ruta_archivo_105
+    ruta_105
 ):
 
     return (
         "https://api.github.com/repos/"
         f"{GITHUB_USUARIO_105}/"
         f"{GITHUB_REPOSITORIO_105}/contents/"
-        f"{ruta_archivo_105}"
+        f"{ruta_105}"
     )
 
 
 # ============================================================
-# LEER ARCHIVO CSV DESDE GITHUB
-#
-# Devuelve:
-#
-#     df
-#     sha
-#     existe
-#
+# TEXTO SEGURO
+# ============================================================
+
+def texto_105(
+    valor
+):
+
+    if pd.isna(valor):
+        return ""
+
+    return str(valor).strip()
+
+
+# ============================================================
+# LEER CSV DESDE GITHUB
 # ============================================================
 
 def leer_csv_github_105(
-    ruta_archivo_105
+    ruta_105
 ):
 
     if not GITHUB_TOKEN_105:
@@ -28759,26 +28760,20 @@ def leer_csv_github_105(
             "GITHUB_TOKEN."
         )
 
-        return (
-            None,
-            None,
-            False
-        )
+        return None, None, False
 
 
     url_105 = construir_url_github_105(
-        ruta_archivo_105
+        ruta_105
     )
 
 
     try:
 
-        solicitud_105 = (
-            urllib.request.Request(
-                url_105,
-                headers=headers_github_105(),
-                method="GET"
-            )
+        solicitud_105 = urllib.request.Request(
+            url_105,
+            headers=headers_github_105(),
+            method="GET"
         )
 
 
@@ -28788,25 +28783,19 @@ def leer_csv_github_105(
         ) as respuesta_105:
 
             datos_105 = json.loads(
-                respuesta_105
-                .read()
-                .decode("utf-8")
+                respuesta_105.read().decode(
+                    "utf-8"
+                )
             )
 
 
         if "content" not in datos_105:
 
-            return (
-                None,
-                None,
-                False
-            )
+            return None, None, False
 
 
         contenido_105 = base64.b64decode(
-            datos_105[
-                "content"
-            ].replace(
+            datos_105["content"].replace(
                 "\n",
                 ""
             )
@@ -28814,9 +28803,7 @@ def leer_csv_github_105(
 
 
         df_105 = pd.read_csv(
-            io.BytesIO(
-                contenido_105
-            ),
+            io.BytesIO(contenido_105),
             dtype=str,
             keep_default_na=False
         )
@@ -28833,11 +28820,7 @@ def leer_csv_github_105(
 
         if error_105.code == 404:
 
-            return (
-                None,
-                None,
-                False
-            )
+            return None, None, False
 
 
         detalle_105 = ""
@@ -28850,57 +28833,37 @@ def leer_csv_github_105(
             )
 
         except Exception:
-
             pass
 
 
         st.error(
-            f"10.5 ERROR leyendo "
-            f"{ruta_archivo_105}: "
+            f"10.5 ERROR leyendo {ruta_105}: "
             f"HTTP {error_105.code}"
         )
 
-
         if detalle_105:
+            st.code(detalle_105)
 
-            st.code(
-                detalle_105
-            )
-
-
-        return (
-            None,
-            None,
-            False
-        )
+        return None, None, False
 
 
     except Exception as error_105:
 
         st.error(
-            f"10.5 ERROR leyendo "
-            f"{ruta_archivo_105}."
+            f"10.5 ERROR leyendo {ruta_105}: "
+            f"{error_105}"
         )
 
-        st.exception(
-            error_105
-        )
-
-
-        return (
-            None,
-            None,
-            False
-        )
+        return None, None, False
 
 
 # ============================================================
-# GUARDAR / ACTUALIZAR CSV EN GITHUB
+# GUARDAR CSV EN GITHUB
 # ============================================================
 
 def guardar_csv_github_105(
     df_105,
-    ruta_archivo_105,
+    ruta_105,
     sha_105,
     mensaje_105
 ):
@@ -28916,76 +28879,55 @@ def guardar_csv_github_105(
 
 
     url_105 = construir_url_github_105(
-        ruta_archivo_105
+        ruta_105
     )
+
+
+    contenido_105 = (
+        df_105
+        .to_csv(
+            index=False,
+            encoding="utf-8-sig"
+        )
+        .encode("utf-8-sig")
+    )
+
+
+    datos_105 = {
+
+        "message": mensaje_105,
+
+        "content": base64.b64encode(
+            contenido_105
+        ).decode("utf-8"),
+
+        "branch": GITHUB_RAMA_105
+
+    }
+
+
+    if sha_105:
+        datos_105["sha"] = sha_105
 
 
     try:
 
-        csv_bytes_105 = (
-            df_105
-            .to_csv(
-                index=False,
-                encoding="utf-8-sig"
-            )
-            .encode(
-                "utf-8-sig"
-            )
-        )
+        solicitud_105 = urllib.request.Request(
 
+            url_105,
 
-        contenido_base64_105 = (
-            base64.b64encode(
-                csv_bytes_105
-            )
-            .decode("utf-8")
-        )
+            data=json.dumps(
+                datos_105
+            ).encode("utf-8"),
 
+            headers={
+                **headers_github_105(),
+                "Content-Type":
+                    "application/json"
+            },
 
-        datos_105 = {
+            method="PUT"
 
-            "message": mensaje_105,
-
-            "content": contenido_base64_105,
-
-            "branch": GITHUB_RAMA_105
-        }
-
-
-        # ----------------------------------------------------
-        # IMPORTANTE
-        #
-        # Si el archivo ya existe:
-        #     se necesita SHA.
-        #
-        # Si no existe:
-        #     NO se manda SHA.
-        # ----------------------------------------------------
-
-        if sha_105:
-
-            datos_105[
-                "sha"
-            ] = sha_105
-
-
-        solicitud_105 = (
-            urllib.request.Request(
-
-                url_105,
-
-                data=json.dumps(
-                    datos_105
-                ).encode("utf-8"),
-
-                headers={
-                    **headers_github_105(),
-                    "Content-Type":
-                        "application/json"
-                },
-
-                method="PUT"
-            )
         )
 
 
@@ -28995,16 +28937,14 @@ def guardar_csv_github_105(
         ) as respuesta_105:
 
             resultado_105 = json.loads(
-                respuesta_105
-                .read()
-                .decode("utf-8")
+                respuesta_105.read().decode(
+                    "utf-8"
+                )
             )
 
 
         return bool(
-            resultado_105.get(
-                "content"
-            )
+            resultado_105.get("content")
         )
 
 
@@ -29013,29 +28953,21 @@ def guardar_csv_github_105(
         detalle_105 = ""
 
         try:
-
             detalle_105 = (
                 error_105.read()
                 .decode("utf-8")
             )
-
         except Exception:
-
             pass
 
 
         st.error(
-            "10.5 ERROR guardando "
-            f"{ruta_archivo_105}."
+            f"10.5 ERROR guardando {ruta_105}: "
+            f"HTTP {error_105.code}"
         )
 
-
         if detalle_105:
-
-            st.code(
-                detalle_105
-            )
-
+            st.code(detalle_105)
 
         return False
 
@@ -29043,359 +28975,270 @@ def guardar_csv_github_105(
     except Exception as error_105:
 
         st.error(
-            "10.5 ERROR guardando "
-            f"{ruta_archivo_105}."
-        )
-
-        st.exception(
-            error_105
+            f"10.5 ERROR guardando {ruta_105}: "
+            f"{error_105}"
         )
 
         return False
 
 
 # ============================================================
-# NORMALIZAR TEXTO
+# NORMALIZAR ESTADO DE VALIDACIÓN
+#
+# IMPORTANTE:
+# ESTE ESTADO VIENE DE 10.4.
 # ============================================================
 
-def texto_105(
-    valor_105
+def normalizar_estado_validacion_105(
+    valor
 ):
 
-    if pd.isna(
-        valor_105
-    ):
-
-        return ""
-
-    return (
-        str(
-            valor_105
-        )
-        .strip()
+    estado = (
+        texto_105(valor)
+        .upper()
+        .replace("AUN NO SE UTILIZA", "AÚN NO SE UTILIZA")
     )
 
 
-# ============================================================
-# BUSCAR COLUMNA
-# ============================================================
-
-def buscar_columna_105(
-    df_105,
-    opciones_105
-):
-
-    columnas_105 = {
-        texto_105(col).lower():
-        col
-        for col in df_105.columns
-    }
+    if estado in (
+        "APROBADA",
+        "APROBADO"
+    ):
+        return "APROBADA"
 
 
-    for opcion_105 in opciones_105:
-
-        clave_105 = (
-            texto_105(
-                opcion_105
-            )
-            .lower()
-        )
+    if estado in (
+        "RECHAZADA",
+        "RECHAZADO"
+    ):
+        return "RECHAZADA"
 
 
-        if clave_105 in columnas_105:
-
-            return columnas_105[
-                clave_105
-            ]
+    if estado == "AÚN NO SE UTILIZA":
+        return "AÚN NO SE UTILIZA"
 
 
     return None
 
 
 # ============================================================
-# CREAR DATAFRAME VACÍO DE EVALUACIONES
+# ESTADO DE USO
+#
+# ES DIFERENTE DEL ESTADO DE VALIDACIÓN.
 # ============================================================
 
-COLUMNAS_EVALUACIONES_105 = [
-
-    "Evaluacion_ID",
-
-    "Modulo",
-
-    "Tipo_Relacion",
-
-    "Nivel",
-
-    "Cantidad_Preguntas",
-
-    "Preguntas_Aprobadas",
-
-    "Preguntas_Rechazadas",
-
-    "Preguntas_No_Utilizadas",
-
-    "Estado_Evaluacion",
-
-    "Fecha_Persistencia"
-
-]
-
-
-# ============================================================
-# CREAR DATAFRAME VACÍO DE PREGUNTAS
-# ============================================================
-
-COLUMNAS_PREGUNTAS_105 = [
-
-    "Evaluacion_ID",
-
-    "Pregunta_ID",
-
-    "Modulo",
-
-    "Tipo_Relacion",
-
-    "Nivel",
-
-    "Pregunta",
-
-    "Respuesta_1",
-
-    "Respuesta_2",
-
-    "Respuesta_3",
-
-    "Respuesta_4",
-
-    "Respuesta_Correcta",
-
-    "Estado",
-
-    "Fecha_Persistencia"
-
-]
-
-
-# ============================================================
-# OBTENER PRÓXIMO NÚMERO
-# ============================================================
-
-def obtener_proximo_numero_105(
-    df_evaluaciones_105,
-    modulo_105,
-    relacion_105,
-    nivel_105
+def obtener_estado_uso_105(
+    estado_validacion
 ):
 
-    if (
-        df_evaluaciones_105 is None
-        or
-        df_evaluaciones_105.empty
-    ):
+    if estado_validacion == "APROBADA":
 
-        return 1
+        return "USADA"
 
 
-    if "Evaluacion_ID" not in (
-        df_evaluaciones_105.columns
-    ):
+    if estado_validacion == "AÚN NO SE UTILIZA":
 
-        return 1
+        return "DISPONIBLE"
 
 
-    prefijo_105 = construir_prefijo_105(
-        modulo_105,
-        relacion_105,
-        nivel_105
-    )
+    if estado_validacion == "RECHAZADA":
+
+        return "NO DISPONIBLE"
 
 
-    numeros_105 = []
+    return "NO DISPONIBLE"
 
 
-    for valor_105 in (
-        df_evaluaciones_105[
-            "Evaluacion_ID"
-        ]
-        .astype(str)
-    ):
+# ============================================================
+# OBTENER METADATOS DE 10.4
+# ============================================================
 
-        valor_105 = (
-            valor_105
-            .strip()
-        )
+def obtener_metadata_105(
+    df_105
+):
 
+    posibles_modulos = [
+        "Modulo_Evaluacion",
+        "Modulo"
+    ]
 
-        if not valor_105.startswith(
-            prefijo_105
-        ):
+    posibles_relaciones = [
+        "Tipo_Relacion_Evaluacion",
+        "Tipo_Relacion"
+    ]
 
-            continue
-
-
-        parte_105 = (
-            valor_105[
-                len(prefijo_105):
-            ]
-        )
+    posibles_niveles = [
+        "Nivel_Evaluacion",
+        "Nivel"
+    ]
 
 
-        if parte_105.isdigit():
+    modulo = ""
+    relacion = ""
+    nivel = ""
 
-            numeros_105.append(
-                int(parte_105)
+
+    for columna in posibles_modulos:
+
+        if columna in df_105.columns:
+
+            modulo = texto_105(
+                df_105[columna].iloc[0]
             )
 
-
-    if not numeros_105:
-
-        return 1
+            if modulo:
+                break
 
 
-    return (
-        max(numeros_105)
-        + 1
-    )
+    for columna in posibles_relaciones:
+
+        if columna in df_105.columns:
+
+            relacion = texto_105(
+                df_105[columna].iloc[0]
+            )
+
+            if relacion:
+                break
+
+
+    for columna in posibles_niveles:
+
+        if columna in df_105.columns:
+
+            nivel = texto_105(
+                df_105[columna].iloc[0]
+            )
+
+            if nivel:
+                break
+
+
+    return modulo, relacion, nivel
 
 
 # ============================================================
-# CONSTRUIR PREFIJO DEL CÓDIGO
-# ============================================================
-#
-# Se genera a partir de:
-#
-#     Módulo
-#     Tipo_Relacion
-#     Nivel
-#
-# Ejemplo:
-#
-#     MODULO = "ASESORIA"
-#     RELACION = "PRODUCTO"
-#     NIVEL = "1"
-#
-# Resultado:
-#
-#     ASESORIA_PRODUCTO_1_
-#
-# Luego:
-#
-#     ASESORIA_PRODUCTO_1_0001
-#
+# PREFIJO DEL CÓDIGO
 # ============================================================
 
 def construir_prefijo_105(
-    modulo_105,
-    relacion_105,
-    nivel_105
+    modulo,
+    relacion,
+    nivel
 ):
 
-    modulo_105 = (
-        texto_105(
-            modulo_105
+    def limpiar(valor):
+
+        return (
+            texto_105(valor)
+            .upper()
+            .replace(" ", "_")
+            .replace("/", "_")
+            .replace("\\", "_")
         )
-        .upper()
-        .replace(" ", "_")
-        .replace("/", "_")
-        .replace("\\", "_")
-    )
-
-
-    relacion_105 = (
-        texto_105(
-            relacion_105
-        )
-        .upper()
-        .replace(" ", "_")
-        .replace("/", "_")
-        .replace("\\", "_")
-    )
-
-
-    nivel_105 = (
-        texto_105(
-            nivel_105
-        )
-        .upper()
-        .replace(" ", "_")
-    )
 
 
     return (
-        f"{modulo_105}_"
-        f"{relacion_105}_"
-        f"{nivel_105}_"
+        f"{limpiar(modulo)}_"
+        f"{limpiar(relacion)}_"
+        f"{limpiar(nivel)}_"
     )
 
 
 # ============================================================
-# GENERAR CÓDIGO DE EVALUACIÓN
+# GENERAR CÓDIGO ÚNICO DE EVALUACIÓN
 # ============================================================
 
 def generar_codigo_evaluacion_105(
-    df_evaluaciones_105,
-    modulo_105,
-    relacion_105,
-    nivel_105
+    df_evaluaciones,
+    modulo,
+    relacion,
+    nivel
 ):
 
-    prefijo_105 = construir_prefijo_105(
-        modulo_105,
-        relacion_105,
-        nivel_105
+    prefijo = construir_prefijo_105(
+        modulo,
+        relacion,
+        nivel
     )
 
 
-    numero_105 = (
-        obtener_proximo_numero_105(
-            df_evaluaciones_105,
-            modulo_105,
-            relacion_105,
-            nivel_105
-        )
+    numeros = []
+
+
+    if (
+        df_evaluaciones is not None
+        and not df_evaluaciones.empty
+        and "Evaluacion_ID"
+        in df_evaluaciones.columns
+    ):
+
+        for valor in (
+            df_evaluaciones[
+                "Evaluacion_ID"
+            ]
+            .astype(str)
+        ):
+
+            valor = valor.strip()
+
+
+            if not valor.startswith(prefijo):
+                continue
+
+
+            numero = valor[len(prefijo):]
+
+
+            if numero.isdigit():
+
+                numeros.append(
+                    int(numero)
+                )
+
+
+    siguiente = (
+        max(numeros) + 1
+        if numeros
+        else 1
     )
 
 
     return (
-        f"{prefijo_105}"
-        f"{numero_105:04d}"
+        f"{prefijo}"
+        f"{siguiente:04d}"
     )
 
 
 # ============================================================
-# VALIDAR DATAFRAME TEMPORAL DE 10.4
+# VALIDAR RESULTADO DE 10.4
 # ============================================================
 
-def validar_temporal_104_105(
+def validar_resultado_104_105(
     df_105
 ):
 
     if (
         df_105 is None
-        or
-        df_105.empty
+        or df_105.empty
     ):
 
         st.error(
-            "10.5 ERROR: no existe una evaluación "
-            "validada en memoria."
+            "10.5 ERROR: no existe "
+            "df_evaluacion_validada_104."
         )
 
         return False
 
 
-    columnas_requeridas_105 = [
+    columnas_requeridas = [
 
         "Pregunta_ID",
-
         "Pregunta",
 
         "Respuesta_1",
-
         "Respuesta_2",
-
         "Respuesta_3",
-
         "Respuesta_4",
 
         "Respuesta_Correcta"
@@ -29403,42 +29246,54 @@ def validar_temporal_104_105(
     ]
 
 
-    faltantes_105 = [
+    faltantes = [
 
-        columna_105
-
-        for columna_105
-        in columnas_requeridas_105
-
-        if columna_105
-        not in df_105.columns
+        columna
+        for columna in columnas_requeridas
+        if columna not in df_105.columns
 
     ]
 
 
-    if faltantes_105:
+    if faltantes:
 
         st.error(
-            "10.5 ERROR: la evaluación temporal "
-            "no contiene las columnas necesarias: "
-            + ", ".join(
-                faltantes_105
-            )
+            "10.5 ERROR: faltan columnas "
+            "en la evaluación validada: "
+            + ", ".join(faltantes)
         )
 
         return False
 
 
-    ids_105 = (
-        df_105[
-            "Pregunta_ID"
-        ]
+    # ========================================================
+    # BUSCAR EL ESTADO REAL DE 10.4
+    # ========================================================
+
+    if "Estado_Validacion_104" not in df_105.columns:
+
+        st.error(
+            "10.5 ERROR CRÍTICO: "
+            "df_evaluacion_validada_104 "
+            "no contiene 'Estado_Validacion_104'."
+        )
+
+        st.error(
+            "10.5 NO utilizará la columna "
+            "'Estado' como sustituto."
+        )
+
+        return False
+
+
+    ids = (
+        df_105["Pregunta_ID"]
         .astype(str)
         .str.strip()
     )
 
 
-    if ids_105.eq("").any():
+    if ids.eq("").any():
 
         st.error(
             "10.5 ERROR: existe una pregunta "
@@ -29448,116 +29303,44 @@ def validar_temporal_104_105(
         return False
 
 
-    if ids_105.duplicated().any():
+    if ids.duplicated().any():
 
         st.error(
-            "10.5 ERROR: la evaluación temporal "
-            "contiene Pregunta_ID duplicados."
+            "10.5 ERROR: existen Pregunta_ID "
+            "duplicados dentro de la evaluación."
         )
 
         return False
 
 
+    estados = []
+
+
+    for valor in (
+        df_105["Estado_Validacion_104"]
+    ):
+
+        estado = (
+            normalizar_estado_validacion_105(
+                valor
+            )
+        )
+
+
+        if estado is None:
+
+            st.error(
+                "10.5 ERROR: existe un estado "
+                "de validación no válido."
+            )
+
+            return False
+
+
+        estados.append(estado)
+
+
     return True
-
-
-# ============================================================
-# OBTENER METADATOS DE LA EVALUACIÓN
-# ============================================================
-
-def obtener_metadata_105(
-    df_105
-):
-
-    modulo_105 = ""
-
-    relacion_105 = ""
-
-    nivel_105 = ""
-
-
-    if "Modulo_Evaluacion" in (
-        df_105.columns
-    ):
-
-        modulo_105 = texto_105(
-            df_105[
-                "Modulo_Evaluacion"
-            ].iloc[0]
-        )
-
-
-    if "Tipo_Relacion_Evaluacion" in (
-        df_105.columns
-    ):
-
-        relacion_105 = texto_105(
-            df_105[
-                "Tipo_Relacion_Evaluacion"
-            ].iloc[0]
-        )
-
-
-    if "Nivel_Evaluacion" in (
-        df_105.columns
-    ):
-
-        nivel_105 = texto_105(
-            df_105[
-                "Nivel_Evaluacion"
-            ].iloc[0]
-        )
-
-
-    return (
-        modulo_105,
-        relacion_105,
-        nivel_105
-    )
-
-
-# ============================================================
-# CONVERTIR ESTADO
-# ============================================================
-
-def normalizar_estado_105(
-    valor_105
-):
-
-    estado_105 = (
-        texto_105(
-            valor_105
-        )
-        .upper()
-    )
-
-
-    if estado_105 == (
-        "AUN NO SE UTILIZA"
-    ):
-
-        estado_105 = (
-            "AÚN NO SE UTILIZA"
-        )
-
-
-    estados_105 = [
-
-        "APROBADA",
-
-        "RECHAZADA",
-
-        "AÚN NO SE UTILIZA"
-
-    ]
-
-
-    if estado_105 not in estados_105:
-
-        return None
-
-
-    return estado_105
 
 
 # ============================================================
@@ -29570,49 +29353,50 @@ st.markdown(
 
 
 st.info(
-    "Esta etapa toma únicamente la evaluación validada "
-    "por 10.4 y la convierte en persistencia definitiva "
-    "dentro de /page/. El Banco General no se modifica."
+    "10.5 persiste exactamente el resultado "
+    "validado por 10.4. No vuelve a validar "
+    "ni modifica el Banco General."
 )
 
 
 # ============================================================
-# RECUPERAR RESULTADO DE 10.4
+# RECUPERAR RESULTADO TEMPORAL DE 10.4
 # ============================================================
 
-df_validada_105 = (
-    st.session_state.get(
-        "df_evaluacion_validada_104",
-        pd.DataFrame()
-    )
+df_validada_105 = st.session_state.get(
+
+    "df_evaluacion_validada_104",
+
+    pd.DataFrame()
+
 )
 
+
+# ============================================================
+# SI NO EXISTE
+# ============================================================
 
 if (
     df_validada_105 is None
-    or
-    df_validada_105.empty
+    or df_validada_105.empty
 ):
 
     st.warning(
-        "No existe una evaluación validada disponible "
-        "en memoria. Primero debe ejecutar 10.3 y "
-        "validarla en 10.4."
+        "No existe una evaluación validada "
+        "disponible. Primero debe completar "
+        "10.3 y 10.4."
     )
+
 
 else:
 
     # ========================================================
-    # VALIDAR ESTRUCTURA
+    # VALIDACIÓN ESTRUCTURAL
     # ========================================================
 
-    if validar_temporal_104_105(
+    if validar_resultado_104_105(
         df_validada_105
     ):
-
-        # ====================================================
-        # METADATOS
-        # ====================================================
 
         (
             modulo_105,
@@ -29627,31 +29411,124 @@ else:
 
             st.error(
                 "10.5 ERROR: no se encontró "
-                "Modulo_Evaluacion."
+                "el módulo de evaluación."
             )
 
         elif not relacion_105:
 
             st.error(
                 "10.5 ERROR: no se encontró "
-                "Tipo_Relacion_Evaluacion."
+                "el tipo de relación."
             )
 
         elif not nivel_105:
 
             st.error(
                 "10.5 ERROR: no se encontró "
-                "Nivel_Evaluacion."
+                "el nivel."
             )
 
         else:
+
+            # =================================================
+            # COPIA SEGURA
+            # =================================================
+
+            df_trabajo_105 = (
+                df_validada_105.copy()
+            )
+
+
+            # =================================================
+            # NORMALIZAR EXCLUSIVAMENTE EL ESTADO DE 10.4
+            # =================================================
+
+            df_trabajo_105[
+                "Estado_Validacion_104"
+            ] = (
+
+                df_trabajo_105[
+                    "Estado_Validacion_104"
+                ]
+                .apply(
+                    normalizar_estado_validacion_105
+                )
+
+            )
+
+
+            # =================================================
+            # CREAR ESTADO DE USO
+            # =================================================
+
+            df_trabajo_105[
+                "Estado_Uso"
+            ] = (
+
+                df_trabajo_105[
+                    "Estado_Validacion_104"
+                ]
+                .apply(
+                    obtener_estado_uso_105
+                )
+
+            )
+
+
+            # =================================================
+            # CONTEOS REALES DE 10.4
+            # =================================================
+
+            aprobadas_105 = int(
+
+                (
+                    df_trabajo_105[
+                        "Estado_Validacion_104"
+                    ]
+                    == "APROBADA"
+                )
+                .sum()
+
+            )
+
+
+            rechazadas_105 = int(
+
+                (
+                    df_trabajo_105[
+                        "Estado_Validacion_104"
+                    ]
+                    == "RECHAZADA"
+                )
+                .sum()
+
+            )
+
+
+            no_utilizadas_105 = int(
+
+                (
+                    df_trabajo_105[
+                        "Estado_Validacion_104"
+                    ]
+                    == "AÚN NO SE UTILIZA"
+                )
+                .sum()
+
+            )
+
+
+            total_105 = len(
+                df_trabajo_105
+            )
+
 
             # =================================================
             # MOSTRAR RESUMEN
             # =================================================
 
             st.markdown(
-                "### Evaluación lista para persistir"
+                "### Evaluación validada por 10.4"
             )
 
 
@@ -29660,918 +29537,751 @@ else:
             )
 
             st.write(
-                f"**Tipo_Relacion:** {relacion_105}"
+                f"**Tipo de relación:** {relacion_105}"
             )
 
             st.write(
                 f"**Nivel:** {nivel_105}"
             )
 
-            st.write(
-                f"**Preguntas:** "
-                f"{len(df_validada_105)}"
+
+            col1, col2, col3, col4 = (
+                st.columns(4)
+            )
+
+
+            with col1:
+
+                st.metric(
+                    "Preguntas",
+                    total_105
+                )
+
+
+            with col2:
+
+                st.metric(
+                    "Aprobadas",
+                    aprobadas_105
+                )
+
+
+            with col3:
+
+                st.metric(
+                    "Rechazadas",
+                    rechazadas_105
+                )
+
+
+            with col4:
+
+                st.metric(
+                    "Aún no se utilizan",
+                    no_utilizadas_105
+                )
+
+
+            # =================================================
+            # CONTROL IMPORTANTE
+            # =================================================
+
+            st.success(
+                "Los conteos anteriores provienen "
+                "exclusivamente de Estado_Validacion_104."
             )
 
 
             # =================================================
-            # ESTADOS
+            # MOSTRAR VALIDACIÓN REAL
             # =================================================
 
-            estados_validacion_105 = []
+            columnas_visualizacion = [
+
+                "Pregunta_ID",
+                "Pregunta",
+
+                "Respuesta_1",
+                "Respuesta_2",
+                "Respuesta_3",
+                "Respuesta_4",
+
+                "Respuesta_Correcta",
+
+                "Estado_Validacion_104",
+                "Estado_Uso"
+
+            ]
 
 
-            for valor_105 in (
-                df_validada_105[
-                    "Estado"
-                ]
-                if "Estado"
-                in df_validada_105.columns
-                else []
+            columnas_visualizacion = [
+
+                columna
+                for columna in columnas_visualizacion
+                if columna in df_trabajo_105.columns
+
+            ]
+
+
+            st.dataframe(
+
+                df_trabajo_105[
+                    columnas_visualizacion
+                ],
+
+                use_container_width=True,
+
+                hide_index=True
+
+            )
+
+
+            # =================================================
+            # CONFIRMACIÓN
+            # =================================================
+
+            st.markdown(
+                "### Persistencia"
+            )
+
+
+            confirmar_105 = st.checkbox(
+
+                "CONFIRMO QUE DESEO PERSISTIR "
+                "ESTA EVALUACIÓN",
+
+                key="confirmar_persistencia_105"
+
+            )
+
+
+            if st.button(
+
+                "PERSISTIR EVALUACIÓN",
+
+                key="persistir_evaluacion_105",
+
+                disabled=not confirmar_105
+
             ):
 
-                estado_105 = (
-                    normalizar_estado_105(
-                        valor_105
+                # =============================================
+                # LEER LOS PERSISTENTES ACTUALES
+                # =============================================
+
+                (
+                    df_eval_actual_105,
+                    sha_eval_105,
+                    existe_eval_105
+                ) = leer_csv_github_105(
+
+                    ARCHIVO_EVALUACIONES_105
+
+                )
+
+
+                (
+                    df_preg_actual_105,
+                    sha_preg_105,
+                    existe_preg_105
+                ) = leer_csv_github_105(
+
+                    ARCHIVO_PREGUNTAS_105
+
+                )
+
+
+                if df_eval_actual_105 is None:
+
+                    df_eval_actual_105 = pd.DataFrame(
+                        columns=
+                        COLUMNAS_EVALUACIONES_105
+                    )
+
+
+                if df_preg_actual_105 is None:
+
+                    df_preg_actual_105 = pd.DataFrame(
+                        columns=
+                        COLUMNAS_PREGUNTAS_105
+                    )
+
+
+                # =============================================
+                # ASEGURAR COLUMNAS
+                # =============================================
+
+                for columna in COLUMNAS_EVALUACIONES_105:
+
+                    if columna not in df_eval_actual_105.columns:
+
+                        df_eval_actual_105[
+                            columna
+                        ] = ""
+
+
+                for columna in COLUMNAS_PREGUNTAS_105:
+
+                    if columna not in df_preg_actual_105.columns:
+
+                        df_preg_actual_105[
+                            columna
+                        ] = ""
+
+
+                df_eval_actual_105 = (
+                    df_eval_actual_105[
+                        COLUMNAS_EVALUACIONES_105
+                    ]
+                )
+
+
+                df_preg_actual_105 = (
+                    df_preg_actual_105[
+                        COLUMNAS_PREGUNTAS_105
+                    ]
+                )
+
+
+                # =============================================
+                # GENERAR CÓDIGO
+                # =============================================
+
+                codigo_105 = (
+                    generar_codigo_evaluacion_105(
+
+                        df_eval_actual_105,
+
+                        modulo_105,
+
+                        relacion_105,
+
+                        nivel_105
+
                     )
                 )
 
 
-                if estado_105 is None:
+                # =============================================
+                # VERIFICAR QUE NO EXISTA
+                # =============================================
 
-                    estados_validacion_105.append(
-                        "INVALIDO"
-                    )
+                codigos_existentes_105 = set(
 
-                else:
+                    df_eval_actual_105[
+                        "Evaluacion_ID"
+                    ]
+                    .astype(str)
+                    .str.strip()
 
-                    estados_validacion_105.append(
-                        estado_105
-                    )
+                )
 
 
-            if estados_validacion_105:
-
-                if (
-                    "INVALIDO"
-                    in estados_validacion_105
-                ):
+                if codigo_105 in codigos_existentes_105:
 
                     st.error(
-                        "10.5 ERROR: existe al menos "
-                        "una pregunta con un estado "
-                        "de validación no permitido."
+                        f"10.5 ERROR: el código "
+                        f"{codigo_105} ya existe."
                     )
 
-                else:
-
-                    # =========================================
-                    # RESUMEN DE ESTADOS
-                    # =========================================
-
-                    aprobadas_105 = (
-                        estados_validacion_105.count(
-                            "APROBADA"
-                        )
-                    )
+                    st.stop()
 
 
-                    rechazadas_105 = (
-                        estados_validacion_105.count(
-                            "RECHAZADA"
-                        )
-                    )
+                # =============================================
+                # VERIFICAR PREGUNTAS NO REPETIDAS
+                # =============================================
 
+                ids_nuevos_105 = set(
 
-                    no_utilizadas_105 = (
-                        estados_validacion_105.count(
-                            "AÚN NO SE UTILIZA"
-                        )
-                    )
-
-
-                    col1_105, col2_105, col3_105 = (
-                        st.columns(3)
-                    )
-
-
-                    with col1_105:
-
-                        st.metric(
-                            "Aprobadas",
-                            aprobadas_105
-                        )
-
-
-                    with col2_105:
-
-                        st.metric(
-                            "Rechazadas",
-                            rechazadas_105
-                        )
-
-
-                    with col3_105:
-
-                        st.metric(
-                            "Aún no se utilizan",
-                            no_utilizadas_105
-                        )
-
-
-                    # =========================================
-                    # MOSTRAR TABLA
-                    # =========================================
-
-                    columnas_mostrar_105 = [
-
-                        "Pregunta_ID",
-
-                        "Pregunta",
-
-                        "Respuesta_1",
-
-                        "Respuesta_2",
-
-                        "Respuesta_3",
-
-                        "Respuesta_4",
-
-                        "Respuesta_Correcta",
-
-                        "Estado"
-
+                    df_trabajo_105[
+                        "Pregunta_ID"
                     ]
+                    .astype(str)
+                    .str.strip()
+
+                )
 
 
-                    columnas_mostrar_105 = [
-
-                        columna_105
-
-                        for columna_105
-                        in columnas_mostrar_105
-
-                        if columna_105
-                        in df_validada_105.columns
-
-                    ]
+                ids_existentes_105 = set()
 
 
-                    st.dataframe(
+                if (
+                    not df_preg_actual_105.empty
+                    and
+                    "Pregunta_ID"
+                    in df_preg_actual_105.columns
+                ):
 
-                        df_validada_105[
-                            columnas_mostrar_105
-                        ],
+                    ids_existentes_105 = set(
 
-                        use_container_width=True,
-
-                        hide_index=True
+                        df_preg_actual_105[
+                            "Pregunta_ID"
+                        ]
+                        .astype(str)
+                        .str.strip()
 
                     )
 
 
-                    # =========================================
-                    # BOTÓN PERSISTIR
-                    # =========================================
+                conflictos_105 = (
+                    ids_nuevos_105
+                    &
+                    ids_existentes_105
+                )
 
-                    st.markdown(
-                        "### Persistencia"
+
+                if conflictos_105:
+
+                    st.error(
+                        "10.5 ERROR: existen preguntas "
+                        "que ya fueron registradas "
+                        "en una evaluación anterior."
+                    )
+
+                    st.write(
+                        "Pregunta_ID repetidos:"
+                    )
+
+                    st.code(
+                        "\n".join(
+                            sorted(
+                                conflictos_105
+                            )
+                        )
+                    )
+
+                    st.stop()
+
+
+                # =============================================
+                # FECHA
+                # =============================================
+
+                fecha_105 = (
+                    pd.Timestamp.now(
+                        tz="America/Bogota"
+                    )
+                    .strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+                )
+
+
+                # =============================================
+                # CREAR REGISTROS DE PREGUNTAS
+                # =============================================
+
+                registros_preguntas_105 = []
+
+
+                for _, fila in (
+                    df_trabajo_105.iterrows()
+                ):
+
+                    estado_validacion = (
+                        normalizar_estado_validacion_105(
+
+                            fila[
+                                "Estado_Validacion_104"
+                            ]
+
+                        )
                     )
 
 
-                    st.warning(
-                        "Al confirmar, 10.5 escribirá "
-                        "EVALUACIONES.csv, "
+                    estado_uso = (
+                        obtener_estado_uso_105(
+                            estado_validacion
+                        )
+                    )
+
+
+                    registros_preguntas_105.append({
+
+                        "Evaluacion_ID":
+                            codigo_105,
+
+                        "Pregunta_ID":
+                            texto_105(
+                                fila["Pregunta_ID"]
+                            ),
+
+                        "Modulo":
+                            modulo_105,
+
+                        "Tipo_Relacion":
+                            relacion_105,
+
+                        "Nivel":
+                            nivel_105,
+
+                        "Pregunta":
+                            texto_105(
+                                fila["Pregunta"]
+                            ),
+
+                        "Respuesta_1":
+                            texto_105(
+                                fila["Respuesta_1"]
+                            ),
+
+                        "Respuesta_2":
+                            texto_105(
+                                fila["Respuesta_2"]
+                            ),
+
+                        "Respuesta_3":
+                            texto_105(
+                                fila["Respuesta_3"]
+                            ),
+
+                        "Respuesta_4":
+                            texto_105(
+                                fila["Respuesta_4"]
+                            ),
+
+                        "Respuesta_Correcta":
+                            texto_105(
+                                fila["Respuesta_Correcta"]
+                            ),
+
+                        "Estado_Validacion":
+                            estado_validacion,
+
+                        "Estado_Uso":
+                            estado_uso,
+
+                        "Fecha_Persistencia":
+                            fecha_105
+
+                    })
+
+
+                df_nuevas_preguntas_105 = pd.DataFrame(
+                    registros_preguntas_105,
+                    columns=COLUMNAS_PREGUNTAS_105
+                )
+
+
+                # =============================================
+                # CREAR REGISTRO DE EVALUACIÓN
+                # =============================================
+
+                df_nueva_evaluacion_105 = pd.DataFrame(
+
+                    [{
+
+                        "Evaluacion_ID":
+                            codigo_105,
+
+                        "Modulo":
+                            modulo_105,
+
+                        "Tipo_Relacion":
+                            relacion_105,
+
+                        "Nivel":
+                            nivel_105,
+
+                        "Cantidad_Preguntas":
+                            total_105,
+
+                        "Preguntas_Aprobadas":
+                            aprobadas_105,
+
+                        "Preguntas_Rechazadas":
+                            rechazadas_105,
+
+                        "Preguntas_No_Utilizadas":
+                            no_utilizadas_105,
+
+                        "Estado_Evaluacion":
+                            "PERSISTIDA",
+
+                        "Fecha_Persistencia":
+                            fecha_105
+
+                    }],
+
+                    columns=COLUMNAS_EVALUACIONES_105
+
+                )
+
+
+                # =============================================
+                # CREAR ARCHIVO INDIVIDUAL
+                # =============================================
+
+                df_individual_105 = (
+                    df_nuevas_preguntas_105.copy()
+                )
+
+
+                archivo_individual_105 = (
+                    f"{CARPETA_EVALUACIONES_105}/"
+                    f"{codigo_105}.csv"
+                )
+
+
+                # =============================================
+                # VERIFICAR SI ARCHIVO INDIVIDUAL EXISTE
+                # =============================================
+
+                (
+                    _,
+                    _,
+                    existe_individual_105
+                ) = leer_csv_github_105(
+
+                    archivo_individual_105
+
+                )
+
+
+                if existe_individual_105:
+
+                    st.error(
+                        f"10.5 ERROR: ya existe "
+                        f"{archivo_individual_105}."
+                    )
+
+                    st.stop()
+
+
+                # =============================================
+                # CONSTRUIR RESULTADOS FINALES
+                # =============================================
+
+                df_eval_final_105 = pd.concat(
+
+                    [
+
+                        df_eval_actual_105,
+
+                        df_nueva_evaluacion_105
+
+                    ],
+
+                    ignore_index=True
+
+                )
+
+
+                df_preg_final_105 = pd.concat(
+
+                    [
+
+                        df_preg_actual_105,
+
+                        df_nuevas_preguntas_105
+
+                    ],
+
+                    ignore_index=True
+
+                )
+
+
+                # =============================================
+                # GUARDAR EVALUACIONES
+                # =============================================
+
+                guardado_eval_105 = (
+                    guardar_csv_github_105(
+
+                        df_eval_final_105,
+
+                        ARCHIVO_EVALUACIONES_105,
+
+                        sha_eval_105,
+
+                        (
+                            "10.5 - Persistencia "
+                            f"{codigo_105}"
+                        )
+
+                    )
+                )
+
+
+                if not guardado_eval_105:
+
+                    st.error(
+                        "10.5: no se pudo actualizar "
+                        "EVALUACIONES.csv."
+                    )
+
+                    st.stop()
+
+
+                # =============================================
+                # GUARDAR PREGUNTAS
+                # =============================================
+
+                guardado_preg_105 = (
+                    guardar_csv_github_105(
+
+                        df_preg_final_105,
+
+                        ARCHIVO_PREGUNTAS_105,
+
+                        sha_preg_105,
+
+                        (
+                            "10.5 - Preguntas "
+                            f"{codigo_105}"
+                        )
+
+                    )
+                )
+
+
+                if not guardado_preg_105:
+
+                    st.error(
+                        "10.5: EVALUACIONES.csv fue "
+                        "actualizado, pero "
                         "PREGUNTAS_EVALUACIONES.csv "
-                        "y el archivo individual de la "
-                        "evaluación en /page/EVALUACION/."
+                        "no pudo actualizarse."
                     )
 
+                    st.stop()
 
-                    confirmar_105 = st.checkbox(
 
-                        "CONFIRMO QUE DESEO PERSISTIR "
-                        "ESTA EVALUACIÓN",
+                # =============================================
+                # GUARDAR EVALUACIÓN INDIVIDUAL
+                # =============================================
 
-                        key=
-                        "confirmar_persistencia_105"
+                guardado_individual_105 = (
+                    guardar_csv_github_105(
+
+                        df_individual_105,
+
+                        archivo_individual_105,
+
+                        None,
+
+                        (
+                            "10.5 - Evaluación "
+                            f"{codigo_105}"
+                        )
 
                     )
+                )
 
 
-                    if st.button(
+                if not guardado_individual_105:
 
-                        "PERSISTIR EVALUACIÓN",
+                    st.error(
+                        "10.5: los registros fueron "
+                        "actualizados pero no pudo "
+                        "crearse el archivo individual."
+                    )
 
-                        key=
-                        "persistir_evaluacion_105",
+                    st.stop()
 
-                        disabled=
-                        not confirmar_105
 
-                    ):
+                # =============================================
+                # GUARDAR EN SESSION STATE
+                # =============================================
 
-                        # =====================================
-                        # 1. VOLVER A LEER LOS ARCHIVOS
-                        #
-                        # Esto es deliberado.
-                        # No se utiliza una copia vieja.
-                        # =====================================
+                st.session_state[
+                    "evaluacion_persistida_105"
+                ] = True
 
-                        (
-                            df_evaluaciones_actual_105,
-                            sha_evaluaciones_105,
-                            existe_evaluaciones_105
-                        ) = leer_csv_github_105(
 
-                            ARCHIVO_EVALUACIONES_105
+                st.session_state[
+                    "codigo_evaluacion_persistida_105"
+                ] = codigo_105
 
-                        )
 
+                st.session_state[
+                    "df_evaluacion_persistida_105"
+                ] = df_individual_105.copy()
 
-                        (
-                            df_preguntas_actual_105,
-                            sha_preguntas_105,
-                            existe_preguntas_105
-                        ) = leer_csv_github_105(
 
-                            ARCHIVO_PREGUNTAS_105
+                # =============================================
+                # RESULTADO
+                # =============================================
 
-                        )
+                st.success(
+                    "EVALUACIÓN PERSISTIDA "
+                    "CORRECTAMENTE."
+                )
 
 
-                        if (
-                            df_evaluaciones_actual_105
-                            is None
-                        ):
+                st.success(
+                    f"Código de evaluación: {codigo_105}"
+                )
 
-                            df_evaluaciones_actual_105 = (
-                                pd.DataFrame(
-                                    columns=
-                                    COLUMNAS_EVALUACIONES_105
-                                )
-                            )
 
+                st.write(
+                    f"Preguntas persistidas: {total_105}"
+                )
 
-                        if (
-                            df_preguntas_actual_105
-                            is None
-                        ):
+                st.write(
+                    f"Aprobadas: {aprobadas_105}"
+                )
 
-                            df_preguntas_actual_105 = (
-                                pd.DataFrame(
-                                    columns=
-                                    COLUMNAS_PREGUNTAS_105
-                                )
-                            )
+                st.write(
+                    f"Rechazadas: {rechazadas_105}"
+                )
 
+                st.write(
+                    f"Aún no se utilizan: "
+                    f"{no_utilizadas_105}"
+                )
 
-                        # =====================================
-                        # 2. ASEGURAR COLUMNAS
-                        # =====================================
 
-                        for columna_105 in (
-                            COLUMNAS_EVALUACIONES_105
-                        ):
+                st.write(
+                    "EVALUACIONES.csv → actualizado"
+                )
 
-                            if columna_105 not in (
-                                df_evaluaciones_actual_105.columns
-                            ):
+                st.write(
+                    "PREGUNTAS_EVALUACIONES.csv → actualizado"
+                )
 
-                                df_evaluaciones_actual_105[
-                                    columna_105
-                                ] = ""
+                st.write(
+                    "page/EVALUACION/ → archivo creado"
+                )
 
 
-                        for columna_105 in (
-                            COLUMNAS_PREGUNTAS_105
-                        ):
+                st.warning(
+                    "BANCO_PREGUNTAS_GENERALES.xlsx "
+                    "NO fue modificado."
+                )
 
-                            if columna_105 not in (
-                                df_preguntas_actual_105.columns
-                            ):
 
-                                df_preguntas_actual_105[
-                                    columna_105
-                                ] = ""
+                # =============================================
+                # MOSTRAR LO QUE REALMENTE SE PERSISTIÓ
+                # =============================================
 
+                st.markdown(
+                    "### Resultado persistido"
+                )
 
-                        # =====================================
-                        # 3. GENERAR CÓDIGO ÚNICO
-                        # =====================================
 
-                        codigo_evaluacion_105 = (
-                            generar_codigo_evaluacion_105(
+                st.dataframe(
 
-                                df_evaluaciones_actual_105,
+                    df_individual_105[
 
-                                modulo_105,
-
-                                relacion_105,
-
-                                nivel_105
-
-                            )
-                        )
-
-
-                        # =====================================
-                        # 4. SEGURIDAD EXTRA:
-                        #    EL CÓDIGO NO PUEDE EXISTIR
-                        # =====================================
-
-                        if (
-                            codigo_evaluacion_105
-                            in
-                            set(
-                                df_evaluaciones_actual_105[
-                                    "Evaluacion_ID"
-                                ]
-                                .astype(str)
-                                .str.strip()
-                            )
-                        ):
-
-                            st.error(
-                                "10.5 ERROR CRÍTICO: "
-                                "el código de evaluación "
-                                f"{codigo_evaluacion_105} "
-                                "ya existe. No se realizó "
-                                "ningún cambio."
-                            )
-
-                        else:
-
-                            # =================================
-                            # 5. SEGURIDAD:
-                            #    PREGUNTA_ID NO PUEDE ESTAR
-                            #    YA REGISTRADO COMO USADO
-                            # =================================
-
-                            ids_nueva_105 = set(
-
-                                df_validada_105[
-                                    "Pregunta_ID"
-                                ]
-                                .astype(str)
-                                .str.strip()
-
-                            )
-
-
-                            ids_persistidos_105 = set()
-
-
-                            if not df_preguntas_actual_105.empty:
-
-                                if (
-                                    "Pregunta_ID"
-                                    in
-                                    df_preguntas_actual_105.columns
-                                ):
-
-                                    ids_persistidos_105 = set(
-
-                                        df_preguntas_actual_105[
-                                            "Pregunta_ID"
-                                        ]
-                                        .astype(str)
-                                        .str.strip()
-
-                                    )
-
-
-                            conflictos_105 = (
-                                ids_nueva_105
-                                &
-                                ids_persistidos_105
-                            )
-
-
-                            if conflictos_105:
-
-                                st.error(
-                                    "10.5 ERROR: una o más "
-                                    "preguntas ya están "
-                                    "registradas en "
-                                    "PREGUNTAS_EVALUACIONES.csv. "
-                                    "La evaluación NO fue "
-                                    "persistida para evitar "
-                                    "reutilización."
-                                )
-
-
-                                st.write(
-                                    "Pregunta_ID en conflicto:"
-                                )
-
-
-                                st.code(
-                                    "\n".join(
-                                        sorted(
-                                            conflictos_105
-                                        )
-                                    )
-                                )
-
-
-                            else:
-
-                                # =============================
-                                # 6. FECHA
-                                # =============================
-
-                                fecha_105 = (
-                                    pd.Timestamp.now(
-                                        tz="America/Bogota"
-                                    )
-                                    .strftime(
-                                        "%Y-%m-%d %H:%M:%S"
-                                    )
-                                )
-
-
-                                # =============================
-                                # 7. CREAR REGISTRO DE
-                                #    PREGUNTAS
-                                # =============================
-
-                                registros_preguntas_105 = []
-
-
-                                for _, fila_105 in (
-                                    df_validada_105.iterrows()
-                                ):
-
-                                    estado_105 = (
-                                        normalizar_estado_105(
-
-                                            fila_105.get(
-                                                "Estado",
-                                                ""
-                                            )
-
-                                        )
-                                    )
-
-
-                                    registro_105 = {
-
-                                        "Evaluacion_ID":
-                                            codigo_evaluacion_105,
-
-                                        "Pregunta_ID":
-                                            texto_105(
-                                                fila_105[
-                                                    "Pregunta_ID"
-                                                ]
-                                            ),
-
-                                        "Modulo":
-                                            modulo_105,
-
-                                        "Tipo_Relacion":
-                                            relacion_105,
-
-                                        "Nivel":
-                                            nivel_105,
-
-                                        "Pregunta":
-                                            texto_105(
-                                                fila_105[
-                                                    "Pregunta"
-                                                ]
-                                            ),
-
-                                        "Respuesta_1":
-                                            texto_105(
-                                                fila_105[
-                                                    "Respuesta_1"
-                                                ]
-                                            ),
-
-                                        "Respuesta_2":
-                                            texto_105(
-                                                fila_105[
-                                                    "Respuesta_2"
-                                                ]
-                                            ),
-
-                                        "Respuesta_3":
-                                            texto_105(
-                                                fila_105[
-                                                    "Respuesta_3"
-                                                ]
-                                            ),
-
-                                        "Respuesta_4":
-                                            texto_105(
-                                                fila_105[
-                                                    "Respuesta_4"
-                                                ]
-                                            ),
-
-                                        "Respuesta_Correcta":
-                                            texto_105(
-                                                fila_105[
-                                                    "Respuesta_Correcta"
-                                                ]
-                                            ),
-
-                                        "Estado":
-                                            estado_105,
-
-                                        "Fecha_Persistencia":
-                                            fecha_105
-
-                                    }
-
-
-                                    registros_preguntas_105.append(
-                                        registro_105
-                                    )
-
-
-                                df_nuevas_preguntas_105 = (
-                                    pd.DataFrame(
-                                        registros_preguntas_105
-                                    )
-                                )
-
-
-                                # =============================
-                                # 8. CREAR REGISTRO DE
-                                #    EVALUACIÓN
-                                # =============================
-
-                                estado_evaluacion_105 = (
-                                    "PERSISTIDA"
-                                )
-
-
-                                registro_evaluacion_105 = {
-
-                                    "Evaluacion_ID":
-                                        codigo_evaluacion_105,
-
-                                    "Modulo":
-                                        modulo_105,
-
-                                    "Tipo_Relacion":
-                                        relacion_105,
-
-                                    "Nivel":
-                                        nivel_105,
-
-                                    "Cantidad_Preguntas":
-                                        len(
-                                            df_validada_105
-                                        ),
-
-                                    "Preguntas_Aprobadas":
-                                        aprobadas_105,
-
-                                    "Preguntas_Rechazadas":
-                                        rechazadas_105,
-
-                                    "Preguntas_No_Utilizadas":
-                                        no_utilizadas_105,
-
-                                    "Estado_Evaluacion":
-                                        estado_evaluacion_105,
-
-                                    "Fecha_Persistencia":
-                                        fecha_105
-
-                                }
-
-
-                                df_nueva_evaluacion_105 = (
-                                    pd.DataFrame(
-                                        [
-                                            registro_evaluacion_105
-                                        ]
-                                    )
-                                )
-
-
-                                # =============================
-                                # 9. CREAR COPIA DEL ARCHIVO
-                                #    INDIVIDUAL
-                                # =============================
-
-                                df_archivo_individual_105 = (
-                                    df_validada_105
-                                    .copy()
-                                )
-
-
-                                df_archivo_individual_105[
-                                    "Evaluacion_ID"
-                                ] = (
-                                    codigo_evaluacion_105
-                                )
-
-
-                                df_archivo_individual_105[
-                                    "Fecha_Persistencia"
-                                ] = fecha_105
-
-
-                                # =============================
-                                # 10. CONSTRUIR RUTA INDIVIDUAL
-                                # =============================
-
-                                ARCHIVO_INDIVIDUAL_105 = (
-                                    CARPETA_EVALUACIONES_105
-                                    + "/"
-                                    + codigo_evaluacion_105
-                                    + ".csv"
-                                )
-
-
-                                # =============================
-                                # 11. GUARDAR EVALUACIONES.CSV
-                                # =============================
-
-                                df_evaluaciones_final_105 = (
-                                    pd.concat(
-
-                                        [
-                                            df_evaluaciones_actual_105[
-                                                COLUMNAS_EVALUACIONES_105
-                                            ],
-
-                                            df_nueva_evaluacion_105[
-                                                COLUMNAS_EVALUACIONES_105
-                                            ]
-
-                                        ],
-
-                                        ignore_index=True
-
-                                    )
-                                )
-
-
-                                guardado_evaluaciones_105 = (
-                                    guardar_csv_github_105(
-
-                                        df_evaluaciones_final_105,
-
-                                        ARCHIVO_EVALUACIONES_105,
-
-                                        sha_evaluaciones_105,
-
-                                        (
-                                            "10.5 - "
-                                            "Persistencia evaluación "
-                                            f"{codigo_evaluacion_105}"
-                                        )
-
-                                    )
-                                )
-
-
-                                if not guardado_evaluaciones_105:
-
-                                    st.error(
-                                        "10.5: no se pudo guardar "
-                                        "EVALUACIONES.csv. "
-                                        "La operación se detuvo."
-                                    )
-
-                                else:
-
-                                    # =========================
-                                    # 12. GUARDAR PREGUNTAS
-                                    # =========================
-
-                                    df_preguntas_final_105 = (
-                                        pd.concat(
-
-                                            [
-                                                df_preguntas_actual_105[
-                                                    COLUMNAS_PREGUNTAS_105
-                                                ],
-
-                                                df_nuevas_preguntas_105[
-                                                    COLUMNAS_PREGUNTAS_105
-                                                ]
-
-                                            ],
-
-                                            ignore_index=True
-
-                                        )
-                                    )
-
-
-                                    guardado_preguntas_105 = (
-                                        guardar_csv_github_105(
-
-                                            df_preguntas_final_105,
-
-                                            ARCHIVO_PREGUNTAS_105,
-
-                                            sha_preguntas_105,
-
-                                            (
-                                                "10.5 - "
-                                                "Registro preguntas "
-                                                f"{codigo_evaluacion_105}"
-                                            )
-
-                                        )
-                                    )
-
-
-                                    if not guardado_preguntas_105:
-
-                                        st.error(
-                                            "10.5: EVALUACIONES.csv "
-                                            "fue guardado, pero "
-                                            "PREGUNTAS_EVALUACIONES.csv "
-                                            "no pudo guardarse."
-                                        )
-
-                                        st.warning(
-                                            "La evaluación quedó "
-                                            "parcialmente persistida. "
-                                            "NO vuelva a pulsar "
-                                            "persistir sin revisar "
-                                            "los archivos."
-                                        )
-
-                                    else:
-
-                                        # =====================
-                                        # 13. GUARDAR ARCHIVO
-                                        #    INDIVIDUAL
-                                        # =====================
-
-                                        (
-                                            _,
-                                            sha_individual_105,
-                                            existe_individual_105
-                                        ) = (
-                                            leer_csv_github_105(
-                                                ARCHIVO_INDIVIDUAL_105
-                                            )
-                                        )
-
-
-                                        # ---------------------------------
-                                        # Nunca sobrescribir una evaluación
-                                        # que ya exista.
-                                        # ---------------------------------
-
-                                        if existe_individual_105:
-
-                                            st.error(
-                                                "10.5 ERROR: el archivo "
-                                                "individual de la evaluación "
-                                                f"{codigo_evaluacion_105} "
-                                                "ya existe. "
-                                                "No se sobrescribirá."
-                                            )
-
-                                        else:
-
-                                            guardado_individual_105 = (
-                                                guardar_csv_github_105(
-
-                                                    df_archivo_individual_105,
-
-                                                    ARCHIVO_INDIVIDUAL_105,
-
-                                                    None,
-
-                                                    (
-                                                        "10.5 - "
-                                                        "Evaluación "
-                                                        f"{codigo_evaluacion_105}"
-                                                    )
-
-                                                )
-                                            )
-
-
-                                            if guardado_individual_105:
-
-                                                # =================
-                                                # 14. CONFIRMAR
-                                                #     PERSISTENCIA
-                                                # =================
-
-                                                st.session_state[
-                                                    "evaluacion_persistida_105"
-                                                ] = True
-
-
-                                                st.session_state[
-                                                    "codigo_evaluacion_persistida_105"
-                                                ] = (
-                                                    codigo_evaluacion_105
-                                                )
-
-
-                                                st.session_state[
-                                                    "df_evaluacion_persistida_105"
-                                                ] = (
-                                                    df_archivo_individual_105
-                                                    .copy()
-                                                )
-
-
-                                                st.success(
-                                                    "EVALUACIÓN "
-                                                    "PERSISTIDA "
-                                                    "CORRECTAMENTE."
-                                                )
-
-
-                                                st.info(
-                                                    f"Código de "
-                                                    f"evaluación: "
-                                                    f"{codigo_evaluacion_105}"
-                                                )
-
-
-                                                st.success(
-                                                    "Se actualizaron "
-                                                    "los registros "
-                                                    "persistentes."
-                                                )
-
-
-                                                st.write(
-                                                    "EVALUACIONES.csv "
-                                                    "→ actualizado"
-                                                )
-
-                                                st.write(
-                                                    "PREGUNTAS_EVALUACIONES.csv "
-                                                    "→ actualizado"
-                                                )
-
-                                                st.write(
-                                                    "Archivo individual "
-                                                    "→ creado en "
-                                                    "/page/EVALUACION/"
-                                                )
-
-
-                                                st.warning(
-                                                    "El Banco General "
-                                                    "NO fue modificado."
-                                                )
-
-
-                                                # =================
-                                                # 15. MOSTRAR
-                                                #     RESULTADO
-                                                # =================
-
-                                                st.markdown(
-                                                    "### Evaluación "
-                                                    "persistida"
-                                                )
-
-
-                                                st.dataframe(
-
-                                                    df_archivo_individual_105[
-                                                        [
-                                                            "Pregunta_ID",
-                                                            "Pregunta",
-                                                            "Respuesta_1",
-                                                            "Respuesta_2",
-                                                            "Respuesta_3",
-                                                            "Respuesta_4",
-                                                            "Respuesta_Correcta",
-                                                            "Estado"
-                                                        ]
-                                                    ],
-
-                                                    use_container_width=True,
-
-                                                    hide_index=True
-
-                                                )
-
-
-                                                st.caption(
-                                                    "La persistencia "
-                                                    "definitiva conserva "
-                                                    "los Pregunta_ID "
-                                                    "originales."
-                                                )
-
-                                            else:
-
-                                                st.error(
-                                                    "10.5 ERROR: no se "
-                                                    "pudo crear el archivo "
-                                                    "individual de la "
-                                                    "evaluación."
-                                                )
+                        [
+                            "Evaluacion_ID",
+                            "Pregunta_ID",
+                            "Pregunta",
+                            "Respuesta_1",
+                            "Respuesta_2",
+                            "Respuesta_3",
+                            "Respuesta_4",
+                            "Respuesta_Correcta",
+                            "Estado_Validacion",
+                            "Estado_Uso"
+                        ]
+
+                    ],
+
+                    use_container_width=True,
+
+                    hide_index=True
+
+                )
