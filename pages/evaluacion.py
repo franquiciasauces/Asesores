@@ -19725,3 +19725,512 @@ if aprobadas_83 > 0:
     ):
 
         sincronizar_83()
+# ============================================================
+# 8.3 - PARTE 2
+# GENERADOR DE PREGUNTAS
+# PRODUCTO / ALTERNATIVAS SEGURAS
+# NIVEL 1
+#
+# FUENTE COMÚN:
+#     df_disponible_81
+#
+# SALIDA:
+#     preguntas_generadas_85
+#     df_banco_85
+# ============================================================
+
+
+def siguiente_id_85():
+
+    df_banco = st.session_state.get(
+        "df_banco_85",
+        pd.DataFrame()
+    )
+
+    mayor = 0
+
+    if (
+        not df_banco.empty
+        and "Pregunta_ID" in df_banco.columns
+    ):
+
+        for valor in df_banco["Pregunta_ID"].fillna(""):
+
+            texto = str(valor).strip()
+
+            if texto.startswith("PTRS-"):
+
+                try:
+
+                    numero = int(
+                        texto.replace("PTRS-", "")
+                    )
+
+                    mayor = max(
+                        mayor,
+                        numero
+                    )
+
+                except ValueError:
+                    pass
+
+    preguntas = st.session_state.get(
+        "preguntas_generadas_85",
+        []
+    )
+
+    for pregunta in preguntas:
+
+        texto = str(
+            pregunta.get(
+                "Pregunta_ID",
+                ""
+            )
+        ).strip()
+
+        if texto.startswith("PTRS-"):
+
+            try:
+
+                numero = int(
+                    texto.replace("PTRS-", "")
+                )
+
+                mayor = max(
+                    mayor,
+                    numero
+                )
+
+            except ValueError:
+                pass
+
+    return f"PTRS-{mayor + 1:06d}"
+
+
+# ============================================================
+# GENERADOR
+# ============================================================
+
+def generar_preguntas_85(cantidad):
+
+    # --------------------------------------------------------
+    # LA FUENTE ES LA MISMA PARA LOS TRES GENERADORES
+    # --------------------------------------------------------
+
+    df = st.session_state.get(
+        "df_disponible_81",
+        pd.DataFrame()
+    )
+
+    if df.empty:
+        return []
+
+    # --------------------------------------------------------
+    # COLUMNAS NECESARIAS PARA ESTE GENERADOR
+    # --------------------------------------------------------
+
+    columnas = [
+        "Restriccion_ID",
+        "Producto",
+        "Alternativas seguras"
+    ]
+
+    faltantes = [
+        columna
+        for columna in columnas
+        if columna not in df.columns
+    ]
+
+    if faltantes:
+
+        st.error(
+            "8.3 ERROR: faltan columnas: "
+            + ", ".join(faltantes)
+        )
+
+        return []
+
+    # --------------------------------------------------------
+    # FUENTES YA CONSUMIDAS POR ESTE GENERADOR
+    #
+    # IMPORTANTE:
+    # Cada generador tiene su propio control de consumo.
+    # No se utiliza el control de 8.1 ni el de 8.2.
+    # --------------------------------------------------------
+
+    consumidas = st.session_state.get(
+        "fuentes_consumidas_85",
+        set()
+    ).copy()
+
+    # --------------------------------------------------------
+    # CANDIDATOS
+    # --------------------------------------------------------
+
+    candidatos = df[
+        ~df["Restriccion_ID"].astype(str).isin(
+            {
+                str(x)
+                for x in consumidas
+            }
+        )
+    ].copy()
+
+    # --------------------------------------------------------
+    # ELIMINAR SOLAMENTE FILAS REALMENTE VACÍAS
+    #
+    # NO se modifica el contenido de las celdas.
+    # --------------------------------------------------------
+
+    candidatos = candidatos[
+        (candidatos["Restriccion_ID"].astype(str).str.strip() != "")
+        &
+        (candidatos["Producto"].astype(str).str.strip() != "")
+        &
+        (
+            candidatos["Alternativas seguras"]
+            .astype(str)
+            .str.strip()
+            != ""
+        )
+    ].copy()
+
+    if candidatos.empty:
+
+        st.warning(
+            "No hay relaciones de alternativas seguras "
+            "disponibles para generar preguntas."
+        )
+
+        return []
+
+    # --------------------------------------------------------
+    # SE NECESITAN AL MENOS 4 ALTERNATIVAS DIFERENTES
+    #
+    # Una correcta + tres distractores.
+    # --------------------------------------------------------
+
+    candidatos = candidatos.sample(
+        frac=1
+    ).reset_index(drop=True)
+
+    preguntas = []
+
+    # ========================================================
+    # GENERACIÓN
+    # ========================================================
+
+    for _, fila in candidatos.iterrows():
+
+        fuente = str(
+            fila["Restriccion_ID"]
+        ).strip()
+
+        producto = str(
+            fila["Producto"]
+        ).strip()
+
+        # ----------------------------------------------------
+        # SE CONSERVA COMPLETA LA CELDA
+        # ----------------------------------------------------
+
+        correcta = str(
+            fila["Alternativas seguras"]
+        ).strip()
+
+        # ----------------------------------------------------
+        # BUSCAR DISTRACTORES
+        #
+        # REGLA FUNDAMENTAL:
+        #
+        # No se puede utilizar un distractor cuya
+        # "Alternativas seguras" sea igual a la correcta,
+        # aunque pertenezca a otro producto.
+        # ----------------------------------------------------
+
+        falsas = candidatos[
+            candidatos["Restriccion_ID"].astype(str)
+            != fuente
+        ].copy()
+
+        falsas["respuesta"] = (
+            falsas["Alternativas seguras"]
+            .astype(str)
+            .str.strip()
+        )
+
+        # ----------------------------------------------------
+        # ELIMINAR LA ALTERNATIVA CORRECTA
+        # ----------------------------------------------------
+
+        falsas = falsas[
+            falsas["respuesta"].str.casefold()
+            != correcta.casefold()
+        ]
+
+        # ----------------------------------------------------
+        # ELIMINAR DUPLICADOS DE ALTERNATIVAS
+        #
+        # Si varios productos tienen exactamente la misma
+        # alternativa segura, solamente puede existir como
+        # opción una vez y nunca como distractor de esta
+        # pregunta si coincide con la correcta.
+        # ----------------------------------------------------
+
+        falsas = falsas.drop_duplicates(
+            subset="respuesta"
+        )
+
+        # ----------------------------------------------------
+        # DEBEN EXISTIR 3 DISTRACTORES DIFERENTES
+        # ----------------------------------------------------
+
+        if len(falsas) < 3:
+            continue
+
+        falsas = falsas.sample(
+            n=3
+        )
+
+        # ----------------------------------------------------
+        # CONSTRUIR LAS CUATRO OPCIONES
+        # ----------------------------------------------------
+
+        opciones = [
+            correcta,
+            str(
+                falsas.iloc[0]["respuesta"]
+            ).strip(),
+            str(
+                falsas.iloc[1]["respuesta"]
+            ).strip(),
+            str(
+                falsas.iloc[2]["respuesta"]
+            ).strip()
+        ]
+
+        # ----------------------------------------------------
+        # SEGURIDAD ADICIONAL:
+        # NINGUNA OPCIÓN PUEDE REPETIRSE
+        # ----------------------------------------------------
+
+        normalizadas = [
+            opcion.casefold()
+            for opcion in opciones
+        ]
+
+        if len(set(normalizadas)) != 4:
+            continue
+
+        # ----------------------------------------------------
+        # ALEATORIZAR
+        # ----------------------------------------------------
+
+        np.random.shuffle(
+            opciones
+        )
+
+        correcta_numero = (
+            opciones.index(correcta) + 1
+        )
+
+        # ====================================================
+        # CONSTRUIR PREGUNTA
+        # ====================================================
+
+        pregunta = {
+
+            "Pregunta_ID":
+                siguiente_id_85(),
+
+            "Modulo":
+                "Restricciones",
+
+            "Tema":
+                "Producto / Alternativas seguras",
+
+            "Nivel":
+                "Nivel 1",
+
+            "Tipo_Relacion":
+                "Producto-Alternativas seguras",
+
+            "Pregunta":
+                f"Para el producto {producto}, "
+                "¿cuál de las siguientes corresponde "
+                "a una alternativa segura?",
+
+            "Respuesta_1":
+                opciones[0],
+
+            "Respuesta_2":
+                opciones[1],
+
+            "Respuesta_3":
+                opciones[2],
+
+            "Respuesta_4":
+                opciones[3],
+
+            "Respuesta_Correcta":
+                str(correcta_numero),
+
+            "Estado":
+                "PENDIENTE",
+
+            "Observacion_Administrador":
+                "",
+
+            "Fecha_Generacion":
+                pd.Timestamp.now().strftime(
+                    "%Y-%m-%d %H:%M:%S"
+                ),
+
+            "Fuente_ID":
+                fuente
+        }
+
+        preguntas.append(
+            pregunta
+        )
+
+        # ----------------------------------------------------
+        # MARCAR FUENTE COMO CONSUMIDA
+        # ----------------------------------------------------
+
+        consumidas.add(
+            fuente
+        )
+
+        if len(preguntas) >= int(cantidad):
+            break
+
+    # --------------------------------------------------------
+    # PERSISTIR CONTROL DE FUENTES
+    # --------------------------------------------------------
+
+    st.session_state[
+        "fuentes_consumidas_85"
+    ] = consumidas
+
+    return preguntas
+
+
+# ============================================================
+# INTERFAZ 8.3
+# ============================================================
+
+if "df_disponible_81" in st.session_state:
+
+    st.markdown(
+        "### 8.3 - Generador de preguntas "
+        "Producto / Alternativas seguras"
+    )
+
+    st.info(
+        "Nivel 1: Producto → Alternativas seguras. "
+        "La celda completa de 'Alternativas seguras' "
+        "se conserva como una sola respuesta."
+    )
+
+    cantidad_85 = st.number_input(
+        "Cantidad de preguntas",
+        min_value=1,
+        max_value=500,
+        value=10,
+        step=1,
+        key="cantidad_generar_85"
+    )
+
+    if st.button(
+        "GENERAR PREGUNTAS 8.3",
+        key="generar_preguntas_85"
+    ):
+
+        nuevas_85 = generar_preguntas_85(
+            int(cantidad_85)
+        )
+
+        st.session_state[
+            "preguntas_generadas_85"
+        ] = nuevas_85
+
+        # ----------------------------------------------------
+        # DATAFRAME DE SALIDA DEL GENERADOR
+        # ----------------------------------------------------
+
+        if nuevas_85:
+
+            st.session_state[
+                "df_banco_85"
+            ] = pd.DataFrame(
+                nuevas_85
+            )
+
+            st.success(
+                f"Se generaron "
+                f"{len(nuevas_85)} "
+                "preguntas."
+            )
+
+        else:
+
+            st.warning(
+                "No fue posible generar preguntas "
+                "con las relaciones disponibles."
+            )
+
+
+# ============================================================
+# MOSTRAR PREGUNTAS GENERADAS
+# ============================================================
+
+preguntas_85 = st.session_state.get(
+    "preguntas_generadas_85",
+    []
+)
+
+if preguntas_85:
+
+    st.markdown(
+        "### Preguntas generadas 8.3"
+    )
+
+    for pregunta in preguntas_85:
+
+        st.markdown(
+            f"**{pregunta['Pregunta_ID']} — "
+            f"{pregunta['Nivel']}**"
+        )
+
+        st.write(
+            pregunta["Pregunta"]
+        )
+
+        st.write(
+            f"1. {pregunta['Respuesta_1']}"
+        )
+
+        st.write(
+            f"2. {pregunta['Respuesta_2']}"
+        )
+
+        st.write(
+            f"3. {pregunta['Respuesta_3']}"
+        )
+
+        st.write(
+            f"4. {pregunta['Respuesta_4']}"
+        )
+
+        st.caption(
+            "Respuesta correcta: "
+            f"{pregunta['Respuesta_Correcta']}"
+        )
+
+        st.caption(
+            "Fuente: "
+            f"{pregunta['Fuente_ID']}"
+        )
+
+        st.divider()
