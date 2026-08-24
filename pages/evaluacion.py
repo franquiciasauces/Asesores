@@ -23081,4 +23081,485 @@ if st.session_state.get(
         "No descuenta preguntas, no cruza Pregunta_ID, "
         "no determina disponibilidad y no modifica archivos."
     )
+```python
+# ============================================================
+# 10.2.A - CRUCE REAL Y DISPONIBILIDAD DE PREGUNTAS
+# ============================================================
+#
+# FUENTES:
+#   10.1 -> df_banco_101
+#   10.1 -> df_preguntas_evaluaciones_101
+#
+# LLAVE:
+#   Pregunta_ID
+#
+# NO CARGA ARCHIVOS.
+# NO MODIFICA EL BANCO.
+# NO MODIFICA PREGUNTAS_EVALUACIONES.csv.
+# NO UTILIZA EVALUACIONES.csv PARA DESCONTAR.
+#
+# DISPONIBILIDAD:
+#   APROBADA              -> NO DISPONIBLE
+#   RECHAZADA             -> NO DISPONIBLE
+#   AÚN NO SE UTILIZA     -> DISPONIBLE
+#   SIN REGISTRO          -> DISPONIBLE
+#
+# ============================================================
+
+
+st.markdown(
+    "## 10.2.A - Cruce real y disponibilidad de preguntas"
+)
+
+st.info(
+    "Esta etapa cruza el Banco General con "
+    "PREGUNTAS_EVALUACIONES.csv mediante Pregunta_ID "
+    "para determinar la disponibilidad real de cada pregunta."
+)
+
+
+# ============================================================
+# VERIFICAR QUE 10.1 YA HAYA CARGADO LAS FUENTES
+# ============================================================
+
+if not st.session_state.get("banco_101_cargado", False):
+
+    st.warning(
+        "Primero debe cargar las fuentes desde 10.1."
+    )
+
+else:
+
+    df_banco = st.session_state.get(
+        "df_banco_101",
+        pd.DataFrame()
+    ).copy()
+
+    df_preguntas = st.session_state.get(
+        "df_preguntas_evaluaciones_101",
+        pd.DataFrame()
+    ).copy()
+
+
+    # ========================================================
+    # VALIDAR BANCO
+    # ========================================================
+
+    if df_banco.empty:
+
+        st.error(
+            "10.2.A: el Banco General está vacío."
+        )
+
+    elif "Pregunta_ID" not in df_banco.columns:
+
+        st.error(
+            "10.2.A: el Banco General no contiene "
+            "la columna Pregunta_ID."
+        )
+
+    else:
+
+        # ----------------------------------------------------
+        # COPIA Y NORMALIZACIÓN DE LA LLAVE
+        # ----------------------------------------------------
+
+        df_banco["Pregunta_ID"] = (
+            df_banco["Pregunta_ID"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+        # ----------------------------------------------------
+        # ELIMINAR FILAS SIN Pregunta_ID
+        # ----------------------------------------------------
+
+        df_banco = df_banco[
+            df_banco["Pregunta_ID"] != ""
+        ].copy()
+
+
+        # ====================================================
+        # PREPARAR REGISTRO DE PREGUNTAS
+        # ====================================================
+
+        if df_preguntas.empty:
+
+            df_preguntas = pd.DataFrame(
+                columns=[
+                    "Pregunta_ID",
+                    "Estado_Validacion"
+                ]
+            )
+
+        elif "Pregunta_ID" not in df_preguntas.columns:
+
+            st.error(
+                "10.2.A: PREGUNTAS_EVALUACIONES.csv "
+                "no contiene la columna Pregunta_ID."
+            )
+
+            st.stop()
+
+        else:
+
+            df_preguntas["Pregunta_ID"] = (
+                df_preguntas["Pregunta_ID"]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+            )
+
+
+        # ====================================================
+        # VALIDAR ESTADO DE VALIDACIÓN
+        # ====================================================
+
+        if (
+            not df_preguntas.empty
+            and "Estado_Validacion"
+            not in df_preguntas.columns
+        ):
+
+            st.error(
+                "10.2.A: PREGUNTAS_EVALUACIONES.csv "
+                "no contiene la columna Estado_Validacion."
+            )
+
+            st.stop()
+
+
+        # ====================================================
+        # EVITAR DUPLICADOS DEL REGISTRO
+        #
+        # Una Pregunta_ID representa una pregunta.
+        # Si existen varias filas, se toma la última.
+        # ====================================================
+
+        if not df_preguntas.empty:
+
+            df_preguntas = (
+                df_preguntas
+                .drop_duplicates(
+                    subset=["Pregunta_ID"],
+                    keep="last"
+                )
+                .copy()
+            )
+
+
+        # ====================================================
+        # CRUCE REAL
+        # ====================================================
+
+        columnas_banco = [
+            c for c in [
+                "Pregunta_ID",
+                "Modulo",
+                "Tema",
+                "Nivel",
+                "Tipo_Relacion",
+                "Estado"
+            ]
+            if c in df_banco.columns
+        ]
+
+        df_disponibilidad = df_banco[
+            columnas_banco
+        ].copy()
+
+
+        if df_preguntas.empty:
+
+            df_disponibilidad[
+                "Estado_Validacion"
+            ] = ""
+
+        else:
+
+            df_estado = df_preguntas[
+                [
+                    "Pregunta_ID",
+                    "Estado_Validacion"
+                ]
+            ].copy()
+
+            df_disponibilidad = df_disponibilidad.merge(
+                df_estado,
+                on="Pregunta_ID",
+                how="left"
+            )
+
+
+        # ====================================================
+        # NORMALIZAR ESTADO
+        # ====================================================
+
+        df_disponibilidad[
+            "Estado_Validacion"
+        ] = (
+            df_disponibilidad[
+                "Estado_Validacion"
+            ]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.upper()
+        )
+
+
+        # ====================================================
+        # DETERMINAR DISPONIBILIDAD
+        # ====================================================
+
+        estados_no_disponibles = {
+            "APROBADA",
+            "APROBADO",
+            "RECHAZADA",
+            "RECHAZADO"
+        }
+
+        estados_disponibles = {
+            "",
+            "AÚN NO SE UTILIZA",
+            "AUN NO SE UTILIZA"
+        }
+
+        df_disponibilidad[
+            "Disponibilidad_102A"
+        ] = "DISPONIBLE"
+
+        df_disponibilidad.loc[
+            df_disponibilidad[
+                "Estado_Validacion"
+            ].isin(estados_no_disponibles),
+            "Disponibilidad_102A"
+        ] = "NO DISPONIBLE"
+
+
+        # ====================================================
+        # CONSERVAR SOLO ESTADOS DEFINIDOS
+        # ====================================================
+
+        df_disponibilidad[
+            "Motivo_102A"
+        ] = "Sin registro de validación"
+
+        df_disponibilidad.loc[
+            df_disponibilidad[
+                "Estado_Validacion"
+            ].isin(
+                ["AÚN NO SE UTILIZA", "AUN NO SE UTILIZA"]
+            ),
+            "Motivo_102A"
+        ] = "AÚN NO SE UTILIZA"
+
+        df_disponibilidad.loc[
+            df_disponibilidad[
+                "Estado_Validacion"
+            ].isin(
+                ["APROBADA", "APROBADO"]
+            ),
+            "Motivo_102A"
+        ] = "APROBADA"
+
+        df_disponibilidad.loc[
+            df_disponibilidad[
+                "Estado_Validacion"
+            ].isin(
+                ["RECHAZADA", "RECHAZADO"]
+            ),
+            "Motivo_102A"
+        ] = "RECHAZADA"
+
+
+        # ====================================================
+        # GUARDAR RESULTADO PARA 10.2
+        # ====================================================
+
+        st.session_state[
+            "df_disponibilidad_102a"
+        ] = df_disponibilidad.copy()
+
+        st.session_state[
+            "analisis_102a_realizado"
+        ] = True
+
+
+        # ====================================================
+        # RESUMEN GENERAL DEL CRUCE
+        # ====================================================
+
+        total = len(df_disponibilidad)
+
+        disponibles = int(
+            (
+                df_disponibilidad[
+                    "Disponibilidad_102A"
+                ] == "DISPONIBLE"
+            ).sum()
+        )
+
+        no_disponibles = int(
+            (
+                df_disponibilidad[
+                    "Disponibilidad_102A"
+                ] == "NO DISPONIBLE"
+            ).sum()
+        )
+
+        aprobadas = int(
+            df_disponibilidad[
+                "Estado_Validacion"
+            ].isin(
+                ["APROBADA", "APROBADO"]
+            ).sum()
+        )
+
+        rechazadas = int(
+            df_disponibilidad[
+                "Estado_Validacion"
+            ].isin(
+                ["RECHAZADA", "RECHAZADO"]
+            ).sum()
+        )
+
+        aun_no_utilizadas = int(
+            df_disponibilidad[
+                "Estado_Validacion"
+            ].isin(
+                ["AÚN NO SE UTILIZA", "AUN NO SE UTILIZA"]
+            ).sum()
+        )
+
+        sin_registro = int(
+            (
+                df_disponibilidad[
+                    "Estado_Validacion"
+                ] == ""
+            ).sum()
+        )
+
+
+        # ====================================================
+        # MOSTRAR RESULTADO
+        # ====================================================
+
+        st.markdown(
+            "### Resultado real del cruce"
+        )
+
+        c1, c2, c3 = st.columns(3)
+
+        c1.metric(
+            "Preguntas en banco",
+            f"{total:,}"
+        )
+
+        c2.metric(
+            "No disponibles",
+            f"{no_disponibles:,}"
+        )
+
+        c3.metric(
+            "Disponibles",
+            f"{disponibles:,}"
+        )
+
+
+        c1, c2, c3, c4 = st.columns(4)
+
+        c1.metric(
+            "APROBADAS",
+            f"{aprobadas:,}"
+        )
+
+        c2.metric(
+            "RECHAZADAS",
+            f"{rechazadas:,}"
+        )
+
+        c3.metric(
+            "AÚN NO SE UTILIZA",
+            f"{aun_no_utilizadas:,}"
+        )
+
+        c4.metric(
+            "Sin registro",
+            f"{sin_registro:,}"
+        )
+
+
+        # ====================================================
+        # DISPONIBILIDAD POR RELACIÓN
+        # ====================================================
+
+        columnas_grupo = [
+            c for c in [
+                "Modulo",
+                "Tipo_Relacion",
+                "Nivel"
+            ]
+            if c in df_disponibilidad.columns
+        ]
+
+        if columnas_grupo:
+
+            resumen = (
+                df_disponibilidad
+                .groupby(
+                    columnas_grupo,
+                    dropna=False
+                )
+                .agg(
+                    Banco=(
+                        "Pregunta_ID",
+                        "count"
+                    ),
+                    No_disponibles=(
+                        "Disponibilidad_102A",
+                        lambda x: (
+                            x == "NO DISPONIBLE"
+                        ).sum()
+                    ),
+                    Disponibles=(
+                        "Disponibilidad_102A",
+                        lambda x: (
+                            x == "DISPONIBLE"
+                        ).sum()
+                    )
+                )
+                .reset_index()
+            )
+
+            resumen[
+                "Cola"
+            ] = resumen["Disponibles"]
+
+            st.markdown(
+                "### Disponibilidad por relación"
+            )
+
+            st.dataframe(
+                resumen,
+                use_container_width=True,
+                hide_index=True
+            )
+
+
+        # ====================================================
+        # RESULTADO COMPLETO DEL CRUCE
+        # ====================================================
+
+        st.markdown(
+            "### Detalle del cruce Banco ↔ Persistencia"
+        )
+
+        st.dataframe(
+            df_disponibilidad,
+            use_container_width=True,
+            hide_index=True
+        )
+```
 
