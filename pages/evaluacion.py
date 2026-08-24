@@ -25100,3 +25100,1044 @@ if resultado_analisis_102:
 # ============================================================
 # FIN 10.2
 # ============================================================
+
+# ============================================================
+# FITOASISTE
+# 10.3 - GENERADOR / PREPARADOR DE EVALUACIONES
+# ============================================================
+#
+# FUENTES:
+#
+# 1. BANCO_PREGUNTAS_GENERALES.xlsx
+#    -> fuente original de preguntas
+#    -> SOLO LECTURA
+#
+# 2. PREGUNTAS_EVALUACIONES.csv
+#    -> registro persistente del uso/estado de preguntas
+#    -> SOLO LECTURA EN 10.3
+#
+# 3. EVALUACIONES.csv
+#    -> registro persistente de evaluaciones generadas
+#    -> SOLO LECTURA EN 10.3
+#
+# 10.3:
+#
+#   - Permite escoger Módulo
+#   - Permite escoger Tipo_Relacion
+#   - Permite escoger Nivel
+#   - Por defecto prepara 10 preguntas
+#   - Permite escoger una cantidad menor
+#   - Nunca utiliza una pregunta que ya figure como USADA
+#   - Conserva exactamente Pregunta_ID del banco
+#   - NO modifica el banco
+#   - NO modifica los archivos persistentes
+#   - NO valida preguntas
+#   - NO sincroniza GitHub
+#
+# La persistencia definitiva se hará posteriormente.
+#
+# ============================================================
+
+
+# ============================================================
+# CONFIGURACIÓN
+# ============================================================
+
+GITHUB_USUARIO_103 = "franquiciasauces"
+GITHUB_REPOSITORIO_103 = "Asesores"
+GITHUB_RAMA_103 = "main"
+
+
+# ============================================================
+# RUTAS PERSISTENTES
+#
+# IMPORTANTE:
+#
+# Estas rutas deben corresponder a la carpeta PAGE donde se
+# almacenarán posteriormente las evaluaciones.
+#
+# En 10.3 solamente se leen si existen.
+# ============================================================
+
+ARCHIVO_PREGUNTAS_EVALUACIONES_103 = (
+    "page/PREGUNTAS_EVALUACIONES.csv"
+)
+
+ARCHIVO_EVALUACIONES_103 = (
+    "page/EVALUACIONES.csv"
+)
+
+
+# ============================================================
+# COLUMNAS DEL BANCO GENERAL
+# ============================================================
+
+COLUMNAS_BANCO_103 = [
+    "Pregunta_ID",
+    "Modulo",
+    "Tipo_Relacion",
+    "Nivel",
+    "Pregunta",
+    "Respuesta_1",
+    "Respuesta_2",
+    "Respuesta_3",
+    "Respuesta_4",
+    "Respuesta_Correcta",
+    "Estado",
+    "Observacion_Administrador",
+    "Fecha_Generacion",
+    "Fuente_ID"
+]
+
+
+# ============================================================
+# FUNCIONES AUXILIARES
+# ============================================================
+
+def normalizar_texto_103(valor):
+
+    if pd.isna(valor):
+        return ""
+
+    return (
+        str(valor)
+        .strip()
+    )
+
+
+def cargar_csv_github_103(
+    ruta_archivo_103
+):
+
+    """
+    Lee un CSV desde GitHub.
+
+    Esta función NO crea el archivo y NO lo modifica.
+    """
+
+    url_103 = (
+        "https://api.github.com/repos/"
+        + GITHUB_USUARIO_103
+        + "/"
+        + GITHUB_REPOSITORIO_103
+        + "/contents/"
+        + ruta_archivo_103
+    )
+
+    headers_103 = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json"
+    }
+
+    try:
+
+        solicitud_103 = urllib.request.Request(
+            url_103,
+            headers=headers_103,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud_103,
+            timeout=30
+        ) as respuesta_103:
+
+            datos_103 = json.loads(
+                respuesta_103
+                .read()
+                .decode("utf-8")
+            )
+
+        if "content" not in datos_103:
+
+            return None
+
+        contenido_103 = base64.b64decode(
+            datos_103["content"].replace(
+                "\n",
+                ""
+            )
+        )
+
+        memoria_103 = io.BytesIO(
+            contenido_103
+        )
+
+        df_103 = pd.read_csv(
+            memoria_103,
+            dtype=str
+        )
+
+        df_103 = df_103.fillna("")
+
+        return df_103
+
+    except Exception:
+
+        return None
+
+
+# ============================================================
+# OBTENER PREGUNTAS YA USADAS
+# ============================================================
+
+def obtener_preguntas_usadas_103(
+    df_preguntas_evaluaciones_103
+):
+
+    """
+    Obtiene los Pregunta_ID que ya fueron utilizados.
+
+    La función es deliberadamente tolerante porque el archivo
+    persistente todavía puede no existir o puede estar vacío.
+    """
+
+    if (
+        df_preguntas_evaluaciones_103 is None
+        or df_preguntas_evaluaciones_103.empty
+    ):
+
+        return set()
+
+    if "Pregunta_ID" not in (
+        df_preguntas_evaluaciones_103.columns
+    ):
+
+        return set()
+
+    # --------------------------------------------------------
+    # Buscar columna de estado
+    # --------------------------------------------------------
+
+    columna_estado_103 = None
+
+    posibles_estados_103 = [
+        "Estado",
+        "Estado_Pregunta",
+        "Estado_Consumo",
+        "Uso",
+        "Usado"
+    ]
+
+    for columna_103 in posibles_estados_103:
+
+        if columna_103 in (
+            df_preguntas_evaluaciones_103.columns
+        ):
+
+            columna_estado_103 = columna_103
+
+            break
+
+    # --------------------------------------------------------
+    # Si no existe estado, no asumir que todo está usado.
+    #
+    # Esto evita bloquear preguntas simplemente porque el
+    # archivo tenga registros históricos.
+    # --------------------------------------------------------
+
+    if columna_estado_103 is None:
+
+        return set()
+
+    estados_usados_103 = {
+        "USADA",
+        "USADO",
+        "UTILIZADA",
+        "UTILIZADO",
+        "CONSUMIDA",
+        "CONSUMIDO",
+        "GENERADA",
+        "GENERADO"
+    }
+
+    df_temp_103 = (
+        df_preguntas_evaluaciones_103
+        .copy()
+    )
+
+    df_temp_103[
+        "_estado_103"
+    ] = (
+        df_temp_103[
+            columna_estado_103
+        ]
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+
+    df_usadas_103 = df_temp_103[
+        df_temp_103[
+            "_estado_103"
+        ].isin(
+            estados_usados_103
+        )
+    ]
+
+    return set(
+        df_usadas_103[
+            "Pregunta_ID"
+        ]
+        .astype(str)
+        .str.strip()
+        .tolist()
+    )
+
+
+# ============================================================
+# CARGAR FUENTES
+#
+# 10.3 NO RECARGA EL BANCO.
+# Utiliza el banco que ya dejó cargado 10.1.
+# ============================================================
+
+df_banco_103 = st.session_state.get(
+    "df_banco_101",
+    pd.DataFrame()
+)
+
+
+# ============================================================
+# VERIFICAR BANCO
+# ============================================================
+
+if df_banco_103.empty:
+
+    st.error(
+        "10.3 ERROR: no se encontró "
+        "BANCO_PREGUNTAS_GENERALES.xlsx "
+        "cargado por 10.1."
+    )
+
+else:
+
+    # ========================================================
+    # VERIFICAR COLUMNAS
+    # ========================================================
+
+    faltantes_103 = [
+        columna_103
+        for columna_103 in COLUMNAS_BANCO_103
+        if columna_103 not in df_banco_103.columns
+    ]
+
+    if faltantes_103:
+
+        st.error(
+            "10.3 ERROR: faltan columnas en "
+            "BANCO_PREGUNTAS_GENERALES.xlsx: "
+            + ", ".join(faltantes_103)
+        )
+
+    else:
+
+        # ====================================================
+        # CARGAR REGISTRO PERSISTENTE DE PREGUNTAS
+        #
+        # SOLAMENTE LECTURA
+        # ====================================================
+
+        if (
+            "df_preguntas_evaluaciones_103"
+            not in st.session_state
+        ):
+
+            st.session_state[
+                "df_preguntas_evaluaciones_103"
+            ] = cargar_csv_github_103(
+                ARCHIVO_PREGUNTAS_EVALUACIONES_103
+            )
+
+        df_preguntas_evaluaciones_103 = (
+            st.session_state.get(
+                "df_preguntas_evaluaciones_103"
+            )
+        )
+
+
+        # ====================================================
+        # CARGAR REGISTRO PERSISTENTE DE EVALUACIONES
+        #
+        # SOLAMENTE LECTURA
+        # ====================================================
+
+        if (
+            "df_evaluaciones_103"
+            not in st.session_state
+        ):
+
+            st.session_state[
+                "df_evaluaciones_103"
+            ] = cargar_csv_github_103(
+                ARCHIVO_EVALUACIONES_103
+            )
+
+        df_evaluaciones_103 = (
+            st.session_state.get(
+                "df_evaluaciones_103"
+            )
+        )
+
+
+        # ====================================================
+        # DETERMINAR PREGUNTAS USADAS
+        # ====================================================
+
+        preguntas_usadas_103 = (
+            obtener_preguntas_usadas_103(
+                df_preguntas_evaluaciones_103
+            )
+        )
+
+
+        # ====================================================
+        # GUARDAR CONTROL EN SESSION STATE
+        # ====================================================
+
+        st.session_state[
+            "preguntas_usadas_103"
+        ] = preguntas_usadas_103
+
+
+        # ====================================================
+        # ENCABEZADO
+        # ====================================================
+
+        st.markdown(
+            "## 10.3 - Generador de evaluaciones"
+        )
+
+        st.info(
+            "Seleccione Módulo, Tipo_Relacion y Nivel. "
+            "Por defecto se preparan 10 preguntas. "
+            "Una pregunta ya utilizada no puede volver "
+            "a entrar en otra evaluación."
+        )
+
+
+        # ====================================================
+        # INFORMACIÓN DE FUENTES
+        # ====================================================
+
+        col1_103, col2_103, col3_103 = st.columns(3)
+
+        with col1_103:
+
+            st.metric(
+                "Preguntas en banco",
+                len(df_banco_103)
+            )
+
+        with col2_103:
+
+            st.metric(
+                "Preguntas registradas como usadas",
+                len(preguntas_usadas_103)
+            )
+
+        with col3_103:
+
+            disponibles_generales_103 = (
+                len(df_banco_103)
+                - len(
+                    set(
+                        df_banco_103[
+                            "Pregunta_ID"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                    )
+                    & preguntas_usadas_103
+                )
+            )
+
+            st.metric(
+                "Preguntas no usadas",
+                disponibles_generales_103
+            )
+
+
+        # ====================================================
+        # FILTRAR SOLAMENTE APROBADAS
+        #
+        # IMPORTANTE:
+        # El estado del BANCO sigue siendo el original.
+        # No se modifica.
+        # ====================================================
+
+        df_aprobadas_103 = df_banco_103[
+            df_banco_103[
+                "Estado"
+            ]
+            .astype(str)
+            .str.strip()
+            .str.upper()
+            == "APROBADA"
+        ].copy()
+
+
+        # ====================================================
+        # ELIMINAR PREGUNTAS YA USADAS
+        #
+        # SE COMPARA POR Pregunta_ID.
+        #
+        # NO SE GENERA OTRO CÓDIGO.
+        # ====================================================
+
+        df_disponibles_103 = (
+            df_aprobadas_103[
+                ~df_aprobadas_103[
+                    "Pregunta_ID"
+                ]
+                .astype(str)
+                .str.strip()
+                .isin(
+                    preguntas_usadas_103
+                )
+            ]
+            .copy()
+        )
+
+
+        # ====================================================
+        # ELIMINAR IDS VACÍOS
+        # ====================================================
+
+        df_disponibles_103 = (
+            df_disponibles_103[
+                df_disponibles_103[
+                    "Pregunta_ID"
+                ]
+                .astype(str)
+                .str.strip()
+                != ""
+            ]
+            .copy()
+        )
+
+
+        # ====================================================
+        # ENCABEZADO DE SELECCIÓN
+        # ====================================================
+
+        st.markdown(
+            "### Seleccionar evaluación"
+        )
+
+
+        # ====================================================
+        # MÓDULO
+        # ====================================================
+
+        modulos_103 = sorted(
+            df_disponibles_103[
+                "Modulo"
+            ]
+            .astype(str)
+            .str.strip()
+            .replace(
+                "",
+                pd.NA
+            )
+            .dropna()
+            .unique()
+            .tolist()
+        )
+
+
+        if not modulos_103:
+
+            st.warning(
+                "No existen preguntas aprobadas y disponibles "
+                "para generar una evaluación."
+            )
+
+        else:
+
+            modulo_seleccionado_103 = st.selectbox(
+                "Módulo",
+                modulos_103,
+                key="generador_modulo_103"
+            )
+
+
+            # =================================================
+            # FILTRAR POR MÓDULO
+            # =================================================
+
+            df_modulo_103 = (
+                df_disponibles_103[
+                    df_disponibles_103[
+                        "Modulo"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    ==
+                    str(
+                        modulo_seleccionado_103
+                    )
+                    .strip()
+                ]
+                .copy()
+            )
+
+
+            # =================================================
+            # TIPO DE RELACIÓN
+            # =================================================
+
+            relaciones_103 = sorted(
+                df_modulo_103[
+                    "Tipo_Relacion"
+                ]
+                .astype(str)
+                .str.strip()
+                .replace(
+                    "",
+                    pd.NA
+                )
+                .dropna()
+                .unique()
+                .tolist()
+            )
+
+
+            if not relaciones_103:
+
+                st.warning(
+                    "No hay Tipos_Relacion disponibles "
+                    "para el módulo seleccionado."
+                )
+
+            else:
+
+                relacion_seleccionada_103 = (
+                    st.selectbox(
+                        "Tipo_Relacion",
+                        relaciones_103,
+                        key=
+                        "generador_relacion_103"
+                    )
+                )
+
+
+                # =============================================
+                # FILTRAR POR RELACIÓN
+                # =============================================
+
+                df_relacion_103 = (
+                    df_modulo_103[
+                        df_modulo_103[
+                            "Tipo_Relacion"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        ==
+                        str(
+                            relacion_seleccionada_103
+                        )
+                        .strip()
+                    ]
+                    .copy()
+                )
+
+
+                # =============================================
+                # NIVEL
+                # =============================================
+
+                niveles_103 = sorted(
+                    df_relacion_103[
+                        "Nivel"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .replace(
+                        "",
+                        pd.NA
+                    )
+                    .dropna()
+                    .unique()
+                    .tolist()
+                )
+
+
+                if not niveles_103:
+
+                    st.warning(
+                        "No hay niveles disponibles "
+                        "para la combinación seleccionada."
+                    )
+
+                else:
+
+                    nivel_seleccionado_103 = (
+                        st.selectbox(
+                            "Nivel",
+                            niveles_103,
+                            key=
+                            "generador_nivel_103"
+                        )
+                    )
+
+
+                    # =========================================
+                    # FILTRAR POR NIVEL
+                    # =========================================
+
+                    df_candidatas_103 = (
+                        df_relacion_103[
+                            df_relacion_103[
+                                "Nivel"
+                            ]
+                            .astype(str)
+                            .str.strip()
+                            ==
+                            str(
+                                nivel_seleccionado_103
+                            )
+                            .strip()
+                        ]
+                        .copy()
+                    )
+
+
+                    # =========================================
+                    # CANTIDAD DISPONIBLE
+                    # =========================================
+
+                    disponibles_103 = len(
+                        df_candidatas_103
+                    )
+
+
+                    st.markdown(
+                        "### Disponibilidad"
+                    )
+
+                    st.info(
+                        f"Para "
+                        f"{modulo_seleccionado_103} / "
+                        f"{relacion_seleccionada_103} / "
+                        f"{nivel_seleccionado_103} "
+                        f"hay {disponibles_103} "
+                        "preguntas aprobadas y no utilizadas."
+                    )
+
+
+                    # =========================================
+                    # CANTIDAD DE PREGUNTAS
+                    #
+                    # POR DEFECTO = 10
+                    # =========================================
+
+                    if disponibles_103 >= 10:
+
+                        cantidad_103 = st.number_input(
+                            "Cantidad de preguntas",
+                            min_value=1,
+                            max_value=disponibles_103,
+                            value=10,
+                            step=1,
+                            key=
+                            "generador_cantidad_103"
+                        )
+
+                    else:
+
+                        st.warning(
+                            f"Solo hay {disponibles_103} "
+                            "preguntas disponibles. "
+                            "No alcanza para una evaluación "
+                            "completa de 10."
+                        )
+
+                        cantidad_103 = st.number_input(
+                            "Cantidad de preguntas",
+                            min_value=1,
+                            max_value=disponibles_103,
+                            value=disponibles_103,
+                            step=1,
+                            key=
+                            "generador_cantidad_menor_103"
+                        )
+
+
+                        # =====================================
+                        # CONFIRMACIÓN DE EVALUACIÓN MENOR
+                        # =====================================
+
+                        confirmar_menor_103 = st.checkbox(
+                            f"Deseo generar esta evaluación "
+                            f"con {disponibles_103} preguntas "
+                            f"aunque sea menor de 10.",
+                            key=
+                            "confirmar_evaluacion_menor_103"
+                        )
+
+
+                    # =========================================
+                    # SI HAY 10 O MÁS
+                    # =========================================
+
+                    if disponibles_103 >= 10:
+
+                        confirmar_menor_103 = True
+
+
+                    # =========================================
+                    # MOSTRAR CANDIDATAS
+                    # =========================================
+
+                    st.markdown(
+                        "### Preguntas que pueden ser utilizadas"
+                    )
+
+                    columnas_mostrar_103 = [
+                        "Pregunta_ID",
+                        "Modulo",
+                        "Tipo_Relacion",
+                        "Nivel",
+                        "Pregunta"
+                    ]
+
+                    st.dataframe(
+                        df_candidatas_103[
+                            columnas_mostrar_103
+                        ],
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
+
+                    # =========================================
+                    # GENERAR
+                    # =========================================
+
+                    puede_generar_103 = (
+                        disponibles_103 > 0
+                        and int(cantidad_103) > 0
+                        and confirmar_menor_103
+                    )
+
+
+                    if st.button(
+                        "GENERAR EVALUACIÓN",
+                        key=
+                        "generar_evaluacion_103",
+                        disabled=
+                        not puede_generar_103
+                    ):
+
+                        # =====================================
+                        # SELECCIÓN DETERMINÍSTICA
+                        #
+                        # No se mezclan ni inventan IDs.
+                        # Se conserva el orden del banco.
+                        # =====================================
+
+                        df_generada_103 = (
+                            df_candidatas_103
+                            .head(
+                                int(cantidad_103)
+                            )
+                            .copy()
+                        )
+
+
+                        # =====================================
+                        # SEGURIDAD
+                        #
+                        # COMPROBAR QUE NINGÚN ID ESTÉ REPETIDO
+                        # DENTRO DE LA EVALUACIÓN.
+                        # =====================================
+
+                        ids_103 = (
+                            df_generada_103[
+                                "Pregunta_ID"
+                            ]
+                            .astype(str)
+                            .str.strip()
+                        )
+
+
+                        if ids_103.duplicated().any():
+
+                            st.error(
+                                "10.3 ERROR: el banco contiene "
+                                "Pregunta_ID duplicados dentro "
+                                "de las preguntas seleccionadas. "
+                                "La evaluación NO fue generada."
+                            )
+
+                        else:
+
+                            # =================================
+                            # SEGURIDAD CONTRA REUTILIZACIÓN
+                            # =================================
+
+                            ids_usados_otra_vez_103 = (
+                                set(ids_103)
+                                &
+                                preguntas_usadas_103
+                            )
+
+
+                            if ids_usados_otra_vez_103:
+
+                                st.error(
+                                    "10.3 ERROR: se detectaron "
+                                    "preguntas que ya habían sido "
+                                    "utilizadas. La evaluación "
+                                    "NO fue generada."
+                                )
+
+                            else:
+
+                                # =============================
+                                # CREAR COPIA DE TRABAJO
+                                # =============================
+
+                                df_evaluacion_103 = (
+                                    df_generada_103.copy()
+                                )
+
+
+                                # =============================
+                                # METADATOS DE LA PREPARACIÓN
+                                #
+                                # NO se modifica Pregunta_ID.
+                                # =============================
+
+                                df_evaluacion_103[
+                                    "Modulo_Evaluacion"
+                                ] = (
+                                    modulo_seleccionado_103
+                                )
+
+                                df_evaluacion_103[
+                                    "Tipo_Relacion_Evaluacion"
+                                ] = (
+                                    relacion_seleccionada_103
+                                )
+
+                                df_evaluacion_103[
+                                    "Nivel_Evaluacion"
+                                ] = (
+                                    nivel_seleccionado_103
+                                )
+
+                                df_evaluacion_103[
+                                    "Cantidad_Evaluacion"
+                                ] = int(
+                                    cantidad_103
+                                )
+
+
+                                # =============================
+                                # GUARDAR EN SESSION STATE
+                                #
+                                # TODAVÍA NO ES PERSISTENCIA.
+                                # =============================
+
+                                st.session_state[
+                                    "df_evaluacion_103"
+                                ] = (
+                                    df_evaluacion_103
+                                    .copy()
+                                )
+
+
+                                st.session_state[
+                                    "evaluacion_preparada_103"
+                                ] = True
+
+
+                                # =============================
+                                # GUARDAR IDS PREPARADOS
+                                # =============================
+
+                                st.session_state[
+                                    "ids_evaluacion_103"
+                                ] = (
+                                    ids_103
+                                    .tolist()
+                                )
+
+
+                                # =============================
+                                # RESUMEN
+                                # =============================
+
+                                st.success(
+                                    "Evaluación preparada "
+                                    "correctamente."
+                                )
+
+                                st.info(
+                                    f"Módulo: "
+                                    f"{modulo_seleccionado_103} | "
+                                    f"Relación: "
+                                    f"{relacion_seleccionada_103} | "
+                                    f"Nivel: "
+                                    f"{nivel_seleccionado_103} | "
+                                    f"Preguntas: "
+                                    f"{len(df_evaluacion_103)}"
+                                )
+
+                                st.warning(
+                                    "Las preguntas todavía NO se "
+                                    "marcan como usadas y ningún "
+                                    "archivo persistente ha sido "
+                                    "modificado. Eso corresponde "
+                                    "a la siguiente etapa."
+                                )
+
+
+                    # =========================================
+                    # MOSTRAR EVALUACIÓN PREPARADA
+                    # =========================================
+
+                    if st.session_state.get(
+                        "evaluacion_preparada_103",
+                        False
+                    ):
+
+                        df_evaluacion_mostrar_103 = (
+                            st.session_state.get(
+                                "df_evaluacion_103",
+                                pd.DataFrame()
+                            )
+                        )
+
+
+                        if not df_evaluacion_mostrar_103.empty:
+
+                            st.markdown(
+                                "### Evaluación preparada"
+                            )
+
+                            st.dataframe(
+                                df_evaluacion_mostrar_103[
+                                    [
+                                        "Pregunta_ID",
+                                        "Pregunta",
+                                        "Respuesta_1",
+                                        "Respuesta_2",
+                                        "Respuesta_3",
+                                        "Respuesta_4",
+                                        "Respuesta_Correcta"
+                                    ]
+                                ],
+                                use_container_width=True,
+                                hide_index=True
+                            )
+
+                            st.caption(
+                                "Los Pregunta_ID se conservan "
+                                "exactamente como existen en "
+                                "BANCO_PREGUNTAS_GENERALES.xlsx. "
+                                "No se genera un nuevo consecutivo "
+                                "para las preguntas."
+                            )
