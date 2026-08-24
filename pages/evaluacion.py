@@ -22206,3 +22206,493 @@ if preguntas_92:
         st.success(
             "Todas las preguntas fueron revisadas."
         )
+# ============================================================
+# 9.4 - PARTE 4
+# SINCRONIZADOR
+# COMPLEMENTARIOS
+# PRODUCTO - USO REGULAR / COMBINACIONES ESTRATÉGICAS
+# NIVEL 1
+#
+# ENTRADA:
+#     preguntas_generadas_92
+#
+# BANCO:
+#     BANCO_PREGUNTAS_GENERALES.xlsx
+#
+# DATAFRAME:
+#     df_banco_92
+# ============================================================
+
+
+GITHUB_USUARIO_92 = "franquiciasauces"
+GITHUB_REPOSITORIO_92 = "Asesores"
+GITHUB_RAMA_92 = "main"
+GITHUB_ARCHIVO_92 = "BANCO_PREGUNTAS_GENERALES.xlsx"
+
+
+URL_GITHUB_92 = (
+    "https://api.github.com/repos/"
+    + GITHUB_USUARIO_92
+    + "/"
+    + GITHUB_REPOSITORIO_92
+    + "/contents/"
+    + GITHUB_ARCHIVO_92
+)
+
+
+# ============================================================
+# FUNCIÓN DE SINCRONIZACIÓN
+# ============================================================
+
+def sincronizar_92():
+
+    # --------------------------------------------------------
+    # OBTENER PREGUNTAS GENERADAS
+    # --------------------------------------------------------
+
+    preguntas_92 = st.session_state.get(
+        "preguntas_generadas_92",
+        []
+    )
+
+    # --------------------------------------------------------
+    # SOLO PREGUNTAS APROBADAS
+    # --------------------------------------------------------
+
+    aprobadas_92 = [
+        pregunta_92
+        for pregunta_92 in preguntas_92
+        if pregunta_92.get(
+            "Estado"
+        ) == "APROBADA"
+    ]
+
+    if not aprobadas_92:
+
+        st.warning(
+            "No hay preguntas aprobadas para sincronizar."
+        )
+
+        return
+
+    # --------------------------------------------------------
+    # TOKEN
+    # --------------------------------------------------------
+
+    headers_92 = {
+        "Authorization":
+            f"Bearer {GITHUB_TOKEN}",
+
+        "Accept":
+            "application/vnd.github+json"
+    }
+
+    try:
+
+        # ====================================================
+        # LEER BANCO ACTUAL DESDE GITHUB
+        # ====================================================
+
+        solicitud_92 = urllib.request.Request(
+            URL_GITHUB_92,
+            headers=headers_92,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud_92,
+            timeout=30
+        ) as respuesta_92:
+
+            datos_92 = json.loads(
+                respuesta_92
+                .read()
+                .decode("utf-8")
+            )
+
+        # ----------------------------------------------------
+        # SHA
+        # ----------------------------------------------------
+
+        if "sha" not in datos_92:
+
+            st.error(
+                "9.4 ERROR: GitHub no devolvió "
+                "el SHA del archivo."
+            )
+
+            return
+
+        sha_92 = datos_92["sha"]
+
+        # ----------------------------------------------------
+        # CONTENIDO
+        # ----------------------------------------------------
+
+        if "content" not in datos_92:
+
+            st.error(
+                "9.4 ERROR: GitHub no devolvió "
+                "el contenido del banco."
+            )
+
+            return
+
+        # ====================================================
+        # DECODIFICAR ARCHIVO
+        # ====================================================
+
+        contenido_92 = base64.b64decode(
+            datos_92["content"].replace(
+                "\n",
+                ""
+            )
+        )
+
+        memoria_92 = io.BytesIO(
+            contenido_92
+        )
+
+        df_banco_general_92 = pd.read_excel(
+            memoria_92,
+            engine="openpyxl"
+        )
+
+        total_antes_92 = len(
+            df_banco_general_92
+        )
+
+        # ----------------------------------------------------
+        # CONFIRMACIÓN DE CARGA
+        # ----------------------------------------------------
+
+        st.success(
+            "BANCO_PREGUNTAS_GENERALES.xlsx "
+            "cargado correctamente desde GitHub."
+        )
+
+        st.info(
+            "Preguntas en el banco antes de sincronizar: "
+            f"{total_antes_92:,}"
+        )
+
+        # ====================================================
+        # COLUMNAS DEL BANCO GENERAL
+        # ====================================================
+
+        columnas_92 = [
+            "Pregunta_ID",
+            "Modulo",
+            "Tema",
+            "Nivel",
+            "Tipo_Relacion",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Estado",
+            "Observacion_Administrador",
+            "Fecha_Generacion",
+            "Fuente_ID"
+        ]
+
+        # ----------------------------------------------------
+        # VALIDAR BANCO
+        # ----------------------------------------------------
+
+        faltantes_banco_92 = [
+            columna_92
+            for columna_92 in columnas_92
+            if columna_92
+            not in df_banco_general_92.columns
+        ]
+
+        if faltantes_banco_92:
+
+            st.error(
+                "9.4 ERROR: faltan columnas en "
+                "BANCO_PREGUNTAS_GENERALES.xlsx: "
+                + ", ".join(
+                    faltantes_banco_92
+                )
+            )
+
+            return
+
+        # ====================================================
+        # CREAR DATAFRAME DE PREGUNTAS APROBADAS
+        # ====================================================
+
+        df_nuevas_92 = pd.DataFrame(
+            aprobadas_92
+        )
+
+        # ----------------------------------------------------
+        # VALIDAR PREGUNTAS
+        # ----------------------------------------------------
+
+        faltantes_nuevas_92 = [
+            columna_92
+            for columna_92 in columnas_92
+            if columna_92
+            not in df_nuevas_92.columns
+        ]
+
+        if faltantes_nuevas_92:
+
+            st.error(
+                "9.4 ERROR: faltan columnas en "
+                "las preguntas aprobadas: "
+                + ", ".join(
+                    faltantes_nuevas_92
+                )
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # RESPETAR ORDEN DEL BANCO
+        # ----------------------------------------------------
+
+        df_nuevas_92 = df_nuevas_92[
+            columnas_92
+        ].copy()
+
+        # ====================================================
+        # EVITAR DUPLICADOS POR PREGUNTA_ID
+        # ====================================================
+
+        ids_existentes_92 = set(
+            df_banco_general_92[
+                "Pregunta_ID"
+            ]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+        filas_nuevas_92 = []
+
+        for _, fila_92 in df_nuevas_92.iterrows():
+
+            pregunta_id_92 = str(
+                fila_92[
+                    "Pregunta_ID"
+                ]
+            ).strip()
+
+            # ------------------------------------------------
+            # IGNORAR ID VACÍO
+            # ------------------------------------------------
+
+            if not pregunta_id_92:
+
+                continue
+
+            # ------------------------------------------------
+            # IGNORAR DUPLICADO
+            # ------------------------------------------------
+
+            if pregunta_id_92 in ids_existentes_92:
+
+                continue
+
+            filas_nuevas_92.append(
+                fila_92
+            )
+
+            ids_existentes_92.add(
+                pregunta_id_92
+            )
+
+        nuevas_92 = len(
+            filas_nuevas_92
+        )
+
+        # ====================================================
+        # SI NO HAY NADA NUEVO
+        # ====================================================
+
+        if nuevas_92 == 0:
+
+            st.info(
+                "No hay preguntas nuevas para agregar."
+            )
+
+            st.info(
+                "El banco continúa con "
+                f"{total_antes_92:,} preguntas."
+            )
+
+            return
+
+        # ====================================================
+        # AGREGAR AL BANCO GENERAL
+        # ====================================================
+
+        df_agregar_92 = pd.DataFrame(
+            filas_nuevas_92
+        )
+
+        df_final_92 = pd.concat(
+            [
+                df_banco_general_92,
+                df_agregar_92
+            ],
+            ignore_index=True
+        )
+
+        total_despues_92 = len(
+            df_final_92
+        )
+
+        # ====================================================
+        # ACTUALIZAR DATAFRAME LOCAL 9.2
+        # ====================================================
+
+        st.session_state[
+            "df_banco_92"
+        ] = df_final_92.copy()
+
+        # ====================================================
+        # CREAR EXCEL
+        # ====================================================
+
+        memoria_salida_92 = io.BytesIO()
+
+        with pd.ExcelWriter(
+            memoria_salida_92,
+            engine="openpyxl"
+        ) as escritor_92:
+
+            df_final_92.to_excel(
+                escritor_92,
+                index=False,
+                sheet_name="Banco"
+            )
+
+        # ====================================================
+        # CODIFICAR ARCHIVO
+        # ====================================================
+
+        contenido_nuevo_92 = base64.b64encode(
+            memoria_salida_92.getvalue()
+        ).decode("utf-8")
+
+        # ====================================================
+        # ACTUALIZAR GITHUB
+        # ====================================================
+
+        datos_actualizacion_92 = {
+
+            "message":
+                "Agregar preguntas 9.2 - "
+                "Complementarios",
+
+            "content":
+                contenido_nuevo_92,
+
+            "branch":
+                GITHUB_RAMA_92,
+
+            "sha":
+                sha_92
+        }
+
+        cuerpo_92 = json.dumps(
+            datos_actualizacion_92
+        ).encode("utf-8")
+
+        solicitud_actualizacion_92 = (
+            urllib.request.Request(
+                URL_GITHUB_92,
+                data=cuerpo_92,
+                headers={
+                    **headers_92,
+                    "Content-Type":
+                        "application/json"
+                },
+                method="PUT"
+            )
+        )
+
+        with urllib.request.urlopen(
+            solicitud_actualizacion_92,
+            timeout=30
+        ) as respuesta_actualizacion_92:
+
+            respuesta_actualizacion_92.read()
+
+        # ====================================================
+        # RESULTADO
+        # ====================================================
+
+        st.success(
+            "9.4 sincronizado correctamente con "
+            "BANCO_PREGUNTAS_GENERALES.xlsx."
+        )
+
+        st.info(
+            "Preguntas en el banco antes: "
+            f"{total_antes_92:,}"
+        )
+
+        st.info(
+            "Preguntas nuevas incorporadas: "
+            f"{nuevas_92:,}"
+        )
+
+        st.info(
+            "Preguntas en el banco después: "
+            f"{total_despues_92:,}"
+        )
+
+    except Exception as error_92:
+
+        st.error(
+            "9.4 ERROR: no fue posible cargar o "
+            "actualizar BANCO_PREGUNTAS_GENERALES.xlsx."
+        )
+
+        st.exception(
+            error_92
+        )
+
+
+# ============================================================
+# BOTÓN DE SINCRONIZACIÓN 9.4
+# ============================================================
+
+preguntas_92 = st.session_state.get(
+    "preguntas_generadas_92",
+    []
+)
+
+aprobadas_92 = sum(
+    1
+    for pregunta_92 in preguntas_92
+    if pregunta_92.get(
+        "Estado"
+    ) == "APROBADA"
+)
+
+
+if aprobadas_92 > 0:
+
+    st.markdown(
+        "### 9.4 - Sincronización"
+    )
+
+    st.info(
+        "Preguntas aprobadas listas para sincronizar: "
+        f"{aprobadas_92}"
+    )
+
+    if st.button(
+        "SINCRONIZAR 9.2 CON BANCO DE PREGUNTAS",
+        key="boton_sincronizar_92"
+    ):
+
+        sincronizar_92()
