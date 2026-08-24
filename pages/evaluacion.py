@@ -20248,7 +20248,328 @@ if preguntas_85:
         st.write(
             f"3. {pregunta_85['Respuesta_3']}"
         )
+# ============================================================
+# 10.2.A - CRUCE REAL Y DISPONIBILIDAD
+# ============================================================
 
+st.markdown("## 10.2.A - Cruce real y disponibilidad")
+
+if not st.session_state.get("banco_101_cargado", False):
+    st.warning("Primero debe cargar las fuentes desde 10.1.")
+
+else:
+    df_banco = st.session_state.get(
+        "df_banco_101",
+        pd.DataFrame()
+    ).copy()
+
+    df_persistencia = st.session_state.get(
+        "df_preguntas_evaluaciones_101",
+        pd.DataFrame()
+    ).copy()
+
+    if df_banco.empty:
+        st.error("El Banco General está vacío.")
+
+    elif "Pregunta_ID" not in df_banco.columns:
+        st.error("El Banco General no contiene la columna Pregunta_ID.")
+
+    elif (
+        not df_persistencia.empty
+        and "Pregunta_ID" not in df_persistencia.columns
+    ):
+        st.error(
+            "PREGUNTAS_EVALUACIONES.csv no contiene "
+            "la columna Pregunta_ID."
+        )
+
+    elif (
+        not df_persistencia.empty
+        and "Estado_Validacion" not in df_persistencia.columns
+    ):
+        st.error(
+            "PREGUNTAS_EVALUACIONES.csv no contiene "
+            "la columna Estado_Validacion."
+        )
+
+    else:
+        # ----------------------------------------------------
+        # NORMALIZAR Pregunta_ID
+        # ----------------------------------------------------
+
+        df_banco["Pregunta_ID"] = (
+            df_banco["Pregunta_ID"]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+        if not df_persistencia.empty:
+            df_persistencia["Pregunta_ID"] = (
+                df_persistencia["Pregunta_ID"]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+            )
+
+            df_persistencia["Estado_Validacion"] = (
+                df_persistencia["Estado_Validacion"]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .str.upper()
+            )
+
+            df_persistencia = (
+                df_persistencia
+                .drop_duplicates(
+                    subset=["Pregunta_ID"],
+                    keep="last"
+                )
+            )
+
+        # ----------------------------------------------------
+        # CRUCE BANCO GENERAL ↔ PERSISTENCIA
+        # ----------------------------------------------------
+
+        columnas_banco = [
+            "Pregunta_ID",
+            "Modulo",
+            "Tema",
+            "Nivel",
+            "Tipo_Relacion",
+            "Estado"
+        ]
+
+        columnas_banco = [
+            columna
+            for columna in columnas_banco
+            if columna in df_banco.columns
+        ]
+
+        df_cruce = df_banco[columnas_banco].copy()
+
+        if df_persistencia.empty:
+            df_cruce["Estado_Validacion"] = ""
+
+        else:
+            df_estado = df_persistencia[
+                [
+                    "Pregunta_ID",
+                    "Estado_Validacion"
+                ]
+            ].copy()
+
+            df_cruce = df_cruce.merge(
+                df_estado,
+                on="Pregunta_ID",
+                how="left"
+            )
+
+            df_cruce["Estado_Validacion"] = (
+                df_cruce["Estado_Validacion"]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .str.upper()
+            )
+
+        # ----------------------------------------------------
+        # REGLA REAL DE DISPONIBILIDAD
+        #
+        # APROBADA              = DESCUENTA
+        # RECHAZADA             = DESCUENTA
+        # AÚN NO SE UTILIZA     = DISPONIBLE
+        # SIN REGISTRO          = DISPONIBLE
+        # ----------------------------------------------------
+
+        estados_consumidos = {
+            "APROBADA",
+            "APROBADO",
+            "RECHAZADA",
+            "RECHAZADO"
+        }
+
+        df_cruce["Disponibilidad"] = "DISPONIBLE"
+
+        df_cruce.loc[
+            df_cruce["Estado_Validacion"].isin(
+                estados_consumidos
+            ),
+            "Disponibilidad"
+        ] = "NO DISPONIBLE"
+
+        # ----------------------------------------------------
+        # GUARDAR RESULTADO
+        # ----------------------------------------------------
+
+        st.session_state["df_disponibilidad_102a"] = (
+            df_cruce.copy()
+        )
+
+        # ----------------------------------------------------
+        # RESUMEN GENERAL
+        # ----------------------------------------------------
+
+        total_banco = len(df_cruce)
+
+        consumidas = int(
+            (
+                df_cruce["Disponibilidad"]
+                == "NO DISPONIBLE"
+            ).sum()
+        )
+
+        disponibles = int(
+            (
+                df_cruce["Disponibilidad"]
+                == "DISPONIBLE"
+            ).sum()
+        )
+
+        aprobadas = int(
+            df_cruce["Estado_Validacion"].isin(
+                ["APROBADA", "APROBADO"]
+            ).sum()
+        )
+
+        rechazadas = int(
+            df_cruce["Estado_Validacion"].isin(
+                ["RECHAZADA", "RECHAZADO"]
+            ).sum()
+        )
+
+        aun_no_utilizadas = int(
+            df_cruce["Estado_Validacion"].isin(
+                [
+                    "AÚN NO SE UTILIZA",
+                    "AUN NO SE UTILIZA"
+                ]
+            ).sum()
+        )
+
+        sin_registro = int(
+            (
+                df_cruce["Estado_Validacion"]
+                == ""
+            ).sum()
+        )
+
+        # ----------------------------------------------------
+        # MOSTRAR RESULTADO
+        # ----------------------------------------------------
+
+        st.markdown("### Resultado del cruce")
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric(
+            "Preguntas en banco",
+            total_banco
+        )
+
+        col2.metric(
+            "Consumidas",
+            consumidas
+        )
+
+        col3.metric(
+            "Disponibles",
+            disponibles
+        )
+
+        col1, col2, col3 = st.columns(3)
+
+        col1.metric(
+            "Aprobadas",
+            aprobadas
+        )
+
+        col2.metric(
+            "Rechazadas",
+            rechazadas
+        )
+
+        col3.metric(
+            "Aún no se utiliza",
+            aun_no_utilizadas
+        )
+
+        st.metric(
+            "Sin registro en permanencia",
+            sin_registro
+        )
+
+        # ----------------------------------------------------
+        # DISPONIBILIDAD POR RELACIÓN
+        # ----------------------------------------------------
+
+        columnas_relacion = [
+            columna
+            for columna in [
+                "Modulo",
+                "Tema",
+                "Nivel",
+                "Tipo_Relacion"
+            ]
+            if columna in df_cruce.columns
+        ]
+
+        if columnas_relacion:
+            resumen_relacion = (
+                df_cruce
+                .groupby(
+                    columnas_relacion,
+                    dropna=False
+                )
+                .agg(
+                    Preguntas_Banco=(
+                        "Pregunta_ID",
+                        "count"
+                    ),
+                    Consumidas=(
+                        "Disponibilidad",
+                        lambda serie: (
+                            serie == "NO DISPONIBLE"
+                        ).sum()
+                    ),
+                    Disponibles=(
+                        "Disponibilidad",
+                        lambda serie: (
+                            serie == "DISPONIBLE"
+                        ).sum()
+                    )
+                )
+                .reset_index()
+            )
+
+            resumen_relacion["Cola"] = (
+                resumen_relacion["Disponibles"]
+            )
+
+            st.markdown(
+                "### Disponibilidad por relación"
+            )
+
+            st.dataframe(
+                resumen_relacion,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        # ----------------------------------------------------
+        # DETALLE DEL CRUCE
+        # ----------------------------------------------------
+
+        st.markdown(
+            "### Detalle del cruce"
+        )
+
+        st.dataframe(
+            df_cruce,
+            use_container_width=True,
+            hide_index=True
+        )
         st.write(
             f"4. {pregunta_85['Respuesta_4']}"
         )
