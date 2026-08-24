@@ -21004,3 +21004,322 @@ if aprobadas_85 > 0:
     ):
 
         sincronizar_85()
+# ============================================================
+# 9.1 - COMPLEMENTARIOS
+# PARTE 1 - CARGA Y CONTROL DE FUENTE
+# ============================================================
+
+ARCHIVO_FUENTE_91 = "MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx"
+HOJA_FUENTE_91 = "Complementarios"
+ARCHIVO_BANCO_91 = "BANCO_PREGUNTAS_GENERALES.xlsx"
+
+
+# ============================================================
+# CARGAR FUENTE 9.1
+# ============================================================
+
+def cargar_fuente_91():
+
+    try:
+
+        df = pd.read_excel(
+            ARCHIVO_FUENTE_91,
+            sheet_name=HOJA_FUENTE_91,
+            engine="openpyxl"
+        )
+
+    except Exception as error:
+
+        st.error(
+            f"9.1 ERROR al cargar la hoja "
+            f"{HOJA_FUENTE_91}: {error}"
+        )
+
+        return None
+
+    # --------------------------------------------------------
+    # COLUMNAS EXACTAS DE LA HOJA COMPLEMENTARIOS
+    # --------------------------------------------------------
+
+    columnas = [
+        "Producto",
+        "Categoría principal",
+        "Indicaciones / Escenarios",
+        "Modo de acción resumido",
+        "Combinaciones estratégicas"
+    ]
+
+    faltantes = [
+        columna
+        for columna in columnas
+        if columna not in df.columns
+    ]
+
+    if faltantes:
+
+        st.error(
+            "9.1 ERROR: faltan columnas en la hoja "
+            "Complementarios: "
+            + ", ".join(faltantes)
+        )
+
+        return None
+
+    # --------------------------------------------------------
+    # CONSERVAR COLUMNAS
+    # --------------------------------------------------------
+
+    df = df[columnas].copy()
+
+    # --------------------------------------------------------
+    # LIMPIEZA MÍNIMA
+    #
+    # NO SE DIVIDEN CELDAS
+    # NO SE RESUMEN TEXTOS
+    # NO SE ALTERAN LAS INDICACIONES
+    # NO SE ALTERAN LAS COMBINACIONES
+    # --------------------------------------------------------
+
+    for columna in columnas:
+
+        df[columna] = (
+            df[columna]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+    # --------------------------------------------------------
+    # ELIMINAR SOLO REGISTROS SIN LOS DATOS NECESARIOS
+    # PARA ESTE GENERADOR
+    # --------------------------------------------------------
+
+    df = df[
+        (df["Producto"] != "")
+        &
+        (df["Indicaciones / Escenarios"] != "")
+        &
+        (df["Combinaciones estratégicas"] != "")
+    ].copy()
+
+    # --------------------------------------------------------
+    # CREAR IDENTIFICADOR ÚNICO DE FUENTE
+    # --------------------------------------------------------
+
+    df["Fuente_ID"] = [
+        f"CP-{i:06d}"
+        for i in range(1, len(df) + 1)
+    ]
+
+    return df.reset_index(drop=True)
+
+
+# ============================================================
+# CARGAR BANCO GENERAL
+# ============================================================
+
+def cargar_banco_91():
+
+    try:
+
+        return pd.read_excel(
+            ARCHIVO_BANCO_91,
+            engine="openpyxl"
+        )
+
+    except Exception:
+
+        return pd.DataFrame()
+
+
+# ============================================================
+# OBTENER FUENTES YA UTILIZADAS
+# ============================================================
+
+def obtener_fuentes_usadas_91(df_banco):
+
+    usadas = set()
+
+    if df_banco.empty:
+
+        return usadas
+
+    if "Fuente_ID" not in df_banco.columns:
+
+        return usadas
+
+    for valor in df_banco["Fuente_ID"].fillna(""):
+
+        for fuente in str(valor).split(";"):
+
+            fuente = fuente.strip()
+
+            if fuente:
+
+                usadas.add(fuente)
+
+    return usadas
+
+
+# ============================================================
+# INTERFAZ 9.1
+# ============================================================
+
+st.markdown(
+    "## 9.1 Complementarios"
+)
+
+st.write(
+    "Carga y control de la hoja Complementarios."
+)
+
+
+if st.button(
+    "CARGAR Y VALIDAR FUENTE 9.1",
+    key="cargar_fuentes_91"
+):
+
+    # --------------------------------------------------------
+    # CARGAR HOJA COMPLEMENTARIOS
+    # --------------------------------------------------------
+
+    df_fuente_91 = cargar_fuente_91()
+
+    if df_fuente_91 is None:
+
+        st.stop()
+
+    # --------------------------------------------------------
+    # CARGAR BANCO GENERAL
+    # --------------------------------------------------------
+
+    df_banco_91 = cargar_banco_91()
+
+    # --------------------------------------------------------
+    # IDENTIFICAR FUENTES YA UTILIZADAS
+    # --------------------------------------------------------
+
+    fuentes_usadas_91 = (
+        obtener_fuentes_usadas_91(
+            df_banco_91
+        )
+    )
+
+    # --------------------------------------------------------
+    # CREAR DATAFRAME DISPONIBLE
+    #
+    # SOLO SE EXCLUYEN LAS FUENTES YA UTILIZADAS
+    # --------------------------------------------------------
+
+    df_disponible_91 = df_fuente_91[
+        ~df_fuente_91["Fuente_ID"].isin(
+            fuentes_usadas_91
+        )
+    ].copy()
+
+    df_disponible_91 = (
+        df_disponible_91
+        .reset_index(drop=True)
+    )
+
+    # --------------------------------------------------------
+    # GUARDAR EN SESSION STATE
+    # --------------------------------------------------------
+
+    st.session_state[
+        "df_fuente_91"
+    ] = df_fuente_91.copy()
+
+    st.session_state[
+        "df_banco_91"
+    ] = df_banco_91.copy()
+
+    st.session_state[
+        "df_disponible_91"
+    ] = df_disponible_91.copy()
+
+    st.session_state[
+        "fuentes_usadas_91"
+    ] = fuentes_usadas_91
+
+
+# ============================================================
+# MOSTRAR CONTROL DE CARGA
+# ============================================================
+
+if "df_fuente_91" in st.session_state:
+
+    df_fuente_91 = st.session_state[
+        "df_fuente_91"
+    ]
+
+    df_disponible_91 = st.session_state[
+        "df_disponible_91"
+    ]
+
+    fuentes_usadas_91 = st.session_state[
+        "fuentes_usadas_91"
+    ]
+
+    st.success(
+        "9.1 cargó correctamente la hoja "
+        "Complementarios."
+    )
+
+    # --------------------------------------------------------
+    # INDICADORES
+    # --------------------------------------------------------
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+
+        st.metric(
+            "Registros fuente",
+            len(df_fuente_91)
+        )
+
+    with col2:
+
+        st.metric(
+            "Fuentes utilizadas",
+            len(
+                fuentes_usadas_91
+                &
+                set(
+                    df_fuente_91[
+                        "Fuente_ID"
+                    ]
+                )
+            )
+        )
+
+    with col3:
+
+        st.metric(
+            "Registros disponibles",
+            len(df_disponible_91)
+        )
+
+    # --------------------------------------------------------
+    # MOSTRAR ESTRUCTURA
+    # --------------------------------------------------------
+
+    st.markdown(
+        "### Estructura disponible"
+    )
+
+    st.dataframe(
+        df_disponible_91[
+            [
+                "Fuente_ID",
+                "Producto",
+                "Categoría principal",
+                "Indicaciones / Escenarios",
+                "Modo de acción resumido",
+                "Combinaciones estratégicas"
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True
+    )
