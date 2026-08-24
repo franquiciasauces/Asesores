@@ -26141,3 +26141,1600 @@ else:
                                 "No se genera un nuevo consecutivo "
                                 "para las preguntas."
                             )
+# ============================================================
+# 10.4 - VALIDADOR DE EVALUACIONES
+# ============================================================
+#
+# FUNCIÓN:
+#   Validar las evaluaciones generadas por 10.3.
+#
+# FUENTES:
+#
+#   1. BANCO_PREGUNTAS_GENERALES.xlsx
+#      --------------------------------------------------------
+#      SOLO contiene las preguntas originales.
+#      ESTE ARCHIVO NO SE MODIFICA EN 10.4.
+#
+#   2. /page/EVALUACIONES.csv
+#      --------------------------------------------------------
+#      Registro persistente de las evaluaciones generadas.
+#
+#   3. /page/PREGUNTAS_EVALUACIONES.csv
+#      --------------------------------------------------------
+#      Registro persistente de las preguntas utilizadas
+#      en cada evaluación.
+#
+# VALIDACIÓN:
+#
+#   A) APROBAR BLOQUE
+#      Todas las preguntas de la evaluación quedan:
+#      APROBADA
+#
+#   B) VALIDAR INDIVIDUALMENTE
+#      Cada pregunta puede quedar:
+#
+#          APROBADA
+#          RECHAZADA
+#          AÚN NO SE UTILIZA
+#
+# REGLA IMPORTANTE:
+#
+#   RECHAZADA:
+#       NO se reemplaza.
+#
+#   AÚN NO SE UTILIZA:
+#       NO se reemplaza.
+#
+#   Si una evaluación tiene 10 preguntas y:
+#
+#       1 rechazada       -> quedan 9
+#       2 rechazadas      -> quedan 8
+#       1 no utilizada    -> quedan 9
+#
+#   NO se buscan preguntas nuevas para completar nuevamente
+#   las 10.
+#
+# TRAZABILIDAD:
+#
+#   Nunca se cambia el Pregunta_ID original.
+#   Nunca se modifica BANCO_PREGUNTAS_GENERALES.xlsx.
+#
+# ============================================================
+
+
+import io
+import json
+import base64
+import urllib.request
+import urllib.error
+
+import pandas as pd
+import streamlit as st
+
+
+# ============================================================
+# CONFIGURACIÓN GITHUB
+# ============================================================
+
+GITHUB_USUARIO_104 = "franquiciasauces"
+GITHUB_REPOSITORIO_104 = "Asesores"
+GITHUB_RAMA_104 = "main"
+
+# ------------------------------------------------------------
+# ARCHIVOS PERSISTENTES
+# ------------------------------------------------------------
+
+ARCHIVO_EVALUACIONES_104 = "page/EVALUACIONES.csv"
+
+ARCHIVO_PREGUNTAS_EVALUACIONES_104 = (
+    "page/PREGUNTAS_EVALUACIONES.csv"
+)
+
+
+# ============================================================
+# TOKEN
+# ============================================================
+
+try:
+
+    GITHUB_TOKEN_104 = st.secrets["GITHUB_TOKEN"]
+
+except Exception:
+
+    GITHUB_TOKEN_104 = ""
+
+
+# ============================================================
+# FUNCIONES GITHUB
+# ============================================================
+
+def github_headers_104():
+
+    return {
+        "Authorization": (
+            f"Bearer {GITHUB_TOKEN_104}"
+            if GITHUB_TOKEN_104
+            else ""
+        ),
+        "Accept": "application/vnd.github+json"
+    }
+
+
+# ============================================================
+# LEER ARCHIVO CSV DESDE GITHUB
+# ============================================================
+
+def leer_csv_github_104(
+    ruta_archivo_104
+):
+
+    if not GITHUB_TOKEN_104:
+
+        st.error(
+            "10.4 ERROR: no está configurado "
+            "GITHUB_TOKEN."
+        )
+
+        return None, None
+
+
+    url_104 = (
+        "https://api.github.com/repos/"
+        + GITHUB_USUARIO_104
+        + "/"
+        + GITHUB_REPOSITORIO_104
+        + "/contents/"
+        + ruta_archivo_104
+        + "?ref="
+        + GITHUB_RAMA_104
+    )
+
+
+    try:
+
+        solicitud_104 = urllib.request.Request(
+            url_104,
+            headers=github_headers_104(),
+            method="GET"
+        )
+
+
+        with urllib.request.urlopen(
+            solicitud_104,
+            timeout=30
+        ) as respuesta_104:
+
+            datos_104 = json.loads(
+                respuesta_104.read().decode(
+                    "utf-8"
+                )
+            )
+
+
+        if "content" not in datos_104:
+
+            return None, None
+
+
+        contenido_104 = base64.b64decode(
+            datos_104["content"].replace(
+                "\n",
+                ""
+            )
+        )
+
+
+        df_104 = pd.read_csv(
+            io.BytesIO(
+                contenido_104
+            ),
+            dtype=str,
+            keep_default_na=False
+        )
+
+
+        sha_104 = datos_104.get(
+            "sha",
+            ""
+        )
+
+
+        return (
+            df_104,
+            sha_104
+        )
+
+
+    except urllib.error.HTTPError as error_104:
+
+        if error_104.code == 404:
+
+            return None, None
+
+        st.error(
+            f"10.4 ERROR leyendo "
+            f"{ruta_archivo_104}: "
+            f"HTTP {error_104.code}"
+        )
+
+        return None, None
+
+
+    except Exception as error_104:
+
+        st.error(
+            f"10.4 ERROR leyendo "
+            f"{ruta_archivo_104}."
+        )
+
+        st.exception(
+            error_104
+        )
+
+        return None, None
+
+
+# ============================================================
+# GUARDAR CSV EN GITHUB
+# ============================================================
+
+def guardar_csv_github_104(
+    df_104,
+    ruta_archivo_104,
+    sha_104,
+    mensaje_104
+):
+
+    if not GITHUB_TOKEN_104:
+
+        st.error(
+            "10.4 ERROR: no está configurado "
+            "GITHUB_TOKEN."
+        )
+
+        return False
+
+
+    url_104 = (
+        "https://api.github.com/repos/"
+        + GITHUB_USUARIO_104
+        + "/"
+        + GITHUB_REPOSITORIO_104
+        + "/contents/"
+        + ruta_archivo_104
+    )
+
+
+    try:
+
+        csv_bytes_104 = (
+            df_104
+            .to_csv(
+                index=False,
+                encoding="utf-8-sig"
+            )
+            .encode(
+                "utf-8-sig"
+            )
+        )
+
+
+        contenido_base64_104 = (
+            base64.b64encode(
+                csv_bytes_104
+            )
+            .decode(
+                "utf-8"
+            )
+        )
+
+
+        datos_guardado_104 = {
+
+            "message": mensaje_104,
+
+            "content": contenido_base64_104,
+
+            "branch": GITHUB_RAMA_104
+        }
+
+
+        if sha_104:
+
+            datos_guardado_104[
+                "sha"
+            ] = sha_104
+
+
+        solicitud_104 = urllib.request.Request(
+
+            url_104,
+
+            data=json.dumps(
+                datos_guardado_104
+            ).encode(
+                "utf-8"
+            ),
+
+            headers={
+                **github_headers_104(),
+                "Content-Type":
+                    "application/json"
+            },
+
+            method="PUT"
+        )
+
+
+        with urllib.request.urlopen(
+            solicitud_104,
+            timeout=30
+        ) as respuesta_104:
+
+            resultado_104 = json.loads(
+                respuesta_104.read().decode(
+                    "utf-8"
+                )
+            )
+
+
+        return bool(
+            resultado_104.get(
+                "content"
+            )
+        )
+
+
+    except urllib.error.HTTPError as error_104:
+
+        detalle_104 = ""
+
+        try:
+
+            detalle_104 = (
+                error_104.read()
+                .decode(
+                    "utf-8"
+                )
+            )
+
+        except Exception:
+
+            pass
+
+
+        st.error(
+            "10.4 ERROR guardando "
+            f"{ruta_archivo_104}."
+        )
+
+        if detalle_104:
+
+            st.code(
+                detalle_104
+            )
+
+        return False
+
+
+    except Exception as error_104:
+
+        st.error(
+            f"10.4 ERROR guardando "
+            f"{ruta_archivo_104}."
+        )
+
+        st.exception(
+            error_104
+        )
+
+        return False
+
+
+# ============================================================
+# NORMALIZAR TEXTO
+# ============================================================
+
+def texto_104(valor_104):
+
+    if pd.isna(
+        valor_104
+    ):
+
+        return ""
+
+    return (
+        str(
+            valor_104
+        )
+        .strip()
+    )
+
+
+# ============================================================
+# BUSCAR COLUMNA EXISTENTE
+#
+# Permite trabajar con el archivo generado aunque alguna
+# columna tenga una variación menor de escritura.
+# ============================================================
+
+def buscar_columna_104(
+    df_104,
+    opciones_104
+):
+
+    columnas_104 = {
+        texto_104(col).lower():
+        col
+        for col in df_104.columns
+    }
+
+
+    for opcion_104 in opciones_104:
+
+        clave_104 = (
+            opcion_104
+            .lower()
+            .strip()
+        )
+
+
+        if clave_104 in columnas_104:
+
+            return columnas_104[
+                clave_104
+            ]
+
+
+    return None
+
+
+# ============================================================
+# IDENTIFICAR COLUMNAS DE PREGUNTAS
+# ============================================================
+
+def identificar_columnas_preguntas_104(
+    df_104
+):
+
+    columnas_104 = {}
+
+
+    columnas_104[
+        "Pregunta_ID"
+    ] = buscar_columna_104(
+        df_104,
+        [
+            "Pregunta_ID",
+            "Pregunta ID",
+            "Codigo_Pregunta",
+            "Código_Pregunta",
+            "PreguntaID"
+        ]
+    )
+
+
+    columnas_104[
+        "Evaluacion_ID"
+    ] = buscar_columna_104(
+        df_104,
+        [
+            "Evaluacion_ID",
+            "Evaluación_ID",
+            "Evaluacion ID",
+            "Evaluación ID",
+            "Codigo_Evaluacion",
+            "Código_Evaluacion"
+        ]
+    )
+
+
+    columnas_104[
+        "Estado"
+    ] = buscar_columna_104(
+        df_104,
+        [
+            "Estado",
+            "Estado_Validacion",
+            "Estado_Validación"
+        ]
+    )
+
+
+    return columnas_104
+
+
+# ============================================================
+# VALIDAR ESTRUCTURA
+# ============================================================
+
+def validar_estructura_preguntas_104(
+    df_104
+):
+
+    if df_104 is None:
+
+        return False
+
+
+    if df_104.empty:
+
+        st.warning(
+            "No hay preguntas registradas "
+            "en PREGUNTAS_EVALUACIONES.csv."
+        )
+
+        return False
+
+
+    columnas_104 = (
+        identificar_columnas_preguntas_104(
+            df_104
+        )
+    )
+
+
+    faltantes_104 = [
+        nombre_104
+        for nombre_104,
+        columna_104
+        in columnas_104.items()
+        if columna_104 is None
+    ]
+
+
+    if faltantes_104:
+
+        st.error(
+            "10.4 ERROR: "
+            "PREGUNTAS_EVALUACIONES.csv "
+            "no contiene las columnas necesarias: "
+            + ", ".join(
+                faltantes_104
+            )
+        )
+
+        st.info(
+            "El archivo debe conservar la estructura "
+            "generada por el generador de evaluaciones."
+        )
+
+        return False
+
+
+    return True
+
+
+# ============================================================
+# CARGAR FUENTES DE 10.4
+# ============================================================
+
+def cargar_fuentes_104():
+
+    df_evaluaciones_104, sha_evaluaciones_104 = (
+        leer_csv_github_104(
+            ARCHIVO_EVALUACIONES_104
+        )
+    )
+
+
+    df_preguntas_104, sha_preguntas_104 = (
+        leer_csv_github_104(
+            ARCHIVO_PREGUNTAS_EVALUACIONES_104
+        )
+    )
+
+
+    if df_evaluaciones_104 is None:
+
+        st.warning(
+            "No se encontró todavía "
+            "EVALUACIONES.csv en /page/."
+        )
+
+
+    if df_preguntas_104 is None:
+
+        st.warning(
+            "No se encontró todavía "
+            "PREGUNTAS_EVALUACIONES.csv en /page/."
+        )
+
+
+    return (
+        df_evaluaciones_104,
+        sha_evaluaciones_104,
+        df_preguntas_104,
+        sha_preguntas_104
+    )
+
+
+# ============================================================
+# INTERFAZ
+# ============================================================
+
+st.markdown(
+    "## 10.4 - Validación de evaluaciones"
+)
+
+
+st.info(
+    "Este módulo valida las evaluaciones generadas. "
+    "No modifica BANCO_PREGUNTAS_GENERALES.xlsx."
+)
+
+
+# ============================================================
+# CARGAR EVALUACIONES Y PREGUNTAS
+# ============================================================
+
+if st.button(
+    "CARGAR EVALUACIONES PARA VALIDAR",
+    key="cargar_fuentes_104"
+):
+
+    resultado_fuentes_104 = (
+        cargar_fuentes_104()
+    )
+
+
+    (
+        df_evaluaciones_cargadas_104,
+        sha_evaluaciones_cargadas_104,
+        df_preguntas_cargadas_104,
+        sha_preguntas_cargadas_104
+    ) = resultado_fuentes_104
+
+
+    if (
+        df_evaluaciones_cargadas_104
+        is not None
+    ):
+
+        st.session_state[
+            "df_evaluaciones_104"
+        ] = (
+            df_evaluaciones_cargadas_104
+            .copy()
+        )
+
+
+        st.session_state[
+            "sha_evaluaciones_104"
+        ] = (
+            sha_evaluaciones_cargadas_104
+        )
+
+
+    if (
+        df_preguntas_cargadas_104
+        is not None
+    ):
+
+        st.session_state[
+            "df_preguntas_evaluaciones_104"
+        ] = (
+            df_preguntas_cargadas_104
+            .copy()
+        )
+
+
+        st.session_state[
+            "sha_preguntas_evaluaciones_104"
+        ] = (
+            sha_preguntas_cargadas_104
+        )
+
+
+    if (
+        df_preguntas_cargadas_104
+        is not None
+        and
+        validar_estructura_preguntas_104(
+            df_preguntas_cargadas_104
+        )
+    ):
+
+        st.session_state[
+            "fuentes_104_cargadas"
+        ] = True
+
+
+        st.success(
+            "Fuentes de validación cargadas "
+            "correctamente desde /page/."
+        )
+
+
+# ============================================================
+# RECUPERAR DATOS
+# ============================================================
+
+df_evaluaciones_104 = st.session_state.get(
+
+    "df_evaluaciones_104",
+
+    pd.DataFrame()
+)
+
+
+df_preguntas_evaluaciones_104 = (
+    st.session_state.get(
+        "df_preguntas_evaluaciones_104",
+        pd.DataFrame()
+    )
+)
+
+
+# ============================================================
+# CONTINUAR SI EXISTEN PREGUNTAS
+# ============================================================
+
+if (
+    not df_preguntas_evaluaciones_104.empty
+):
+
+
+    columnas_preguntas_104 = (
+        identificar_columnas_preguntas_104(
+            df_preguntas_evaluaciones_104
+        )
+    )
+
+
+    col_id_pregunta_104 = (
+        columnas_preguntas_104[
+            "Pregunta_ID"
+        ]
+    )
+
+
+    col_id_evaluacion_104 = (
+        columnas_preguntas_104[
+            "Evaluacion_ID"
+        ]
+    )
+
+
+    col_estado_104 = (
+        columnas_preguntas_104[
+            "Estado"
+        ]
+    )
+
+
+    # ========================================================
+    # NORMALIZAR IDS
+    # ========================================================
+
+    df_preguntas_evaluaciones_104[
+        col_id_pregunta_104
+    ] = (
+        df_preguntas_evaluaciones_104[
+            col_id_pregunta_104
+        ]
+        .astype(str)
+        .str.strip()
+    )
+
+
+    df_preguntas_evaluaciones_104[
+        col_id_evaluacion_104
+    ] = (
+        df_preguntas_evaluaciones_104[
+            col_id_evaluacion_104
+        ]
+        .astype(str)
+        .str.strip()
+    )
+
+
+    # ========================================================
+    # ESTADO DE VALIDACIÓN
+    # ========================================================
+
+    df_preguntas_evaluaciones_104[
+        col_estado_104
+    ] = (
+        df_preguntas_evaluaciones_104[
+            col_estado_104
+        ]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+
+    # ========================================================
+    # ESTADOS PERMITIDOS
+    # ========================================================
+
+    estados_permitidos_104 = [
+
+        "APROBADA",
+
+        "RECHAZADA",
+
+        "AÚN NO SE UTILIZA"
+
+    ]
+
+
+    # ========================================================
+    # RESUMEN
+    # ========================================================
+
+    st.markdown(
+        "### Control de preguntas"
+    )
+
+
+    total_preguntas_104 = (
+        len(
+            df_preguntas_evaluaciones_104
+        )
+    )
+
+
+    aprobadas_104 = int(
+        (
+            df_preguntas_evaluaciones_104[
+                col_estado_104
+            ]
+            .str.upper()
+            == "APROBADA"
+        )
+        .sum()
+    )
+
+
+    rechazadas_104 = int(
+        (
+            df_preguntas_evaluaciones_104[
+                col_estado_104
+            ]
+            .str.upper()
+            == "RECHAZADA"
+        )
+        .sum()
+    )
+
+
+    no_utilizadas_104 = int(
+        (
+            df_preguntas_evaluaciones_104[
+                col_estado_104
+            ]
+            .str.upper()
+            .isin(
+                [
+                    "AÚN NO SE UTILIZA",
+                    "AUN NO SE UTILIZA"
+                ]
+            )
+        )
+        .sum()
+    )
+
+
+    pendientes_104 = (
+        total_preguntas_104
+        - aprobadas_104
+        - rechazadas_104
+        - no_utilizadas_104
+    )
+
+
+    col1_104, col2_104, col3_104, col4_104, col5_104 = (
+        st.columns(5)
+    )
+
+
+    with col1_104:
+
+        st.metric(
+            "Preguntas",
+            total_preguntas_104
+        )
+
+
+    with col2_104:
+
+        st.metric(
+            "Aprobadas",
+            aprobadas_104
+        )
+
+
+    with col3_104:
+
+        st.metric(
+            "Rechazadas",
+            rechazadas_104
+        )
+
+
+    with col4_104:
+
+        st.metric(
+            "Aún no se utilizan",
+            no_utilizadas_104
+        )
+
+
+    with col5_104:
+
+        st.metric(
+            "Pendientes",
+            pendientes_104
+        )
+
+
+    # ========================================================
+    # EVALUACIONES DISPONIBLES
+    # ========================================================
+
+    evaluaciones_ids_104 = sorted(
+
+        [
+            valor
+            for valor in
+            df_preguntas_evaluaciones_104[
+                col_id_evaluacion_104
+            ]
+            .unique()
+            if texto_104(
+                valor
+            )
+        ]
+
+    )
+
+
+    if not evaluaciones_ids_104:
+
+        st.warning(
+            "No existen evaluaciones generadas "
+            "para validar."
+        )
+
+
+    else:
+
+        # ====================================================
+        # SELECCIONAR EVALUACIÓN
+        # ====================================================
+
+        st.markdown(
+            "### Seleccionar evaluación"
+        )
+
+
+        evaluacion_seleccionada_104 = (
+            st.selectbox(
+                "Evaluación",
+                evaluaciones_ids_104,
+                key="evaluacion_seleccionada_104"
+            )
+        )
+
+
+        # ====================================================
+        # FILTRAR PREGUNTAS DE LA EVALUACIÓN
+        # ====================================================
+
+        df_evaluacion_104 = (
+            df_preguntas_evaluaciones_104[
+                df_preguntas_evaluaciones_104[
+                    col_id_evaluacion_104
+                ]
+                == str(
+                    evaluacion_seleccionada_104
+                )
+            ]
+            .copy()
+        )
+
+
+        if df_evaluacion_104.empty:
+
+            st.warning(
+                "La evaluación seleccionada "
+                "no tiene preguntas registradas."
+            )
+
+
+        else:
+
+            # =================================================
+            # RESUMEN DE LA EVALUACIÓN
+            # =================================================
+
+            total_eval_104 = (
+                len(
+                    df_evaluacion_104
+                )
+            )
+
+
+            aprobadas_eval_104 = int(
+                (
+                    df_evaluacion_104[
+                        col_estado_104
+                    ]
+                    .str.upper()
+                    == "APROBADA"
+                )
+                .sum()
+            )
+
+
+            rechazadas_eval_104 = int(
+                (
+                    df_evaluacion_104[
+                        col_estado_104
+                    ]
+                    .str.upper()
+                    == "RECHAZADA"
+                )
+                .sum()
+            )
+
+
+            no_utilizadas_eval_104 = int(
+                (
+                    df_evaluacion_104[
+                        col_estado_104
+                    ]
+                    .str.upper()
+                    .isin(
+                        [
+                            "AÚN NO SE UTILIZA",
+                            "AUN NO SE UTILIZA"
+                        ]
+                    )
+                )
+                .sum()
+            )
+
+
+            st.markdown(
+                "### Estado de la evaluación"
+            )
+
+
+            col1_104, col2_104, col3_104, col4_104 = (
+                st.columns(4)
+            )
+
+
+            with col1_104:
+
+                st.metric(
+                    "Preguntas del bloque",
+                    total_eval_104
+                )
+
+
+            with col2_104:
+
+                st.metric(
+                    "Aprobadas",
+                    aprobadas_eval_104
+                )
+
+
+            with col3_104:
+
+                st.metric(
+                    "Rechazadas",
+                    rechazadas_eval_104
+                )
+
+
+            with col4_104:
+
+                st.metric(
+                    "Aún no se utilizan",
+                    no_utilizadas_eval_104
+                )
+
+
+            # =================================================
+            # ADVERTENCIA
+            # =================================================
+
+            if (
+                rechazadas_eval_104 > 0
+                or
+                no_utilizadas_eval_104 > 0
+            ):
+
+                st.warning(
+                    "Las preguntas rechazadas o marcadas "
+                    "como 'AÚN NO SE UTILIZA' NO serán "
+                    "reemplazadas automáticamente. "
+                    "La evaluación conservará solamente "
+                    "las preguntas que permanezcan válidas."
+                )
+
+
+            # =================================================
+            # OPCIONES DE VALIDACIÓN
+            # =================================================
+
+            st.markdown(
+                "### Validación"
+            )
+
+
+            st.write(
+                "Puede aprobar toda la evaluación como "
+                "un bloque o revisar cada pregunta "
+                "individualmente."
+            )
+
+
+            # =================================================
+            # APROBAR BLOQUE
+            # =================================================
+
+            st.markdown(
+                "#### Opción 1 — Aprobar bloque completo"
+            )
+
+
+            if st.button(
+                "APROBAR BLOQUE COMPLETO",
+                key="aprobar_bloque_104"
+            ):
+
+                df_actualizado_104 = (
+                    st.session_state[
+                        "df_preguntas_evaluaciones_104"
+                    ]
+                    .copy()
+                )
+
+
+                mascara_104 = (
+                    df_actualizado_104[
+                        col_id_evaluacion_104
+                    ]
+                    == str(
+                        evaluacion_seleccionada_104
+                    )
+                )
+
+
+                df_actualizado_104.loc[
+                    mascara_104,
+                    col_estado_104
+                ] = "APROBADA"
+
+
+                sha_preguntas_104 = (
+                    st.session_state.get(
+                        "sha_preguntas_evaluaciones_104",
+                        ""
+                    )
+                )
+
+
+                guardado_104 = (
+                    guardar_csv_github_104(
+
+                        df_actualizado_104,
+
+                        ARCHIVO_PREGUNTAS_EVALUACIONES_104,
+
+                        sha_preguntas_104,
+
+                        (
+                            "10.4 - "
+                            "Aprobación de bloque "
+                            f"{evaluacion_seleccionada_104}"
+                        )
+                    )
+                )
+
+
+                if guardado_104:
+
+                    st.session_state[
+                        "df_preguntas_evaluaciones_104"
+                    ] = (
+                        df_actualizado_104
+                        .copy()
+                    )
+
+
+                    # ----------------------------------------
+                    # RECARGAR SHA
+                    # ----------------------------------------
+
+                    (
+                        _,
+                        nuevo_sha_104
+                    ) = leer_csv_github_104(
+                        ARCHIVO_PREGUNTAS_EVALUACIONES_104
+                    )
+
+
+                    st.session_state[
+                        "sha_preguntas_evaluaciones_104"
+                    ] = (
+                        nuevo_sha_104
+                    )
+
+
+                    st.success(
+                        "Bloque aprobado correctamente. "
+                        "No se modificó el banco general."
+                    )
+
+
+                    st.rerun()
+
+
+            # =================================================
+            # VALIDACIÓN INDIVIDUAL
+            # =================================================
+
+            st.markdown(
+                "#### Opción 2 — Validar individualmente"
+            )
+
+
+            st.caption(
+                "Cada pregunta puede quedar como "
+                "APROBADA, RECHAZADA o "
+                "AÚN NO SE UTILIZA."
+            )
+
+
+            # =================================================
+            # CREAR FORMULARIO INDIVIDUAL
+            # =================================================
+
+            cambios_104 = {}
+
+
+            for indice_104, (
+                indice_original_104,
+                fila_104
+            ) in enumerate(
+                df_evaluacion_104.iterrows()
+            ):
+
+                pregunta_id_104 = texto_104(
+                    fila_104[
+                        col_id_pregunta_104
+                    ]
+                )
+
+
+                estado_actual_104 = texto_104(
+                    fila_104[
+                        col_estado_104
+                    ]
+                )
+
+
+                # --------------------------------------------
+                # BUSCAR TEXTO DE PREGUNTA
+                # --------------------------------------------
+
+                col_pregunta_texto_104 = (
+                    buscar_columna_104(
+                        df_evaluacion_104,
+                        [
+                            "Pregunta",
+                            "Texto_Pregunta",
+                            "Pregunta_Texto"
+                        ]
+                    )
+                )
+
+
+                if (
+                    col_pregunta_texto_104
+                    is not None
+                ):
+
+                    pregunta_texto_104 = (
+                        texto_104(
+                            fila_104[
+                                col_pregunta_texto_104
+                            ]
+                        )
+                    )
+
+                else:
+
+                    pregunta_texto_104 = ""
+
+
+                # --------------------------------------------
+                # MOSTRAR PREGUNTA
+                # --------------------------------------------
+
+                st.markdown(
+                    f"**Pregunta {indice_104 + 1}**"
+                )
+
+
+                st.caption(
+                    f"Código: {pregunta_id_104}"
+                )
+
+
+                if pregunta_texto_104:
+
+                    st.write(
+                        pregunta_texto_104
+                    )
+
+
+                # --------------------------------------------
+                # OPCIONES
+                # --------------------------------------------
+
+                opciones_estado_104 = [
+
+                    "APROBADA",
+
+                    "RECHAZADA",
+
+                    "AÚN NO SE UTILIZA"
+
+                ]
+
+
+                estado_normalizado_104 = (
+                    estado_actual_104
+                    .upper()
+                )
+
+
+                if (
+                    estado_normalizado_104
+                    == "AUN NO SE UTILIZA"
+                ):
+
+                    estado_normalizado_104 = (
+                        "AÚN NO SE UTILIZA"
+                    )
+
+
+                if (
+                    estado_normalizado_104
+                    not in opciones_estado_104
+                ):
+
+                    estado_normalizado_104 = (
+                        "AÚN NO SE UTILIZA"
+                    )
+
+
+                estado_seleccionado_104 = (
+                    st.radio(
+
+                        "Estado",
+
+                        opciones_estado_104,
+
+                        index=
+                        opciones_estado_104.index(
+                            estado_normalizado_104
+                        ),
+
+                        key=(
+                            "estado_104_"
+                            + str(
+                                evaluacion_seleccionada_104
+                            )
+                            + "_"
+                            + str(
+                                pregunta_id_104
+                            )
+                        ),
+
+                        horizontal=True
+                    )
+                )
+
+
+                cambios_104[
+                    indice_original_104
+                ] = estado_seleccionado_104
+
+
+                st.divider()
+
+
+            # =================================================
+            # GUARDAR VALIDACIÓN INDIVIDUAL
+            # =================================================
+
+            if st.button(
+                "GUARDAR VALIDACIÓN INDIVIDUAL",
+                key="guardar_validacion_individual_104"
+            ):
+
+                df_actualizado_104 = (
+                    st.session_state[
+                        "df_preguntas_evaluaciones_104"
+                    ]
+                    .copy()
+                )
+
+
+                # --------------------------------------------
+                # APLICAR CAMBIOS
+                # --------------------------------------------
+
+                for (
+                    indice_original_104,
+                    estado_104
+                ) in cambios_104.items():
+
+                    df_actualizado_104.loc[
+                        indice_original_104,
+                        col_estado_104
+                    ] = estado_104
+
+
+                # --------------------------------------------
+                # GUARDAR EN /page/
+                # --------------------------------------------
+
+                sha_preguntas_104 = (
+                    st.session_state.get(
+                        "sha_preguntas_evaluaciones_104",
+                        ""
+                    )
+                )
+
+
+                guardado_104 = (
+                    guardar_csv_github_104(
+
+                        df_actualizado_104,
+
+                        ARCHIVO_PREGUNTAS_EVALUACIONES_104,
+
+                        sha_preguntas_104,
+
+                        (
+                            "10.4 - "
+                            "Validación individual "
+                            f"{evaluacion_seleccionada_104}"
+                        )
+                    )
+                )
+
+
+                if guardado_104:
+
+                    st.session_state[
+                        "df_preguntas_evaluaciones_104"
+                    ] = (
+                        df_actualizado_104
+                        .copy()
+                    )
+
+
+                    (
+                        _,
+                        nuevo_sha_104
+                    ) = leer_csv_github_104(
+                        ARCHIVO_PREGUNTAS_EVALUACIONES_104
+                    )
+
+
+                    st.session_state[
+                        "sha_preguntas_evaluaciones_104"
+                    ] = (
+                        nuevo_sha_104
+                    )
+
+
+                    st.success(
+                        "Validación individual guardada "
+                        "correctamente."
+                    )
+
+
+                    st.rerun()
+
+
+            # =================================================
+            # RESULTADO FINAL DEL BLOQUE
+            # =================================================
+
+            df_resultado_eval_104 = (
+                st.session_state[
+                    "df_preguntas_evaluaciones_104"
+                ][
+                    st.session_state[
+                        "df_preguntas_evaluaciones_104"
+                    ][
+                        col_id_evaluacion_104
+                    ]
+                    ==
+                    str(
+                        evaluacion_seleccionada_104
+                    )
+                ]
+            )
+
+
+            total_final_104 = len(
+                df_resultado_eval_104
+            )
+
+
+            aprobadas_final_104 = int(
+                (
+                    df_resultado_eval_104[
+                        col_estado_104
+                    ]
+                    .str.upper()
+                    == "APROBADA"
+                )
+                .sum()
+            )
+
+
+            rechazadas_final_104 = int(
+                (
+                    df_resultado_eval_104[
+                        col_estado_104
+                    ]
+                    .str.upper()
+                    == "RECHAZADA"
+                )
+                .sum()
+            )
+
+
+            no_utilizadas_final_104 = int(
+                (
+                    df_resultado_eval_104[
+                        col_estado_104
+                    ]
+                    .str.upper()
+                    .isin(
+                        [
+                            "AÚN NO SE UTILIZA",
+                            "AUN NO SE UTILIZA"
+                        ]
+                    )
+                )
+                .sum()
+            )
+
+
+            st.markdown(
+                "### Estado resultante"
+            )
+
+
+            st.info(
+                f"La evaluación contiene "
+                f"{total_final_104} preguntas registradas. "
+                f"Actualmente: "
+                f"{aprobadas_final_104} aprobadas, "
+                f"{rechazadas_final_104} rechazadas y "
+                f"{no_utilizadas_final_104} marcadas como "
+                "'AÚN NO SE UTILIZA'."
+            )
+
+
+else:
+
+    st.info(
+        "Cargue las evaluaciones desde /page/ "
+        "para comenzar la validación."
+    )
