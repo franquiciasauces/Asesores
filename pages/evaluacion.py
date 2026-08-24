@@ -24420,7 +24420,7 @@ def siguiente_codigo_evaluacion_104(
 
 
 # ============================================================
-# OBTENER PREGUNTAS QUE ESTÁN REALMENTE CONSUMIDAS
+# 10.4 OBTENER PREGUNTAS QUE ESTÁN REALMENTE CONSUMIDAS
 #
 # APROBADA:
 #   consumida.
@@ -25819,5 +25819,676 @@ if evaluaciones_104:
 # FIN 10.4
 # ============================================================
 
+# ============================================================
+# 10.5 - SINCRONIZACIÓN DE EVALUACIONES VALIDADAS
+# ============================================================
+#
+# OBJETIVO:
+#
+#   Tomar las evaluaciones generadas y VALIDADA en 10.4
+#   y persistirlas individualmente en:
+#
+#       Asesores/page/
+#
+#   Cada evaluación conserva su propio Evaluacion_ID.
+#
+# EJEMPLOS:
+#
+#   EVAL-PAT-CAU-N1-0001
+#   EVAL-PAT-CAU-N2-0001
+#   EVAL-PAT-CAU-N1-0002
+#
+#   Cada una corresponde a un archivo diferente.
+#
+# NO MODIFICA:
+#
+#   - BANCO_PREGUNTAS_GENERALES.xlsx
+#   - MATRIZ_PRODUCTO_PATOLOGIAS_PAQUETES.xlsx
+#   - USUARIOS.xlsx
+#   - producto_accionesgenerales.csv
+#   - COMPONENTES_Y_ACCIONES.csv
+#
+# ============================================================
 
+
+# ============================================================
+# 10.5.1 - CONFIGURACIÓN GITHUB
+# ============================================================
+
+GITHUB_USUARIO_105 = "franquiciasauces"
+
+GITHUB_REPOSITORIO_105 = "Asesores"
+
+GITHUB_RAMA_105 = "main"
+
+
+# ============================================================
+# 10.5.2 - CARPETA DE DESTINO
+# ============================================================
+#
+# IMPORTANTE:
+#
+# Las evaluaciones se almacenan dentro de:
+#
+#     Asesores/page/
+#
+# "page/" NO corresponde al repositorio principal
+# como carpeta de archivos maestros.
+#
+# Aquí se almacenan las evaluaciones individuales.
+#
+# ============================================================
+
+GITHUB_CARPETA_105 = "page"
+
+
+# ============================================================
+# 10.5.3 - OBTENER EVALUACIONES DE 10.4
+# ============================================================
+
+def obtener_evaluaciones_105():
+
+    evaluaciones = st.session_state.get(
+        "evaluaciones_preparadas_104",
+        []
+    )
+
+    if not isinstance(
+        evaluaciones,
+        list
+    ):
+
+        return []
+
+    return evaluaciones
+
+
+# ============================================================
+# 10.5.4 - OBTENER EVALUACIONES VALIDADAS
+# ============================================================
+
+def obtener_evaluaciones_validadas_105():
+
+    evaluaciones = obtener_evaluaciones_105()
+
+    validadas = []
+
+    for evaluacion in evaluaciones:
+
+        if not isinstance(
+            evaluacion,
+            dict
+        ):
+
+            continue
+
+        estado = str(
+            evaluacion.get(
+                "Estado",
+                ""
+            )
+        ).strip().upper()
+
+        if estado == "VALIDADA":
+
+            validadas.append(
+                evaluacion
+            )
+
+    return validadas
+
+
+# ============================================================
+# 10.5.5 - VALIDAR ESTRUCTURA DE UNA EVALUACIÓN
+# ============================================================
+
+def validar_evaluacion_105(
+    evaluacion
+):
+
+    if not isinstance(
+        evaluacion,
+        dict
+    ):
+
+        return False, (
+            "La evaluación no tiene "
+            "un formato válido."
+        )
+
+    evaluacion_id = str(
+        evaluacion.get(
+            "Evaluacion_ID",
+            ""
+        )
+    ).strip()
+
+    if not evaluacion_id:
+
+        return False, (
+            "La evaluación no tiene "
+            "Evaluacion_ID."
+        )
+
+    estado = str(
+        evaluacion.get(
+            "Estado",
+            ""
+        )
+    ).strip().upper()
+
+    if estado != "VALIDADA":
+
+        return False, (
+            f"La evaluación "
+            f"{evaluacion_id} no está VALIDADA."
+        )
+
+    preguntas = evaluacion.get(
+        "Preguntas",
+        []
+    )
+
+    if not isinstance(
+        preguntas,
+        list
+    ):
+
+        return False, (
+            f"{evaluacion_id}: "
+            "el campo Preguntas no es válido."
+        )
+
+    if len(preguntas) == 0:
+
+        return False, (
+            f"{evaluacion_id}: "
+            "la evaluación no contiene preguntas."
+        )
+
+    pendientes = []
+
+    for pregunta in preguntas:
+
+        estado_pregunta = str(
+            pregunta.get(
+                "Estado_Evaluacion",
+                ""
+            )
+        ).strip().upper()
+
+        if estado_pregunta != "APROBADA":
+
+            pendientes.append(
+                pregunta.get(
+                    "Pregunta_ID",
+                    ""
+                )
+            )
+
+    if pendientes:
+
+        return False, (
+            f"{evaluacion_id}: "
+            "existen preguntas que todavía "
+            "no están APROBADAS."
+        )
+
+    return True, ""
+
+
+# ============================================================
+# 10.5.6 - CONSTRUIR RUTA DEL ARCHIVO
+# ============================================================
+
+def ruta_evaluacion_105(
+    evaluacion_id
+):
+
+    evaluacion_id = str(
+        evaluacion_id
+    ).strip()
+
+    return (
+        f"{GITHUB_CARPETA_105}/"
+        f"{evaluacion_id}.json"
+    )
+
+
+# ============================================================
+# 10.5.7 - CONSTRUIR URL DE GITHUB
+# ============================================================
+
+def url_evaluacion_105(
+    ruta_archivo
+):
+
+    return (
+        "https://api.github.com/repos/"
+        f"{GITHUB_USUARIO_105}/"
+        f"{GITHUB_REPOSITORIO_105}/"
+        f"contents/"
+        f"{ruta_archivo}"
+    )
+
+
+# ============================================================
+# 10.5.8 - CONVERTIR EVALUACIÓN A JSON
+# ============================================================
+
+def serializar_evaluacion_105(
+    evaluacion
+):
+
+    return json.dumps(
+        evaluacion,
+        ensure_ascii=False,
+        indent=2
+    ).encode(
+        "utf-8"
+    )
+
+
+# ============================================================
+# 10.5.9 - OBTENER ARCHIVO EXISTENTE EN GITHUB
+# ============================================================
+
+def obtener_archivo_github_105(
+    url,
+    headers
+):
+
+    solicitud = urllib.request.Request(
+        url,
+        headers=headers,
+        method="GET"
+    )
+
+    try:
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            datos = json.loads(
+                respuesta.read().decode(
+                    "utf-8"
+                )
+            )
+
+        return datos
+
+    except urllib.error.HTTPError as error:
+
+        if error.code == 404:
+
+            return None
+
+        raise
+
+
+# ============================================================
+# 10.5.10 - SINCRONIZAR UNA EVALUACIÓN
+# ============================================================
+
+def sincronizar_evaluacion_105(
+    evaluacion
+):
+
+    # --------------------------------------------------------
+    # VALIDAR ESTRUCTURA
+    # --------------------------------------------------------
+
+    valida, mensaje = validar_evaluacion_105(
+        evaluacion
+    )
+
+    if not valida:
+
+        st.error(
+            f"10.5 ERROR: {mensaje}"
+        )
+
+        return False
+
+
+    # --------------------------------------------------------
+    # ID DE LA EVALUACIÓN
+    # --------------------------------------------------------
+
+    evaluacion_id = str(
+        evaluacion[
+            "Evaluacion_ID"
+        ]
+    ).strip()
+
+
+    # --------------------------------------------------------
+    # RUTA DESTINO
+    # --------------------------------------------------------
+
+    ruta_archivo = ruta_evaluacion_105(
+        evaluacion_id
+    )
+
+    url_github = url_evaluacion_105(
+        ruta_archivo
+    )
+
+
+    # --------------------------------------------------------
+    # HEADERS
+    # --------------------------------------------------------
+
+    headers = {
+
+        "Authorization":
+            f"Bearer {GITHUB_TOKEN}",
+
+        "Accept":
+            "application/vnd.github+json"
+    }
+
+
+    # --------------------------------------------------------
+    # SERIALIZAR
+    # --------------------------------------------------------
+
+    contenido_bytes = (
+        serializar_evaluacion_105(
+            evaluacion
+        )
+    )
+
+    contenido_base64 = (
+        base64.b64encode(
+            contenido_bytes
+        )
+        .decode("utf-8")
+    )
+
+
+    # --------------------------------------------------------
+    # VERIFICAR SI YA EXISTE
+    # --------------------------------------------------------
+
+    datos_existentes = (
+        obtener_archivo_github_105(
+            url_github,
+            headers
+        )
+    )
+
+
+    sha = None
+
+    if datos_existentes:
+
+        sha = datos_existentes.get(
+            "sha"
+        )
+
+
+    # --------------------------------------------------------
+    # PREPARAR ACTUALIZACIÓN
+    # --------------------------------------------------------
+
+    datos_actualizacion = {
+
+        "message":
+            (
+                "Sincronizar evaluación "
+                f"{evaluacion_id}"
+            ),
+
+        "content":
+            contenido_base64,
+
+        "branch":
+            GITHUB_RAMA_105
+    }
+
+
+    # --------------------------------------------------------
+    # SI EXISTE, ACTUALIZAR CON SHA
+    # --------------------------------------------------------
+
+    if sha:
+
+        datos_actualizacion[
+            "sha"
+        ] = sha
+
+
+    # --------------------------------------------------------
+    # ENVIAR A GITHUB
+    # --------------------------------------------------------
+
+    cuerpo = json.dumps(
+        datos_actualizacion
+    ).encode(
+        "utf-8"
+    )
+
+    solicitud = urllib.request.Request(
+        url_github,
+        data=cuerpo,
+        headers={
+            **headers,
+            "Content-Type":
+                "application/json"
+        },
+        method="PUT"
+    )
+
+    try:
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            respuesta.read()
+
+    except urllib.error.HTTPError as error:
+
+        detalle = ""
+
+        try:
+
+            detalle = (
+                error.read()
+                .decode("utf-8")
+            )
+
+        except Exception:
+
+            detalle = str(error)
+
+        st.error(
+            "10.5 ERROR al sincronizar "
+            f"{evaluacion_id}."
+        )
+
+        st.code(
+            detalle
+        )
+
+        return False
+
+    except Exception as error:
+
+        st.error(
+            "10.5 ERROR inesperado al "
+            f"sincronizar {evaluacion_id}."
+        )
+
+        st.exception(
+            error
+        )
+
+        return False
+
+
+    # --------------------------------------------------------
+    # CONFIRMACIÓN
+    # --------------------------------------------------------
+
+    if sha:
+
+        st.success(
+            f"{evaluacion_id}: "
+            "evaluación actualizada "
+            "correctamente en GitHub."
+        )
+
+    else:
+
+        st.success(
+            f"{evaluacion_id}: "
+            "evaluación guardada "
+            "correctamente en GitHub."
+        )
+
+    st.info(
+        f"Destino: **{ruta_archivo}**"
+    )
+
+    return True
+
+
+# ============================================================
+# 10.5.11 - INTERFAZ DE SINCRONIZACIÓN
+# ============================================================
+
+st.markdown(
+    "## 10.5 - Sincronización de evaluaciones"
+)
+
+
+evaluaciones_105 = obtener_evaluaciones_105()
+
+validadas_105 = (
+    obtener_evaluaciones_validadas_105()
+)
+
+
+# ============================================================
+# NO HAY EVALUACIONES
+# ============================================================
+
+if not evaluaciones_105:
+
+    st.info(
+        "No existen evaluaciones preparadas "
+        "en 10.4."
+    )
+
+
+# ============================================================
+# HAY EVALUACIONES PERO NINGUNA VALIDADA
+# ============================================================
+
+elif not validadas_105:
+
+    st.warning(
+        "No hay evaluaciones VALIDADA "
+        "disponibles para sincronizar."
+    )
+
+    st.info(
+        f"Evaluaciones preparadas: "
+        f"**{len(evaluaciones_105):,}**"
+    )
+
+
+# ============================================================
+# MOSTRAR EVALUACIONES VALIDADAS
+# ============================================================
+
+else:
+
+    st.success(
+        f"Evaluaciones listas para "
+        f"sincronización: "
+        f"**{len(validadas_105):,}**"
+    )
+
+
+    for evaluacion_105 in validadas_105:
+
+        evaluacion_id_105 = str(
+            evaluacion_105.get(
+                "Evaluacion_ID",
+                ""
+            )
+        ).strip()
+
+        st.markdown(
+            f"### {evaluacion_id_105}"
+        )
+
+        col1_105, col2_105, col3_105 = (
+            st.columns(3)
+        )
+
+        with col1_105:
+
+            st.write(
+                "**Módulo:** "
+                + str(
+                    evaluacion_105.get(
+                        "Modulo",
+                        ""
+                    )
+                )
+            )
+
+        with col2_105:
+
+            st.write(
+                "**Relación:** "
+                + str(
+                    evaluacion_105.get(
+                        "Tipo_Relacion",
+                        ""
+                    )
+                )
+            )
+
+        with col3_105:
+
+            st.write(
+                "**Nivel:** "
+                + str(
+                    evaluacion_105.get(
+                        "Nivel",
+                        ""
+                    )
+                )
+            )
+
+        st.write(
+            f"**Preguntas:** "
+            f"{len(evaluacion_105.get('Preguntas', [])):,}"
+        )
+
+        st.write(
+            "**Estado:** VALIDADA"
+        )
+
+        if st.button(
+            f"SINCRONIZAR {evaluacion_id_105}",
+            key=(
+                f"sincronizar_105_"
+                f"{evaluacion_id_105}"
+            )
+        ):
+
+            sincronizar_evaluacion_105(
+                evaluacion_105
+            )
+
+        st.divider()
 
