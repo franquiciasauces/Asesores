@@ -23433,46 +23433,65 @@ if st.session_state.get(
 
 # ============================================================
 #
+
+
 # ============================================================
 # FITOASISTE
 # 10.2 - ANÁLISIS REAL DE DISPONIBILIDAD
 #
-# RESPONSABILIDAD DE 10.2
-# ------------------------------------------------------------
-# 10.1 YA CARGÓ:
+# FUENTES CARGADAS POR 10.1:
 #
-#   1. BANCO_PREGUNTAS_GENERALES.xlsx
-#   2. PREGUNTAS_EVALUACIONES.csv
-#   3. EVALUACIONES.csv
+# 1. BANCO_PREGUNTAS_GENERALES.xlsx
+# 2. PREGUNTAS_EVALUACIONES.csv
+# 3. EVALUACIONES.csv
 #
-# 10.2 NO VUELVE A CARGAR NADA.
+# ============================================================
 #
-# 10.2:
+# REGLA FUNDAMENTAL
 #
-#   - cruza Banco General + persistencia
-#   - identifica preguntas utilizadas
-#   - identifica estado posterior a validación
-#   - identifica "AÚN NO SE UTILIZA"
-#   - identifica "NO APLICA AÚN"
-#   - identifica rechazadas del Banco General
-#   - calcula disponibilidad real
-#   - calcula disponibilidad por relación
-#   - calcula evaluaciones completas de 10
-#   - calcula preguntas en cola
+# El Banco General NO SE MODIFICA.
 #
-# IMPORTANTE
-# ------------------------------------------------------------
-# El Banco General NO se modifica físicamente.
+# 10.2 hace un CRUCE de información:
 #
-# Una pregunta puede seguir apareciendo en el Banco General
-# y, sin embargo, estar NO DISPONIBLE para 10.3 porque ya
-# fue utilizada.
+#       BANCO GENERAL
+#              +
+#       PREGUNTAS_EVALUACIONES
+#
+# El cruce se realiza por Pregunta_ID.
+#
+# SOLO DESCUENTAN UNA PREGUNTA:
+#
+#       APROBADO
+#       RECHAZADO
+#
+# NO DESCUENTA:
+#
+#       NO APLICA AÚN
+#
+# IMPORTANTE:
+#
+# - Que un Pregunta_ID aparezca en PREGUNTAS_EVALUACIONES
+#   NO significa automáticamente que esté consumido.
+#
+# - Una pregunta se descuenta UNA SOLA VEZ.
+#
+# - Los distractores NO se descuentan como preguntas
+#   adicionales.
+#
+# - EVALUACIONES.csv solamente informa sobre las
+#   evaluaciones registradas. NO se utiliza para descontar
+#   preguntas.
+#
+# - El análisis se realiza también por:
+#       Modulo
+#       Tipo_Relacion
+#       Nivel
 #
 # ============================================================
 
 
 # ============================================================
-# CONFIGURACIÓN DE COLUMNAS DEL BANCO
+# CONFIGURACIÓN DE COLUMNAS
 # ============================================================
 
 COLUMNAS_BANCO_102 = [
@@ -23494,7 +23513,7 @@ COLUMNAS_BANCO_102 = [
 
 
 # ============================================================
-# FUNCIÓN: NORMALIZAR TEXTO
+# NORMALIZAR TEXTO
 # ============================================================
 
 def normalizar_texto_102(valor):
@@ -23506,29 +23525,52 @@ def normalizar_texto_102(valor):
 
 
 # ============================================================
-# FUNCIÓN: BUSCAR DATAFRAME EN SESSION_STATE
+# NORMALIZAR ESTADO
 #
-# 10.1 es quien carga los archivos.
-#
-# Se contemplan nombres posibles para evitar que 10.2 vuelva
-# a cargar archivos solamente porque 10.1 utilizó otro nombre
-# de variable.
+# Se aceptan pequeñas diferencias de mayúsculas,
+# espacios y tildes.
 # ============================================================
 
-def obtener_dataframe_10_1_102(
-    nombres_posibles_102
-):
+def normalizar_estado_102(valor):
 
-    for nombre_102 in nombres_posibles_102:
+    texto_102 = normalizar_texto_102(valor).upper()
+
+    texto_102 = (
+        texto_102
+        .replace("Á", "A")
+        .replace("É", "E")
+        .replace("Í", "I")
+        .replace("Ó", "O")
+        .replace("Ú", "U")
+    )
+
+    return texto_102
+
+
+# ============================================================
+# OBTENER DATAFRAME DE PREGUNTAS_EVALUACIONES
+#
+# 10.1 ya lo cargó.
+#
+# NO SE VUELVE A LEER GITHUB.
+# ============================================================
+
+def obtener_preguntas_evaluaciones_102():
+
+    posibles_claves_102 = [
+        "df_preguntas_evaluaciones_101",
+        "df_preguntas_evaluaciones_102",
+        "preguntas_evaluaciones",
+        "df_preguntas_evaluaciones"
+    ]
+
+    for clave_102 in posibles_claves_102:
 
         valor_102 = st.session_state.get(
-            nombre_102
+            clave_102
         )
 
-        if isinstance(
-            valor_102,
-            pd.DataFrame
-        ):
+        if isinstance(valor_102, pd.DataFrame):
 
             return valor_102.copy()
 
@@ -23536,79 +23578,50 @@ def obtener_dataframe_10_1_102(
 
 
 # ============================================================
-# FUNCIÓN: OBTENER LAS TRES FUENTES DE 10.1
+# OBTENER EVALUACIONES
 #
-# NO LEE GITHUB.
-# NO USA TOKEN.
-# NO USA urllib.
-# NO USA requests.
-# NO DECODIFICA BASE64.
+# SOLO PARA INFORMACIÓN.
+#
+# NO DESCUENTA PREGUNTAS.
 # ============================================================
 
-def obtener_fuentes_102():
+def obtener_evaluaciones_102():
 
-    # --------------------------------------------------------
-    # BANCO GENERAL
-    # --------------------------------------------------------
+    posibles_claves_102 = [
+        "df_evaluaciones_101",
+        "df_evaluaciones_102",
+        "evaluaciones",
+        "df_evaluaciones"
+    ]
 
-    df_banco_102 = (
-        obtener_dataframe_10_1_102(
-            [
-                "df_banco_101",
-                "df_banco_general_101",
-                "df_banco_general",
-                "df_banco"
-            ]
+    for clave_102 in posibles_claves_102:
+
+        valor_102 = st.session_state.get(
+            clave_102
         )
-    )
 
-    # --------------------------------------------------------
-    # PREGUNTAS DE EVALUACIONES
-    # --------------------------------------------------------
+        if isinstance(valor_102, pd.DataFrame):
 
-    df_preguntas_eval_102 = (
-        obtener_dataframe_10_1_102(
-            [
-                "df_preguntas_evaluaciones_101",
-                "df_preguntas_evaluaciones",
-                "df_preguntas_eval_101",
-                "df_preguntas_eval"
-            ]
-        )
-    )
+            return valor_102.copy()
 
-    # --------------------------------------------------------
-    # EVALUACIONES
-    # --------------------------------------------------------
-
-    df_evaluaciones_102 = (
-        obtener_dataframe_10_1_102(
-            [
-                "df_evaluaciones_101",
-                "df_evaluaciones"
-            ]
-        )
-    )
-
-    return (
-        df_banco_102,
-        df_preguntas_eval_102,
-        df_evaluaciones_102
-    )
+    return pd.DataFrame()
 
 
 # ============================================================
-# FUNCIÓN: IDENTIFICAR COLUMNA DE ESTADO
+# ENCONTRAR COLUMNA DE ESTADO REAL
+#
+# PREGUNTAS_EVALUACIONES puede haber sido generado con
+# diferentes nombres de columna.
 # ============================================================
 
-def detectar_columna_estado_102(
+def encontrar_columna_estado_102(
     df_102
 ):
 
     posibles_102 = [
         "Estado",
-        "Estado_Evaluacion",
         "Estado_Pregunta",
+        "Estado_Evaluacion",
         "Resultado"
     ]
 
@@ -23622,72 +23635,164 @@ def detectar_columna_estado_102(
 
 
 # ============================================================
-# FUNCIÓN: NORMALIZAR ESTADOS DE PERSISTENCIA
+# CREAR ESTADO DEFINITIVO POR Pregunta_ID
 #
-# IMPORTANTE:
+# REGLA:
 #
-# "AÚN NO SE UTILIZA"
-# "AUN NO SE UTILIZA"
-# "NO APLICA AÚN"
-# "NO APLICA AUN"
+# APROBADO  -> DESCARTA
+# RECHAZADO  -> DESCARTA
+# NO APLICA AUN -> DISPONIBLE
 #
-# SON ESTADOS DISPONIBLES.
-#
-# APROBADA / RECHAZADA DESPUÉS DE LA VALIDACIÓN
-# YA SON PREGUNTAS CONSUMIDAS Y NO SE PUEDEN VOLVER A USAR.
 # ============================================================
 
-def normalizar_estado_102(
-    valor_102
+def construir_estado_validacion_102(
+    df_preguntas_eval_102
 ):
 
-    estado_102 = normalizar_texto_102(
-        valor_102
-    ).upper()
+    resultado_102 = {}
 
-    reemplazos_102 = {
-        "Á": "A",
-        "É": "E",
-        "Í": "I",
-        "Ó": "O",
-        "Ú": "U"
-    }
+    if df_preguntas_eval_102.empty:
 
-    for origen_102, destino_102 in (
-        reemplazos_102.items()
+        return resultado_102
+
+    if "Pregunta_ID" not in (
+        df_preguntas_eval_102.columns
     ):
 
-        estado_102 = estado_102.replace(
-            origen_102,
-            destino_102
-        )
+        return resultado_102
 
-    estado_102 = (
-        estado_102
-        .replace("  ", " ")
-        .strip()
+    columna_estado_102 = (
+        encontrar_columna_estado_102(
+            df_preguntas_eval_102
+        )
     )
 
-    return estado_102
+    if columna_estado_102 is None:
+
+        return resultado_102
+
+    # --------------------------------------------------------
+    # PRIORIDAD DE ESTADOS
+    #
+    # Si un mismo ID aparece varias veces:
+    #
+    # APROBADO / RECHAZADO
+    # tienen prioridad sobre
+    # NO APLICA AUN.
+    #
+    # --------------------------------------------------------
+
+    prioridad_102 = {
+        "NO APLICA AUN": 1,
+        "APROBADO": 3,
+        "RECHAZADO": 3
+    }
+
+    for _, fila_102 in (
+        df_preguntas_eval_102.iterrows()
+    ):
+
+        pregunta_id_102 = (
+            normalizar_texto_102(
+                fila_102[
+                    "Pregunta_ID"
+                ]
+            )
+        )
+
+        if not pregunta_id_102:
+
+            continue
+
+        estado_102 = (
+            normalizar_estado_102(
+                fila_102[
+                    columna_estado_102
+                ]
+            )
+        )
+
+        # ----------------------------------------------------
+        # NORMALIZAR "NO APLICA AÚN"
+        # ----------------------------------------------------
+
+        if estado_102 in [
+            "NO APLICA AUN",
+            "NO APLICA"
+        ]:
+
+            estado_102 = "NO APLICA AUN"
+
+        # ----------------------------------------------------
+        # SOLO LOS TRES ESTADOS VALIDOS INTERESAN
+        # ----------------------------------------------------
+
+        if estado_102 not in [
+            "APROBADO",
+            "RECHAZADO",
+            "NO APLICA AUN"
+        ]:
+
+            continue
+
+        prioridad_actual_102 = (
+            prioridad_102.get(
+                estado_102,
+                0
+            )
+        )
+
+        estado_anterior_102 = (
+            resultado_102.get(
+                pregunta_id_102
+            )
+        )
+
+        if estado_anterior_102 is None:
+
+            resultado_102[
+                pregunta_id_102
+            ] = estado_102
+
+        else:
+
+            prioridad_anterior_102 = (
+                prioridad_102.get(
+                    estado_anterior_102,
+                    0
+                )
+            )
+
+            if (
+                prioridad_actual_102
+                >
+                prioridad_anterior_102
+            ):
+
+                resultado_102[
+                    pregunta_id_102
+                ] = estado_102
+
+    return resultado_102
 
 
 # ============================================================
-# FUNCIÓN PRINCIPAL
+# ANALISIS REAL DEL BANCO
 # ============================================================
 
-def analizar_disponibilidad_102(
+def analizar_banco_102(
     df_banco_102,
     df_preguntas_eval_102,
     df_evaluaciones_102
 ):
 
-    # ========================================================
-    # VALIDAR BANCO
-    # ========================================================
-
     if df_banco_102.empty:
 
         return None
+
+    # ========================================================
+    # VALIDAR COLUMNAS DEL BANCO
+    # ========================================================
 
     faltantes_102 = [
         columna_102
@@ -23700,7 +23805,9 @@ def analizar_disponibilidad_102(
         st.error(
             "10.2 ERROR: faltan columnas en "
             "BANCO_PREGUNTAS_GENERALES.xlsx: "
-            + ", ".join(faltantes_102)
+            + ", ".join(
+                faltantes_102
+            )
         )
 
         return None
@@ -23709,347 +23816,265 @@ def analizar_disponibilidad_102(
     # COPIA DEL BANCO
     # ========================================================
 
-    df_102 = df_banco_102.copy()
+    banco_102 = df_banco_102.copy()
 
     # ========================================================
-    # NORMALIZAR COLUMNAS CLAVE
+    # NORMALIZAR CAMPOS
     # ========================================================
 
-    columnas_texto_102 = [
+    for columna_102 in [
         "Pregunta_ID",
         "Modulo",
         "Tipo_Relacion",
         "Nivel",
         "Estado"
-    ]
+    ]:
 
-    for columna_102 in columnas_texto_102:
-
-        df_102[columna_102] = (
-            df_102[columna_102]
+        banco_102[
+            columna_102
+        ] = (
+            banco_102[
+                columna_102
+            ]
             .fillna("")
             .astype(str)
             .str.strip()
         )
 
-    # ========================================================
-    # NORMALIZAR IDs
-    # ========================================================
-
-    df_102["Pregunta_ID"] = (
-        df_102["Pregunta_ID"]
-        .map(normalizar_texto_102)
-    )
-
-    # ========================================================
-    # ESTADO ORIGINAL DEL BANCO
-    # ========================================================
-
-    df_102["_Estado_Banco_102"] = (
-        df_102["Estado"]
-        .map(normalizar_estado_102)
-    )
-
-    # ========================================================
-    # CREAR MAPA DE ESTADO DE PERSISTENCIA
-    #
-    # IMPORTANTE:
-    #
-    # Si una Pregunta_ID aparece varias veces en
-    # PREGUNTAS_EVALUACIONES.csv, se conserva el estado
-    # más reciente disponible según el orden del archivo.
-    # ========================================================
-
-    mapa_estado_102 = {}
-
-    if not df_preguntas_eval_102.empty:
-
-        if "Pregunta_ID" in (
-            df_preguntas_eval_102.columns
-        ):
-
-            columna_estado_102 = (
-                detectar_columna_estado_102(
-                    df_preguntas_eval_102
-                )
-            )
-
-            if columna_estado_102:
-
-                for _, fila_102 in (
-                    df_preguntas_eval_102.iterrows()
-                ):
-
-                    pregunta_id_102 = (
-                        normalizar_texto_102(
-                            fila_102["Pregunta_ID"]
-                        )
-                    )
-
-                    if not pregunta_id_102:
-                        continue
-
-                    estado_102 = (
-                        normalizar_estado_102(
-                            fila_102[
-                                columna_estado_102
-                            ]
-                        )
-                    )
-
-                    mapa_estado_102[
-                        pregunta_id_102
-                    ] = estado_102
-
-    # ========================================================
-    # CRUCE BANCO + PERSISTENCIA
-    # ========================================================
-
-    df_102[
-        "Estado_Persistencia_102"
+    banco_102[
+        "_Estado_Banco_102"
     ] = (
-        df_102["Pregunta_ID"]
-        .map(mapa_estado_102)
+        banco_102[
+            "Estado"
+        ]
+        .apply(
+            normalizar_estado_102
+        )
+    )
+
+    # ========================================================
+    # ESTADO DE VALIDACIÓN
+    #
+    # AQUÍ SE PRODUCE EL CRUCE REAL.
+    # ========================================================
+
+    estados_validacion_102 = (
+        construir_estado_validacion_102(
+            df_preguntas_eval_102
+        )
+    )
+
+    # ========================================================
+    # ASIGNAR ESTADO DE VALIDACIÓN AL BANCO
+    # ========================================================
+
+    banco_102[
+        "_Estado_Validacion_102"
+    ] = (
+        banco_102[
+            "Pregunta_ID"
+        ]
+        .map(
+            estados_validacion_102
+        )
         .fillna("")
     )
 
     # ========================================================
-    # CLASIFICACIÓN REAL
+    # CLASIFICAR EL RESULTADO DEL CRUCE
     # ========================================================
 
-    def clasificar_102(fila_102):
+    banco_102[
+        "_Descuenta_102"
+    ] = (
+        banco_102[
+            "_Estado_Validacion_102"
+        ]
+        .isin(
+            [
+                "APROBADO",
+                "RECHAZADO"
+            ]
+        )
+    )
 
-        estado_banco_102 = (
-            fila_102[
+    banco_102[
+        "_Disponible_102"
+    ] = (
+        ~banco_102[
+            "_Descuenta_102"
+        ]
+    )
+
+    # ========================================================
+    # IMPORTANTE:
+    #
+    # LA DISPONIBILIDAD REAL NO PUEDE UTILIZAR PREGUNTAS
+    # QUE EL BANCO GENERAL YA MARCA COMO RECHAZADAS.
+    #
+    # EL BANCO GENERAL APROBADO + NO DESCONTADO = DISPONIBLE
+    #
+    # El estado NO APLICA AUN queda disponible.
+    # ========================================================
+
+    banco_102[
+        "_Disponible_Real_102"
+    ] = (
+        (
+            banco_102[
                 "_Estado_Banco_102"
             ]
+            == "APROBADO"
         )
-
-        estado_persistencia_102 = (
-            fila_102[
-                "Estado_Persistencia_102"
-            ]
-        )
-
-        # ----------------------------------------------------
-        # 1. RECHAZADA EN BANCO GENERAL
-        # ----------------------------------------------------
-
-        if estado_banco_102 == "RECHAZADA":
-
-            return "RECHAZADA_BANCO"
-
-        # ----------------------------------------------------
-        # 2. PREGUNTA NO APROBADA EN BANCO
-        # ----------------------------------------------------
-
-        if estado_banco_102 != "APROBADA":
-
-            return "NO_DISPONIBLE_BANCO"
-
-        # ----------------------------------------------------
-        # 3. NUNCA UTILIZADA
-        # ----------------------------------------------------
-
-        if not estado_persistencia_102:
-
-            return "DISPONIBLE"
-
-        # ----------------------------------------------------
-        # 4. AÚN NO SE UTILIZA
-        # ----------------------------------------------------
-
-        if estado_persistencia_102 in {
-            "AUN NO SE UTILIZA",
-            "NO APLICA AUN",
-            "NO APLICA"
-        }:
-
-            return "DISPONIBLE"
-
-        # ----------------------------------------------------
-        # 5. PREGUNTA CONSUMIDA Y APROBADA
-        # ----------------------------------------------------
-
-        if estado_persistencia_102 in {
-            "APROBADA",
-            "VALIDADA",
-            "USADA",
-            "CONSUMIDA"
-        }:
-
-            return "USADA_APROBADA"
-
-        # ----------------------------------------------------
-        # 6. PREGUNTA CONSUMIDA Y RECHAZADA
-        # ----------------------------------------------------
-
-        if estado_persistencia_102 == "RECHAZADA":
-
-            return "USADA_RECHAZADA"
-
-        # ----------------------------------------------------
-        # 7. CUALQUIER OTRO ESTADO
-        #
-        # Por seguridad NO se reutiliza.
-        # ----------------------------------------------------
-
-        return "NO_DISPONIBLE_ESTADO"
-
-
-    df_102[
-        "Estado_Control_102"
-    ] = (
-        df_102.apply(
-            clasificar_102,
-            axis=1
-        )
-    )
-
-    # ========================================================
-    # DISPONIBILIDAD REAL
-    # ========================================================
-
-    df_102[
-        "Disponible_Real_102"
-    ] = (
-        df_102[
-            "Estado_Control_102"
-        ]
-        == "DISPONIBLE"
-    )
-
-    # ========================================================
-    # INDICADORES DE CONSUMO
-    # ========================================================
-
-    df_102[
-        "Usada_102"
-    ] = df_102[
-        "Estado_Control_102"
-    ].isin(
-        [
-            "USADA_APROBADA",
-            "USADA_RECHAZADA"
+        &
+        ~banco_102[
+            "_Descuenta_102"
         ]
     )
 
-    df_102[
-        "Aprobada_Validacion_102"
-    ] = (
-        df_102[
-            "Estado_Control_102"
-        ]
-        == "USADA_APROBADA"
-    )
-
-    df_102[
-        "Rechazada_Validacion_102"
-    ] = (
-        df_102[
-            "Estado_Control_102"
-        ]
-        == "USADA_RECHAZADA"
-    )
-
-    df_102[
-        "Aun_No_Utilizada_102"
-    ] = (
-        df_102[
-            "Estado_Control_102"
-        ]
-        == "DISPONIBLE"
-    ) & (
-        df_102[
-            "Estado_Persistencia_102"
-        ] != ""
-    ) & (
-        df_102[
-            "Estado_Persistencia_102"
-        ].isin(
-            [
-                "AUN NO SE UTILIZA",
-                "NO APLICA AUN",
-                "NO APLICA"
-            ]
-        )
-    )
-
     # ========================================================
-    # RESUMEN GENERAL
+    # ESTADOS DEL BANCO GENERAL
     # ========================================================
 
-    total_banco_102 = len(df_102)
+    total_102 = len(
+        banco_102
+    )
 
     aprobadas_banco_102 = int(
         (
-            df_102[
+            banco_102[
                 "_Estado_Banco_102"
             ]
-            == "APROBADA"
+            == "APROBADO"
         ).sum()
     )
 
     rechazadas_banco_102 = int(
         (
-            df_102[
+            banco_102[
                 "_Estado_Banco_102"
             ]
-            == "RECHAZADA"
+            == "RECHAZADO"
         ).sum()
     )
 
     pendientes_banco_102 = int(
         (
-            df_102[
+            banco_102[
                 "_Estado_Banco_102"
             ]
             == "PENDIENTE"
         ).sum()
     )
 
-    usadas_102 = int(
-        df_102[
-            "Usada_102"
-        ].sum()
+    # ========================================================
+    # DESCUENTO REAL
+    # ========================================================
+
+    ids_aprobados_validacion_102 = set(
+        banco_102.loc[
+            banco_102[
+                "_Estado_Validacion_102"
+            ] == "APROBADO",
+            "Pregunta_ID"
+        ]
     )
 
-    aprobadas_validacion_102 = int(
-        df_102[
-            "Aprobada_Validacion_102"
-        ].sum()
+    ids_rechazados_validacion_102 = set(
+        banco_102.loc[
+            banco_102[
+                "_Estado_Validacion_102"
+            ] == "RECHAZADO",
+            "Pregunta_ID"
+        ]
     )
 
-    rechazadas_validacion_102 = int(
-        df_102[
-            "Rechazada_Validacion_102"
-        ].sum()
+    ids_no_aplica_102 = set(
+        banco_102.loc[
+            banco_102[
+                "_Estado_Validacion_102"
+            ] == "NO APLICA AUN",
+            "Pregunta_ID"
+        ]
     )
 
-    aun_no_utilizadas_102 = int(
-        df_102[
-            "Aun_No_Utilizada_102"
-        ].sum()
+    ids_descontados_102 = (
+        ids_aprobados_validacion_102
+        |
+        ids_rechazados_validacion_102
+    )
+
+    # ========================================================
+    # CONTADORES
+    # ========================================================
+
+    preguntas_con_estado_validacion_102 = len(
+        banco_102[
+            banco_102[
+                "_Estado_Validacion_102"
+            ] != ""
+        ]
+    )
+
+    preguntas_descontadas_102 = len(
+        ids_descontados_102
+    )
+
+    preguntas_aprobadas_validacion_102 = len(
+        ids_aprobados_validacion_102
+    )
+
+    preguntas_rechazadas_validacion_102 = len(
+        ids_rechazados_validacion_102
+    )
+
+    preguntas_no_aplica_102 = len(
+        ids_no_aplica_102
     )
 
     disponibles_102 = int(
-        df_102[
-            "Disponible_Real_102"
+        banco_102[
+            "_Disponible_Real_102"
         ].sum()
     )
 
     # ========================================================
-    # RESUMEN POR RELACIÓN
+    # DUPLICADOS
+    #
+    # NO SE ELIMINAN DEL BANCO.
+    # SOLO SE INFORMAN.
     # ========================================================
 
-    resumen_relacion_102 = (
-        df_102
+    duplicados_102 = int(
+        banco_102[
+            "Pregunta_ID"
+        ].duplicated(
+            keep=False
+        ).sum()
+    )
+
+    ids_duplicados_102 = int(
+        banco_102[
+            "Pregunta_ID"
+        ].duplicated(
+            keep=False
+        ).sum()
+    )
+
+    # ========================================================
+    # FUNCIÓN INTERNA PARA GENERAR RESUMEN POR GRUPO
+    # ========================================================
+
+    columnas_grupo_102 = [
+        "Modulo",
+        "Tipo_Relacion",
+        "Nivel"
+    ]
+
+    resumen_102 = (
+        banco_102
         .groupby(
-            [
-                "Modulo",
-                "Tipo_Relacion",
-                "Nivel"
-            ],
+            columnas_grupo_102,
             dropna=False
         )
         .agg(
@@ -24057,50 +24082,8 @@ def analizar_disponibilidad_102(
                 "Pregunta_ID",
                 "count"
             ),
-
-            Aprobadas_Banco=(
-                "_Estado_Banco_102",
-                lambda x: int(
-                    (x == "APROBADA").sum()
-                )
-            ),
-
-            Rechazadas_Banco=(
-                "_Estado_Banco_102",
-                lambda x: int(
-                    (x == "RECHAZADA").sum()
-                )
-            ),
-
-            Pendientes_Banco=(
-                "_Estado_Banco_102",
-                lambda x: int(
-                    (x == "PENDIENTE").sum()
-                )
-            ),
-
-            Preguntas_Usadas=(
-                "Usada_102",
-                "sum"
-            ),
-
-            Aprobadas_Validacion=(
-                "Aprobada_Validacion_102",
-                "sum"
-            ),
-
-            Rechazadas_Validacion=(
-                "Rechazada_Validacion_102",
-                "sum"
-            ),
-
-            Aun_No_Utilizadas=(
-                "Aun_No_Utilizada_102",
-                "sum"
-            ),
-
-            Disponibles=(
-                "Disponible_Real_102",
+            Preguntas_Disponibles=(
+                "_Disponible_Real_102",
                 "sum"
             )
         )
@@ -24108,27 +24091,175 @@ def analizar_disponibilidad_102(
     )
 
     # ========================================================
-    # CONVERTIR CONTADORES A ENTEROS
+    # PREGUNTAS DESCONTADAS POR GRUPO
+    # ========================================================
+
+    descontadas_grupo_102 = (
+        banco_102[
+            banco_102[
+                "_Descuenta_102"
+            ]
+        ]
+        .groupby(
+            columnas_grupo_102,
+            dropna=False
+        )
+        .size()
+        .reset_index(
+            name="Preguntas_Descontadas"
+        )
+    )
+
+    resumen_102 = (
+        resumen_102
+        .merge(
+            descontadas_grupo_102,
+            on=columnas_grupo_102,
+            how="left"
+        )
+    )
+
+    # ========================================================
+    # APROBADAS EN VALIDACIÓN POR GRUPO
+    # ========================================================
+
+    aprobadas_val_grupo_102 = (
+        banco_102[
+            banco_102[
+                "_Estado_Validacion_102"
+            ] == "APROBADO"
+        ]
+        .groupby(
+            columnas_grupo_102,
+            dropna=False
+        )
+        .size()
+        .reset_index(
+            name="Validadas_Aprobadas"
+        )
+    )
+
+    resumen_102 = (
+        resumen_102
+        .merge(
+            aprobadas_val_grupo_102,
+            on=columnas_grupo_102,
+            how="left"
+        )
+    )
+
+    # ========================================================
+    # RECHAZADAS EN VALIDACIÓN POR GRUPO
+    # ========================================================
+
+    rechazadas_val_grupo_102 = (
+        banco_102[
+            banco_102[
+                "_Estado_Validacion_102"
+            ] == "RECHAZADO"
+        ]
+        .groupby(
+            columnas_grupo_102,
+            dropna=False
+        )
+        .size()
+        .reset_index(
+            name="Validadas_Rechazadas"
+        )
+    )
+
+    resumen_102 = (
+        resumen_102
+        .merge(
+            rechazadas_val_grupo_102,
+            on=columnas_grupo_102,
+            how="left"
+        )
+    )
+
+    # ========================================================
+    # NO APLICA AÚN POR GRUPO
+    # ========================================================
+
+    no_aplica_grupo_102 = (
+        banco_102[
+            banco_102[
+                "_Estado_Validacion_102"
+            ] == "NO APLICA AUN"
+        ]
+        .groupby(
+            columnas_grupo_102,
+            dropna=False
+        )
+        .size()
+        .reset_index(
+            name="No_Aplica_Aun"
+        )
+    )
+
+    resumen_102 = (
+        resumen_102
+        .merge(
+            no_aplica_grupo_102,
+            on=columnas_grupo_102,
+            how="left"
+        )
+    )
+
+    # ========================================================
+    # RECHAZADAS DEL BANCO
+    # ========================================================
+
+    rechazadas_banco_grupo_102 = (
+        banco_102[
+            banco_102[
+                "_Estado_Banco_102"
+            ] == "RECHAZADO"
+        ]
+        .groupby(
+            columnas_grupo_102,
+            dropna=False
+        )
+        .size()
+        .reset_index(
+            name="Rechazadas_Banco"
+        )
+    )
+
+    resumen_102 = (
+        resumen_102
+        .merge(
+            rechazadas_banco_grupo_102,
+            on=columnas_grupo_102,
+            how="left"
+        )
+    )
+
+    # ========================================================
+    # LIMPIAR NaN
     # ========================================================
 
     columnas_numericas_102 = [
-        "Preguntas_Banco",
-        "Aprobadas_Banco",
-        "Rechazadas_Banco",
-        "Pendientes_Banco",
-        "Preguntas_Usadas",
-        "Aprobadas_Validacion",
-        "Rechazadas_Validacion",
-        "Aun_No_Utilizadas",
-        "Disponibles"
+        "Preguntas_Disponibles",
+        "Preguntas_Descontadas",
+        "Validadas_Aprobadas",
+        "Validadas_Rechazadas",
+        "No_Aplica_Aun",
+        "Rechazadas_Banco"
     ]
 
     for columna_102 in columnas_numericas_102:
 
-        resumen_relacion_102[
+        if columna_102 not in resumen_102.columns:
+
+            resumen_102[
+                columna_102
+            ] = 0
+
+        resumen_102[
             columna_102
         ] = (
-            resumen_relacion_102[
+            resumen_102[
                 columna_102
             ]
             .fillna(0)
@@ -24136,43 +24267,47 @@ def analizar_disponibilidad_102(
         )
 
     # ========================================================
-    # EVALUACIONES POSIBLES
+    # DISPONIBLES CON UNA REGLA CLARA
+    #
+    # NO SE DECIDE AQUÍ CUÁNTAS EVALUACIONES CREAR.
+    #
+    # SOLO SE INFORMA CUÁNTAS PREGUNTAS HAY DISPONIBLES.
+    #
     # ========================================================
 
-    resumen_relacion_102[
-        "Evaluaciones_Completas"
+    resumen_102[
+        "Cola_Si_Se_Trabaja_En_10"
     ] = (
-        resumen_relacion_102[
-            "Disponibles"
+        resumen_102[
+            "Preguntas_Disponibles"
         ]
-        // 10
+        % 10
     )
 
     # ========================================================
-    # PREGUNTAS EN COLA
+    # MÁXIMO TEÓRICO DE GRUPOS DE 10
+    #
+    # ES SOLO INFORMACIÓN.
+    # NO ES UNA DECISIÓN DE GENERACIÓN.
     # ========================================================
 
-    resumen_relacion_102[
-        "Preguntas_En_Cola"
+    resumen_102[
+        "Grupos_Completos_De_10"
     ] = (
-        resumen_relacion_102[
-            "Disponibles"
+        resumen_102[
+            "Preguntas_Disponibles"
         ]
-        % 10
+        // 10
     )
 
     # ========================================================
     # ORDEN
     # ========================================================
 
-    resumen_relacion_102 = (
-        resumen_relacion_102
+    resumen_102 = (
+        resumen_102
         .sort_values(
-            [
-                "Modulo",
-                "Tipo_Relacion",
-                "Nivel"
-            ]
+            columnas_grupo_102
         )
         .reset_index(
             drop=True
@@ -24184,7 +24319,7 @@ def analizar_disponibilidad_102(
     # ========================================================
 
     resumen_modulo_102 = (
-        df_102
+        banco_102
         .groupby(
             "Modulo",
             dropna=False
@@ -24194,54 +24329,24 @@ def analizar_disponibilidad_102(
                 "Pregunta_ID",
                 "count"
             ),
-
-            Preguntas_Usadas=(
-                "Usada_102",
+            Preguntas_Disponibles=(
+                "_Disponible_Real_102",
                 "sum"
             ),
-
-            Aprobadas_Validacion=(
-                "Aprobada_Validacion_102",
-                "sum"
-            ),
-
-            Rechazadas_Validacion=(
-                "Rechazada_Validacion_102",
-                "sum"
-            ),
-
-            Disponibles=(
-                "Disponible_Real_102",
+            Preguntas_Descontadas=(
+                "_Descuenta_102",
                 "sum"
             )
         )
         .reset_index()
     )
 
-    resumen_modulo_102[
-        "Evaluaciones_Completas"
-    ] = (
-        resumen_modulo_102[
-            "Disponibles"
-        ]
-        // 10
-    )
-
-    resumen_modulo_102[
-        "Preguntas_En_Cola"
-    ] = (
-        resumen_modulo_102[
-            "Disponibles"
-        ]
-        % 10
-    )
-
     # ========================================================
-    # RESUMEN POR TIPO DE RELACIÓN
+    # RESUMEN POR RELACIÓN
     # ========================================================
 
-    resumen_tipo_102 = (
-        df_102
+    resumen_relacion_102 = (
+        banco_102
         .groupby(
             "Tipo_Relacion",
             dropna=False
@@ -24251,46 +24356,16 @@ def analizar_disponibilidad_102(
                 "Pregunta_ID",
                 "count"
             ),
-
-            Preguntas_Usadas=(
-                "Usada_102",
+            Preguntas_Disponibles=(
+                "_Disponible_Real_102",
                 "sum"
             ),
-
-            Aprobadas_Validacion=(
-                "Aprobada_Validacion_102",
-                "sum"
-            ),
-
-            Rechazadas_Validacion=(
-                "Rechazada_Validacion_102",
-                "sum"
-            ),
-
-            Disponibles=(
-                "Disponible_Real_102",
+            Preguntas_Descontadas=(
+                "_Descuenta_102",
                 "sum"
             )
         )
         .reset_index()
-    )
-
-    resumen_tipo_102[
-        "Evaluaciones_Completas"
-    ] = (
-        resumen_tipo_102[
-            "Disponibles"
-        ]
-        // 10
-    )
-
-    resumen_tipo_102[
-        "Preguntas_En_Cola"
-    ] = (
-        resumen_tipo_102[
-            "Disponibles"
-        ]
-        % 10
     )
 
     # ========================================================
@@ -24298,7 +24373,7 @@ def analizar_disponibilidad_102(
     # ========================================================
 
     resumen_nivel_102 = (
-        df_102
+        banco_102
         .groupby(
             "Nivel",
             dropna=False
@@ -24308,58 +24383,28 @@ def analizar_disponibilidad_102(
                 "Pregunta_ID",
                 "count"
             ),
-
-            Preguntas_Usadas=(
-                "Usada_102",
+            Preguntas_Disponibles=(
+                "_Disponible_Real_102",
                 "sum"
             ),
-
-            Aprobadas_Validacion=(
-                "Aprobada_Validacion_102",
-                "sum"
-            ),
-
-            Rechazadas_Validacion=(
-                "Rechazada_Validacion_102",
-                "sum"
-            ),
-
-            Disponibles=(
-                "Disponible_Real_102",
+            Preguntas_Descontadas=(
+                "_Descuenta_102",
                 "sum"
             )
         )
         .reset_index()
     )
 
-    resumen_nivel_102[
-        "Evaluaciones_Completas"
-    ] = (
-        resumen_nivel_102[
-            "Disponibles"
-        ]
-        // 10
-    )
-
-    resumen_nivel_102[
-        "Preguntas_En_Cola"
-    ] = (
-        resumen_nivel_102[
-            "Disponibles"
-        ]
-        % 10
-    )
-
     # ========================================================
-    # RESULTADO
+    # DEVOLVER RESULTADO
     # ========================================================
 
     return {
 
-        "df_control": df_102,
+        "banco": banco_102,
 
-        "total_banco":
-            total_banco_102,
+        "total":
+            total_102,
 
         "aprobadas_banco":
             aprobadas_banco_102,
@@ -24370,43 +24415,46 @@ def analizar_disponibilidad_102(
         "pendientes_banco":
             pendientes_banco_102,
 
-        "preguntas_usadas":
-            usadas_102,
+        "preguntas_con_estado_validacion":
+            preguntas_con_estado_validacion_102,
 
-        "aprobadas_validacion":
-            aprobadas_validacion_102,
+        "preguntas_descontadas":
+            preguntas_descontadas_102,
 
-        "rechazadas_validacion":
-            rechazadas_validacion_102,
+        "validadas_aprobadas":
+            preguntas_aprobadas_validacion_102,
 
-        "aun_no_utilizadas":
-            aun_no_utilizadas_102,
+        "validadas_rechazadas":
+            preguntas_rechazadas_validacion_102,
+
+        "no_aplica_aun":
+            preguntas_no_aplica_102,
 
         "disponibles":
             disponibles_102,
 
-        "evaluaciones_completas":
-            disponibles_102 // 10,
+        "duplicados":
+            duplicados_102,
 
-        "preguntas_en_cola":
-            disponibles_102 % 10,
-
-        "resumen_relacion":
-            resumen_relacion_102,
+        "resumen":
+            resumen_102,
 
         "resumen_modulo":
             resumen_modulo_102,
 
-        "resumen_tipo":
-            resumen_tipo_102,
+        "resumen_relacion":
+            resumen_relacion_102,
 
         "resumen_nivel":
-            resumen_nivel_102
+            resumen_nivel_102,
+
+        "evaluaciones_registradas":
+            len(df_evaluaciones_102)
     }
 
 
 # ============================================================
-# INTERFAZ 10.2
+# INTERFAZ
 # ============================================================
 
 st.markdown(
@@ -24414,119 +24462,249 @@ st.markdown(
 )
 
 st.info(
-    "10.2 no carga archivos. Utiliza exclusivamente "
-    "los tres DataFrames cargados por 10.1 y realiza "
-    "el cruce entre el Banco General y la persistencia "
-    "de las preguntas."
+    "10.2 cruza el Banco General con el estado real de "
+    "cada Pregunta_ID registrado en la validación. "
+    "El Banco General no se modifica."
 )
 
 
 # ============================================================
-# OBTENER DATOS DE 10.1
+# OBTENER FUENTES YA CARGADAS POR 10.1
 # ============================================================
 
-(
-    df_banco_102,
-    df_preguntas_eval_102,
-    df_evaluaciones_102
-) = obtener_fuentes_102()
+df_banco_102 = st.session_state.get(
+    "df_banco_101",
+    pd.DataFrame()
+)
+
+df_preguntas_eval_102 = (
+    obtener_preguntas_evaluaciones_102()
+)
+
+df_evaluaciones_102 = (
+    obtener_evaluaciones_102()
+)
 
 
 # ============================================================
-# VERIFICAR QUE 10.1 HAYA CARGADO LAS FUENTES
+# VERIFICAR BANCO
 # ============================================================
 
 if df_banco_102.empty:
 
     st.warning(
-        "10.2 no encuentra el Banco General cargado "
-        "por 10.1. Debe ejecutar primero 10.1."
+        "10.1 todavía no tiene cargado "
+        "BANCO_PREGUNTAS_GENERALES.xlsx."
     )
 
 else:
 
     # ========================================================
-    # INFORMACIÓN DE LAS FUENTES
+    # ANALISIS AUTOMÁTICO
     # ========================================================
 
-    st.markdown(
-        "### Fuentes recibidas desde 10.1"
+    resultado_analisis_102 = (
+        analizar_banco_102(
+            df_banco_102,
+            df_preguntas_eval_102,
+            df_evaluaciones_102
+        )
     )
 
-    col1_102, col2_102, col3_102 = st.columns(3)
-
-    with col1_102:
-
-        st.metric(
-            "Preguntas Banco General",
-            f"{len(df_banco_102):,}"
-        )
-
-    with col2_102:
-
-        st.metric(
-            "Registros de preguntas",
-            f"{len(df_preguntas_eval_102):,}"
-        )
-
-    with col3_102:
-
-        st.metric(
-            "Evaluaciones registradas",
-            f"{len(df_evaluaciones_102):,}"
-        )
-
-
-    # ========================================================
-    # ANALIZAR
-    # ========================================================
-
-    resultado_102 = analizar_disponibilidad_102(
-        df_banco_102,
-        df_preguntas_eval_102,
-        df_evaluaciones_102
-    )
-
-    # ========================================================
-    # GUARDAR RESULTADO
-    #
-    # ESTE DATAFRAME ES EL CRUCE REAL.
-    #
-    # 10.3 DEBE UTILIZARLO.
-    # ========================================================
-
-    if resultado_102 is not None:
+    if resultado_analisis_102:
 
         st.session_state[
             "resultado_analisis_102"
-        ] = resultado_102
+        ] = resultado_analisis_102
 
-        st.session_state[
-            "df_control_disponibilidad_102"
-        ] = (
-            resultado_102[
-                "df_control"
-            ].copy()
+
+    # ========================================================
+    # BOTÓN ACTUALIZAR
+    # ========================================================
+
+    if st.button(
+        "ACTUALIZAR ANÁLISIS 10.2",
+        key="actualizar_analisis_real_102"
+    ):
+
+        # Volver a tomar los DataFrames de 10.1.
+        # NO volver a leer GitHub.
+
+        df_banco_actual_102 = st.session_state.get(
+            "df_banco_101",
+            pd.DataFrame()
         )
+
+        df_preguntas_eval_actual_102 = (
+            obtener_preguntas_evaluaciones_102()
+        )
+
+        df_evaluaciones_actual_102 = (
+            obtener_evaluaciones_102()
+        )
+
+        resultado_analisis_102 = (
+            analizar_banco_102(
+                df_banco_actual_102,
+                df_preguntas_eval_actual_102,
+                df_evaluaciones_actual_102
+            )
+        )
+
+        if resultado_analisis_102:
+
+            st.session_state[
+                "resultado_analisis_102"
+            ] = resultado_analisis_102
+
+            st.success(
+                "10.2 actualizado correctamente."
+            )
 
 
 # ============================================================
 # MOSTRAR RESULTADOS
 # ============================================================
 
-resultado_102 = st.session_state.get(
-    "resultado_analisis_102"
+resultado_analisis_102 = (
+    st.session_state.get(
+        "resultado_analisis_102"
+    )
 )
 
-
-if resultado_102 is not None:
+if resultado_analisis_102:
 
     # ========================================================
-    # RESUMEN GENERAL
+    # DATOS GENERALES
+    # ========================================================
+
+    total_102 = resultado_analisis_102[
+        "total"
+    ]
+
+    aprobadas_banco_102 = resultado_analisis_102[
+        "aprobadas_banco"
+    ]
+
+    rechazadas_banco_102 = resultado_analisis_102[
+        "rechazadas_banco"
+    ]
+
+    pendientes_banco_102 = resultado_analisis_102[
+        "pendientes_banco"
+    ]
+
+    preguntas_con_estado_validacion_102 = (
+        resultado_analisis_102[
+            "preguntas_con_estado_validacion"
+        ]
+    )
+
+    preguntas_descontadas_102 = (
+        resultado_analisis_102[
+            "preguntas_descontadas"
+        ]
+    )
+
+    validadas_aprobadas_102 = (
+        resultado_analisis_102[
+            "validadas_aprobadas"
+        ]
+    )
+
+    validadas_rechazadas_102 = (
+        resultado_analisis_102[
+            "validadas_rechazadas"
+        ]
+    )
+
+    no_aplica_aun_102 = (
+        resultado_analisis_102[
+            "no_aplica_aun"
+        ]
+    )
+
+    disponibles_102 = (
+        resultado_analisis_102[
+            "disponibles"
+        ]
+    )
+
+    duplicados_102 = (
+        resultado_analisis_102[
+            "duplicados"
+        ]
+    )
+
+    evaluaciones_registradas_102 = (
+        resultado_analisis_102[
+            "evaluaciones_registradas"
+        ]
+    )
+
+    resumen_102 = (
+        resultado_analisis_102[
+            "resumen"
+        ]
+    )
+
+    resumen_modulo_102 = (
+        resultado_analisis_102[
+            "resumen_modulo"
+        ]
+    )
+
+    resumen_relacion_102 = (
+        resultado_analisis_102[
+            "resumen_relacion"
+        ]
+    )
+
+    resumen_nivel_102 = (
+        resultado_analisis_102[
+            "resumen_nivel"
+        ]
+    )
+
+
+    # ========================================================
+    # FUENTES
     # ========================================================
 
     st.markdown(
-        "### Resumen general"
+        "### Fuentes utilizadas por 10.2"
+    )
+
+    colf1_102, colf2_102, colf3_102 = st.columns(3)
+
+    with colf1_102:
+
+        st.success(
+            "BANCO GENERAL\n"
+            f"{total_102:,} preguntas"
+        )
+
+    with colf2_102:
+
+        st.success(
+            "PREGUNTAS_EVALUACIONES\n"
+            f"{len(df_preguntas_eval_102):,} registros"
+        )
+
+    with colf3_102:
+
+        st.success(
+            "EVALUACIONES\n"
+            f"{evaluaciones_registradas_102:,} registradas"
+        )
+
+
+    # ========================================================
+    # ESTADO GENERAL DEL BANCO
+    # ========================================================
+
+    st.markdown(
+        "### Estado general del Banco General"
     )
 
     c1_102, c2_102, c3_102, c4_102 = st.columns(4)
@@ -24534,38 +24712,44 @@ if resultado_102 is not None:
     with c1_102:
 
         st.metric(
-            "Preguntas del Banco",
-            f"{resultado_102['total_banco']:,}"
+            "Preguntas en banco",
+            f"{total_102:,}"
         )
 
     with c2_102:
 
         st.metric(
-            "Preguntas usadas",
-            f"{resultado_102['preguntas_usadas']:,}"
+            "Aprobadas en banco",
+            f"{aprobadas_banco_102:,}"
         )
 
     with c3_102:
 
         st.metric(
-            "Disponibles",
-            f"{resultado_102['disponibles']:,}"
+            "Rechazadas en banco",
+            f"{rechazadas_banco_102:,}"
         )
 
     with c4_102:
 
         st.metric(
-            "Evaluaciones completas",
-            f"{resultado_102['evaluaciones_completas']:,}"
+            "Pendientes",
+            f"{pendientes_banco_102:,}"
         )
 
 
     # ========================================================
-    # DESGLOSE DEL CONSUMO
+    # CRUCE REAL
     # ========================================================
 
     st.markdown(
-        "### Descuento real del Banco General"
+        "### Cruce real de consumo y validación"
+    )
+
+    st.caption(
+        "Una pregunta solo se descuenta una vez cuando su "
+        "Pregunta_ID tiene estado APROBADO o RECHAZADO en "
+        "la validación. NO APLICA AÚN permanece disponible."
     )
 
     c5_102, c6_102, c7_102, c8_102 = st.columns(4)
@@ -24573,49 +24757,90 @@ if resultado_102 is not None:
     with c5_102:
 
         st.metric(
-            "Usadas",
-            f"{resultado_102['preguntas_usadas']:,}"
+            "Registros con estado de validación",
+            f"{preguntas_con_estado_validacion_102:,}"
         )
 
     with c6_102:
 
         st.metric(
-            "Aprobadas en validación",
-            f"{resultado_102['aprobadas_validacion']:,}"
+            "Descontadas del banco",
+            f"{preguntas_descontadas_102:,}"
         )
 
     with c7_102:
 
         st.metric(
-            "Rechazadas en validación",
-            f"{resultado_102['rechazadas_validacion']:,}"
+            "APROBADO en validación",
+            f"{validadas_aprobadas_102:,}"
         )
 
     with c8_102:
 
         st.metric(
-            "Aún no utilizadas",
-            f"{resultado_102['aun_no_utilizadas']:,}"
+            "RECHAZADO en validación",
+            f"{validadas_rechazadas_102:,}"
         )
 
 
     # ========================================================
-    # COLA GENERAL
+    # NO APLICA AÚN / DISPONIBILIDAD
+    # ========================================================
+
+    c9_102, c10_102, c11_102 = st.columns(3)
+
+    with c9_102:
+
+        st.metric(
+            "NO APLICA AÚN",
+            f"{no_aplica_aun_102:,}"
+        )
+
+    with c10_102:
+
+        st.metric(
+            "Preguntas disponibles",
+            f"{disponibles_102:,}"
+        )
+
+    with c11_102:
+
+        st.metric(
+            "Evaluaciones registradas",
+            f"{evaluaciones_registradas_102:,}"
+        )
+
+
+    # ========================================================
+    # EXPLICACIÓN DEL DESCUENTO
     # ========================================================
 
     st.markdown(
-        "### Cola general"
+        "### Cómo está haciendo el descuento"
     )
 
-    st.info(
-        f"Quedan {resultado_102['preguntas_en_cola']:,} "
-        "preguntas disponibles que todavía no completan "
-        "otra evaluación de 10."
+    st.write(
+        f"El Banco General contiene {total_102:,} preguntas. "
+        f"De ellas, {preguntas_descontadas_102:,} tienen un "
+        "estado definitivo de validación APROBADO o RECHAZADO "
+        "y por eso dejan de estar disponibles."
+    )
+
+    st.write(
+        f"Hay {no_aplica_aun_102:,} preguntas con estado "
+        "NO APLICA AÚN. Estas NO se descuentan y permanecen "
+        "disponibles."
+    )
+
+    st.write(
+        "Los distractores u otras apariciones de una pregunta "
+        "en una evaluación no generan descuentos adicionales. "
+        "El descuento se hace por Pregunta_ID único."
     )
 
 
     # ========================================================
-    # POR RELACIÓN
+    # DISPONIBILIDAD POR RELACIÓN
     # ========================================================
 
     st.markdown(
@@ -24623,8 +24848,20 @@ if resultado_102 is not None:
     )
 
     st.dataframe(
-        resultado_102[
-            "resumen_relacion"
+        resumen_102[
+            [
+                "Modulo",
+                "Tipo_Relacion",
+                "Nivel",
+                "Preguntas_Banco",
+                "Preguntas_Descontadas",
+                "Validadas_Aprobadas",
+                "Validadas_Rechazadas",
+                "No_Aplica_Aun",
+                "Preguntas_Disponibles",
+                "Grupos_Completos_De_10",
+                "Cola_Si_Se_Trabaja_En_10"
+            ]
         ],
         use_container_width=True,
         hide_index=True
@@ -24640,9 +24877,7 @@ if resultado_102 is not None:
     )
 
     st.dataframe(
-        resultado_102[
-            "resumen_modulo"
-        ],
+        resumen_modulo_102,
         use_container_width=True,
         hide_index=True
     )
@@ -24657,9 +24892,7 @@ if resultado_102 is not None:
     )
 
     st.dataframe(
-        resultado_102[
-            "resumen_tipo"
-        ],
+        resumen_relacion_102,
         use_container_width=True,
         hide_index=True
     )
@@ -24674,87 +24907,46 @@ if resultado_102 is not None:
     )
 
     st.dataframe(
-        resultado_102[
-            "resumen_nivel"
-        ],
+        resumen_nivel_102,
         use_container_width=True,
         hide_index=True
     )
 
 
     # ========================================================
-    # TABLA DE CONTROL
-    #
-    # ESTA ES LA TABLA QUE NOS PERMITE VER EXACTAMENTE
-    # POR QUÉ UNA PREGUNTA ESTÁ O NO DISPONIBLE.
+    # DUPLICADOS
     # ========================================================
 
     st.markdown(
-        "### Control individual de preguntas"
+        "### Control de Pregunta_ID"
     )
 
-    columnas_control_102 = [
-        "Pregunta_ID",
-        "Modulo",
-        "Tipo_Relacion",
-        "Nivel",
-        "Estado",
-        "Estado_Persistencia_102",
-        "Estado_Control_102",
-        "Disponible_Real_102"
-    ]
+    if duplicados_102 > 0:
 
-    st.dataframe(
-        resultado_102[
-            "df_control"
-        ][columnas_control_102],
-        use_container_width=True,
-        hide_index=True
-    )
+        st.warning(
+            f"Se detectaron {duplicados_102:,} registros "
+            "duplicados de Pregunta_ID en el Banco General. "
+            "No se eliminaron ni modificaron."
+        )
+
+    else:
+
+        st.success(
+            "No hay Pregunta_ID duplicados."
+        )
 
 
     # ========================================================
-    # EXPLICACIÓN
+    # ACLARACIÓN FINAL
     # ========================================================
 
-    st.markdown(
-        "### Regla de disponibilidad"
+    st.info(
+        "10.2 NO genera evaluaciones y NO decide qué preguntas "
+        "usar. Solo determina qué Pregunta_ID siguen disponibles. "
+        "10.3 deberá utilizar esta disponibilidad para generar "
+        "nuevas evaluaciones y excluir únicamente los IDs cuyo "
+        "estado de validación sea APROBADO o RECHAZADO."
     )
-
-    st.write(
-        "El Banco General permanece intacto. "
-        "10.2 únicamente cruza cada Pregunta_ID "
-        "con su estado persistente."
-    )
-
-    st.write(
-        "Una pregunta aprobada en el Banco General "
-        "que todavía no haya sido utilizada permanece "
-        "disponible."
-    )
-
-    st.write(
-        "Una pregunta con estado 'AÚN NO SE UTILIZA' "
-        "o 'NO APLICA AÚN' permanece disponible."
-    )
-
-    st.write(
-        "Una pregunta que ya fue utilizada y terminó "
-        "APROBADA o RECHAZADA en la validación queda "
-        "fuera de la disponibilidad."
-    )
-
-    st.write(
-        "Una pregunta RECHAZADA directamente en el "
-        "Banco General nunca entra a la disponibilidad."
-    )
-
-    st.write(
-        "Las evaluaciones completas y la cola se "
-        "calculan exclusivamente sobre las preguntas "
-        "con Disponible_Real_102 = True."
-    )
-
 ============================================================
 # FIN 10.2
 # ============================================================
