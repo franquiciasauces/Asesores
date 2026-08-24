@@ -22696,21 +22696,372 @@ if aprobadas_92 > 0:
     ):
 
         sincronizar_92()
+
 # ============================================================
-# 10.1 - EVALUACIONES
-# PARTE 1 - CARGA Y CONTROL DEL BANCO GENERAL
+# 10.1 - CARGA Y CONTROL DEL BANCO GENERAL
 # ============================================================
-#
 # FUENTE:
 #     BANCO_PREGUNTAS_GENERALES.xlsx
 #
-# CLASIFICACIÓN:
-#     Modulo
-#     Tipo_Relacion
-#     Nivel
+# UBICACIÓN:
+#     GitHub / Asesores / main
 #
-# NO SE UTILIZA:
+# SALIDA:
+#     df_banco_101
+#
+# FUNCIÓN:
+#     Cargar el banco general una sola vez y dejarlo
+#     disponible para el análisis y generación de evaluaciones.
+#
+# NO UTILIZA:
 #     Tema
-#
-# ESTA PARTE NO GENERA EVALUACIONES.
 # ============================================================
+
+
+GITHUB_USUARIO_101 = "franquiciasauces"
+GITHUB_REPOSITORIO_101 = "Asesores"
+GITHUB_RAMA_101 = "main"
+GITHUB_ARCHIVO_101 = "BANCO_PREGUNTAS_GENERALES.xlsx"
+
+URL_GITHUB_101 = (
+    "https://api.github.com/repos/"
+    + GITHUB_USUARIO_101
+    + "/"
+    + GITHUB_REPOSITORIO_101
+    + "/contents/"
+    + GITHUB_ARCHIVO_101
+)
+
+
+# ============================================================
+# FUNCIÓN DE CARGA
+# ============================================================
+
+def cargar_banco_general_101():
+
+    headers_101 = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json"
+    }
+
+    try:
+
+        solicitud_101 = urllib.request.Request(
+            URL_GITHUB_101,
+            headers=headers_101,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud_101,
+            timeout=30
+        ) as respuesta_101:
+
+            datos_101 = json.loads(
+                respuesta_101.read().decode("utf-8")
+            )
+
+        # ----------------------------------------------------
+        # VERIFICAR SHA
+        # ----------------------------------------------------
+
+        if "sha" not in datos_101:
+
+            st.error(
+                "10.1 ERROR: GitHub no devolvió el SHA "
+                "del BANCO_PREGUNTAS_GENERALES.xlsx."
+            )
+
+            return None
+
+        # ----------------------------------------------------
+        # VERIFICAR CONTENIDO
+        # ----------------------------------------------------
+
+        if "content" not in datos_101:
+
+            st.error(
+                "10.1 ERROR: GitHub no devolvió el contenido "
+                "del BANCO_PREGUNTAS_GENERALES.xlsx."
+            )
+
+            return None
+
+        sha_101 = datos_101["sha"]
+
+        # ----------------------------------------------------
+        # DECODIFICAR ARCHIVO
+        # ----------------------------------------------------
+
+        contenido_101 = base64.b64decode(
+            datos_101["content"].replace(
+                "\n",
+                ""
+            )
+        )
+
+        memoria_101 = io.BytesIO(
+            contenido_101
+        )
+
+        df_101 = pd.read_excel(
+            memoria_101,
+            engine="openpyxl"
+        )
+
+        # ----------------------------------------------------
+        # COLUMNAS OBLIGATORIAS
+        #
+        # TEMA NO SE UTILIZA
+        # ----------------------------------------------------
+
+        columnas_101 = [
+            "Pregunta_ID",
+            "Modulo",
+            "Tipo_Relacion",
+            "Nivel",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Estado",
+            "Observacion_Administrador",
+            "Fecha_Generacion",
+            "Fuente_ID"
+        ]
+
+        faltantes_101 = [
+            columna
+            for columna in columnas_101
+            if columna not in df_101.columns
+        ]
+
+        if faltantes_101:
+
+            st.error(
+                "10.1 ERROR: faltan columnas en "
+                "BANCO_PREGUNTAS_GENERALES.xlsx: "
+                + ", ".join(faltantes_101)
+            )
+
+            return None
+
+        # ----------------------------------------------------
+        # RESPETAR EL ORDEN DEL BANCO
+        # ----------------------------------------------------
+
+        df_101 = df_101[
+            columnas_101
+        ].copy()
+
+        # ----------------------------------------------------
+        # NORMALIZACIÓN DE CAMPOS DE CONTROL
+        # ----------------------------------------------------
+
+        for columna in [
+            "Pregunta_ID",
+            "Modulo",
+            "Tipo_Relacion",
+            "Nivel",
+            "Estado",
+            "Fuente_ID"
+        ]:
+
+            df_101[columna] = (
+                df_101[columna]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+            )
+
+        # ----------------------------------------------------
+        # GUARDAR SHA
+        # ----------------------------------------------------
+
+        st.session_state[
+            "sha_banco_general_101"
+        ] = sha_101
+
+        return df_101.reset_index(
+            drop=True
+        )
+
+    except Exception as error_101:
+
+        st.error(
+            "10.1 ERROR: no fue posible cargar "
+            "BANCO_PREGUNTAS_GENERALES.xlsx desde GitHub."
+        )
+
+        st.exception(error_101)
+
+        return None
+
+
+# ============================================================
+# INTERFAZ 10.1
+# ============================================================
+
+st.markdown(
+    "## 10.1 - Banco general de preguntas"
+)
+
+st.info(
+    "Cargue el banco general actualizado desde GitHub "
+    "antes de analizar y generar evaluaciones."
+)
+
+
+if st.button(
+    "CARGAR BANCO GENERAL",
+    key="cargar_banco_general_101"
+):
+
+    df_banco_cargado_101 = (
+        cargar_banco_general_101()
+    )
+
+    if df_banco_cargado_101 is not None:
+
+        # ----------------------------------------------------
+        # GUARDAR FUENTE PARA TODO EL MÓDULO 10
+        # ----------------------------------------------------
+
+        st.session_state[
+            "df_banco_101"
+        ] = df_banco_cargado_101.copy()
+
+        st.session_state[
+            "banco_101_cargado"
+        ] = True
+
+        # ----------------------------------------------------
+        # LIMPIAR ESTADOS ANTERIORES DE ANÁLISIS
+        # ----------------------------------------------------
+
+        st.session_state.pop(
+            "resumen_disponibilidad_102",
+            None
+        )
+
+        st.session_state.pop(
+            "df_aprobadas_102",
+            None
+        )
+
+        st.success(
+            "BANCO_PREGUNTAS_GENERALES.xlsx "
+            "cargado correctamente."
+        )
+
+
+# ============================================================
+# MOSTRAR CONTROL DE CARGA
+# ============================================================
+
+if st.session_state.get(
+    "banco_101_cargado",
+    False
+):
+
+    df_banco_101 = st.session_state[
+        "df_banco_101"
+    ]
+
+    # --------------------------------------------------------
+    # TOTAL GENERAL
+    # --------------------------------------------------------
+
+    total_101 = len(
+        df_banco_101
+    )
+
+    # --------------------------------------------------------
+    # APROBADAS
+    # --------------------------------------------------------
+
+    aprobadas_101 = int(
+        (
+            df_banco_101["Estado"]
+            .str.upper()
+            == "APROBADA"
+        ).sum()
+    )
+
+    # --------------------------------------------------------
+    # RECHAZADAS
+    # --------------------------------------------------------
+
+    rechazadas_101 = int(
+        (
+            df_banco_101["Estado"]
+            .str.upper()
+            == "RECHAZADA"
+        ).sum()
+    )
+
+    # --------------------------------------------------------
+    # PENDIENTES
+    # --------------------------------------------------------
+
+    pendientes_101 = int(
+        (
+            df_banco_101["Estado"]
+            .str.upper()
+            == "PENDIENTE"
+        ).sum()
+    )
+
+    # --------------------------------------------------------
+    # MOSTRAR CONTROL
+    # --------------------------------------------------------
+
+    st.markdown(
+        "### Control del banco cargado"
+    )
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+
+        st.metric(
+            "Preguntas totales",
+            f"{total_101:,}"
+        )
+
+    with col2:
+
+        st.metric(
+            "Aprobadas",
+            f"{aprobadas_101:,}"
+        )
+
+    with col3:
+
+        st.metric(
+            "Rechazadas",
+            f"{rechazadas_101:,}"
+        )
+
+    with col4:
+
+        st.metric(
+            "Pendientes",
+            f"{pendientes_101:,}"
+        )
+
+    # --------------------------------------------------------
+    # CONTROL DE ESTRUCTURA
+    # --------------------------------------------------------
+
+    st.success(
+        "Fuente disponible para 10.2."
+    )
+
+    st.caption(
+        "La estructuración de las evaluaciones utilizará "
+        "únicamente Módulo + Tipo_Relacion + Nivel. "
+        "La columna Tema queda fuera del proceso."
+    )
