@@ -19731,7 +19731,7 @@ if aprobadas_83 > 0:
 # PRODUCTO / ALTERNATIVAS SEGURAS
 # NIVEL 1
 #
-# FUENTE COMÚN:
+# FUENTE:
 #     df_disponible_81
 #
 # SALIDA:
@@ -19742,123 +19742,137 @@ if aprobadas_83 > 0:
 
 def siguiente_id_85():
 
-    df_banco = st.session_state.get(
+    df_banco_85 = st.session_state.get(
         "df_banco_85",
         pd.DataFrame()
     )
 
-    mayor = 0
+    mayor_85 = 0
 
     if (
-        not df_banco.empty
-        and "Pregunta_ID" in df_banco.columns
+        not df_banco_85.empty
+        and "Pregunta_ID" in df_banco_85.columns
     ):
 
-        for valor in df_banco["Pregunta_ID"].fillna(""):
+        for valor_85 in df_banco_85[
+            "Pregunta_ID"
+        ].fillna(""):
 
-            texto = str(valor).strip()
+            texto_85 = str(
+                valor_85
+            ).strip()
 
-            if texto.startswith("PTRS-"):
+            if texto_85.startswith("PTRS-"):
 
                 try:
 
-                    numero = int(
-                        texto.replace("PTRS-", "")
+                    numero_85 = int(
+                        texto_85.replace(
+                            "PTRS-",
+                            ""
+                        )
                     )
 
-                    mayor = max(
-                        mayor,
-                        numero
+                    mayor_85 = max(
+                        mayor_85,
+                        numero_85
                     )
 
                 except ValueError:
                     pass
 
-    preguntas = st.session_state.get(
+    preguntas_85 = st.session_state.get(
         "preguntas_generadas_85",
         []
     )
 
-    for pregunta in preguntas:
+    for pregunta_85 in preguntas_85:
 
-        texto = str(
-            pregunta.get(
+        texto_85 = str(
+            pregunta_85.get(
                 "Pregunta_ID",
                 ""
             )
         ).strip()
 
-        if texto.startswith("PTRS-"):
+        if texto_85.startswith("PTRS-"):
 
             try:
 
-                numero = int(
-                    texto.replace("PTRS-", "")
+                numero_85 = int(
+                    texto_85.replace(
+                        "PTRS-",
+                        ""
+                    )
                 )
 
-                mayor = max(
-                    mayor,
-                    numero
+                mayor_85 = max(
+                    mayor_85,
+                    numero_85
                 )
 
             except ValueError:
                 pass
 
-    return f"PTRS-{mayor + 1:06d}"
+    return f"PTRS-{mayor_85 + 1:06d}"
 
 
 # ============================================================
-# GENERADOR
+# FUNCIÓN GENERADORA
 # ============================================================
 
-def generar_preguntas_85(cantidad):
+def generar_preguntas_85(cantidad_85):
 
     # --------------------------------------------------------
-    # LA FUENTE ES LA MISMA PARA LOS TRES GENERADORES
+    # FUENTE COMÚN DE LOS TRES GENERADORES
     # --------------------------------------------------------
 
-    df = st.session_state.get(
+    df_85 = st.session_state.get(
         "df_disponible_81",
         pd.DataFrame()
     )
 
-    if df.empty:
-        return []
+    if df_85.empty:
 
-    # --------------------------------------------------------
-    # COLUMNAS NECESARIAS PARA ESTE GENERADOR
-    # --------------------------------------------------------
-
-    columnas = [
-        "Restriccion_ID",
-        "Producto",
-        "Alternativas seguras"
-    ]
-
-    faltantes = [
-        columna
-        for columna in columnas
-        if columna not in df.columns
-    ]
-
-    if faltantes:
-
-        st.error(
-            "8.3 ERROR: faltan columnas: "
-            + ", ".join(faltantes)
+        st.warning(
+            "No existen restricciones disponibles "
+            "para generar preguntas 8.3."
         )
 
         return []
 
     # --------------------------------------------------------
-    # FUENTES YA CONSUMIDAS POR ESTE GENERADOR
-    #
-    # IMPORTANTE:
-    # Cada generador tiene su propio control de consumo.
-    # No se utiliza el control de 8.1 ni el de 8.2.
+    # COLUMNAS REQUERIDAS
     # --------------------------------------------------------
 
-    consumidas = st.session_state.get(
+    columnas_85 = [
+        "Restriccion_ID",
+        "Producto",
+        "Alternativas seguras"
+    ]
+
+    faltantes_85 = [
+        columna_85
+        for columna_85 in columnas_85
+        if columna_85 not in df_85.columns
+    ]
+
+    if faltantes_85:
+
+        st.error(
+            "8.3 ERROR: faltan columnas: "
+            + ", ".join(faltantes_85)
+        )
+
+        return []
+
+    # --------------------------------------------------------
+    # FUENTES YA UTILIZADAS POR 8.3
+    #
+    # ES INDEPENDIENTE DE 8.1 Y 8.2
+    # --------------------------------------------------------
+
+    consumidas_85 = st.session_state.get(
         "fuentes_consumidas_85",
         set()
     ).copy()
@@ -19867,159 +19881,176 @@ def generar_preguntas_85(cantidad):
     # CANDIDATOS
     # --------------------------------------------------------
 
-    candidatos = df[
-        ~df["Restriccion_ID"].astype(str).isin(
+    candidatos_85 = df_85[
+        ~df_85[
+            "Restriccion_ID"
+        ].astype(str).isin(
             {
                 str(x)
-                for x in consumidas
+                for x in consumidas_85
             }
         )
     ].copy()
 
     # --------------------------------------------------------
-    # ELIMINAR SOLAMENTE FILAS REALMENTE VACÍAS
+    # VALIDAR FILAS
     #
-    # NO se modifica el contenido de las celdas.
+    # NO SE RESUME NI SE MODIFICA EL CONTENIDO.
     # --------------------------------------------------------
 
-    candidatos = candidatos[
-        (candidatos["Restriccion_ID"].astype(str).str.strip() != "")
-        &
-        (candidatos["Producto"].astype(str).str.strip() != "")
+    candidatos_85 = candidatos_85[
+        (
+            candidatos_85[
+                "Restriccion_ID"
+            ]
+            .astype(str)
+            .str.strip()
+            != ""
+        )
         &
         (
-            candidatos["Alternativas seguras"]
+            candidatos_85[
+                "Producto"
+            ]
+            .astype(str)
+            .str.strip()
+            != ""
+        )
+        &
+        (
+            candidatos_85[
+                "Alternativas seguras"
+            ]
             .astype(str)
             .str.strip()
             != ""
         )
     ].copy()
 
-    if candidatos.empty:
+    if candidatos_85.empty:
 
         st.warning(
-            "No hay relaciones de alternativas seguras "
-            "disponibles para generar preguntas."
+            "No hay relaciones disponibles para "
+            "generar preguntas 8.3."
         )
 
         return []
 
-    # --------------------------------------------------------
-    # SE NECESITAN AL MENOS 4 ALTERNATIVAS DIFERENTES
-    #
-    # Una correcta + tres distractores.
-    # --------------------------------------------------------
-
-    candidatos = candidatos.sample(
+    candidatos_85 = candidatos_85.sample(
         frac=1
     ).reset_index(drop=True)
 
-    preguntas = []
+    preguntas_85 = []
 
     # ========================================================
-    # GENERACIÓN
+    # GENERAR
     # ========================================================
 
-    for _, fila in candidatos.iterrows():
+    for _, fila_85 in candidatos_85.iterrows():
 
-        fuente = str(
-            fila["Restriccion_ID"]
+        fuente_85 = str(
+            fila_85[
+                "Restriccion_ID"
+            ]
         ).strip()
 
-        producto = str(
-            fila["Producto"]
+        producto_85 = str(
+            fila_85[
+                "Producto"
+            ]
         ).strip()
 
-        # ----------------------------------------------------
-        # SE CONSERVA COMPLETA LA CELDA
-        # ----------------------------------------------------
-
-        correcta = str(
-            fila["Alternativas seguras"]
+        correcta_85 = str(
+            fila_85[
+                "Alternativas seguras"
+            ]
         ).strip()
 
         # ----------------------------------------------------
         # BUSCAR DISTRACTORES
-        #
-        # REGLA FUNDAMENTAL:
-        #
-        # No se puede utilizar un distractor cuya
-        # "Alternativas seguras" sea igual a la correcta,
-        # aunque pertenezca a otro producto.
         # ----------------------------------------------------
 
-        falsas = candidatos[
-            candidatos["Restriccion_ID"].astype(str)
-            != fuente
+        falsas_85 = candidatos_85[
+            candidatos_85[
+                "Restriccion_ID"
+            ].astype(str)
+            != fuente_85
         ].copy()
 
-        falsas["respuesta"] = (
-            falsas["Alternativas seguras"]
+        falsas_85["respuesta_85"] = (
+            falsas_85[
+                "Alternativas seguras"
+            ]
             .astype(str)
             .str.strip()
         )
 
         # ----------------------------------------------------
-        # ELIMINAR LA ALTERNATIVA CORRECTA
+        # REGLA FUNDAMENTAL:
+        #
+        # SI LA ALTERNATIVA SEGURA DEL DISTRACTOR ES IGUAL
+        # A LA CORRECTA, NO SE PUEDE UTILIZAR.
         # ----------------------------------------------------
 
-        falsas = falsas[
-            falsas["respuesta"].str.casefold()
-            != correcta.casefold()
+        falsas_85 = falsas_85[
+            falsas_85[
+                "respuesta_85"
+            ].str.casefold()
+            != correcta_85.casefold()
         ]
 
         # ----------------------------------------------------
-        # ELIMINAR DUPLICADOS DE ALTERNATIVAS
-        #
-        # Si varios productos tienen exactamente la misma
-        # alternativa segura, solamente puede existir como
-        # opción una vez y nunca como distractor de esta
-        # pregunta si coincide con la correcta.
+        # UNA MISMA ALTERNATIVA NO PUEDE REPETIRSE
+        # COMO DISTRACTOR
         # ----------------------------------------------------
 
-        falsas = falsas.drop_duplicates(
-            subset="respuesta"
+        falsas_85 = falsas_85.drop_duplicates(
+            subset="respuesta_85"
         )
 
         # ----------------------------------------------------
-        # DEBEN EXISTIR 3 DISTRACTORES DIFERENTES
+        # NECESITAMOS 3 DISTRACTORES
         # ----------------------------------------------------
 
-        if len(falsas) < 3:
+        if len(falsas_85) < 3:
             continue
 
-        falsas = falsas.sample(
+        falsas_85 = falsas_85.sample(
             n=3
         )
 
-        # ----------------------------------------------------
-        # CONSTRUIR LAS CUATRO OPCIONES
-        # ----------------------------------------------------
-
-        opciones = [
-            correcta,
+        opciones_85 = [
+            correcta_85,
             str(
-                falsas.iloc[0]["respuesta"]
+                falsas_85.iloc[0][
+                    "respuesta_85"
+                ]
             ).strip(),
             str(
-                falsas.iloc[1]["respuesta"]
+                falsas_85.iloc[1][
+                    "respuesta_85"
+                ]
             ).strip(),
             str(
-                falsas.iloc[2]["respuesta"]
+                falsas_85.iloc[2][
+                    "respuesta_85"
+                ]
             ).strip()
         ]
 
         # ----------------------------------------------------
-        # SEGURIDAD ADICIONAL:
-        # NINGUNA OPCIÓN PUEDE REPETIRSE
+        # VERIFICACIÓN FINAL DE OPCIONES
         # ----------------------------------------------------
 
-        normalizadas = [
+        opciones_normalizadas_85 = [
             opcion.casefold()
-            for opcion in opciones
+            for opcion in opciones_85
         ]
 
-        if len(set(normalizadas)) != 4:
+        if len(
+            set(opciones_normalizadas_85)
+        ) != 4:
+
             continue
 
         # ----------------------------------------------------
@@ -20027,18 +20058,20 @@ def generar_preguntas_85(cantidad):
         # ----------------------------------------------------
 
         np.random.shuffle(
-            opciones
+            opciones_85
         )
 
-        correcta_numero = (
-            opciones.index(correcta) + 1
+        correcta_numero_85 = (
+            opciones_85.index(
+                correcta_85
+            ) + 1
         )
 
         # ====================================================
-        # CONSTRUIR PREGUNTA
+        # CREAR PREGUNTA
         # ====================================================
 
-        pregunta = {
+        pregunta_85 = {
 
             "Pregunta_ID":
                 siguiente_id_85(),
@@ -20056,24 +20089,27 @@ def generar_preguntas_85(cantidad):
                 "Producto-Alternativas seguras",
 
             "Pregunta":
-                f"Para el producto {producto}, "
+                f"Para el producto "
+                f"{producto_85}, "
                 "¿cuál de las siguientes corresponde "
                 "a una alternativa segura?",
 
             "Respuesta_1":
-                opciones[0],
+                opciones_85[0],
 
             "Respuesta_2":
-                opciones[1],
+                opciones_85[1],
 
             "Respuesta_3":
-                opciones[2],
+                opciones_85[2],
 
             "Respuesta_4":
-                opciones[3],
+                opciones_85[3],
 
             "Respuesta_Correcta":
-                str(correcta_numero),
+                str(
+                    correcta_numero_85
+                ),
 
             "Estado":
                 "PENDIENTE",
@@ -20087,33 +20123,32 @@ def generar_preguntas_85(cantidad):
                 ),
 
             "Fuente_ID":
-                fuente
+                fuente_85
         }
 
-        preguntas.append(
-            pregunta
+        preguntas_85.append(
+            pregunta_85
         )
 
-        # ----------------------------------------------------
-        # MARCAR FUENTE COMO CONSUMIDA
-        # ----------------------------------------------------
-
-        consumidas.add(
-            fuente
+        consumidas_85.add(
+            fuente_85
         )
 
-        if len(preguntas) >= int(cantidad):
+        if len(
+            preguntas_85
+        ) >= int(cantidad_85):
+
             break
 
     # --------------------------------------------------------
-    # PERSISTIR CONTROL DE FUENTES
+    # GUARDAR FUENTES CONSUMIDAS
     # --------------------------------------------------------
 
     st.session_state[
         "fuentes_consumidas_85"
-    ] = consumidas
+    ] = consumidas_85
 
-    return preguntas
+    return preguntas_85
 
 
 # ============================================================
@@ -20123,18 +20158,17 @@ def generar_preguntas_85(cantidad):
 if "df_disponible_81" in st.session_state:
 
     st.markdown(
-        "### 8.3 - Generador de preguntas "
-        "Producto / Alternativas seguras"
+        "## 8.3 - Generador de preguntas"
     )
 
     st.info(
         "Nivel 1: Producto → Alternativas seguras. "
-        "La celda completa de 'Alternativas seguras' "
-        "se conserva como una sola respuesta."
+        "La información completa de la columna "
+        "'Alternativas seguras' se conserva sin resumir."
     )
 
     cantidad_85 = st.number_input(
-        "Cantidad de preguntas",
+        "Cantidad de preguntas 8.3",
         min_value=1,
         max_value=500,
         value=10,
@@ -20155,10 +20189,6 @@ if "df_disponible_81" in st.session_state:
             "preguntas_generadas_85"
         ] = nuevas_85
 
-        # ----------------------------------------------------
-        # DATAFRAME DE SALIDA DEL GENERADOR
-        # ----------------------------------------------------
-
         if nuevas_85:
 
             st.session_state[
@@ -20170,19 +20200,19 @@ if "df_disponible_81" in st.session_state:
             st.success(
                 f"Se generaron "
                 f"{len(nuevas_85)} "
-                "preguntas."
+                "preguntas 8.3."
             )
 
         else:
 
             st.warning(
-                "No fue posible generar preguntas "
+                "No fue posible generar preguntas 8.3 "
                 "con las relaciones disponibles."
             )
 
 
 # ============================================================
-# MOSTRAR PREGUNTAS GENERADAS
+# MOSTRAR PREGUNTAS
 # ============================================================
 
 preguntas_85 = st.session_state.get(
@@ -20196,41 +20226,41 @@ if preguntas_85:
         "### Preguntas generadas 8.3"
     )
 
-    for pregunta in preguntas_85:
+    for pregunta_85 in preguntas_85:
 
         st.markdown(
-            f"**{pregunta['Pregunta_ID']} — "
-            f"{pregunta['Nivel']}**"
+            f"**{pregunta_85['Pregunta_ID']} — "
+            f"{pregunta_85['Nivel']}**"
         )
 
         st.write(
-            pregunta["Pregunta"]
+            pregunta_85["Pregunta"]
         )
 
         st.write(
-            f"1. {pregunta['Respuesta_1']}"
+            f"1. {pregunta_85['Respuesta_1']}"
         )
 
         st.write(
-            f"2. {pregunta['Respuesta_2']}"
+            f"2. {pregunta_85['Respuesta_2']}"
         )
 
         st.write(
-            f"3. {pregunta['Respuesta_3']}"
+            f"3. {pregunta_85['Respuesta_3']}"
         )
 
         st.write(
-            f"4. {pregunta['Respuesta_4']}"
+            f"4. {pregunta_85['Respuesta_4']}"
         )
 
         st.caption(
             "Respuesta correcta: "
-            f"{pregunta['Respuesta_Correcta']}"
+            f"{pregunta_85['Respuesta_Correcta']}"
         )
 
         st.caption(
             "Fuente: "
-            f"{pregunta['Fuente_ID']}"
+            f"{pregunta_85['Fuente_ID']}"
         )
 
         st.divider()
