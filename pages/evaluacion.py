@@ -20544,3 +20544,463 @@ if preguntas_85:
             "Todas las preguntas 8.3 "
             "fueron revisadas."
         )
+# ============================================================
+# 8.3 - PARTE 4
+# SINCRONIZADOR
+# PRODUCTO / RESTRICCIÓN - ALTERNATIVAS SEGURAS
+# NIVEL 1
+#
+# ENTRADA:
+#     preguntas_generadas_85
+#
+# BANCO:
+#     BANCO_PREGUNTAS_GENERALES.xlsx
+#
+# SALIDA:
+#     BANCO_PREGUNTAS_GENERALES.xlsx
+#
+# DATAFRAME LOCAL:
+#     df_banco_85
+# ============================================================
+
+
+GITHUB_USUARIO_85 = "franquiciasauces"
+GITHUB_REPOSITORIO_85 = "Asesores"
+GITHUB_RAMA_85 = "main"
+GITHUB_ARCHIVO_85 = "BANCO_PREGUNTAS_GENERALES.xlsx"
+
+
+URL_GITHUB_85 = (
+    "https://api.github.com/repos/"
+    + GITHUB_USUARIO_85
+    + "/"
+    + GITHUB_REPOSITORIO_85
+    + "/contents/"
+    + GITHUB_ARCHIVO_85
+)
+
+
+# ============================================================
+# FUNCIÓN DE SINCRONIZACIÓN
+# ============================================================
+
+def sincronizar_85():
+
+    preguntas_85 = st.session_state.get(
+        "preguntas_generadas_85",
+        []
+    )
+
+    # --------------------------------------------------------
+    # SOLO PREGUNTAS APROBADAS
+    # --------------------------------------------------------
+
+    aprobadas_85 = [
+        pregunta
+        for pregunta in preguntas_85
+        if pregunta.get("Estado") == "APROBADA"
+    ]
+
+    if not aprobadas_85:
+
+        st.warning(
+            "No hay preguntas aprobadas para sincronizar."
+        )
+
+        return
+
+    headers_85 = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json"
+    }
+
+    try:
+
+        # ====================================================
+        # LEER BANCO GENERAL DESDE GITHUB
+        # ====================================================
+
+        solicitud_85 = urllib.request.Request(
+            URL_GITHUB_85,
+            headers=headers_85,
+            method="GET"
+        )
+
+        with urllib.request.urlopen(
+            solicitud_85,
+            timeout=30
+        ) as respuesta_85:
+
+            datos_85 = json.loads(
+                respuesta_85.read().decode("utf-8")
+            )
+
+        # ----------------------------------------------------
+        # VERIFICAR SHA
+        # ----------------------------------------------------
+
+        if "sha" not in datos_85:
+
+            st.error(
+                "8.3 ERROR: GitHub no devolvió el SHA "
+                "del archivo."
+            )
+
+            return
+
+        sha_85 = datos_85["sha"]
+
+        # ----------------------------------------------------
+        # VERIFICAR CONTENIDO
+        # ----------------------------------------------------
+
+        if "content" not in datos_85:
+
+            st.error(
+                "8.3 ERROR: GitHub no devolvió el "
+                "contenido del banco."
+            )
+
+            return
+
+        # ====================================================
+        # DECODIFICAR BANCO
+        # ====================================================
+
+        contenido_85 = base64.b64decode(
+            datos_85["content"].replace(
+                "\n",
+                ""
+            )
+        )
+
+        memoria_85 = io.BytesIO(
+            contenido_85
+        )
+
+        df_banco_85 = pd.read_excel(
+            memoria_85,
+            engine="openpyxl"
+        )
+
+        total_antes_85 = len(
+            df_banco_85
+        )
+
+        # ====================================================
+        # CONFIRMAR CARGA DEL BANCO
+        # ====================================================
+
+        st.success(
+            "BANCO_PREGUNTAS_GENERALES.xlsx "
+            "cargado correctamente desde GitHub."
+        )
+
+        st.info(
+            "Preguntas en el banco antes de sincronizar: "
+            f"{total_antes_85:,}"
+        )
+
+        # ====================================================
+        # COLUMNAS OBLIGATORIAS DEL BANCO
+        # ====================================================
+
+        columnas_85 = [
+            "Pregunta_ID",
+            "Modulo",
+            "Tema",
+            "Nivel",
+            "Tipo_Relacion",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Estado",
+            "Observacion_Administrador",
+            "Fecha_Generacion",
+            "Fuente_ID"
+        ]
+
+        # ----------------------------------------------------
+        # VALIDAR BANCO
+        # ----------------------------------------------------
+
+        faltantes_banco_85 = [
+            columna
+            for columna in columnas_85
+            if columna not in df_banco_85.columns
+        ]
+
+        if faltantes_banco_85:
+
+            st.error(
+                "8.3 ERROR: faltan columnas en "
+                "BANCO_PREGUNTAS_GENERALES.xlsx: "
+                + ", ".join(
+                    faltantes_banco_85
+                )
+            )
+
+            return
+
+        # ====================================================
+        # CONVERTIR PREGUNTAS APROBADAS A DATAFRAME
+        # ====================================================
+
+        df_nuevas_85 = pd.DataFrame(
+            aprobadas_85
+        )
+
+        # ----------------------------------------------------
+        # VALIDAR COLUMNAS DE LAS PREGUNTAS
+        # ----------------------------------------------------
+
+        faltantes_nuevas_85 = [
+            columna
+            for columna in columnas_85
+            if columna not in df_nuevas_85.columns
+        ]
+
+        if faltantes_nuevas_85:
+
+            st.error(
+                "8.3 ERROR: faltan columnas en "
+                "las preguntas aprobadas: "
+                + ", ".join(
+                    faltantes_nuevas_85
+                )
+            )
+
+            return
+
+        # ----------------------------------------------------
+        # RESPETAR EXACTAMENTE EL ORDEN DEL BANCO
+        # ----------------------------------------------------
+
+        df_nuevas_85 = df_nuevas_85[
+            columnas_85
+        ].copy()
+
+        # ====================================================
+        # EVITAR DUPLICADOS POR PREGUNTA_ID
+        # ====================================================
+
+        ids_existentes_85 = set(
+            df_banco_85[
+                "Pregunta_ID"
+            ]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+        filas_nuevas_85 = []
+
+        for _, fila_85 in df_nuevas_85.iterrows():
+
+            pregunta_id_85 = str(
+                fila_85["Pregunta_ID"]
+            ).strip()
+
+            if not pregunta_id_85:
+                continue
+
+            if pregunta_id_85 in ids_existentes_85:
+                continue
+
+            filas_nuevas_85.append(
+                fila_85
+            )
+
+            ids_existentes_85.add(
+                pregunta_id_85
+            )
+
+        nuevas_85 = len(
+            filas_nuevas_85
+        )
+
+        # ====================================================
+        # SI NO HAY PREGUNTAS NUEVAS
+        # ====================================================
+
+        if nuevas_85 == 0:
+
+            st.info(
+                "No hay preguntas nuevas para agregar."
+            )
+
+            st.info(
+                "El banco continúa con "
+                f"{total_antes_85:,} preguntas."
+            )
+
+            return
+
+        # ====================================================
+        # AGREGAR AL BANCO GENERAL
+        # ====================================================
+
+        df_agregar_85 = pd.DataFrame(
+            filas_nuevas_85
+        )
+
+        df_final_85 = pd.concat(
+            [
+                df_banco_85,
+                df_agregar_85
+            ],
+            ignore_index=True
+        )
+
+        total_despues_85 = len(
+            df_final_85
+        )
+
+        # ====================================================
+        # ACTUALIZAR DATAFRAME LOCAL
+        # ====================================================
+
+        st.session_state[
+            "df_banco_85"
+        ] = df_final_85.copy()
+
+        # ====================================================
+        # CREAR EXCEL ACTUALIZADO
+        # ====================================================
+
+        memoria_salida_85 = io.BytesIO()
+
+        with pd.ExcelWriter(
+            memoria_salida_85,
+            engine="openpyxl"
+        ) as escritor_85:
+
+            df_final_85.to_excel(
+                escritor_85,
+                index=False,
+                sheet_name="Banco"
+            )
+
+        # ====================================================
+        # CODIFICAR ARCHIVO
+        # ====================================================
+
+        contenido_nuevo_85 = base64.b64encode(
+            memoria_salida_85.getvalue()
+        ).decode("utf-8")
+
+        # ====================================================
+        # ACTUALIZAR GITHUB
+        # ====================================================
+
+        datos_actualizacion_85 = {
+
+            "message":
+                "Agregar preguntas 8.3 - "
+                "Producto Restricción Alternativas Seguras",
+
+            "content":
+                contenido_nuevo_85,
+
+            "branch":
+                GITHUB_RAMA_85,
+
+            "sha":
+                sha_85
+        }
+
+        cuerpo_85 = json.dumps(
+            datos_actualizacion_85
+        ).encode("utf-8")
+
+        solicitud_actualizacion_85 = (
+            urllib.request.Request(
+                URL_GITHUB_85,
+                data=cuerpo_85,
+                headers={
+                    **headers_85,
+                    "Content-Type":
+                        "application/json"
+                },
+                method="PUT"
+            )
+        )
+
+        with urllib.request.urlopen(
+            solicitud_actualizacion_85,
+            timeout=30
+        ) as respuesta_actualizacion_85:
+
+            respuesta_actualizacion_85.read()
+
+        # ====================================================
+        # RESULTADO
+        # ====================================================
+
+        st.success(
+            "8.3 sincronizado correctamente con "
+            "BANCO_PREGUNTAS_GENERALES.xlsx."
+        )
+
+        st.info(
+            "Preguntas en el banco antes: "
+            f"{total_antes_85:,}"
+        )
+
+        st.info(
+            "Preguntas nuevas incorporadas: "
+            f"{nuevas_85:,}"
+        )
+
+        st.info(
+            "Preguntas en el banco después: "
+            f"{total_despues_85:,}"
+        )
+
+    except Exception as error_85:
+
+        st.error(
+            "8.3 ERROR: no fue posible cargar o "
+            "actualizar BANCO_PREGUNTAS_GENERALES.xlsx."
+        )
+
+        st.exception(
+            error_85
+        )
+
+
+# ============================================================
+# BOTÓN DE SINCRONIZACIÓN 8.3
+# ============================================================
+
+preguntas_85 = st.session_state.get(
+    "preguntas_generadas_85",
+    []
+)
+
+aprobadas_85 = sum(
+    1
+    for pregunta in preguntas_85
+    if pregunta.get("Estado") == "APROBADA"
+)
+
+if aprobadas_85 > 0:
+
+    st.markdown(
+        "### 8.3 - Sincronización"
+    )
+
+    st.info(
+        "Preguntas aprobadas listas para sincronizar: "
+        f"{aprobadas_85}"
+    )
+
+    if st.button(
+        "SINCRONIZAR 8.3 CON BANCO DE PREGUNTAS",
+        key="boton_sincronizar_85"
+    ):
+
+        sincronizar_85()
