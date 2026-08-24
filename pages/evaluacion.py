@@ -22696,3 +22696,21 @@ if aprobadas_92 > 0:
     ):
 
         sincronizar_92()
+# ============================================================
+# 10.1 - EVALUACIONES
+# PARTE 1 - CARGA Y CONTROL DEL BANCO GENERAL
+# ============================================================
+#
+# FUENTE:
+#     BANCO_PREGUNTAS_GENERALES.xlsx
+#
+# CLASIFICACIÓN:
+#     Modulo
+#     Tipo_Relacion
+#     Nivel
+#
+# NO SE UTILIZA:
+#     Tema
+#
+# ESTA PARTE NO GENERA EVALUACIONES.
+# ============================================================
