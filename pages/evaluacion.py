@@ -18731,31 +18731,36 @@ if aprobadas_81 > 0:
     ):
 
         sincronizar_81()
+
 # ============================================================
 # 8.2 - PARTE 2
-# GENERADOR PREGUNTAS RESTRICCIÓN
+# GENERADOR DE PREGUNTAS
 # PRODUCTO / CONTRAINDICACIÓN - MOTIVO
 # NIVEL 1
+#
+# FUENTE:
+#     df_disponible_81
+#
+# SALIDA:
+#     df_banco_83
 # ============================================================
 
-def siguiente_id_restricciones():
 
-    # --------------------------------------------------------
-    # Busca el último ID ya generado
-    # --------------------------------------------------------
-    df_preguntas = st.session_state.get(
-        "df_preguntas_restricciones",
+def siguiente_id_83():
+
+    df_banco = st.session_state.get(
+        "df_banco_83",
         pd.DataFrame()
     )
 
     mayor = 0
 
     if (
-        not df_preguntas.empty
-        and "Pregunta_ID" in df_preguntas.columns
+        not df_banco.empty
+        and "Pregunta_ID" in df_banco.columns
     ):
 
-        for valor in df_preguntas["Pregunta_ID"].fillna(""):
+        for valor in df_banco["Pregunta_ID"].fillna(""):
 
             texto = str(valor).strip()
 
@@ -18775,11 +18780,8 @@ def siguiente_id_restricciones():
                 except ValueError:
                     pass
 
-    # --------------------------------------------------------
-    # También revisa preguntas generadas durante la sesión
-    # --------------------------------------------------------
     preguntas = st.session_state.get(
-        "preguntas_generadas_restricciones",
+        "preguntas_generadas_83",
         []
     )
 
@@ -18809,16 +18811,17 @@ def siguiente_id_restricciones():
 
 
 # ============================================================
-# GENERADOR
+# GENERADOR 8.2
 # ============================================================
 
-def generar_preguntas_restricciones(cantidad):
+def generar_preguntas_83(cantidad):
 
     # --------------------------------------------------------
-    # DataFrame fuente
+    # LA FUENTE ES LA MISMA DEL GENERADOR 8.1
     # --------------------------------------------------------
+
     df = st.session_state.get(
-        "df_disponible_restricciones",
+        "df_disponible_81",
         pd.DataFrame()
     )
 
@@ -18826,9 +18829,9 @@ def generar_preguntas_restricciones(cantidad):
         return []
 
     # --------------------------------------------------------
-    # Columnas obligatorias
-    # NO se utiliza "Tipo"
+    # COLUMNAS REQUERIDAS PARA ESTE GENERADOR
     # --------------------------------------------------------
+
     columnas = [
         "Restriccion_ID",
         "Producto",
@@ -18853,16 +18856,18 @@ def generar_preguntas_restricciones(cantidad):
         return []
 
     # --------------------------------------------------------
-    # Fuentes ya utilizadas
+    # FUENTES YA UTILIZADAS
     # --------------------------------------------------------
+
     consumidas = st.session_state.get(
-        "fuentes_consumidas_restricciones",
+        "fuentes_consumidas_83",
         set()
     ).copy()
 
     # --------------------------------------------------------
-    # Candidatos
+    # CANDIDATOS
     # --------------------------------------------------------
+
     candidatos = df[
         ~df["Restriccion_ID"].astype(str).isin(
             {
@@ -18873,9 +18878,12 @@ def generar_preguntas_restricciones(cantidad):
     ].copy()
 
     # --------------------------------------------------------
-    # Limpieza mínima
-    # NO se modifica el contenido de las columnas
+    # VALIDACIÓN MÍNIMA
+    #
+    # NO se modifica el contenido.
+    # Solo se eliminan filas realmente vacías.
     # --------------------------------------------------------
+
     candidatos = candidatos[
         (candidatos["Restriccion_ID"].astype(str).str.strip() != "")
         &
@@ -18901,15 +18909,16 @@ def generar_preguntas_restricciones(cantidad):
     if candidatos.empty:
 
         st.warning(
-            "No hay restricciones disponibles "
-            "para generar preguntas."
+            "No hay relaciones de restricciones "
+            "disponibles para generar preguntas."
         )
 
         return []
 
     # --------------------------------------------------------
-    # Aleatorizar candidatos
+    # ALEATORIZAR
     # --------------------------------------------------------
+
     candidatos = candidatos.sample(
         frac=1
     ).reset_index(drop=True)
@@ -18922,7 +18931,7 @@ def generar_preguntas_restricciones(cantidad):
 
     for _, fila in candidatos.iterrows():
 
-        restriccion_id = str(
+        fuente = str(
             fila["Restriccion_ID"]
         ).strip()
 
@@ -18932,30 +18941,30 @@ def generar_preguntas_restricciones(cantidad):
 
         # ----------------------------------------------------
         # IMPORTANTE:
-        # Se conserva COMPLETA la celda.
-        # No se separa.
-        # No se resume.
-        # No se interpreta.
+        # SE CONSERVA TODA LA CELDA.
+        #
+        # NO se divide por ;
+        # NO se resume;
+        # NO se elimina información.
         # ----------------------------------------------------
+
         contraindicacion = str(
             fila[
                 "Precaución / Contraindicación"
             ]
         ).strip()
 
-        # ----------------------------------------------------
-        # Motivo correcto
-        # ----------------------------------------------------
         correcta = str(
             fila["Motivo"]
         ).strip()
 
         # ----------------------------------------------------
-        # Buscar motivos distractores
+        # BUSCAR MOTIVOS FALSOS
         # ----------------------------------------------------
+
         falsas = candidatos[
             candidatos["Restriccion_ID"].astype(str)
-            != restriccion_id
+            != fuente
         ].copy()
 
         falsas["respuesta"] = (
@@ -18964,13 +18973,13 @@ def generar_preguntas_restricciones(cantidad):
             .str.strip()
         )
 
-        # Eliminar el mismo motivo de la respuesta correcta
+        # Quitar el motivo correcto
         falsas = falsas[
             falsas["respuesta"].str.lower()
             != correcta.lower()
         ]
 
-        # Eliminar duplicados
+        # Quitar motivos duplicados
         falsas = falsas.drop_duplicates(
             subset="respuesta"
         )
@@ -18978,12 +18987,13 @@ def generar_preguntas_restricciones(cantidad):
         if len(falsas) < 3:
             continue
 
-        # ----------------------------------------------------
-        # Seleccionar 3 distractores
-        # ----------------------------------------------------
         falsas = falsas.sample(
             n=3
         )
+
+        # ----------------------------------------------------
+        # CUATRO OPCIONES
+        # ----------------------------------------------------
 
         opciones = [
             correcta,
@@ -18998,9 +19008,6 @@ def generar_preguntas_restricciones(cantidad):
             ).strip()
         ]
 
-        # ----------------------------------------------------
-        # Mezclar opciones
-        # ----------------------------------------------------
         np.random.shuffle(
             opciones
         )
@@ -19010,13 +19017,13 @@ def generar_preguntas_restricciones(cantidad):
         )
 
         # ====================================================
-        # CONSTRUIR PREGUNTA
+        # PREGUNTA
         # ====================================================
 
         pregunta = {
 
             "Pregunta_ID":
-                siguiente_id_restricciones(),
+                siguiente_id_83(),
 
             "Modulo":
                 "Restricciones",
@@ -19063,7 +19070,7 @@ def generar_preguntas_restricciones(cantidad):
                 ),
 
             "Fuente_ID":
-                restriccion_id
+                fuente
         }
 
         preguntas.append(
@@ -19071,83 +19078,78 @@ def generar_preguntas_restricciones(cantidad):
         )
 
         consumidas.add(
-            restriccion_id
+            fuente
         )
 
         if len(preguntas) >= int(cantidad):
             break
 
     # --------------------------------------------------------
-    # Guardar fuentes consumidas
+    # PERSISTIR FUENTES CONSUMIDAS
     # --------------------------------------------------------
+
     st.session_state[
-        "fuentes_consumidas_restricciones"
+        "fuentes_consumidas_83"
     ] = consumidas
 
     return preguntas
 
 
 # ============================================================
-# INTERFAZ DEL GENERADOR
+# INTERFAZ 8.2
 # ============================================================
 
-if "df_disponible_restricciones" in st.session_state:
+if "df_disponible_81" in st.session_state:
 
     st.markdown(
-        "### 8.2 - Generador de preguntas de restricciones"
+        "### 8.2 - Generador de preguntas "
+        "Producto / Contraindicación - Motivo"
     )
 
     st.info(
-        "Nivel 1: Producto → Precaución / "
-        "Contraindicación → Motivo. "
-        "La información completa de la "
-        "precaución/contraindicación se conserva "
-        "en la pregunta."
+        "Nivel 1: se conserva completa la "
+        "Precaución / Contraindicación de la fuente "
+        "y se pregunta por el Motivo."
     )
 
-    cantidad_restricciones = st.number_input(
+    cantidad_83 = st.number_input(
         "Cantidad de preguntas",
         min_value=1,
         max_value=500,
         value=10,
         step=1,
-        key="cantidad_generar_restricciones"
+        key="cantidad_generar_83"
     )
 
     if st.button(
         "GENERAR PREGUNTAS 8.2",
-        key="generar_preguntas_restricciones"
+        key="generar_preguntas_83"
     ):
 
-        nuevas_restricciones = (
-            generar_preguntas_restricciones(
-                int(cantidad_restricciones)
-            )
+        nuevas_83 = generar_preguntas_83(
+            int(cantidad_83)
         )
 
-        # ----------------------------------------------------
-        # Lista de preguntas generadas
-        # ----------------------------------------------------
         st.session_state[
-            "preguntas_generadas_restricciones"
-        ] = nuevas_restricciones
+            "preguntas_generadas_83"
+        ] = nuevas_83
 
         # ----------------------------------------------------
-        # DataFrame de preguntas
-        # ESTE ES EL DATAFRAME DE SALIDA DEL GENERADOR
+        # CREAR EL DATAFRAME 8.3
         # ----------------------------------------------------
-        if nuevas_restricciones:
+
+        if nuevas_83:
 
             st.session_state[
-                "df_preguntas_restricciones"
+                "df_banco_83"
             ] = pd.DataFrame(
-                nuevas_restricciones
+                nuevas_83
             )
 
             st.success(
                 f"Se generaron "
-                f"{len(nuevas_restricciones)} "
-                "preguntas de restricciones."
+                f"{len(nuevas_83)} "
+                "preguntas."
             )
 
         else:
@@ -19159,21 +19161,21 @@ if "df_disponible_restricciones" in st.session_state:
 
 
 # ============================================================
-# MOSTRAR PREGUNTAS
+# MOSTRAR PREGUNTAS GENERADAS
 # ============================================================
 
-preguntas_restricciones = st.session_state.get(
-    "preguntas_generadas_restricciones",
+preguntas_83 = st.session_state.get(
+    "preguntas_generadas_83",
     []
 )
 
-if preguntas_restricciones:
+if preguntas_83:
 
     st.markdown(
         "### Preguntas generadas 8.2"
     )
 
-    for pregunta in preguntas_restricciones:
+    for pregunta in preguntas_83:
 
         st.markdown(
             f"**{pregunta['Pregunta_ID']} — "
