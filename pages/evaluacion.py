@@ -24267,18 +24267,21 @@ else:
         respuesta.text
     )
 # ============================================================
+
+# ============================================================
 # 10.3.A - GENERADOR DE EVALUACIONES
 # ============================================================
 
 import streamlit as st
 import pandas as pd
+import re
 
 
 st.markdown("## 10.3.A - Generador de evaluaciones")
 
 
 # ============================================================
-# TOMAR EXCLUSIVAMENTE EL BANCO DE DISPONIBILIDAD 10.2
+# TOMAR EL DATAFRAME DE DISPONIBILIDAD CONSTRUIDO EN 10.2
 # ============================================================
 
 df_disponibilidad_102 = st.session_state.get(
@@ -24291,7 +24294,7 @@ if df_disponibilidad_102.empty:
 
     st.warning(
         "No existe df_disponibilidad_102. "
-        "Primero debe ejecutarse 10.2.B."
+        "Primero debe ejecutarse 10.2."
     )
 
     st.stop()
@@ -24301,7 +24304,20 @@ df = df_disponibilidad_102.copy()
 
 
 # ============================================================
-# VALIDAR CAMPOS NECESARIOS
+# TOMAR EVALUACIONES PERSISTENTES CARGADAS POR 10.1
+#
+# NO SE CARGA NINGÚN ARCHIVO NUEVAMENTE.
+# 10.1 YA CARGÓ EVALUACIONES.csv.
+# ============================================================
+
+df_evaluaciones_101 = st.session_state.get(
+    "df_evaluaciones_101",
+    pd.DataFrame()
+)
+
+
+# ============================================================
+# VALIDAR CAMPOS DEL BANCO DE DISPONIBILIDAD
 # ============================================================
 
 campos_necesarios = [
@@ -24338,16 +24354,16 @@ if faltantes:
 
 
 # ============================================================
-# FILTRAR PREGUNTAS QUE REALMENTE PUEDEN UTILIZARSE
+# NORMALIZAR ESTADO_USO
 #
-# SOLAMENTE SE UTILIZAN LAS QUE TIENEN Estado_Uso VACÍO.
+# SOLO LAS PREGUNTAS CON ESTADO VACÍO ESTÁN DISPONIBLES.
 #
-# NO SE UTILIZAN:
-# - USADA
-# - DISPONIBLE
+# USADA       -> NO UTILIZAR
+# DISPONIBLE  -> NO UTILIZAR
+# VACÍO       -> UTILIZAR
 # ============================================================
 
-estado_uso = (
+df["Estado_Uso"] = (
     df["Estado_Uso"]
     .fillna("")
     .astype(str)
@@ -24357,7 +24373,7 @@ estado_uso = (
 
 
 df_disponibles = df[
-    estado_uso.eq("")
+    df["Estado_Uso"].eq("")
 ].copy()
 
 
@@ -24365,6 +24381,70 @@ st.info(
     f"Preguntas disponibles para generar evaluaciones: "
     f"{len(df_disponibles):,}"
 )
+
+
+# ============================================================
+# FUNCIÓN PARA OBTENER EL SIGUIENTE CONSECUTIVO
+#
+# EL CONSECUTIVO ES GLOBAL.
+#
+# NO SE REINICIA POR:
+# - MÓDULO
+# - RELACIÓN
+# - NIVEL
+#
+# SE OBTIENE DE EVALUACIONES.csv, QUE YA FUE
+# CARGADO POR 10.1.
+# ============================================================
+
+def obtener_siguiente_consecutivo_103(
+    df_evaluaciones
+):
+
+    if (
+        df_evaluaciones is None
+        or df_evaluaciones.empty
+        or "Evaluacion_ID"
+        not in df_evaluaciones.columns
+    ):
+
+        return 1
+
+
+    ids = (
+        df_evaluaciones["Evaluacion_ID"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+
+    maximo = 0
+
+
+    for evaluacion_id in ids:
+
+        if not evaluacion_id:
+            continue
+
+
+        coincidencia = re.search(
+            r"_(\d+)$",
+            evaluacion_id
+        )
+
+
+        if coincidencia:
+
+            numero = int(
+                coincidencia.group(1)
+            )
+
+            if numero > maximo:
+                maximo = numero
+
+
+    return maximo + 1
 
 
 # ============================================================
@@ -24384,8 +24464,8 @@ modulos = sorted(
 if not modulos:
 
     st.warning(
-        "No existen preguntas disponibles para generar "
-        "evaluaciones."
+        "No existen preguntas disponibles para "
+        "generar evaluaciones."
     )
 
     st.stop()
@@ -24516,7 +24596,7 @@ cantidad_candidatas = len(
 
 
 # ============================================================
-# INFORMACIÓN DE LA COMBINACIÓN SELECCIONADA
+# INFORMACIÓN DE LA COMBINACIÓN
 # ============================================================
 
 st.markdown(
@@ -24566,24 +24646,27 @@ if cantidad_candidatas == 0:
 
 
 # ============================================================
-# SI HAY MENOS DE 10 PREGUNTAS
+# SI HAY MENOS DE 10
 # ============================================================
 
 if cantidad_candidatas < 10:
 
     st.warning(
-        f"Esta combinación tiene solamente "
-        f"{cantidad_candidatas} preguntas disponibles. "
-        f"Una evaluación completa requiere 10 preguntas."
+        f"Hay solamente {cantidad_candidatas} preguntas "
+        f"disponibles para esta combinación. "
+        f"Una evaluación completa requiere 10."
     )
 
+
     aceptar_incompleta = st.checkbox(
-        f"Quiero generar la evaluación con las "
+        f"Generar la evaluación con las "
         f"{cantidad_candidatas} preguntas disponibles.",
         key="aceptar_evaluacion_incompleta_103"
     )
 
+
     cantidad_generar = cantidad_candidatas
+
 
 else:
 
@@ -24624,6 +24707,10 @@ generar = st.button(
 
 if generar:
 
+    # ========================================================
+    # SELECCIONAR LAS PREGUNTAS
+    # ========================================================
+
     evaluacion = (
         df_candidatas
         .sample(
@@ -24635,14 +24722,151 @@ if generar:
     )
 
 
-    # --------------------------------------------------------
+    # ========================================================
+    # OBTENER CONSECUTIVO GLOBAL
+    #
+    # SE CONSULTA EVALUACIONES.csv YA CARGADO POR 10.1.
+    # ========================================================
+
+    siguiente_consecutivo = (
+        obtener_siguiente_consecutivo_103(
+            df_evaluaciones_101
+        )
+    )
+
+
+    # ========================================================
+    # CONSTRUIR EVALUACION_ID
+    #
+    # REGLA EXACTA:
+    #
+    # Modulo + Tipo_Relacion + Nivel + Autonumérico
+    #
+    # Ejemplo:
+    #
+    # Patologias_Descripcion_Patologia_Nivel 1_0001
+    #
+    # ========================================================
+
+    evaluacion_id = (
+        f"{str(modulo_seleccionado).strip()}_"
+        f"{str(relacion_seleccionada).strip()}_"
+        f"{str(nivel_seleccionado).strip()}_"
+        f"{siguiente_consecutivo:04d}"
+    )
+
+
+    # ========================================================
+    # ASEGURAR QUE EL ID NO EXISTA
+    #
+    # CONTROL ADICIONAL CONTRA DUPLICADOS.
+    # ========================================================
+
+    ids_existentes = set()
+
+
+    if (
+        not df_evaluaciones_101.empty
+        and "Evaluacion_ID"
+        in df_evaluaciones_101.columns
+    ):
+
+        ids_existentes = set(
+            df_evaluaciones_101[
+                "Evaluacion_ID"
+            ]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+        )
+
+
+    while evaluacion_id in ids_existentes:
+
+        siguiente_consecutivo += 1
+
+        evaluacion_id = (
+            f"{str(modulo_seleccionado).strip()}_"
+            f"{str(relacion_seleccionada).strip()}_"
+            f"{str(nivel_seleccionado).strip()}_"
+            f"{siguiente_consecutivo:04d}"
+        )
+
+
+    # ========================================================
+    # AGREGAR EVALUACION_ID
+    # ========================================================
+
+    evaluacion.insert(
+        0,
+        "Evaluacion_ID",
+        evaluacion_id
+    )
+
+
+    # ========================================================
+    # ESTADO INICIAL DE VALIDACIÓN
+    #
+    # TODAVÍA NO HA SIDO VALIDADA.
+    # ========================================================
+
+    evaluacion["Estado_Validacion"] = (
+        "PENDIENTE"
+    )
+
+
+    # ========================================================
     # GUARDAR TEMPORALMENTE
-    # --------------------------------------------------------
+    #
+    # NO SE PERSISTE TODAVÍA.
+    # ========================================================
 
     st.session_state[
         "evaluacion_generada_103"
     ] = evaluacion.copy()
 
+
+    # ========================================================
+    # GUARDAR INFORMACIÓN DE LA EVALUACIÓN
+    # ========================================================
+
+    st.session_state[
+        "evaluacion_id_103"
+    ] = evaluacion_id
+
+
+    st.session_state[
+        "evaluacion_modulo_103"
+    ] = modulo_seleccionado
+
+
+    st.session_state[
+        "evaluacion_relacion_103"
+    ] = relacion_seleccionada
+
+
+    st.session_state[
+        "evaluacion_nivel_103"
+    ] = nivel_seleccionado
+
+
+    # ========================================================
+    # LIMPIAR VALIDACIÓN ANTERIOR
+    # ========================================================
+
+    if (
+        "evaluacion_validacion_103"
+        in st.session_state
+    ):
+
+        del st.session_state[
+            "evaluacion_validacion_103"
+        ]
+
+
+    # ========================================================
+    # MENSAJE
+    # ========================================================
 
     if cantidad_generar == 10:
 
@@ -24654,10 +24878,16 @@ if generar:
     else:
 
         st.warning(
-            f"Se generó una evaluación incompleta con "
-            f"{cantidad_generar} preguntas, porque solamente "
-            f"había {cantidad_generar} disponibles."
+            f"Se generó una evaluación con "
+            f"{cantidad_generar} preguntas. "
+            f"La evaluación queda incompleta porque "
+            f"no había 10 preguntas disponibles."
         )
+
+
+    st.info(
+        f"Evaluacion_ID: {evaluacion_id}"
+    )
 
 
 # ============================================================
@@ -24677,46 +24907,78 @@ if not evaluacion_generada.empty:
     )
 
 
-    st.write(
-        f"Módulo: "
-        f"{evaluacion_generada['Modulo'].iloc[0]}"
-    )
+    # ========================================================
+    # INFORMACIÓN
+    # ========================================================
+
+    c1, c2 = st.columns(2)
 
 
-    st.write(
-        f"Relación: "
-        f"{evaluacion_generada['Tipo_Relacion'].iloc[0]}"
-    )
+    with c1:
+
+        st.write(
+            f"**Evaluacion_ID:** "
+            f"{evaluacion_generada['Evaluacion_ID'].iloc[0]}"
+        )
 
 
-    st.write(
-        f"Nivel: "
-        f"{evaluacion_generada['Nivel'].iloc[0]}"
-    )
+        st.write(
+            f"**Módulo:** "
+            f"{evaluacion_generada['Modulo'].iloc[0]}"
+        )
 
 
-    st.write(
-        f"Preguntas generadas: "
-        f"{len(evaluacion_generada)}"
-    )
+        st.write(
+            f"**Relación:** "
+            f"{evaluacion_generada['Tipo_Relacion'].iloc[0]}"
+        )
+
+
+    with c2:
+
+        st.write(
+            f"**Nivel:** "
+            f"{evaluacion_generada['Nivel'].iloc[0]}"
+        )
+
+
+        st.write(
+            f"**Preguntas generadas:** "
+            f"{len(evaluacion_generada)}"
+        )
+
+
+        st.write(
+            "**Estado:** PENDIENTE DE VALIDACIÓN"
+        )
+
+
+    # ========================================================
+    # TABLA
+    # ========================================================
+
+    columnas_visualizacion = [
+        "Evaluacion_ID",
+        "Pregunta_ID",
+        "Pregunta",
+        "Respuesta_1",
+        "Respuesta_2",
+        "Respuesta_3",
+        "Respuesta_4",
+        "Respuesta_Correcta",
+        "Estado_Uso",
+        "Estado_Validacion"
+    ]
 
 
     st.dataframe(
         evaluacion_generada[
-            [
-                "Pregunta_ID",
-                "Pregunta",
-                "Respuesta_1",
-                "Respuesta_2",
-                "Respuesta_3",
-                "Respuesta_4",
-                "Respuesta_Correcta",
-                "Estado_Uso"
-            ]
+            columnas_visualizacion
         ],
         use_container_width=True,
         hide_index=True
     )
+# ============================================================
 # ============================================================
 # 10.3.B - VALIDADOR DE PREGUNTAS
 # ============================================================
@@ -24748,11 +25010,15 @@ if evaluacion_generada.empty:
     st.stop()
 
 
+# ============================================================
+# COPIA DE TRABAJO
+# ============================================================
+
 df = evaluacion_generada.copy()
 
 
 # ============================================================
-# VALIDAR CAMPOS
+# CAMPOS NECESARIOS
 # ============================================================
 
 campos_necesarios = [
@@ -24787,29 +25053,52 @@ if faltantes:
 
 
 # ============================================================
-# IDENTIFICADOR ÚNICO DE VALIDACIÓN
+# ESTADO DE VALIDACIÓN
+#
+# TODA PREGUNTA NUEVA COMIENZA COMO PENDIENTE
 # ============================================================
 
-if "Estado_Validacion_103" not in df.columns:
+if "Estado_Validacion" not in df.columns:
 
-    df["Estado_Validacion_103"] = ""
+    df["Estado_Validacion"] = "PENDIENTE"
 
+else:
 
-df["Estado_Validacion_103"] = (
-    df["Estado_Validacion_103"]
-    .fillna("")
-    .astype(str)
-    .str.strip()
-)
+    df["Estado_Validacion"] = (
+        df["Estado_Validacion"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    df.loc[
+        ~df["Estado_Validacion"].isin(
+            [
+                "PENDIENTE",
+                "APROBADA",
+                "RECHAZADA",
+                "AÚN NO SE UTILIZA"
+            ]
+        ),
+        "Estado_Validacion"
+    ] = "PENDIENTE"
 
 
 # ============================================================
-# GUARDAR ESTADO ACTUAL
+# GUARDAR / RECUPERAR VALIDACIÓN TEMPORAL
 # ============================================================
 
-st.session_state[
-    "evaluacion_validacion_103"
-] = df.copy()
+if "evaluacion_validacion_103" not in st.session_state:
+
+    st.session_state[
+        "evaluacion_validacion_103"
+    ] = df.copy()
+
+else:
+
+    df = st.session_state[
+        "evaluacion_validacion_103"
+    ].copy()
 
 
 # ============================================================
@@ -24818,36 +25107,39 @@ st.session_state[
 
 total = len(df)
 
+pendientes = int(
+    (
+        df["Estado_Validacion"]
+        == "PENDIENTE"
+    ).sum()
+)
+
 aprobadas = int(
     (
-        df["Estado_Validacion_103"]
+        df["Estado_Validacion"]
         == "APROBADA"
     ).sum()
 )
 
 rechazadas = int(
     (
-        df["Estado_Validacion_103"]
+        df["Estado_Validacion"]
         == "RECHAZADA"
     ).sum()
 )
 
 aun_no_utilizadas = int(
     (
-        df["Estado_Validacion_103"]
+        df["Estado_Validacion"]
         == "AÚN NO SE UTILIZA"
     ).sum()
 )
 
-sin_validar = int(
-    (
-        df["Estado_Validacion_103"]
-        == ""
-    ).sum()
-)
+
+st.markdown("### Estado de la validación")
 
 
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3, c4, c5 = st.columns(5)
 
 
 c1.metric(
@@ -24856,23 +25148,23 @@ c1.metric(
 )
 
 c2.metric(
+    "Pendientes",
+    pendientes
+)
+
+c3.metric(
     "Aprobadas",
     aprobadas
 )
 
-c3.metric(
+c4.metric(
     "Rechazadas",
     rechazadas
 )
 
-c4.metric(
+c5.metric(
     "Aún no se utiliza",
     aun_no_utilizadas
-)
-
-
-st.caption(
-    f"Pendientes de validar: {sin_validar}"
 )
 
 
@@ -24882,17 +25174,16 @@ st.caption(
 
 st.markdown("### Validación por bloque")
 
-
 st.caption(
-    "La validación por bloque aplica la misma decisión "
-    "a todas las preguntas de la evaluación."
+    "La decisión seleccionada se aplicará a todas "
+    "las preguntas de esta evaluación."
 )
 
 
 decision_bloque = st.radio(
-    "Seleccione una decisión para todo el bloque",
+    "Seleccione la decisión",
     [
-        "NO APLICAR",
+        "PENDIENTE",
         "APROBADA",
         "RECHAZADA",
         "AÚN NO SE UTILIZA"
@@ -24907,28 +25198,18 @@ if st.button(
     key="aplicar_bloque_103"
 ):
 
-    if decision_bloque == "NO APLICAR":
+    df["Estado_Validacion"] = decision_bloque
 
-        st.warning(
-            "Seleccione una decisión antes de aplicarla."
-        )
+    st.session_state[
+        "evaluacion_validacion_103"
+    ] = df.copy()
 
-    else:
+    st.success(
+        f"Se aplicó '{decision_bloque}' "
+        f"a las {len(df)} preguntas."
+    )
 
-        df[
-            "Estado_Validacion_103"
-        ] = decision_bloque
-
-        st.session_state[
-            "evaluacion_validacion_103"
-        ] = df.copy()
-
-        st.success(
-            f"Se aplicó '{decision_bloque}' "
-            f"a las {len(df)} preguntas."
-        )
-
-        st.rerun()
+    st.rerun()
 
 
 # ============================================================
@@ -24936,7 +25217,6 @@ if st.button(
 # ============================================================
 
 st.markdown("### Validación individual")
-
 
 st.caption(
     "Puede cambiar la decisión de cada pregunta "
@@ -24946,63 +25226,50 @@ st.caption(
 
 for indice in range(len(df)):
 
-    pregunta_id = df.iloc[
-        indice
-    ]["Pregunta_ID"]
+    pregunta_id = str(
+        df.iloc[indice]["Pregunta_ID"]
+    )
 
-    pregunta = df.iloc[
-        indice
-    ]["Pregunta"]
-
+    pregunta = df.iloc[indice]["Pregunta"]
 
     estado_actual = df.iloc[
         indice
-    ]["Estado_Validacion_103"]
+    ]["Estado_Validacion"]
 
 
     st.markdown(
         f"#### Pregunta {indice + 1} — {pregunta_id}"
     )
 
+    st.write(pregunta)
 
-    st.write(
-        pregunta
+
+    opciones = [
+        "PENDIENTE",
+        "APROBADA",
+        "RECHAZADA",
+        "AÚN NO SE UTILIZA"
+    ]
+
+
+    indice_actual = opciones.index(
+        estado_actual
     )
 
 
-    decision = st.radio(
-        "Decisión",
-        [
-            "SIN DECISIÓN",
-            "APROBADA",
-            "RECHAZADA",
-            "AÚN NO SE UTILIZA"
-        ],
-        index=(
-            [
-                "SIN DECISIÓN",
-                "APROBADA",
-                "RECHAZADA",
-                "AÚN NO SE UTILIZA"
-            ].index(estado_actual)
-            if estado_actual in [
-                "APROBADA",
-                "RECHAZADA",
-                "AÚN NO SE UTILIZA"
-            ]
-            else 0
-        ),
+    decision_individual = st.radio(
+        "Estado de validación",
+        opciones,
+        index=indice_actual,
         horizontal=True,
-        key=f"decision_103_{pregunta_id}"
+        key=f"decision_individual_103_{pregunta_id}"
     )
 
 
-    if decision != "SIN DECISIÓN":
-
-        df.loc[
-            df["Pregunta_ID"] == pregunta_id,
-            "Estado_Validacion_103"
-        ] = decision
+    df.loc[
+        df["Pregunta_ID"] == pregunta_id,
+        "Estado_Validacion"
+    ] = decision_individual
 
 
     with st.expander(
@@ -25033,7 +25300,7 @@ for indice in range(len(df)):
 
 
 # ============================================================
-# ACTUALIZAR SESSION STATE
+# GUARDAR VALIDACIÓN TEMPORAL
 # ============================================================
 
 st.session_state[
@@ -25044,13 +25311,13 @@ st.session_state[
 # ============================================================
 # EVALUACIÓN RESULTANTE
 #
-# SOLO APROBADAS PERMANECEN EN LA EVALUACIÓN.
-# RECHAZADAS Y AÚN NO SE UTILIZA SE RETIRAN.
-# NO HAY REEMPLAZOS.
+# SOLO LAS APROBADAS QUEDAN EN LA EVALUACIÓN.
+#
+# NO SE HACEN REEMPLAZOS.
 # ============================================================
 
 evaluacion_final = df[
-    df["Estado_Validacion_103"]
+    df["Estado_Validacion"]
     == "APROBADA"
 ].copy()
 
@@ -25060,41 +25327,38 @@ evaluacion_final = df[
 # ============================================================
 
 st.markdown(
-    "### Resultado de la validación"
+    "### Resultado actual de la evaluación"
 )
 
 
-cf1, cf2, cf3, cf4 = st.columns(4)
+rf1, rf2, rf3, rf4 = st.columns(4)
 
 
-cf1.metric(
+rf1.metric(
     "Generadas",
     len(df)
 )
 
-
-cf2.metric(
+rf2.metric(
     "Aprobadas",
     len(evaluacion_final)
 )
 
-
-cf3.metric(
+rf3.metric(
     "Rechazadas",
     int(
         (
-            df["Estado_Validacion_103"]
+            df["Estado_Validacion"]
             == "RECHAZADA"
         ).sum()
     )
 )
 
-
-cf4.metric(
+rf4.metric(
     "Aún no se utiliza",
     int(
         (
-            df["Estado_Validacion_103"]
+            df["Estado_Validacion"]
             == "AÚN NO SE UTILIZA"
         ).sum()
     )
@@ -25102,25 +25366,42 @@ cf4.metric(
 
 
 # ============================================================
-# MOSTRAR LAS QUE QUEDAN
+# PENDIENTES
 # ============================================================
 
-if not evaluacion_final.empty:
+if pendientes > 0:
 
-    st.markdown(
-        "### Preguntas que quedan en la evaluación"
+    st.warning(
+        f"Hay {pendientes} pregunta(s) pendientes "
+        "de validación."
     )
+
+
+# ============================================================
+# PREGUNTAS QUE QUEDAN EN LA EVALUACIÓN
+# ============================================================
+
+st.markdown(
+    "### Preguntas aprobadas que quedan en la evaluación"
+)
+
+
+if not evaluacion_final.empty:
 
     st.dataframe(
         evaluacion_final[
             [
                 "Pregunta_ID",
+                "Modulo",
+                "Tipo_Relacion",
+                "Nivel",
                 "Pregunta",
                 "Respuesta_1",
                 "Respuesta_2",
                 "Respuesta_3",
                 "Respuesta_4",
-                "Respuesta_Correcta"
+                "Respuesta_Correcta",
+                "Estado_Validacion"
             ]
         ],
         use_container_width=True,
@@ -25129,7 +25410,18 @@ if not evaluacion_final.empty:
 
 else:
 
-    st.warning(
-        "No quedó ninguna pregunta aprobada "
-        "en la evaluación."
+    st.info(
+        "Todavía no hay preguntas aprobadas."
     )
+
+
+# ============================================================
+# INFORMACIÓN DE PERSISTENCIA
+# ============================================================
+
+st.info(
+    "La validación actual se encuentra guardada "
+    "temporalmente en session_state como "
+    "evaluacion_validacion_103. "
+    "Todavía no se ha realizado ninguna persistencia."
+)
