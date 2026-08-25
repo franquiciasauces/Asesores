@@ -22698,26 +22698,61 @@ if aprobadas_92 > 0:
 # ============================================================
 #MODULO 10
 # ============================================================
+# MÓDULO 10
+# ============================================================
 # 10.1 - CARGA Y CONTROL DE FUENTES DEL MÓDULO 10
 # ============================================================
 
+import streamlit as st
+import pandas as pd
+import io
+import json
+import base64
+import urllib.request
+import urllib.error
+
+
 st.markdown("## 10.1 - Carga y control de fuentes")
+
+
+# ============================================================
+# CONFIGURACIÓN DE GITHUB
+# ============================================================
 
 GITHUB_USUARIO_101 = "franquiciasauces"
 GITHUB_REPOSITORIO_101 = "Asesores"
 GITHUB_RAMA_101 = "main"
 
-ARCHIVO_BANCO_101 = "BANCO_PREGUNTAS_GENERALES.xlsx"
-ARCHIVO_PREGUNTAS_101 = "page/PREGUNTAS_EVALUACIONES.csv"
-ARCHIVO_EVALUACIONES_101 = "page/EVALUACIONES.csv"
+
+# ============================================================
+# FUENTES
+# ============================================================
+
+ARCHIVO_BANCO_101 = (
+    "BANCO_PREGUNTAS_GENERALES.xlsx"
+)
+
+ARCHIVO_PREGUNTAS_101 = (
+    "page/PREGUNTAS_EVALUACIONES.csv"
+)
+
+ARCHIVO_EVALUACIONES_101 = (
+    "page/EVALUACIONES.csv"
+)
+
 
 # ============================================================
 # ARCHIVO PERSISTENTE GENERADO POR 10.2
 # ============================================================
 
 ARCHIVO_BANCODISPONIBLE_101 = (
-    "page/BANCODISPONIBLE_102.csv"
+    "evaluacion/BANCODISPONIBLE_102.csv"
 )
+
+
+# ============================================================
+# URL BASE DE GITHUB
+# ============================================================
 
 URL_BASE_101 = (
     f"https://api.github.com/repos/"
@@ -22755,6 +22790,7 @@ def leer_github_101(ruta):
             )
 
         if "content" not in datos:
+
             return None, None
 
         contenido = base64.b64decode(
@@ -22766,6 +22802,7 @@ def leer_github_101(ruta):
     except urllib.error.HTTPError as error:
 
         if error.code == 404:
+
             return None, None
 
         st.error(
@@ -22821,6 +22858,7 @@ def cargar_banco_101():
 
         return None, None
 
+
     columnas_requeridas = [
         "Pregunta_ID",
         "Modulo",
@@ -22839,11 +22877,13 @@ def cargar_banco_101():
         "Fuente_ID"
     ]
 
+
     faltantes = [
         columna
         for columna in columnas_requeridas
         if columna not in df.columns
     ]
+
 
     if faltantes:
 
@@ -22854,6 +22894,7 @@ def cargar_banco_101():
         )
 
         return None, None
+
 
     for columna in [
         "Pregunta_ID",
@@ -22871,7 +22912,11 @@ def cargar_banco_101():
             .str.strip()
         )
 
-    return df.reset_index(drop=True), sha
+
+    return (
+        df.reset_index(drop=True),
+        sha
+    )
 
 
 # ============================================================
@@ -22884,7 +22929,11 @@ def cargar_csv_101(ruta):
 
     if contenido is None:
 
-        return pd.DataFrame(), None, False
+        return (
+            pd.DataFrame(),
+            None,
+            False
+        )
 
     try:
 
@@ -22893,7 +22942,11 @@ def cargar_csv_101(ruta):
             dtype=str
         ).fillna("")
 
-        return df, sha, True
+        return (
+            df,
+            sha,
+            True
+        )
 
     except Exception as error:
 
@@ -22903,7 +22956,11 @@ def cargar_csv_101(ruta):
 
         st.exception(error)
 
-        return pd.DataFrame(), sha, False
+        return (
+            pd.DataFrame(),
+            sha,
+            False
+        )
 
 
 # ============================================================
@@ -22922,7 +22979,9 @@ if st.button(
     df_banco, sha_banco = cargar_banco_101()
 
     if df_banco is None:
+
         st.stop()
+
 
     # ========================================================
     # 2. PREGUNTAS_EVALUACIONES
@@ -22936,6 +22995,7 @@ if st.button(
         ARCHIVO_PREGUNTAS_101
     )
 
+
     # ========================================================
     # 3. EVALUACIONES
     # ========================================================
@@ -22948,69 +23008,86 @@ if st.button(
         ARCHIVO_EVALUACIONES_101
     )
 
+
     # ========================================================
-    #  BANCODISPONIBLE
+    # 4. BANCODISPONIBLE_102
     #
-    # ESTE ES EL ARCHIVO QUE 10.2 DEBE GENERAR.
+    # ESTE ARCHIVO ES GENERADO POR 10.2.
     #
-    # 10.1 LO BUSCA DIRECTAMENTE EN:
-    #
-    # page/BANCODISPONIBLE_102.csv
-    #
-    # Si todavía no existe, NO genera error.
+    # 10.1 SOLAMENTE LO CARGA.
     # ========================================================
 
     (
-        DF_BANCODISPONIBLE,
-        SHA_BANCODISPONIBLE,
-        EXISTE_BANCODISPONIBLE
+        df_disponibilidad_102,
+        sha_disponibilidad_102,
+        existe_disponibilidad_102
     ) = cargar_csv_101(
         ARCHIVO_BANCODISPONIBLE_101
     )
 
+
     # ========================================================
-    # GUARDAR FUENTES EN SESSION STATE
+    # GUARDAR BANCO GENERAL
     # ========================================================
 
-    st.session_state["df_banco_101"] = (
-        df_banco.copy()
-    )
+    st.session_state[
+        "df_banco_101"
+    ] = df_banco.copy()
+
+
+    # ========================================================
+    # GUARDAR PREGUNTAS_EVALUACIONES
+    # ========================================================
 
     st.session_state[
         "df_preguntas_evaluaciones_101"
     ] = df_preguntas.copy()
 
+
+    # ========================================================
+    # GUARDAR EVALUACIONES
+    # ========================================================
+
     st.session_state[
         "df_evaluaciones_101"
     ] = df_evaluaciones.copy()
 
+
     # ========================================================
-    # DF_BANCODISPONIBLE
+    # GUARDAR BANCODISPONIBLE_102
+    #
+    # ESTE ES EL ÚNICO NOMBRE DEL DATAFRAME
+    # QUE UTILIZARÁ POSTERIORMENTE 10.3
     # ========================================================
 
     st.session_state[
-        "DF_BANCODISPONIBLE"
-    ] = DF_BANCODISPONIBLE.copy()
+        "df_disponibilidad_102"
+    ] = df_disponibilidad_102.copy()
+
 
     # ========================================================
-    # SHA
+    # GUARDAR SHA
     # ========================================================
 
     st.session_state[
         "sha_banco_general_101"
     ] = sha_banco
 
+
     st.session_state[
         "sha_preguntas_evaluaciones_101"
     ] = sha_preguntas
+
 
     st.session_state[
         "sha_evaluaciones_101"
     ] = sha_evaluaciones
 
+
     st.session_state[
-        "SHA_BANCODISPONIBLE"
-    ] = SHA_BANCODISPONIBLE
+        "sha_disponibilidad_102"
+    ] = sha_disponibilidad_102
+
 
     # ========================================================
     # ESTADOS
@@ -23020,20 +23097,28 @@ if st.button(
         "banco_101_cargado"
     ] = True
 
+
     st.session_state[
         "registro_preguntas_101_existe"
     ] = existe_preguntas
+
 
     st.session_state[
         "registro_evaluaciones_101_existe"
     ] = existe_evaluaciones
 
+
     st.session_state[
         "BANCODISPONIBLE_102_existe"
-    ] = EXISTE_BANCODISPONIBLE
+    ] = existe_disponibilidad_102
+
+
+    # ========================================================
+    # MENSAJE DE CARGA
+    # ========================================================
 
     st.success(
-        "10.1: las fuentes fueron cargadas."
+        "10.1: las fuentes fueron cargadas correctamente."
     )
 
     st.rerun()
@@ -23048,24 +23133,32 @@ if st.session_state.get(
     False
 ):
 
+    # ========================================================
+    # RECUPERAR DATAFRAMES
+    # ========================================================
+
     df_banco = st.session_state[
         "df_banco_101"
     ]
+
 
     df_preguntas = st.session_state.get(
         "df_preguntas_evaluaciones_101",
         pd.DataFrame()
     )
 
+
     df_evaluaciones = st.session_state.get(
         "df_evaluaciones_101",
         pd.DataFrame()
     )
 
-    DF_BANCODISPONIBLE = st.session_state.get(
-        "DF_BANCODISPONIBLE",
+
+    df_disponibilidad_102 = st.session_state.get(
+        "df_disponibilidad_102",
         pd.DataFrame()
     )
+
 
     # ========================================================
     # 1. BANCO GENERAL
@@ -23075,23 +23168,30 @@ if st.session_state.get(
         "### 1. Banco general de preguntas"
     )
 
+
     duplicados = int(
-        df_banco["Pregunta_ID"]
+        df_banco[
+            "Pregunta_ID"
+        ]
         .duplicated()
         .sum()
     )
 
+
     c1, c2 = st.columns(2)
+
 
     c1.metric(
         "Preguntas en banco",
         len(df_banco)
     )
 
+
     c2.metric(
         "Pregunta_ID duplicados",
         duplicados
     )
+
 
     # ========================================================
     # 2. PREGUNTAS_EVALUACIONES
@@ -23101,6 +23201,7 @@ if st.session_state.get(
         "### 2. Registro persistente de preguntas"
     )
 
+
     if st.session_state.get(
         "registro_preguntas_101_existe",
         False
@@ -23109,6 +23210,7 @@ if st.session_state.get(
         st.success(
             "PREGUNTAS_EVALUACIONES.csv cargado."
         )
+
 
         st.metric(
             "Registros de preguntas",
@@ -23122,6 +23224,7 @@ if st.session_state.get(
             "no existe todavía."
         )
 
+
     # ========================================================
     # 3. EVALUACIONES
     # ========================================================
@@ -23129,6 +23232,7 @@ if st.session_state.get(
     st.markdown(
         "### 3. Registro persistente de evaluaciones"
     )
+
 
     if st.session_state.get(
         "registro_evaluaciones_101_existe",
@@ -23138,6 +23242,7 @@ if st.session_state.get(
         st.success(
             "EVALUACIONES.csv cargado."
         )
+
 
         st.metric(
             "Evaluaciones registradas",
@@ -23151,13 +23256,15 @@ if st.session_state.get(
             "no existe todavía."
         )
 
+
     # ========================================================
-    # 4. DF_BANCODISPONIBLE
+    # 4. BANCODISPONIBLE_102
     # ========================================================
 
     st.markdown(
         "### 4. Banco disponible para generación"
     )
+
 
     if st.session_state.get(
         "BANCODISPONIBLE_102_existe",
@@ -23166,10 +23273,11 @@ if st.session_state.get(
 
         st.success(
             "BANCODISPONIBLE_102.csv cargado "
-            "desde la permanencia de 10.2."
+            "desde evaluacion/."
         )
 
-        if DF_BANCODISPONIBLE.empty:
+
+        if df_disponibilidad_102.empty:
 
             st.warning(
                 "BANCODISPONIBLE_102.csv existe, "
@@ -23180,49 +23288,56 @@ if st.session_state.get(
 
             c1, c2 = st.columns(2)
 
+
             c1.metric(
                 "Registros disponibles",
-                len(DF_BANCODISPONIBLE)
+                len(df_disponibilidad_102)
             )
 
-            if "Pregunta_ID" in DF_BANCODISPONIBLE.columns:
+
+            if (
+                "Pregunta_ID"
+                in df_disponibilidad_102.columns
+            ):
 
                 duplicados_disponibles = int(
-                    DF_BANCODISPONIBLE[
+                    df_disponibilidad_102[
                         "Pregunta_ID"
                     ]
                     .duplicated()
                     .sum()
                 )
 
+
                 c2.metric(
                     "Pregunta_ID duplicados",
                     duplicados_disponibles
                 )
 
+
             st.caption(
                 "Fuente persistente generada por 10.2 "
-                "y utilizada posteriormente para determinar "
-                "las preguntas disponibles."
+                "y cargada por 10.1 para ser utilizada "
+                "posteriormente por 10.3."
             )
 
     else:
 
         st.info(
-            "DF_BANCODISPONIBLE está en espera. "
+            "BANCODISPONIBLE_102.csv está en espera. "
             "10.2 todavía no ha generado y persistido "
-            "BANCODISPONIBLE_102.csv."
+            "el archivo en evaluacion/."
         )
 
+
     # ========================================================
-    # CONTROL
+    # CONTROL GENERAL
     # ========================================================
 
     st.info(
         "10.1 solamente carga y controla las fuentes. "
-        "La construcción de DF_BANCODISPONIBLE corresponde "
-        "a 10.2. Si el archivo persistente todavía no existe, "
-        "10.1 continúa funcionando sin generar error."
+        "La construcción de BANCODISPONIBLE_102.csv "
+        "corresponde a 10.2."
     )
 
 # ============================================================
