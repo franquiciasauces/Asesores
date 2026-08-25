@@ -24717,3 +24717,419 @@ if not evaluacion_generada.empty:
         use_container_width=True,
         hide_index=True
     )
+# ============================================================
+# 10.3.B - VALIDADOR DE PREGUNTAS
+# ============================================================
+
+import streamlit as st
+import pandas as pd
+
+
+st.markdown("## 10.3.B - Validador de preguntas")
+
+
+# ============================================================
+# TOMAR LA EVALUACIÓN GENERADA POR 10.3.A
+# ============================================================
+
+evaluacion_generada = st.session_state.get(
+    "evaluacion_generada_103",
+    pd.DataFrame()
+)
+
+
+if evaluacion_generada.empty:
+
+    st.warning(
+        "No existe una evaluación generada. "
+        "Primero debe ejecutar 10.3.A."
+    )
+
+    st.stop()
+
+
+df = evaluacion_generada.copy()
+
+
+# ============================================================
+# VALIDAR CAMPOS
+# ============================================================
+
+campos_necesarios = [
+    "Pregunta_ID",
+    "Modulo",
+    "Tipo_Relacion",
+    "Nivel",
+    "Pregunta",
+    "Respuesta_1",
+    "Respuesta_2",
+    "Respuesta_3",
+    "Respuesta_4",
+    "Respuesta_Correcta"
+]
+
+
+faltantes = [
+    campo
+    for campo in campos_necesarios
+    if campo not in df.columns
+]
+
+
+if faltantes:
+
+    st.error(
+        "Faltan campos necesarios en la evaluación: "
+        + ", ".join(faltantes)
+    )
+
+    st.stop()
+
+
+# ============================================================
+# IDENTIFICADOR ÚNICO DE VALIDACIÓN
+# ============================================================
+
+if "Estado_Validacion_103" not in df.columns:
+
+    df["Estado_Validacion_103"] = ""
+
+
+df["Estado_Validacion_103"] = (
+    df["Estado_Validacion_103"]
+    .fillna("")
+    .astype(str)
+    .str.strip()
+)
+
+
+# ============================================================
+# GUARDAR ESTADO ACTUAL
+# ============================================================
+
+st.session_state[
+    "evaluacion_validacion_103"
+] = df.copy()
+
+
+# ============================================================
+# RESUMEN
+# ============================================================
+
+total = len(df)
+
+aprobadas = int(
+    (
+        df["Estado_Validacion_103"]
+        == "APROBADA"
+    ).sum()
+)
+
+rechazadas = int(
+    (
+        df["Estado_Validacion_103"]
+        == "RECHAZADA"
+    ).sum()
+)
+
+aun_no_utilizadas = int(
+    (
+        df["Estado_Validacion_103"]
+        == "AÚN NO SE UTILIZA"
+    ).sum()
+)
+
+sin_validar = int(
+    (
+        df["Estado_Validacion_103"]
+        == ""
+    ).sum()
+)
+
+
+c1, c2, c3, c4 = st.columns(4)
+
+
+c1.metric(
+    "Preguntas generadas",
+    total
+)
+
+c2.metric(
+    "Aprobadas",
+    aprobadas
+)
+
+c3.metric(
+    "Rechazadas",
+    rechazadas
+)
+
+c4.metric(
+    "Aún no se utiliza",
+    aun_no_utilizadas
+)
+
+
+st.caption(
+    f"Pendientes de validar: {sin_validar}"
+)
+
+
+# ============================================================
+# VALIDACIÓN POR BLOQUE
+# ============================================================
+
+st.markdown("### Validación por bloque")
+
+
+st.caption(
+    "La validación por bloque aplica la misma decisión "
+    "a todas las preguntas de la evaluación."
+)
+
+
+decision_bloque = st.radio(
+    "Seleccione una decisión para todo el bloque",
+    [
+        "NO APLICAR",
+        "APROBADA",
+        "RECHAZADA",
+        "AÚN NO SE UTILIZA"
+    ],
+    horizontal=True,
+    key="decision_bloque_103"
+)
+
+
+if st.button(
+    "Aplicar decisión al bloque",
+    key="aplicar_bloque_103"
+):
+
+    if decision_bloque == "NO APLICAR":
+
+        st.warning(
+            "Seleccione una decisión antes de aplicarla."
+        )
+
+    else:
+
+        df[
+            "Estado_Validacion_103"
+        ] = decision_bloque
+
+        st.session_state[
+            "evaluacion_validacion_103"
+        ] = df.copy()
+
+        st.success(
+            f"Se aplicó '{decision_bloque}' "
+            f"a las {len(df)} preguntas."
+        )
+
+        st.rerun()
+
+
+# ============================================================
+# VALIDACIÓN INDIVIDUAL
+# ============================================================
+
+st.markdown("### Validación individual")
+
+
+st.caption(
+    "Puede cambiar la decisión de cada pregunta "
+    "de manera independiente."
+)
+
+
+for indice in range(len(df)):
+
+    pregunta_id = df.iloc[
+        indice
+    ]["Pregunta_ID"]
+
+    pregunta = df.iloc[
+        indice
+    ]["Pregunta"]
+
+
+    estado_actual = df.iloc[
+        indice
+    ]["Estado_Validacion_103"]
+
+
+    st.markdown(
+        f"#### Pregunta {indice + 1} — {pregunta_id}"
+    )
+
+
+    st.write(
+        pregunta
+    )
+
+
+    decision = st.radio(
+        "Decisión",
+        [
+            "SIN DECISIÓN",
+            "APROBADA",
+            "RECHAZADA",
+            "AÚN NO SE UTILIZA"
+        ],
+        index=(
+            [
+                "SIN DECISIÓN",
+                "APROBADA",
+                "RECHAZADA",
+                "AÚN NO SE UTILIZA"
+            ].index(estado_actual)
+            if estado_actual in [
+                "APROBADA",
+                "RECHAZADA",
+                "AÚN NO SE UTILIZA"
+            ]
+            else 0
+        ),
+        horizontal=True,
+        key=f"decision_103_{pregunta_id}"
+    )
+
+
+    if decision != "SIN DECISIÓN":
+
+        df.loc[
+            df["Pregunta_ID"] == pregunta_id,
+            "Estado_Validacion_103"
+        ] = decision
+
+
+    with st.expander(
+        "Ver respuestas",
+        expanded=False
+    ):
+
+        st.write(
+            f"1. {df.iloc[indice]['Respuesta_1']}"
+        )
+
+        st.write(
+            f"2. {df.iloc[indice]['Respuesta_2']}"
+        )
+
+        st.write(
+            f"3. {df.iloc[indice]['Respuesta_3']}"
+        )
+
+        st.write(
+            f"4. {df.iloc[indice]['Respuesta_4']}"
+        )
+
+        st.write(
+            "Respuesta correcta: "
+            f"{df.iloc[indice]['Respuesta_Correcta']}"
+        )
+
+
+# ============================================================
+# ACTUALIZAR SESSION STATE
+# ============================================================
+
+st.session_state[
+    "evaluacion_validacion_103"
+] = df.copy()
+
+
+# ============================================================
+# EVALUACIÓN RESULTANTE
+#
+# SOLO APROBADAS PERMANECEN EN LA EVALUACIÓN.
+# RECHAZADAS Y AÚN NO SE UTILIZA SE RETIRAN.
+# NO HAY REEMPLAZOS.
+# ============================================================
+
+evaluacion_final = df[
+    df["Estado_Validacion_103"]
+    == "APROBADA"
+].copy()
+
+
+# ============================================================
+# RESUMEN FINAL
+# ============================================================
+
+st.markdown(
+    "### Resultado de la validación"
+)
+
+
+cf1, cf2, cf3, cf4 = st.columns(4)
+
+
+cf1.metric(
+    "Generadas",
+    len(df)
+)
+
+
+cf2.metric(
+    "Aprobadas",
+    len(evaluacion_final)
+)
+
+
+cf3.metric(
+    "Rechazadas",
+    int(
+        (
+            df["Estado_Validacion_103"]
+            == "RECHAZADA"
+        ).sum()
+    )
+)
+
+
+cf4.metric(
+    "Aún no se utiliza",
+    int(
+        (
+            df["Estado_Validacion_103"]
+            == "AÚN NO SE UTILIZA"
+        ).sum()
+    )
+)
+
+
+# ============================================================
+# MOSTRAR LAS QUE QUEDAN
+# ============================================================
+
+if not evaluacion_final.empty:
+
+    st.markdown(
+        "### Preguntas que quedan en la evaluación"
+    )
+
+    st.dataframe(
+        evaluacion_final[
+            [
+                "Pregunta_ID",
+                "Pregunta",
+                "Respuesta_1",
+                "Respuesta_2",
+                "Respuesta_3",
+                "Respuesta_4",
+                "Respuesta_Correcta"
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True
+    )
+
+else:
+
+    st.warning(
+        "No quedó ninguna pregunta aprobada "
+        "en la evaluación."
+    )
