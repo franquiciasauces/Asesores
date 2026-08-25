@@ -23468,3 +23468,334 @@ st.dataframe(
     use_container_width=True,
     hide_index=True
 )
+# ============================================================
+# 10.2.C - ESTADÍSTICAS DEL BANCO DISPONIBLE
+# ============================================================
+
+import streamlit as st
+import pandas as pd
+
+
+st.markdown("## 10.2.C - Estadísticas del banco disponible")
+
+
+# ============================================================
+# TOMAR EL DATAFRAME CONSTRUIDO EN 10.2.A
+# ============================================================
+
+df_disponibilidad_102 = st.session_state.get(
+    "df_disponibilidad_102",
+    pd.DataFrame()
+)
+
+
+if df_disponibilidad_102.empty:
+    st.warning(
+        "10.2.C está esperando que 10.2.A construya "
+        "df_disponibilidad_102."
+    )
+    st.stop()
+
+
+df = df_disponibilidad_102.copy()
+
+
+# ============================================================
+# VALIDAR CAMPOS NECESARIOS
+# ============================================================
+
+campos_necesarios = [
+    "Pregunta_ID",
+    "Modulo",
+    "Tipo_Relacion",
+    "Estado_Uso"
+]
+
+faltantes = [
+    campo
+    for campo in campos_necesarios
+    if campo not in df.columns
+]
+
+if faltantes:
+    st.error(
+        "Faltan campos necesarios en df_disponibilidad_102: "
+        + ", ".join(faltantes)
+    )
+    st.stop()
+
+
+# ============================================================
+# NORMALIZAR ESTADO_USO
+# ============================================================
+
+df["Estado_Uso"] = (
+    df["Estado_Uso"]
+    .fillna("NONE")
+    .astype(str)
+    .str.strip()
+    .str.upper()
+)
+
+
+# ============================================================
+# CLASIFICACIÓN DISPONIBLE / USADA
+# ============================================================
+
+df["Disponible_102"] = (
+    df["Estado_Uso"] == "NONE"
+)
+
+df["Usada_102"] = (
+    df["Estado_Uso"] == "USADA"
+)
+
+
+# ============================================================
+# ESTADÍSTICAS GENERALES DEL BANCO
+# ============================================================
+
+total_banco = len(df)
+
+total_disponibles = int(
+    df["Disponible_102"].sum()
+)
+
+total_usadas = int(
+    df["Usada_102"].sum()
+)
+
+
+st.markdown("### Resumen general del banco")
+
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    st.metric(
+        "Tamaño total del banco",
+        f"{total_banco:,}"
+    )
+
+with col2:
+    st.metric(
+        "Preguntas disponibles",
+        f"{total_disponibles:,}"
+    )
+
+with col3:
+    st.metric(
+        "Preguntas usadas",
+        f"{total_usadas:,}"
+    )
+
+
+# ============================================================
+# ESTADÍSTICAS POR MÓDULO
+# ============================================================
+
+st.markdown("### Banco por módulo")
+
+
+estadisticas_modulo = (
+    df.groupby("Modulo", dropna=False)
+    .agg(
+        Total=("Pregunta_ID", "count"),
+        Disponibles=("Disponible_102", "sum"),
+        Usadas=("Usada_102", "sum")
+    )
+    .reset_index()
+)
+
+
+estadisticas_modulo["Disponibles"] = (
+    estadisticas_modulo["Disponibles"]
+    .astype(int)
+)
+
+estadisticas_modulo["Usadas"] = (
+    estadisticas_modulo["Usadas"]
+    .astype(int)
+)
+
+estadisticas_modulo["Total"] = (
+    estadisticas_modulo["Total"]
+    .astype(int)
+)
+
+
+st.dataframe(
+    estadisticas_modulo,
+    use_container_width=True,
+    hide_index=True
+)
+
+
+# ============================================================
+# ESTADÍSTICAS POR MÓDULO Y RELACIÓN
+# ============================================================
+
+st.markdown(
+    "### Banco por módulo y tipo de relación"
+)
+
+
+estadisticas_relacion = (
+    df.groupby(
+        [
+            "Modulo",
+            "Tipo_Relacion"
+        ],
+        dropna=False
+    )
+    .agg(
+        Total=("Pregunta_ID", "count"),
+        Disponibles=("Disponible_102", "sum"),
+        Usadas=("Usada_102", "sum")
+    )
+    .reset_index()
+)
+
+
+estadisticas_relacion["Disponibles"] = (
+    estadisticas_relacion["Disponibles"]
+    .astype(int)
+)
+
+estadisticas_relacion["Usadas"] = (
+    estadisticas_relacion["Usadas"]
+    .astype(int)
+)
+
+estadisticas_relacion["Total"] = (
+    estadisticas_relacion["Total"]
+    .astype(int)
+)
+
+
+st.dataframe(
+    estadisticas_relacion,
+    use_container_width=True,
+    hide_index=True
+)
+
+
+# ============================================================
+# CAPACIDAD DE CONSTRUIR EVALUACIONES DE 10 PREGUNTAS
+# ============================================================
+
+st.markdown(
+    "### Capacidad de construcción de evaluaciones"
+)
+
+st.caption(
+    "Cada evaluación se construye con 10 preguntas. "
+    "Las preguntas que no alcanzan a completar otra evaluación "
+    "quedan en cola."
+)
+
+
+evaluaciones_10 = (
+    df[df["Disponible_102"]]
+    .groupby(
+        [
+            "Modulo",
+            "Tipo_Relacion"
+        ],
+        dropna=False
+    )
+    .agg(
+        Preguntas_Disponibles=("Pregunta_ID", "count")
+    )
+    .reset_index()
+)
+
+
+# ============================================================
+# CÁLCULOS
+# ============================================================
+
+evaluaciones_10["Evaluaciones_Completas"] = (
+    evaluaciones_10["Preguntas_Disponibles"] // 10
+)
+
+evaluaciones_10["Preguntas_En_Cola"] = (
+    evaluaciones_10["Preguntas_Disponibles"] % 10
+)
+
+
+# ============================================================
+# ESTADO DE LA COLA
+# ============================================================
+
+def estado_cola(cantidad):
+    if cantidad == 0:
+        return "Sin preguntas en cola"
+    elif cantidad < 10:
+        return "Cola incompleta"
+    else:
+        return "Disponible"
+
+
+evaluaciones_10["Estado_Cola"] = (
+    evaluaciones_10["Preguntas_En_Cola"]
+    .apply(estado_cola)
+)
+
+
+# ============================================================
+# ORDEN FINAL
+# ============================================================
+
+evaluaciones_10 = evaluaciones_10[
+    [
+        "Modulo",
+        "Tipo_Relacion",
+        "Preguntas_Disponibles",
+        "Evaluaciones_Completas",
+        "Preguntas_En_Cola",
+        "Estado_Cola"
+    ]
+]
+
+
+# ============================================================
+# MOSTRAR CUADRO
+# ============================================================
+
+st.dataframe(
+    evaluaciones_10,
+    use_container_width=True,
+    hide_index=True
+)
+
+
+# ============================================================
+# RESUMEN DE EVALUACIONES POSIBLES
+# ============================================================
+
+total_evaluaciones = int(
+    evaluaciones_10["Evaluaciones_Completas"].sum()
+)
+
+total_preguntas_cola = int(
+    evaluaciones_10["Preguntas_En_Cola"].sum()
+)
+
+
+st.markdown("### Resumen de capacidad")
+
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.metric(
+        "Evaluaciones completas posibles",
+        f"{total_evaluaciones:,}"
+    )
+
+with col2:
+    st.metric(
+        "Preguntas actualmente en cola",
+        f"{total_preguntas_cola:,}"
+    )
