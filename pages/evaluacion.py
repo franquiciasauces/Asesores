@@ -24151,3 +24151,454 @@ else:
     st.code(
         respuesta.text
     )
+# ============================================================
+# 10.3.A - GENERADOR DE EVALUACIONES
+# ============================================================
+
+import streamlit as st
+import pandas as pd
+
+
+st.markdown("## 10.3.A - Generador de evaluaciones")
+
+
+# ============================================================
+# TOMAR EXCLUSIVAMENTE EL BANCO DE DISPONIBILIDAD 10.2
+# ============================================================
+
+df_disponibilidad_102 = st.session_state.get(
+    "df_disponibilidad_102",
+    pd.DataFrame()
+)
+
+
+if df_disponibilidad_102.empty:
+
+    st.warning(
+        "No existe df_disponibilidad_102. "
+        "Primero debe ejecutarse 10.2.B."
+    )
+
+    st.stop()
+
+
+df = df_disponibilidad_102.copy()
+
+
+# ============================================================
+# VALIDAR CAMPOS NECESARIOS
+# ============================================================
+
+campos_necesarios = [
+    "Pregunta_ID",
+    "Modulo",
+    "Tipo_Relacion",
+    "Nivel",
+    "Pregunta",
+    "Respuesta_1",
+    "Respuesta_2",
+    "Respuesta_3",
+    "Respuesta_4",
+    "Respuesta_Correcta",
+    "Estado_Uso"
+]
+
+
+faltantes = [
+    campo
+    for campo in campos_necesarios
+    if campo not in df.columns
+]
+
+
+if faltantes:
+
+    st.error(
+        "Faltan campos necesarios en "
+        "df_disponibilidad_102: "
+        + ", ".join(faltantes)
+    )
+
+    st.stop()
+
+
+# ============================================================
+# FILTRAR PREGUNTAS QUE REALMENTE PUEDEN UTILIZARSE
+#
+# SOLAMENTE SE UTILIZAN LAS QUE TIENEN Estado_Uso VACÍO.
+#
+# NO SE UTILIZAN:
+# - USADA
+# - DISPONIBLE
+# ============================================================
+
+estado_uso = (
+    df["Estado_Uso"]
+    .fillna("")
+    .astype(str)
+    .str.strip()
+    .str.upper()
+)
+
+
+df_disponibles = df[
+    estado_uso.eq("")
+].copy()
+
+
+st.info(
+    f"Preguntas disponibles para generar evaluaciones: "
+    f"{len(df_disponibles):,}"
+)
+
+
+# ============================================================
+# SELECCIONAR MÓDULO
+# ============================================================
+
+modulos = sorted(
+    df_disponibles["Modulo"]
+    .dropna()
+    .astype(str)
+    .str.strip()
+    .unique()
+    .tolist()
+)
+
+
+if not modulos:
+
+    st.warning(
+        "No existen preguntas disponibles para generar "
+        "evaluaciones."
+    )
+
+    st.stop()
+
+
+modulo_seleccionado = st.selectbox(
+    "Seleccione el módulo",
+    modulos,
+    key="generador_103_modulo"
+)
+
+
+# ============================================================
+# FILTRAR POR MÓDULO
+# ============================================================
+
+df_modulo = df_disponibles[
+    df_disponibles["Modulo"]
+    .astype(str)
+    .str.strip()
+    .eq(modulo_seleccionado)
+].copy()
+
+
+# ============================================================
+# SELECCIONAR TIPO DE RELACIÓN
+# ============================================================
+
+relaciones = sorted(
+    df_modulo["Tipo_Relacion"]
+    .dropna()
+    .astype(str)
+    .str.strip()
+    .unique()
+    .tolist()
+)
+
+
+if not relaciones:
+
+    st.warning(
+        "No existen relaciones disponibles para "
+        "el módulo seleccionado."
+    )
+
+    st.stop()
+
+
+relacion_seleccionada = st.selectbox(
+    "Seleccione el tipo de relación",
+    relaciones,
+    key="generador_103_relacion"
+)
+
+
+# ============================================================
+# FILTRAR POR MÓDULO Y RELACIÓN
+# ============================================================
+
+df_relacion = df_modulo[
+    df_modulo["Tipo_Relacion"]
+    .astype(str)
+    .str.strip()
+    .eq(relacion_seleccionada)
+].copy()
+
+
+# ============================================================
+# SELECCIONAR NIVEL
+# ============================================================
+
+niveles = sorted(
+    df_relacion["Nivel"]
+    .dropna()
+    .astype(str)
+    .str.strip()
+    .unique()
+    .tolist()
+)
+
+
+if not niveles:
+
+    st.warning(
+        "No existen niveles disponibles para "
+        "la combinación seleccionada."
+    )
+
+    st.stop()
+
+
+nivel_seleccionado = st.selectbox(
+    "Seleccione el nivel",
+    niveles,
+    key="generador_103_nivel"
+)
+
+
+# ============================================================
+# FILTRAR COMBINACIÓN FINAL
+# ============================================================
+
+df_candidatas = df_relacion[
+    df_relacion["Nivel"]
+    .astype(str)
+    .str.strip()
+    .eq(nivel_seleccionado)
+].copy()
+
+
+# ============================================================
+# ELIMINAR DUPLICADOS
+# ============================================================
+
+df_candidatas = (
+    df_candidatas
+    .drop_duplicates(
+        subset=["Pregunta_ID"],
+        keep="first"
+    )
+    .reset_index(drop=True)
+)
+
+
+cantidad_candidatas = len(
+    df_candidatas
+)
+
+
+# ============================================================
+# INFORMACIÓN DE LA COMBINACIÓN SELECCIONADA
+# ============================================================
+
+st.markdown(
+    "### Disponibilidad de la combinación seleccionada"
+)
+
+
+c1, c2, c3 = st.columns(3)
+
+
+with c1:
+
+    st.metric(
+        "Módulo",
+        modulo_seleccionado
+    )
+
+
+with c2:
+
+    st.metric(
+        "Relación",
+        relacion_seleccionada
+    )
+
+
+with c3:
+
+    st.metric(
+        "Preguntas disponibles",
+        cantidad_candidatas
+    )
+
+
+# ============================================================
+# SI NO HAY PREGUNTAS
+# ============================================================
+
+if cantidad_candidatas == 0:
+
+    st.error(
+        "No hay preguntas disponibles para esta "
+        "combinación de módulo, relación y nivel."
+    )
+
+    st.stop()
+
+
+# ============================================================
+# SI HAY MENOS DE 10 PREGUNTAS
+# ============================================================
+
+if cantidad_candidatas < 10:
+
+    st.warning(
+        f"Esta combinación tiene solamente "
+        f"{cantidad_candidatas} preguntas disponibles. "
+        f"Una evaluación completa requiere 10 preguntas."
+    )
+
+    aceptar_incompleta = st.checkbox(
+        f"Quiero generar la evaluación con las "
+        f"{cantidad_candidatas} preguntas disponibles.",
+        key="aceptar_evaluacion_incompleta_103"
+    )
+
+    cantidad_generar = cantidad_candidatas
+
+else:
+
+    aceptar_incompleta = True
+
+    cantidad_generar = 10
+
+
+# ============================================================
+# BOTÓN DE GENERACIÓN
+# ============================================================
+
+if cantidad_candidatas >= 10:
+
+    texto_boton = (
+        "Generar evaluación de 10 preguntas"
+    )
+
+else:
+
+    texto_boton = (
+        f"Generar evaluación con "
+        f"{cantidad_candidatas} preguntas"
+    )
+
+
+generar = st.button(
+    texto_boton,
+    type="primary",
+    disabled=not aceptar_incompleta,
+    key="generar_evaluacion_103"
+)
+
+
+# ============================================================
+# GENERAR EVALUACIÓN
+# ============================================================
+
+if generar:
+
+    evaluacion = (
+        df_candidatas
+        .sample(
+            n=cantidad_generar,
+            random_state=None
+        )
+        .reset_index(drop=True)
+        .copy()
+    )
+
+
+    # --------------------------------------------------------
+    # GUARDAR TEMPORALMENTE
+    # --------------------------------------------------------
+
+    st.session_state[
+        "evaluacion_generada_103"
+    ] = evaluacion.copy()
+
+
+    if cantidad_generar == 10:
+
+        st.success(
+            "Evaluación de 10 preguntas generada "
+            "correctamente."
+        )
+
+    else:
+
+        st.warning(
+            f"Se generó una evaluación incompleta con "
+            f"{cantidad_generar} preguntas, porque solamente "
+            f"había {cantidad_generar} disponibles."
+        )
+
+
+# ============================================================
+# MOSTRAR EVALUACIÓN GENERADA
+# ============================================================
+
+evaluacion_generada = st.session_state.get(
+    "evaluacion_generada_103",
+    pd.DataFrame()
+)
+
+
+if not evaluacion_generada.empty:
+
+    st.markdown(
+        "### Evaluación generada"
+    )
+
+
+    st.write(
+        f"Módulo: "
+        f"{evaluacion_generada['Modulo'].iloc[0]}"
+    )
+
+
+    st.write(
+        f"Relación: "
+        f"{evaluacion_generada['Tipo_Relacion'].iloc[0]}"
+    )
+
+
+    st.write(
+        f"Nivel: "
+        f"{evaluacion_generada['Nivel'].iloc[0]}"
+    )
+
+
+    st.write(
+        f"Preguntas generadas: "
+        f"{len(evaluacion_generada)}"
+    )
+
+
+    st.dataframe(
+        evaluacion_generada[
+            [
+                "Pregunta_ID",
+                "Pregunta",
+                "Respuesta_1",
+                "Respuesta_2",
+                "Respuesta_3",
+                "Respuesta_4",
+                "Respuesta_Correcta",
+                "Estado_Uso"
+            ]
+        ],
+        use_container_width=True,
+        hide_index=True
+    )
