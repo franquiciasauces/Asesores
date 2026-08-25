@@ -23286,3 +23286,185 @@ st.dataframe(
 )
 
 st.session_state["df_disponibilidad_102a"] = banco.copy()
+
+
+# ============================================================
+# 10.2.A - CONSTRUCCIÓN DEL BANCO DISPONIBLE
+# ============================================================
+
+import streamlit as st
+import pandas as pd
+
+
+st.markdown("## 10.2.A - Construcción del banco disponible")
+
+st.info(
+    "Esta etapa construye el DataFrame BANCODISPONIBLE_102 "
+    "a partir de los DataFrames cargados previamente por 10.1."
+)
+
+
+# ============================================================
+# VERIFICAR QUE 10.1 YA HAYA CARGADO LOS DATOS
+# ============================================================
+
+df_banco_101 = st.session_state.get(
+    "df_banco_101",
+    pd.DataFrame()
+)
+
+df_preguntas_evaluaciones_101 = st.session_state.get(
+    "df_preguntas_evaluaciones_101",
+    pd.DataFrame()
+)
+
+
+if df_banco_101.empty:
+    st.warning(
+        "10.2.A está en espera de que 10.1 cargue "
+        "BANCO_PREGUNTAS_GENERALES.xlsx."
+    )
+    st.stop()
+
+
+if df_preguntas_evaluaciones_101.empty:
+    st.warning(
+        "10.2.A está en espera de que 10.1 cargue "
+        "PREGUNTAS_EVALUACIONES.csv."
+    )
+    st.stop()
+
+
+# ============================================================
+# COPIAS DE TRABAJO
+# ============================================================
+
+df_banco = df_banco_101.copy()
+df_evaluaciones = df_preguntas_evaluaciones_101.copy()
+
+
+# ============================================================
+# VALIDAR LLAVE
+# ============================================================
+
+if "Pregunta_ID" not in df_banco.columns:
+    st.error(
+        "BANCO_PREGUNTAS_GENERALES.xlsx no contiene "
+        "la columna Pregunta_ID."
+    )
+    st.stop()
+
+
+if "Pregunta_ID" not in df_evaluaciones.columns:
+    st.error(
+        "PREGUNTAS_EVALUACIONES.csv no contiene "
+        "la columna Pregunta_ID."
+    )
+    st.stop()
+
+
+# ============================================================
+# ELIMINAR COLUMNAS QUE NO INTERESAN
+# ============================================================
+
+df_banco = df_banco.drop(
+    columns=[
+        "Observacion_Administrador",
+        "Fecha_Generacion"
+    ],
+    errors="ignore"
+)
+
+df_evaluaciones = df_evaluaciones.drop(
+    columns=[
+        "Fecha_Persistencia"
+    ],
+    errors="ignore"
+)
+
+
+# ============================================================
+# ELIMINAR DUPLICADOS INTERNOS ANTES DE LA UNIÓN
+# LLAVE: Pregunta_ID
+# ============================================================
+
+df_banco = df_banco.drop_duplicates(
+    subset=["Pregunta_ID"],
+    keep="first"
+).copy()
+
+df_evaluaciones = df_evaluaciones.drop_duplicates(
+    subset=["Pregunta_ID"],
+    keep="first"
+).copy()
+
+
+# ============================================================
+# UNIÓN DE LAS DOS BASES
+# ============================================================
+
+df_disponibilidad_102 = pd.merge(
+    df_banco,
+    df_evaluaciones,
+    on="Pregunta_ID",
+    how="outer",
+    suffixes=("_Banco", "_Evaluacion")
+)
+
+
+# ============================================================
+# ELIMINAR DUPLICADOS FINALES
+# ============================================================
+
+df_disponibilidad_102 = df_disponibilidad_102.drop_duplicates(
+    subset=["Pregunta_ID"],
+    keep="first"
+).reset_index(drop=True)
+
+
+# ============================================================
+# GUARDAR EL DATAFRAME EN SESSION STATE
+# NO HAY PERSISTENCIA TODAVÍA
+# ============================================================
+
+st.session_state["df_disponibilidad_102"] = (
+    df_disponibilidad_102.copy()
+)
+
+
+# ============================================================
+# RESUMEN
+# ============================================================
+
+st.success(
+    "10.2.A construyó correctamente el DataFrame "
+    "df_disponibilidad_102."
+)
+
+st.write(
+    f"Registros en BANCO_PREGUNTAS_GENERALES: "
+    f"{len(df_banco):,}"
+)
+
+st.write(
+    f"Registros en PREGUNTAS_EVALUACIONES: "
+    f"{len(df_evaluaciones):,}"
+)
+
+st.write(
+    f"Registros finales en df_disponibilidad_102: "
+    f"{len(df_disponibilidad_102):,}"
+)
+
+
+# ============================================================
+# VISUALIZACIÓN
+# ============================================================
+
+st.markdown("### Vista del banco disponible")
+
+st.dataframe(
+    df_disponibilidad_102,
+    use_container_width=True,
+    hide_index=True
+)
