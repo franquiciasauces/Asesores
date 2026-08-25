@@ -23965,3 +23965,189 @@ c2.metric(
     "Preguntas actualmente en cola",
     total_preguntas_cola
 )
+# ============================================================
+# 10.2.D - PERSISTENCIA DEL BANCO DISPONIBLE
+# ============================================================
+
+import streamlit as st
+import pandas as pd
+import requests
+import base64
+
+
+st.markdown(
+    "## 10.2.D - Persistencia de BANCODISPONIBLE_102.csv"
+)
+
+
+# ============================================================
+# TOMAR EL DATAFRAME YA CONSTRUIDO EN 10.2.B
+# ============================================================
+
+df_disponibilidad_102 = st.session_state.get(
+    "df_disponibilidad_102",
+    pd.DataFrame()
+)
+
+
+if df_disponibilidad_102.empty:
+
+    st.warning(
+        "No existe df_disponibilidad_102. "
+        "Primero debe ejecutarse 10.2.B."
+    )
+
+    st.stop()
+
+
+# ============================================================
+# CONFIGURACIÓN DE GITHUB
+# ============================================================
+
+GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
+
+GITHUB_USUARIO = "franquiciasauces"
+
+GITHUB_REPOSITORIO = "Asesores"
+
+GITHUB_RAMA = "main"
+
+
+# ============================================================
+# UBICACIÓN DEL ARCHIVO
+#
+# SE GUARDA EN LA CARPETA DE EVALUACIÓN
+# ============================================================
+
+ARCHIVO_GITHUB = (
+    "evaluacion/BANCODISPONIBLE_102.csv"
+)
+
+
+# ============================================================
+# CONVERTIR DATAFRAME A CSV
+# ============================================================
+
+csv_data = df_disponibilidad_102.to_csv(
+    index=False,
+    encoding="utf-8-sig"
+)
+
+
+contenido_base64 = base64.b64encode(
+    csv_data.encode("utf-8-sig")
+).decode("utf-8")
+
+
+# ============================================================
+# API DE GITHUB
+# ============================================================
+
+url = (
+    f"https://api.github.com/repos/"
+    f"{GITHUB_USUARIO}/"
+    f"{GITHUB_REPOSITORIO}/"
+    f"contents/{ARCHIVO_GITHUB}"
+)
+
+
+headers = {
+    "Authorization": f"Bearer {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github+json"
+}
+
+
+# ============================================================
+# COMPROBAR SI EL ARCHIVO YA EXISTE
+# ============================================================
+
+respuesta_existencia = requests.get(
+    url,
+    headers=headers,
+    params={"ref": GITHUB_RAMA},
+    timeout=30
+)
+
+
+sha = None
+
+if respuesta_existencia.status_code == 200:
+
+    datos_existencia = (
+        respuesta_existencia.json()
+    )
+
+    sha = datos_existencia.get("sha")
+
+elif respuesta_existencia.status_code != 404:
+
+    st.error(
+        "No fue posible comprobar la existencia de "
+        "BANCODISPONIBLE_102.csv en GitHub.\n\n"
+        f"Código HTTP: {respuesta_existencia.status_code}"
+    )
+
+    st.stop()
+
+
+# ============================================================
+# PREPARAR ACTUALIZACIÓN / CREACIÓN
+# ============================================================
+
+payload = {
+    "message": (
+        "Actualizar BANCODISPONIBLE_102.csv"
+    ),
+    "content": contenido_base64,
+    "branch": GITHUB_RAMA
+}
+
+
+# Si el archivo ya existe, GitHub exige su SHA
+if sha is not None:
+
+    payload["sha"] = sha
+
+
+# ============================================================
+# PERSISTIR EN GITHUB
+# ============================================================
+
+respuesta = requests.put(
+    url,
+    headers=headers,
+    json=payload,
+    timeout=30
+)
+
+
+# ============================================================
+# RESULTADO
+# ============================================================
+
+if respuesta.status_code in [200, 201]:
+
+    st.success(
+        "BANCODISPONIBLE_102.csv fue persistido "
+        "correctamente en la carpeta de evaluación."
+    )
+
+    st.write(
+        f"Registros persistidos: "
+        f"{len(df_disponibilidad_102):,}"
+    )
+
+    st.write(
+        f"Ubicación: `{ARCHIVO_GITHUB}`"
+    )
+
+else:
+
+    st.error(
+        "No fue posible persistir "
+        "BANCODISPONIBLE_102.csv en GitHub."
+    )
+
+    st.code(
+        respuesta.text
+    )
