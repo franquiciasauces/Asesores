@@ -24267,7 +24267,6 @@ else:
         respuesta.text
     )
 # ============================================================
-
 # ============================================================
 # 10.3.A - GENERADOR DE EVALUACIONES
 # ============================================================
@@ -24281,14 +24280,13 @@ st.markdown("## 10.3.A - Generador de evaluaciones")
 
 
 # ============================================================
-# TOMAR EL DATAFRAME DE DISPONIBILIDAD CONSTRUIDO EN 10.2
+# 1. TOMAR EL DATAFRAME DE DISPONIBILIDAD DE 10.2
 # ============================================================
 
 df_disponibilidad_102 = st.session_state.get(
     "df_disponibilidad_102",
     pd.DataFrame()
 )
-
 
 if df_disponibilidad_102.empty:
 
@@ -24304,10 +24302,9 @@ df = df_disponibilidad_102.copy()
 
 
 # ============================================================
-# TOMAR EVALUACIONES PERSISTENTES CARGADAS POR 10.1
+# 2. TOMAR EVALUACIONES PERSISTENTES CARGADAS POR 10.1
 #
-# NO SE CARGA NINGÚN ARCHIVO NUEVAMENTE.
-# 10.1 YA CARGÓ EVALUACIONES.csv.
+# NO SE VUELVE A CARGAR NINGÚN ARCHIVO.
 # ============================================================
 
 df_evaluaciones_101 = st.session_state.get(
@@ -24317,7 +24314,7 @@ df_evaluaciones_101 = st.session_state.get(
 
 
 # ============================================================
-# VALIDAR CAMPOS DEL BANCO DE DISPONIBILIDAD
+# 3. VALIDAR CAMPOS NECESARIOS
 # ============================================================
 
 campos_necesarios = [
@@ -24334,13 +24331,11 @@ campos_necesarios = [
     "Estado_Uso"
 ]
 
-
 faltantes = [
     campo
     for campo in campos_necesarios
     if campo not in df.columns
 ]
-
 
 if faltantes:
 
@@ -24354,13 +24349,11 @@ if faltantes:
 
 
 # ============================================================
-# NORMALIZAR ESTADO_USO
+# 4. NORMALIZAR ESTADO_USO
 #
-# SOLO LAS PREGUNTAS CON ESTADO VACÍO ESTÁN DISPONIBLES.
-#
-# USADA       -> NO UTILIZAR
-# DISPONIBLE  -> NO UTILIZAR
-# VACÍO       -> UTILIZAR
+# VACÍO       = DISPONIBLE PARA GENERAR
+# USADA       = NO UTILIZAR
+# DISPONIBLE  = NO UTILIZAR
 # ============================================================
 
 df["Estado_Uso"] = (
@@ -24370,7 +24363,6 @@ df["Estado_Uso"] = (
     .str.strip()
     .str.upper()
 )
-
 
 df_disponibles = df[
     df["Estado_Uso"].eq("")
@@ -24384,17 +24376,11 @@ st.info(
 
 
 # ============================================================
-# FUNCIÓN PARA OBTENER EL SIGUIENTE CONSECUTIVO
+# 5. FUNCIÓN PARA OBTENER EL SIGUIENTE CONSECUTIVO
 #
 # EL CONSECUTIVO ES GLOBAL.
 #
-# NO SE REINICIA POR:
-# - MÓDULO
-# - RELACIÓN
-# - NIVEL
-#
-# SE OBTIENE DE EVALUACIONES.csv, QUE YA FUE
-# CARGADO POR 10.1.
+# SE BUSCA EN EVALUACIONES.csv, YA CARGADO POR 10.1.
 # ============================================================
 
 def obtener_siguiente_consecutivo_103(
@@ -24448,7 +24434,7 @@ def obtener_siguiente_consecutivo_103(
 
 
 # ============================================================
-# SELECCIONAR MÓDULO
+# 6. SELECCIONAR MÓDULO
 # ============================================================
 
 modulos = sorted(
@@ -24459,7 +24445,6 @@ modulos = sorted(
     .unique()
     .tolist()
 )
-
 
 if not modulos:
 
@@ -24479,7 +24464,7 @@ modulo_seleccionado = st.selectbox(
 
 
 # ============================================================
-# FILTRAR POR MÓDULO
+# 7. FILTRAR POR MÓDULO
 # ============================================================
 
 df_modulo = df_disponibles[
@@ -24491,7 +24476,7 @@ df_modulo = df_disponibles[
 
 
 # ============================================================
-# SELECCIONAR TIPO DE RELACIÓN
+# 8. SELECCIONAR TIPO DE RELACIÓN
 # ============================================================
 
 relaciones = sorted(
@@ -24502,7 +24487,6 @@ relaciones = sorted(
     .unique()
     .tolist()
 )
-
 
 if not relaciones:
 
@@ -24522,7 +24506,7 @@ relacion_seleccionada = st.selectbox(
 
 
 # ============================================================
-# FILTRAR POR MÓDULO Y RELACIÓN
+# 9. FILTRAR POR MÓDULO Y RELACIÓN
 # ============================================================
 
 df_relacion = df_modulo[
@@ -24534,7 +24518,7 @@ df_relacion = df_modulo[
 
 
 # ============================================================
-# SELECCIONAR NIVEL
+# 10. SELECCIONAR NIVEL
 # ============================================================
 
 niveles = sorted(
@@ -24545,7 +24529,6 @@ niveles = sorted(
     .unique()
     .tolist()
 )
-
 
 if not niveles:
 
@@ -24565,7 +24548,7 @@ nivel_seleccionado = st.selectbox(
 
 
 # ============================================================
-# FILTRAR COMBINACIÓN FINAL
+# 11. FILTRAR COMBINACIÓN FINAL
 # ============================================================
 
 df_candidatas = df_relacion[
@@ -24577,7 +24560,7 @@ df_candidatas = df_relacion[
 
 
 # ============================================================
-# ELIMINAR DUPLICADOS
+# 12. ELIMINAR PREGUNTAS DUPLICADAS
 # ============================================================
 
 df_candidatas = (
@@ -24596,7 +24579,7 @@ cantidad_candidatas = len(
 
 
 # ============================================================
-# INFORMACIÓN DE LA COMBINACIÓN
+# 13. MOSTRAR DISPONIBILIDAD
 # ============================================================
 
 st.markdown(
@@ -24632,7 +24615,7 @@ with c3:
 
 
 # ============================================================
-# SI NO HAY PREGUNTAS
+# 14. SI NO HAY PREGUNTAS
 # ============================================================
 
 if cantidad_candidatas == 0:
@@ -24646,7 +24629,7 @@ if cantidad_candidatas == 0:
 
 
 # ============================================================
-# SI HAY MENOS DE 10
+# 15. DETERMINAR CANTIDAD A GENERAR
 # ============================================================
 
 if cantidad_candidatas < 10:
@@ -24676,7 +24659,7 @@ else:
 
 
 # ============================================================
-# BOTÓN DE GENERACIÓN
+# 16. BOTÓN DE GENERACIÓN
 # ============================================================
 
 if cantidad_candidatas >= 10:
@@ -24702,14 +24685,14 @@ generar = st.button(
 
 
 # ============================================================
-# GENERAR EVALUACIÓN
+# 17. GENERAR EVALUACIÓN
 # ============================================================
 
 if generar:
 
-    # ========================================================
-    # SELECCIONAR LAS PREGUNTAS
-    # ========================================================
+    # --------------------------------------------------------
+    # SELECCIONAR PREGUNTAS
+    # --------------------------------------------------------
 
     evaluacion = (
         df_candidatas
@@ -24722,11 +24705,9 @@ if generar:
     )
 
 
-    # ========================================================
-    # OBTENER CONSECUTIVO GLOBAL
-    #
-    # SE CONSULTA EVALUACIONES.csv YA CARGADO POR 10.1.
-    # ========================================================
+    # --------------------------------------------------------
+    # OBTENER SIGUIENTE CONSECUTIVO GLOBAL
+    # --------------------------------------------------------
 
     siguiente_consecutivo = (
         obtener_siguiente_consecutivo_103(
@@ -24735,32 +24716,9 @@ if generar:
     )
 
 
-    # ========================================================
-    # CONSTRUIR EVALUACION_ID
-    #
-    # REGLA EXACTA:
-    #
-    # Modulo + Tipo_Relacion + Nivel + Autonumérico
-    #
-    # Ejemplo:
-    #
-    # Patologias_Descripcion_Patologia_Nivel 1_0001
-    #
-    # ========================================================
-
-    evaluacion_id = (
-        f"{str(modulo_seleccionado).strip()}_"
-        f"{str(relacion_seleccionada).strip()}_"
-        f"{str(nivel_seleccionado).strip()}_"
-        f"{siguiente_consecutivo:04d}"
-    )
-
-
-    # ========================================================
-    # ASEGURAR QUE EL ID NO EXISTA
-    #
-    # CONTROL ADICIONAL CONTRA DUPLICADOS.
-    # ========================================================
+    # --------------------------------------------------------
+    # OBTENER IDS EXISTENTES
+    # --------------------------------------------------------
 
     ids_existentes = set()
 
@@ -24781,9 +24739,17 @@ if generar:
         )
 
 
-    while evaluacion_id in ids_existentes:
+    # --------------------------------------------------------
+    # CONSTRUIR EVALUACION_ID
+    #
+    # REGLA:
+    #
+    # Modulo + Tipo_Relacion + Nivel + Autonumérico
+    #
+    # EL AUTONUMÉRICO ES GLOBAL Y NO SE REINICIA.
+    # --------------------------------------------------------
 
-        siguiente_consecutivo += 1
+    while True:
 
         evaluacion_id = (
             f"{str(modulo_seleccionado).strip()}_"
@@ -24793,42 +24759,59 @@ if generar:
         )
 
 
-    # ========================================================
-    # AGREGAR EVALUACION_ID
-    # ========================================================
+        if evaluacion_id not in ids_existentes:
 
-    evaluacion.insert(
-        0,
-        "Evaluacion_ID",
-        evaluacion_id
+            break
+
+
+        siguiente_consecutivo += 1
+
+
+    # --------------------------------------------------------
+    # ASIGNAR EVALUACION_ID
+    #
+    # IMPORTANTE:
+    # df_disponibilidad_102 YA PUEDE TRAER ESTA COLUMNA.
+    # POR ESO NO SE USA insert() DIRECTAMENTE.
+    # --------------------------------------------------------
+
+    evaluacion["Evaluacion_ID"] = evaluacion_id
+
+
+    # --------------------------------------------------------
+    # COLOCAR Evaluacion_ID COMO PRIMERA COLUMNA
+    # --------------------------------------------------------
+
+    columnas = evaluacion.columns.tolist()
+
+    columnas.remove(
+        "Evaluacion_ID"
     )
 
+    evaluacion = evaluacion[
+        ["Evaluacion_ID"] + columnas
+    ].copy()
 
-    # ========================================================
+
+    # --------------------------------------------------------
     # ESTADO INICIAL DE VALIDACIÓN
-    #
-    # TODAVÍA NO HA SIDO VALIDADA.
-    # ========================================================
+    # --------------------------------------------------------
 
     evaluacion["Estado_Validacion"] = (
         "PENDIENTE"
     )
 
 
-    # ========================================================
+    # --------------------------------------------------------
     # GUARDAR TEMPORALMENTE
     #
-    # NO SE PERSISTE TODAVÍA.
-    # ========================================================
+    # TODAVÍA NO SE PERSISTE.
+    # --------------------------------------------------------
 
     st.session_state[
         "evaluacion_generada_103"
     ] = evaluacion.copy()
 
-
-    # ========================================================
-    # GUARDAR INFORMACIÓN DE LA EVALUACIÓN
-    # ========================================================
 
     st.session_state[
         "evaluacion_id_103"
@@ -24850,9 +24833,9 @@ if generar:
     ] = nivel_seleccionado
 
 
-    # ========================================================
-    # LIMPIAR VALIDACIÓN ANTERIOR
-    # ========================================================
+    # --------------------------------------------------------
+    # ELIMINAR VALIDACIÓN TEMPORAL ANTERIOR
+    # --------------------------------------------------------
 
     if (
         "evaluacion_validacion_103"
@@ -24864,9 +24847,9 @@ if generar:
         ]
 
 
-    # ========================================================
+    # --------------------------------------------------------
     # MENSAJE
-    # ========================================================
+    # --------------------------------------------------------
 
     if cantidad_generar == 10:
 
@@ -24886,12 +24869,12 @@ if generar:
 
 
     st.info(
-        f"Evaluacion_ID: {evaluacion_id}"
+        f"Evaluacion_ID asignado: {evaluacion_id}"
     )
 
 
 # ============================================================
-# MOSTRAR EVALUACIÓN GENERADA
+# 18. MOSTRAR EVALUACIÓN GENERADA
 # ============================================================
 
 evaluacion_generada = st.session_state.get(
@@ -24908,7 +24891,7 @@ if not evaluacion_generada.empty:
 
 
     # ========================================================
-    # INFORMACIÓN
+    # INFORMACIÓN GENERAL
     # ========================================================
 
     c1, c2 = st.columns(2)
