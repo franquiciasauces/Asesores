@@ -25592,3 +25592,850 @@ st.info(
     "Todavía no se ha realizado la sincronización "
     "con EVALUACIONES.csv."
 )
+
+
+# ============================================================
+# 10.3.C - SINCRONIZADOR DE EVALUACIONES
+# ============================================================
+
+import streamlit as st
+import pandas as pd
+import io
+import json
+import base64
+import urllib.request
+import urllib.error
+from datetime import datetime
+
+
+st.markdown("## 10.3.C - Sincronización de evaluación")
+
+
+# ============================================================
+# CONFIGURACIÓN
+# ============================================================
+
+GITHUB_USUARIO_103C = "franquiciasauces"
+GITHUB_REPOSITORIO_103C = "Asesores"
+GITHUB_RAMA_103C = "main"
+
+# ------------------------------------------------------------
+# EVALUACIONES.csv
+# ------------------------------------------------------------
+
+ARCHIVO_CONSOLIDADO_103C = (
+    "page/EVALUACIONES.csv"
+)
+
+# ------------------------------------------------------------
+# CARPETA DE EVALUACIONES INDIVIDUALES
+# ------------------------------------------------------------
+
+CARPETA_EVALUACIONES_103C = (
+    "evaluacion/"
+)
+
+
+# ============================================================
+# TOMAR LA VALIDACIÓN REALIZADA EN 10.3.B
+# ============================================================
+
+evaluacion_validada = st.session_state.get(
+    "evaluacion_validacion_103",
+    pd.DataFrame()
+)
+
+
+if evaluacion_validada.empty:
+
+    st.warning(
+        "No existe una evaluación validada. "
+        "Primero debe generar la evaluación en 10.3.A "
+        "y validarla en 10.3.B."
+    )
+
+    st.stop()
+
+
+df = evaluacion_validada.copy()
+
+
+# ============================================================
+# VALIDAR CAMPOS NECESARIOS
+# ============================================================
+
+campos_necesarios = [
+    "Evaluacion_ID",
+    "Pregunta_ID",
+    "Modulo",
+    "Tipo_Relacion",
+    "Nivel",
+    "Pregunta",
+    "Respuesta_1",
+    "Respuesta_2",
+    "Respuesta_3",
+    "Respuesta_4",
+    "Respuesta_Correcta",
+    "Estado_Validacion"
+]
+
+
+faltantes = [
+    campo
+    for campo in campos_necesarios
+    if campo not in df.columns
+]
+
+
+if faltantes:
+
+    st.error(
+        "Faltan campos necesarios en la evaluación validada: "
+        + ", ".join(faltantes)
+    )
+
+    st.stop()
+
+
+# ============================================================
+# NORMALIZAR ESTADO DE VALIDACIÓN
+# ============================================================
+
+df["Estado_Validacion"] = (
+    df["Estado_Validacion"]
+    .fillna("PENDIENTE")
+    .astype(str)
+    .str.strip()
+)
+
+
+# ============================================================
+# VALIDAR QUE NO HAYA PENDIENTES
+# ============================================================
+
+pendientes = int(
+    (
+        df["Estado_Validacion"]
+        == "PENDIENTE"
+    ).sum()
+)
+
+
+if pendientes > 0:
+
+    st.warning(
+        f"La evaluación todavía tiene {pendientes} "
+        "pregunta(s) PENDIENTE(s) de validación. "
+        "Debe tomar una decisión sobre todas las preguntas "
+        "antes de sincronizar."
+    )
+
+    st.stop()
+
+
+# ============================================================
+# OBTENER EVALUACION_ID
+# ============================================================
+
+evaluacion_ids = (
+    df["Evaluacion_ID"]
+    .fillna("")
+    .astype(str)
+    .str.strip()
+)
+
+
+evaluacion_ids_validos = [
+    valor
+    for valor in evaluacion_ids
+    if valor != ""
+    and valor.lower() != "nan"
+]
+
+
+if not evaluacion_ids_validos:
+
+    st.error(
+        "La evaluación no tiene un Evaluacion_ID válido."
+    )
+
+    st.stop()
+
+
+evaluacion_id = evaluacion_ids_validos[0]
+
+
+# ============================================================
+# VERIFICAR QUE TODAS LAS FILAS TENGAN EL MISMO ID
+# ============================================================
+
+ids_distintos = sorted(
+    set(evaluacion_ids_validos)
+)
+
+
+if len(ids_distintos) != 1:
+
+    st.error(
+        "La evaluación contiene más de un Evaluacion_ID. "
+        "La sincronización fue detenida."
+    )
+
+    st.stop()
+
+
+# ============================================================
+# DATOS GENERALES DE LA EVALUACIÓN
+# ============================================================
+
+modulo = str(
+    df["Modulo"].iloc[0]
+).strip()
+
+
+tipo_relacion = str(
+    df["Tipo_Relacion"].iloc[0]
+).strip()
+
+
+nivel = str(
+    df["Nivel"].iloc[0]
+).strip()
+
+
+cantidad_preguntas = len(df)
+
+
+cantidad_aprobadas = int(
+    (
+        df["Estado_Validacion"]
+        == "APROBADA"
+    ).sum()
+)
+
+
+cantidad_rechazadas = int(
+    (
+        df["Estado_Validacion"]
+        == "RECHAZADA"
+    ).sum()
+)
+
+
+cantidad_no_utilizadas = int(
+    (
+        df["Estado_Validacion"]
+        == "AÚN NO SE UTILIZA"
+    ).sum()
+)
+
+
+# ============================================================
+# ESTADO DE LA EVALUACIÓN
+#
+# PERSISTIDA:
+# significa que ya terminó la validación y fue sincronizada.
+# ============================================================
+
+estado_evaluacion = "PERSISTIDA"
+
+
+# ============================================================
+# FECHA DE PERSISTENCIA
+# ============================================================
+
+fecha_persistencia = (
+    datetime.now().strftime(
+        "%Y-%m-%d %H:%M:%S"
+    )
+)
+
+
+# ============================================================
+# MOSTRAR RESUMEN ANTES DE SINCRONIZAR
+# ============================================================
+
+st.markdown(
+    "### Evaluación lista para sincronización"
+)
+
+
+c1, c2, c3 = st.columns(3)
+
+
+with c1:
+
+    st.write(
+        f"**Evaluacion_ID:** `{evaluacion_id}`"
+    )
+
+
+with c2:
+
+    st.write(
+        f"**Módulo:** {modulo}"
+    )
+
+
+with c3:
+
+    st.write(
+        f"**Relación:** {tipo_relacion}"
+    )
+
+
+c1, c2, c3, c4 = st.columns(4)
+
+
+c1.metric(
+    "Preguntas",
+    cantidad_preguntas
+)
+
+
+c2.metric(
+    "Aprobadas",
+    cantidad_aprobadas
+)
+
+
+c3.metric(
+    "Rechazadas",
+    cantidad_rechazadas
+)
+
+
+c4.metric(
+    "Aún no se utiliza",
+    cantidad_no_utilizadas
+)
+
+
+# ============================================================
+# FUNCIÓN PARA LEER ARCHIVO DE GITHUB
+# ============================================================
+
+def leer_github_103c(ruta):
+
+    token = st.secrets["GITHUB_TOKEN"]
+
+    url = (
+        f"https://api.github.com/repos/"
+        f"{GITHUB_USUARIO_103C}/"
+        f"{GITHUB_REPOSITORIO_103C}/"
+        f"contents/{ruta}"
+    )
+
+    solicitud = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json"
+        },
+        method="GET"
+    )
+
+    try:
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            datos = json.loads(
+                respuesta.read().decode("utf-8")
+            )
+
+
+        if "content" not in datos:
+
+            return None, None
+
+
+        contenido = base64.b64decode(
+            datos["content"].replace("\n", "")
+        )
+
+
+        return contenido, datos.get("sha")
+
+
+    except urllib.error.HTTPError as error:
+
+        if error.code == 404:
+
+            return None, None
+
+
+        st.error(
+            f"Error leyendo {ruta}: "
+            f"HTTP {error.code}"
+        )
+
+        return None, None
+
+
+    except Exception as error:
+
+        st.error(
+            f"Error leyendo {ruta}: {error}"
+        )
+
+        return None, None
+
+
+# ============================================================
+# FUNCIÓN PARA GUARDAR / ACTUALIZAR ARCHIVO EN GITHUB
+# ============================================================
+
+def guardar_github_103c(
+    ruta,
+    contenido,
+    sha=None
+):
+
+    token = st.secrets["GITHUB_TOKEN"]
+
+    url = (
+        f"https://api.github.com/repos/"
+        f"{GITHUB_USUARIO_103C}/"
+        f"{GITHUB_REPOSITORIO_103C}/"
+        f"contents/{ruta}"
+    )
+
+
+    datos = {
+        "message": (
+            f"Sincronización evaluación "
+            f"{evaluacion_id}"
+        ),
+        "content": base64.b64encode(
+            contenido
+        ).decode("utf-8"),
+        "branch": GITHUB_RAMA_103C
+    }
+
+
+    if sha:
+
+        datos["sha"] = sha
+
+
+    solicitud = urllib.request.Request(
+        url,
+        data=json.dumps(datos).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json"
+        },
+        method="PUT"
+    )
+
+
+    try:
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            resultado = json.loads(
+                respuesta.read().decode("utf-8")
+            )
+
+
+        return True, resultado
+
+
+    except urllib.error.HTTPError as error:
+
+        detalle = ""
+
+        try:
+
+            detalle = (
+                error.read()
+                .decode("utf-8")
+            )
+
+        except Exception:
+
+            pass
+
+
+        st.error(
+            f"Error guardando {ruta}: "
+            f"HTTP {error.code}"
+        )
+
+
+        if detalle:
+
+            st.code(detalle)
+
+
+        return False, None
+
+
+    except Exception as error:
+
+        st.error(
+            f"Error guardando {ruta}: {error}"
+        )
+
+        return False, None
+
+
+# ============================================================
+# BOTÓN DE SINCRONIZACIÓN
+# ============================================================
+
+if st.button(
+    "SINCRONIZAR EVALUACIÓN",
+    type="primary",
+    key="sincronizar_evaluacion_103c"
+):
+
+    # ========================================================
+    # 1. CONSTRUIR ARCHIVO INDIVIDUAL
+    #
+    # SE GUARDA TODA LA EVALUACIÓN:
+    # APROBADAS
+    # RECHAZADAS
+    # AÚN NO SE UTILIZA
+    #
+    # NO SE ELIMINAN PREGUNTAS DEL ARCHIVO INDIVIDUAL.
+    # ========================================================
+
+    columnas_individuales = [
+        "Evaluacion_ID",
+        "Pregunta_ID",
+        "Modulo",
+        "Tipo_Relacion",
+        "Nivel",
+        "Pregunta",
+        "Respuesta_1",
+        "Respuesta_2",
+        "Respuesta_3",
+        "Respuesta_4",
+        "Respuesta_Correcta",
+        "Estado_Validacion"
+    ]
+
+
+    columnas_individuales = [
+        columna
+        for columna in columnas_individuales
+        if columna in df.columns
+    ]
+
+
+    df_individual = df[
+        columnas_individuales
+    ].copy()
+
+
+    # ========================================================
+    # 2. CONSTRUIR NOMBRE DEL ARCHIVO INDIVIDUAL
+    #
+    # USA EXACTAMENTE EL Evaluacion_ID GENERADO EN 10.3.A
+    # ========================================================
+
+    archivo_individual = (
+        f"{CARPETA_EVALUACIONES_103C}"
+        f"{evaluacion_id}.csv"
+    )
+
+
+    contenido_individual = (
+        df_individual
+        .to_csv(
+            index=False,
+            encoding="utf-8-sig"
+        )
+        .encode("utf-8-sig")
+    )
+
+
+    # ========================================================
+    # 3. VERIFICAR SI EL ARCHIVO INDIVIDUAL YA EXISTE
+    # ========================================================
+
+    contenido_existente_individual, sha_individual = (
+        leer_github_103c(
+            archivo_individual
+        )
+    )
+
+
+    # ========================================================
+    # 4. EVITAR SOBRESCRIBIR UNA EVALUACIÓN YA PERSISTIDA
+    # ========================================================
+
+    if contenido_existente_individual is not None:
+
+        st.error(
+            f"La evaluación {evaluacion_id} "
+            "ya existe en la carpeta evaluacion/. "
+            "No se sobrescribió."
+        )
+
+        st.stop()
+
+
+    # ========================================================
+    # 5. GUARDAR EVALUACIÓN INDIVIDUAL
+    # ========================================================
+
+    exito_individual, _ = guardar_github_103c(
+        archivo_individual,
+        contenido_individual,
+        sha=None
+    )
+
+
+    if not exito_individual:
+
+        st.error(
+            "No fue posible guardar la evaluación "
+            "individual. No se actualizará "
+            "EVALUACIONES.csv."
+        )
+
+        st.stop()
+
+
+    # ========================================================
+    # 6. LEER EVALUACIONES.csv
+    #
+    # SE LEE LA VERSIÓN ACTUAL DEL REPOSITORIO PARA EVITAR
+    # SOBRESCRIBIR CAMBIOS HECHOS POR OTRA EJECUCIÓN.
+    # ========================================================
+
+    contenido_consolidado, sha_consolidado = (
+        leer_github_103c(
+            ARCHIVO_CONSOLIDADO_103C
+        )
+    )
+
+
+    # ========================================================
+    # 7. CONSTRUIR / LEER CONSOLIDADO
+    # ========================================================
+
+    columnas_consolidado = [
+        "Evaluacion_ID",
+        "Modulo",
+        "Tipo_Relacion",
+        "Nivel",
+        "Cantidad_Preguntas",
+        "Preguntas_Aprobadas",
+        "Preguntas_Rechazadas",
+        "Preguntas_No_Utilizadas",
+        "Estado_Evaluacion",
+        "Fecha_Persistencia"
+    ]
+
+
+    if contenido_consolidado is None:
+
+        df_consolidado = pd.DataFrame(
+            columns=columnas_consolidado
+        )
+
+        sha_consolidado = None
+
+    else:
+
+        try:
+
+            df_consolidado = pd.read_csv(
+                io.BytesIO(
+                    contenido_consolidado
+                ),
+                dtype=str
+            ).fillna("")
+
+
+        except Exception as error:
+
+            st.error(
+                "No fue posible leer "
+                "EVALUACIONES.csv."
+            )
+
+            st.exception(error)
+
+            st.stop()
+
+
+    # ========================================================
+    # 8. ASEGURAR COLUMNAS DEL CONSOLIDADO
+    # ========================================================
+
+    for columna in columnas_consolidado:
+
+        if columna not in df_consolidado.columns:
+
+            df_consolidado[columna] = ""
+
+
+    df_consolidado = df_consolidado[
+        columnas_consolidado
+    ].copy()
+
+
+    # ========================================================
+    # 9. VERIFICAR QUE Evaluacion_ID NO EXISTA
+    # ========================================================
+
+    if (
+        df_consolidado["Evaluacion_ID"]
+        .astype(str)
+        .str.strip()
+        .eq(evaluacion_id)
+        .any()
+    ):
+
+        st.error(
+            f"El Evaluacion_ID {evaluacion_id} "
+            "ya existe en EVALUACIONES.csv. "
+            "La evaluación individual ya fue guardada, "
+            "pero el consolidado no fue modificado."
+        )
+
+        st.stop()
+
+
+    # ========================================================
+    # 10. CREAR REGISTRO DEL CONSOLIDADO
+    # ========================================================
+
+    nuevo_registro = pd.DataFrame(
+        [
+            {
+                "Evaluacion_ID": evaluacion_id,
+                "Modulo": modulo,
+                "Tipo_Relacion": tipo_relacion,
+                "Nivel": nivel,
+                "Cantidad_Preguntas": cantidad_preguntas,
+                "Preguntas_Aprobadas": cantidad_aprobadas,
+                "Preguntas_Rechazadas": cantidad_rechazadas,
+                "Preguntas_No_Utilizadas": cantidad_no_utilizadas,
+                "Estado_Evaluacion": estado_evaluacion,
+                "Fecha_Persistencia": fecha_persistencia
+            }
+        ]
+    )
+
+
+    # ========================================================
+    # 11. AGREGAR AL CONSOLIDADO
+    # ========================================================
+
+    df_consolidado = pd.concat(
+        [
+            df_consolidado,
+            nuevo_registro
+        ],
+        ignore_index=True
+    )
+
+
+    # ========================================================
+    # 12. ELIMINAR DUPLICADOS DEL CONSOLIDADO
+    # ========================================================
+
+    df_consolidado = (
+        df_consolidado
+        .drop_duplicates(
+            subset=["Evaluacion_ID"],
+            keep="last"
+        )
+        .reset_index(drop=True)
+    )
+
+
+    # ========================================================
+    # 13. GUARDAR EVALUACIONES.csv
+    # ========================================================
+
+    contenido_consolidado_nuevo = (
+        df_consolidado
+        .to_csv(
+            index=False,
+            encoding="utf-8-sig"
+        )
+        .encode("utf-8-sig")
+    )
+
+
+    exito_consolidado, _ = guardar_github_103c(
+        ARCHIVO_CONSOLIDADO_103C,
+        contenido_consolidado_nuevo,
+        sha=sha_consolidado
+    )
+
+
+    # ========================================================
+    # 14. SI FALLA EL CONSOLIDADO
+    # ========================================================
+
+    if not exito_consolidado:
+
+        st.error(
+            "La evaluación individual fue guardada en "
+            "evaluacion/, pero no fue posible actualizar "
+            "EVALUACIONES.csv."
+        )
+
+        st.stop()
+
+
+    # ========================================================
+    # 15. ACTUALIZAR SESSION STATE
+    # ========================================================
+
+    st.session_state[
+        "df_evaluaciones_101"
+    ] = df_consolidado.copy()
+
+
+    st.session_state[
+        "evaluacion_sincronizada_103"
+    ] = True
+
+
+    st.session_state[
+        "evaluacion_id_sincronizada_103"
+    ] = evaluacion_id
+
+
+    # ========================================================
+    # 16. MENSAJE FINAL
+    # ========================================================
+
+    st.success(
+        "La evaluación fue sincronizada correctamente."
+    )
+
+
+    st.success(
+        f"Evaluación individual guardada en: "
+        f"{archivo_individual}"
+    )
+
+
+    st.success(
+        "EVALUACIONES.csv fue actualizado correctamente."
+    )
+
+
+    st.info(
+        f"Evaluacion_ID: {evaluacion_id} | "
+        f"Preguntas: {cantidad_preguntas} | "
+        f"Aprobadas: {cantidad_aprobadas} | "
+        f"Rechazadas: {cantidad_rechazadas} | "
+        f"Aún no se utiliza: {cantidad_no_utilizadas}"
+    )
