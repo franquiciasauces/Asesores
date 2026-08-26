@@ -26434,112 +26434,91 @@ if st.button(
         "Consolidado actualizado: "
         "page/EVALUACIONES.csv"
     )
-
-
-
 # ============================================================
 # 11.A - GENERADOR DE EVALUACIONES CONTROLADAS
 # ============================================================
 
-import streamlit as st
-import pandas as pd
-from datetime import datetime
+st.markdown("## 11.A - Evaluaciones Controladas")
 
+if "ec_11a_actual" not in st.session_state:
+    st.session_state.ec_11a_actual = None
 
-st.markdown("## 11.A - Generador de Evaluaciones Controladas")
+if "ec_11a_preguntas" not in st.session_state:
+    st.session_state.ec_11a_preguntas = []
 
-
-# ============================================================
-# 1. INICIALIZAR VARIABLES
-# ============================================================
-
-if "evaluacion_controlada_11a" not in st.session_state:
-    st.session_state.evaluacion_controlada_11a = None
-
-if "preguntas_controladas_11a" not in st.session_state:
-    st.session_state.preguntas_controladas_11a = []
-
-if "evaluaciones_controladas_11a" not in st.session_state:
-    st.session_state.evaluaciones_controladas_11a = []
-
-if "consecutivo_controladas_11a" not in st.session_state:
-    st.session_state.consecutivo_controladas_11a = 1
+if "ec_11a_consecutivo" not in st.session_state:
+    st.session_state.ec_11a_consecutivo = 1
 
 
 # ============================================================
-# 2. CREAR NUEVA EVALUACION
+# CREAR EVALUACION
 # ============================================================
 
-if st.session_state.evaluacion_controlada_11a is None:
+if st.session_state.ec_11a_actual is None:
 
-    st.markdown("### Crear nueva evaluación")
-
-    nombre_evaluacion = st.text_input(
+    nombre = st.text_input(
         "Nombre de la evaluación",
-        key="nombre_evaluacion_11a"
+        key="ec_11a_nombre"
     )
 
-    tema_evaluacion = st.text_input(
+    tema = st.text_input(
         "Tema de la evaluación",
-        key="tema_evaluacion_11a"
+        key="ec_11a_tema"
     )
 
-    nivel_evaluacion = st.selectbox(
+    nivel = st.selectbox(
         "Nivel",
         ["Nivel 1", "Nivel 2"],
-        key="nivel_evaluacion_11a"
+        key="ec_11a_nivel"
     )
 
     if st.button(
         "Iniciar evaluación",
-        key="iniciar_evaluacion_11a"
+        type="primary",
+        key="ec_11a_iniciar"
     ):
 
-        if not nombre_evaluacion.strip():
+        if not nombre.strip():
             st.error("Debe ingresar el nombre de la evaluación.")
 
-        elif not tema_evaluacion.strip():
+        elif not tema.strip():
             st.error("Debe ingresar el tema de la evaluación.")
 
         else:
 
-            numero = st.session_state.consecutivo_controladas_11a
+            numero = st.session_state.ec_11a_consecutivo
 
-            evaluacion_id = f"EC_{numero:05d}"
-
-            st.session_state.evaluacion_controlada_11a = {
-                "Evaluacion_ID": evaluacion_id,
-                "Nombre_Evaluacion": nombre_evaluacion.strip(),
-                "Tema": tema_evaluacion.strip(),
-                "Nivel": nivel_evaluacion,
+            st.session_state.ec_11a_actual = {
+                "Evaluacion_ID": f"EC_{numero:05d}",
+                "Nombre_Evaluacion": nombre.strip(),
+                "Tema": tema.strip(),
+                "Nivel": nivel,
                 "Estado": "Activa",
                 "Fecha_Creacion": datetime.now().strftime(
                     "%Y-%m-%d %H:%M:%S"
                 )
             }
 
-            st.session_state.preguntas_controladas_11a = []
+            st.session_state.ec_11a_preguntas = []
 
-            st.session_state.consecutivo_controladas_11a += 1
+            st.session_state.ec_11a_consecutivo += 1
 
             st.rerun()
 
 
 # ============================================================
-# 3. GENERAR PREGUNTAS
+# AGREGAR PREGUNTAS
 # ============================================================
 
-if st.session_state.evaluacion_controlada_11a is not None:
+if st.session_state.ec_11a_actual is not None:
 
-    evaluacion = st.session_state.evaluacion_controlada_11a
-
-    st.markdown("### Evaluación en construcción")
+    evaluacion = st.session_state.ec_11a_actual
 
     st.info(
         f"Evaluación: {evaluacion['Evaluacion_ID']} | "
-        f"{evaluacion['Nombre_Evaluacion']} | "
+        f"Nombre: {evaluacion['Nombre_Evaluacion']} | "
         f"Tema: {evaluacion['Tema']} | "
-        f"{evaluacion['Nivel']} | "
+        f"Nivel: {evaluacion['Nivel']} | "
         f"Estado: {evaluacion['Estado']}"
     )
 
@@ -26551,37 +26530,37 @@ if st.session_state.evaluacion_controlada_11a is not None:
             "Restricciones",
             "Otros"
         ],
-        key="modulo_11a"
+        key="ec_11a_modulo"
     )
 
     tema_pregunta = st.text_input(
         "Tema de la pregunta",
-        key="tema_pregunta_11a"
+        key="ec_11a_tema_pregunta"
     )
 
     pregunta = st.text_area(
         "Pregunta",
-        key="pregunta_11a"
+        key="ec_11a_pregunta"
     )
 
     respuesta_1 = st.text_input(
         "Respuesta 1",
-        key="respuesta_1_11a"
+        key="ec_11a_r1"
     )
 
     respuesta_2 = st.text_input(
         "Respuesta 2",
-        key="respuesta_2_11a"
+        key="ec_11a_r2"
     )
 
     respuesta_3 = st.text_input(
         "Respuesta 3",
-        key="respuesta_3_11a"
+        key="ec_11a_r3"
     )
 
     respuesta_4 = st.text_input(
         "Respuesta 4",
-        key="respuesta_4_11a"
+        key="ec_11a_r4"
     )
 
     cantidad_correctas = 1
@@ -26589,23 +26568,16 @@ if st.session_state.evaluacion_controlada_11a is not None:
     if evaluacion["Nivel"] == "Nivel 2":
         cantidad_correctas = 2
 
-    respuestas_correctas = st.multiselect(
+    correctas = st.multiselect(
         f"Seleccione {cantidad_correctas} respuesta(s) correcta(s)",
         [1, 2, 3, 4],
-        key="respuestas_correctas_11a"
+        key="ec_11a_correctas"
     )
 
     if st.button(
         "Agregar pregunta y continuar",
-        key="agregar_pregunta_11a"
+        key="ec_11a_agregar"
     ):
-
-        respuestas = [
-            respuesta_1.strip(),
-            respuesta_2.strip(),
-            respuesta_3.strip(),
-            respuesta_4.strip()
-        ]
 
         if not tema_pregunta.strip():
             st.error("Debe ingresar el tema de la pregunta.")
@@ -26613,10 +26585,15 @@ if st.session_state.evaluacion_controlada_11a is not None:
         elif not pregunta.strip():
             st.error("Debe ingresar la pregunta.")
 
-        elif not all(respuestas):
+        elif not all([
+            respuesta_1.strip(),
+            respuesta_2.strip(),
+            respuesta_3.strip(),
+            respuesta_4.strip()
+        ]):
             st.error("Debe diligenciar las cuatro respuestas.")
 
-        elif len(respuestas_correctas) != cantidad_correctas:
+        elif len(correctas) != cantidad_correctas:
             st.error(
                 f"{evaluacion['Nivel']} requiere "
                 f"{cantidad_correctas} respuesta(s) correcta(s)."
@@ -26625,26 +26602,25 @@ if st.session_state.evaluacion_controlada_11a is not None:
         else:
 
             numero_pregunta = (
-                len(st.session_state.preguntas_controladas_11a) + 1
+                len(st.session_state.ec_11a_preguntas) + 1
             )
 
-            pregunta_id = (
-                f"{evaluacion['Evaluacion_ID']}_P{numero_pregunta:03d}"
-            )
-
-            st.session_state.preguntas_controladas_11a.append({
+            st.session_state.ec_11a_preguntas.append({
                 "Evaluacion_ID": evaluacion["Evaluacion_ID"],
-                "Pregunta_ID": pregunta_id,
+                "Pregunta_ID": (
+                    f"{evaluacion['Evaluacion_ID']}"
+                    f"_P{numero_pregunta:03d}"
+                ),
                 "Modulo": modulo,
                 "Tema": tema_pregunta.strip(),
                 "Nivel": evaluacion["Nivel"],
                 "Pregunta": pregunta.strip(),
-                "Respuesta_1": respuestas[0],
-                "Respuesta_2": respuestas[1],
-                "Respuesta_3": respuestas[2],
-                "Respuesta_4": respuestas[3],
+                "Respuesta_1": respuesta_1.strip(),
+                "Respuesta_2": respuesta_2.strip(),
+                "Respuesta_3": respuesta_3.strip(),
+                "Respuesta_4": respuesta_4.strip(),
                 "Respuesta_Correcta": ",".join(
-                    str(x) for x in respuestas_correctas
+                    str(x) for x in correctas
                 ),
                 "Estado": "Activa",
                 "Fecha_Creacion": datetime.now().strftime(
@@ -26652,64 +26628,57 @@ if st.session_state.evaluacion_controlada_11a is not None:
                 )
             })
 
-            st.success(
-                f"Pregunta {pregunta_id} agregada correctamente."
-            )
+            st.success("Pregunta agregada correctamente.")
 
             st.rerun()
 
 
 # ============================================================
-# 4. MOSTRAR PREGUNTAS Y FINALIZAR
+# PREGUNTAS AGREGADAS Y FINALIZAR
 # ============================================================
 
 if (
-    st.session_state.evaluacion_controlada_11a is not None
-    and st.session_state.preguntas_controladas_11a
+    st.session_state.ec_11a_actual is not None
+    and st.session_state.ec_11a_preguntas
 ):
 
     st.markdown(
         f"### Preguntas agregadas: "
-        f"{len(st.session_state.preguntas_controladas_11a)}"
-    )
-
-    df_preguntas_11a = pd.DataFrame(
-        st.session_state.preguntas_controladas_11a
+        f"{len(st.session_state.ec_11a_preguntas)}"
     )
 
     st.dataframe(
-        df_preguntas_11a,
+        pd.DataFrame(
+            st.session_state.ec_11a_preguntas
+        ),
         use_container_width=True,
         hide_index=True
     )
 
     if st.button(
         "Finalizar evaluación",
-        key="finalizar_evaluacion_11a"
+        key="ec_11a_finalizar"
     ):
 
         evaluacion_final = (
-            st.session_state.evaluacion_controlada_11a.copy()
+            st.session_state.ec_11a_actual.copy()
         )
 
         evaluacion_final["Numero_Preguntas"] = len(
-            st.session_state.preguntas_controladas_11a
+            st.session_state.ec_11a_preguntas
         )
 
         evaluacion_final["Preguntas"] = (
-            st.session_state.preguntas_controladas_11a.copy()
+            st.session_state.ec_11a_preguntas.copy()
         )
 
-        st.session_state.evaluaciones_controladas_11a.append(
-            evaluacion_final
-        )
+        st.session_state.ec_11a_finalizada = evaluacion_final
 
-        st.session_state.evaluacion_controlada_11a = None
-        st.session_state.preguntas_controladas_11a = []
+        st.session_state.ec_11a_actual = None
+        st.session_state.ec_11a_preguntas = []
 
         st.success(
-            f"La evaluación {evaluacion_final['Evaluacion_ID']} "
-            "fue finalizada correctamente."
+            f"Evaluación {evaluacion_final['Evaluacion_ID']} "
+            "finalizada correctamente."
         )
 
-        st.rerun()
