@@ -25006,6 +25006,8 @@ if not evaluacion_generada.empty:
         use_container_width=True,
         hide_index=True
     )
+
+
 # ============================================================
 # 10.3.B - VALIDADOR DE PREGUNTAS
 # ============================================================
@@ -25018,7 +25020,7 @@ st.markdown("## 10.3.B - Validador de preguntas")
 
 
 # ============================================================
-# TOMAR LA EVALUACIÓN GENERADA POR 10.3.A
+# 1. TOMAR LA EVALUACIÓN GENERADA POR 10.3.A
 # ============================================================
 
 evaluacion_generada = st.session_state.get(
@@ -25038,17 +25040,18 @@ if evaluacion_generada.empty:
 
 
 # ============================================================
-# COPIA DE TRABAJO
+# 2. COPIA DE TRABAJO
 # ============================================================
 
-df = evaluacion_generada.copy()
+df_generada = evaluacion_generada.copy()
 
 
 # ============================================================
-# CAMPOS NECESARIOS
+# 3. CAMPOS NECESARIOS
 # ============================================================
 
 campos_necesarios = [
+    "Evaluacion_ID",
     "Pregunta_ID",
     "Modulo",
     "Tipo_Relacion",
@@ -25065,7 +25068,7 @@ campos_necesarios = [
 faltantes = [
     campo
     for campo in campos_necesarios
-    if campo not in df.columns
+    if campo not in df_generada.columns
 ]
 
 
@@ -25080,9 +25083,48 @@ if faltantes:
 
 
 # ============================================================
-# ESTADO DE VALIDACIÓN
+# 4. ESTADOS HOMOLOGADOS
 #
-# TODA PREGUNTA NUEVA COMIENZA COMO PENDIENTE
+# PENDIENTE:
+# todavía no se ha tomado una decisión.
+#
+# APROBADA:
+# la pregunta queda en la evaluación.
+#
+# RECHAZADA:
+# la pregunta no queda en la evaluación.
+#
+# AÚN NO SE UTILIZA:
+# la pregunta no queda en la evaluación.
+# ============================================================
+
+OPCIONES_VALIDACION = [
+    "PENDIENTE",
+    "APROBADA",
+    "RECHAZADA",
+    "AÚN NO SE UTILIZA"
+]
+
+
+# ============================================================
+# 5. RECUPERAR VALIDACIÓN TEMPORAL
+# ============================================================
+
+if "evaluacion_validacion_103" not in st.session_state:
+
+    df = df_generada.copy()
+
+    df["Estado_Validacion"] = "PENDIENTE"
+
+else:
+
+    df = st.session_state[
+        "evaluacion_validacion_103"
+    ].copy()
+
+
+# ============================================================
+# 6. ASEGURAR ESTADO DE VALIDACIÓN VÁLIDO
 # ============================================================
 
 if "Estado_Validacion" not in df.columns:
@@ -25093,43 +25135,74 @@ else:
 
     df["Estado_Validacion"] = (
         df["Estado_Validacion"]
-        .fillna("")
+        .fillna("PENDIENTE")
         .astype(str)
         .str.strip()
     )
 
     df.loc[
         ~df["Estado_Validacion"].isin(
-            [
-                "PENDIENTE",
-                "APROBADA",
-                "RECHAZADA",
-                "AÚN NO SE UTILIZA"
-            ]
+            OPCIONES_VALIDACION
         ),
         "Estado_Validacion"
     ] = "PENDIENTE"
 
 
 # ============================================================
-# GUARDAR / RECUPERAR VALIDACIÓN TEMPORAL
+# 7. IDENTIFICACIÓN DE LA EVALUACIÓN
 # ============================================================
 
-if "evaluacion_validacion_103" not in st.session_state:
+evaluacion_id = str(
+    df["Evaluacion_ID"].iloc[0]
+).strip()
 
-    st.session_state[
-        "evaluacion_validacion_103"
-    ] = df.copy()
 
-else:
-
-    df = st.session_state[
-        "evaluacion_validacion_103"
-    ].copy()
+st.markdown(
+    f"### Evaluación: `{evaluacion_id}`"
+)
 
 
 # ============================================================
-# RESUMEN
+# 8. INFORMACIÓN GENERAL
+# ============================================================
+
+c1, c2, c3, c4 = st.columns(4)
+
+
+with c1:
+
+    st.metric(
+        "Módulo",
+        str(df["Modulo"].iloc[0])
+    )
+
+
+with c2:
+
+    st.metric(
+        "Relación",
+        str(df["Tipo_Relacion"].iloc[0])
+    )
+
+
+with c3:
+
+    st.metric(
+        "Nivel",
+        str(df["Nivel"].iloc[0])
+    )
+
+
+with c4:
+
+    st.metric(
+        "Preguntas",
+        len(df)
+    )
+
+
+# ============================================================
+# 9. RESUMEN DE VALIDACIÓN
 # ============================================================
 
 total = len(df)
@@ -25170,7 +25243,7 @@ c1, c2, c3, c4, c5 = st.columns(5)
 
 
 c1.metric(
-    "Preguntas generadas",
+    "Generadas",
     total
 )
 
@@ -25196,7 +25269,7 @@ c5.metric(
 
 
 # ============================================================
-# VALIDACIÓN POR BLOQUE
+# 10. VALIDACIÓN POR BLOQUE
 # ============================================================
 
 st.markdown("### Validación por bloque")
@@ -25208,7 +25281,7 @@ st.caption(
 
 
 decision_bloque = st.radio(
-    "Seleccione la decisión",
+    "Decisión para todo el bloque",
     [
         "PENDIENTE",
         "APROBADA",
@@ -25222,6 +25295,7 @@ decision_bloque = st.radio(
 
 if st.button(
     "Aplicar decisión al bloque",
+    type="secondary",
     key="aplicar_bloque_103"
 ):
 
@@ -25240,53 +25314,109 @@ if st.button(
 
 
 # ============================================================
-# VALIDACIÓN INDIVIDUAL
+# 11. VALIDACIÓN INDIVIDUAL
 # ============================================================
 
 st.markdown("### Validación individual")
 
 st.caption(
-    "Puede cambiar la decisión de cada pregunta "
-    "de manera independiente."
+    "Revise la formulación completa de cada pregunta, "
+    "sus cuatro opciones de respuesta y la respuesta correcta "
+    "antes de tomar la decisión."
 )
 
+
+# ============================================================
+# 12. MOSTRAR CADA PREGUNTA
+# ============================================================
 
 for indice in range(len(df)):
 
     pregunta_id = str(
         df.iloc[indice]["Pregunta_ID"]
-    )
-
-    pregunta = df.iloc[indice]["Pregunta"]
-
-    estado_actual = df.iloc[
-        indice
-    ]["Estado_Validacion"]
+    ).strip()
 
 
-    st.markdown(
-        f"#### Pregunta {indice + 1} — {pregunta_id}"
-    )
-
-    st.write(pregunta)
+    pregunta = str(
+        df.iloc[indice]["Pregunta"]
+    ).strip()
 
 
-    opciones = [
-        "PENDIENTE",
-        "APROBADA",
-        "RECHAZADA",
-        "AÚN NO SE UTILIZA"
-    ]
+    estado_actual = str(
+        df.iloc[indice]["Estado_Validacion"]
+    ).strip()
 
 
-    indice_actual = opciones.index(
+    if estado_actual not in OPCIONES_VALIDACION:
+
+        estado_actual = "PENDIENTE"
+
+
+    indice_actual = OPCIONES_VALIDACION.index(
         estado_actual
     )
 
 
+    st.markdown(
+        f"---\n"
+        f"### Pregunta {indice + 1} — {pregunta_id}"
+    )
+
+
+    # ========================================================
+    # PREGUNTA
+    # ========================================================
+
+    st.markdown("**Pregunta:**")
+
+    st.write(
+        pregunta
+    )
+
+
+    # ========================================================
+    # OPCIONES DE RESPUESTA
+    # ========================================================
+
+    st.markdown(
+        "**Opciones de respuesta:**"
+    )
+
+
+    st.write(
+        f"1. {df.iloc[indice]['Respuesta_1']}"
+    )
+
+    st.write(
+        f"2. {df.iloc[indice]['Respuesta_2']}"
+    )
+
+    st.write(
+        f"3. {df.iloc[indice]['Respuesta_3']}"
+    )
+
+    st.write(
+        f"4. {df.iloc[indice]['Respuesta_4']}"
+    )
+
+
+    # ========================================================
+    # RESPUESTA CORRECTA
+    # ========================================================
+
+    st.info(
+        "Respuesta correcta: "
+        f"{df.iloc[indice]['Respuesta_Correcta']}"
+    )
+
+
+    # ========================================================
+    # DECISIÓN INDIVIDUAL
+    # ========================================================
+
     decision_individual = st.radio(
         "Estado de validación",
-        opciones,
+        OPCIONES_VALIDACION,
         index=indice_actual,
         horizontal=True,
         key=f"decision_individual_103_{pregunta_id}"
@@ -25294,40 +25424,15 @@ for indice in range(len(df)):
 
 
     df.loc[
-        df["Pregunta_ID"] == pregunta_id,
+        df["Pregunta_ID"].astype(str).eq(
+            pregunta_id
+        ),
         "Estado_Validacion"
     ] = decision_individual
 
 
-    with st.expander(
-        "Ver respuestas",
-        expanded=False
-    ):
-
-        st.write(
-            f"1. {df.iloc[indice]['Respuesta_1']}"
-        )
-
-        st.write(
-            f"2. {df.iloc[indice]['Respuesta_2']}"
-        )
-
-        st.write(
-            f"3. {df.iloc[indice]['Respuesta_3']}"
-        )
-
-        st.write(
-            f"4. {df.iloc[indice]['Respuesta_4']}"
-        )
-
-        st.write(
-            "Respuesta correcta: "
-            f"{df.iloc[indice]['Respuesta_Correcta']}"
-        )
-
-
 # ============================================================
-# GUARDAR VALIDACIÓN TEMPORAL
+# 13. GUARDAR VALIDACIÓN TEMPORAL
 # ============================================================
 
 st.session_state[
@@ -25336,7 +25441,7 @@ st.session_state[
 
 
 # ============================================================
-# EVALUACIÓN RESULTANTE
+# 14. EVALUACIÓN RESULTANTE
 #
 # SOLO LAS APROBADAS QUEDAN EN LA EVALUACIÓN.
 #
@@ -25350,7 +25455,7 @@ evaluacion_final = df[
 
 
 # ============================================================
-# RESUMEN FINAL
+# 15. RESUMEN FINAL
 # ============================================================
 
 st.markdown(
@@ -25358,7 +25463,7 @@ st.markdown(
 )
 
 
-rf1, rf2, rf3, rf4 = st.columns(4)
+rf1, rf2, rf3, rf4, rf5 = st.columns(5)
 
 
 rf1.metric(
@@ -25368,7 +25473,12 @@ rf1.metric(
 
 rf2.metric(
     "Aprobadas",
-    len(evaluacion_final)
+    int(
+        (
+            df["Estado_Validacion"]
+            == "APROBADA"
+        ).sum()
+    )
 )
 
 rf3.metric(
@@ -25391,21 +25501,39 @@ rf4.metric(
     )
 )
 
+rf5.metric(
+    "Pendientes",
+    int(
+        (
+            df["Estado_Validacion"]
+            == "PENDIENTE"
+        ).sum()
+    )
+)
+
 
 # ============================================================
-# PENDIENTES
+# 16. ALERTA DE PENDIENTES
 # ============================================================
 
-if pendientes > 0:
+pendientes_actuales = int(
+    (
+        df["Estado_Validacion"]
+        == "PENDIENTE"
+    ).sum()
+)
+
+
+if pendientes_actuales > 0:
 
     st.warning(
-        f"Hay {pendientes} pregunta(s) pendientes "
-        "de validación."
+        f"Hay {pendientes_actuales} pregunta(s) "
+        "pendientes de validación."
     )
 
 
 # ============================================================
-# PREGUNTAS QUE QUEDAN EN LA EVALUACIÓN
+# 17. PREGUNTAS QUE QUEDAN EN LA EVALUACIÓN
 # ============================================================
 
 st.markdown(
@@ -25415,21 +25543,32 @@ st.markdown(
 
 if not evaluacion_final.empty:
 
+    columnas_finales = [
+        "Evaluacion_ID",
+        "Pregunta_ID",
+        "Modulo",
+        "Tipo_Relacion",
+        "Nivel",
+        "Pregunta",
+        "Respuesta_1",
+        "Respuesta_2",
+        "Respuesta_3",
+        "Respuesta_4",
+        "Respuesta_Correcta",
+        "Estado_Validacion"
+    ]
+
+
+    columnas_finales = [
+        columna
+        for columna in columnas_finales
+        if columna in evaluacion_final.columns
+    ]
+
+
     st.dataframe(
         evaluacion_final[
-            [
-                "Pregunta_ID",
-                "Modulo",
-                "Tipo_Relacion",
-                "Nivel",
-                "Pregunta",
-                "Respuesta_1",
-                "Respuesta_2",
-                "Respuesta_3",
-                "Respuesta_4",
-                "Respuesta_Correcta",
-                "Estado_Validacion"
-            ]
+            columnas_finales
         ],
         use_container_width=True,
         hide_index=True
@@ -25443,12 +25582,12 @@ else:
 
 
 # ============================================================
-# INFORMACIÓN DE PERSISTENCIA
+# 18. INFORMACIÓN DE PERSISTENCIA
 # ============================================================
 
 st.info(
-    "La validación actual se encuentra guardada "
-    "temporalmente en session_state como "
-    "evaluacion_validacion_103. "
-    "Todavía no se ha realizado ninguna persistencia."
+    "La validación se encuentra guardada temporalmente "
+    "en session_state como evaluacion_validacion_103. "
+    "Todavía no se ha realizado la sincronización "
+    "con EVALUACIONES.csv."
 )
