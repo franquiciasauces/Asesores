@@ -23341,6 +23341,7 @@ if st.session_state.get(
     )
 
 # ============================================================
+# ============================================================
 # 10.2.A - DISPONIBILIDAD REAL DEL BANCO
 # ============================================================
 
@@ -23355,11 +23356,41 @@ st.markdown("## 10.2.A - Disponibilidad real del banco")
 # DATOS YA CARGADOS POR 10.1
 # ============================================================
 
-banco = st.session_state["df_banco_101"].copy()
+banco = st.session_state.get(
+    "df_banco_101",
+    pd.DataFrame()
+).copy()
 
-permanencia = (
-    st.session_state["df_preguntas_evaluaciones_101"].copy()
-)
+permanencia = st.session_state.get(
+    "df_preguntas_evaluaciones_101",
+    pd.DataFrame()
+).copy()
+
+
+# ============================================================
+# VERIFICAR SI 10.1 YA CARGÓ LAS FUENTES
+# ============================================================
+
+if banco.empty:
+
+    st.info(
+        "10.2.A está en espera. "
+        "Primero debe ejecutarse 10.1 para cargar "
+        "BANCO_PREGUNTAS_GENERALES.xlsx."
+    )
+
+    st.stop()
+
+
+if permanencia.empty:
+
+    st.info(
+        "10.2.A está en espera. "
+        "Primero debe ejecutarse 10.1 para cargar "
+        "PREGUNTAS_EVALUACIONES.csv."
+    )
+
+    st.stop()
 
 
 # ============================================================
@@ -23367,17 +23398,35 @@ permanencia = (
 # ============================================================
 
 if "Pregunta_ID" not in banco.columns:
+
     st.error(
         "df_banco_101 no contiene la columna Pregunta_ID."
     )
+
     st.stop()
 
 
 if "Pregunta_ID" not in permanencia.columns:
+
     st.error(
         "df_preguntas_evaluaciones_101 no contiene "
         "la columna Pregunta_ID."
     )
+
+    st.stop()
+
+
+# ============================================================
+# VALIDAR ESTADO_VALIDACION
+# ============================================================
+
+if "Estado_Validacion" not in permanencia.columns:
+
+    st.error(
+        "df_preguntas_evaluaciones_101 no contiene "
+        "la columna Estado_Validacion."
+    )
+
     st.stop()
 
 
@@ -23387,7 +23436,10 @@ if "Pregunta_ID" not in permanencia.columns:
 
 estado = (
     permanencia[
-        ["Pregunta_ID", "Estado_Validacion"]
+        [
+            "Pregunta_ID",
+            "Estado_Validacion"
+        ]
     ]
     .drop_duplicates(
         "Pregunta_ID",
@@ -23406,6 +23458,10 @@ banco = banco.merge(
     how="left"
 )
 
+
+# ============================================================
+# NORMALIZAR ESTADO DE VALIDACIÓN
+# ============================================================
 
 banco["Estado_Validacion"] = (
     banco["Estado_Validacion"]
@@ -23426,7 +23482,10 @@ banco["Estado_Validacion"] = (
 
 banco["Disponible"] = (
     ~banco["Estado_Validacion"].isin(
-        ["APROBADA", "RECHAZADA"]
+        [
+            "APROBADA",
+            "RECHAZADA"
+        ]
     )
 )
 
@@ -23434,6 +23493,7 @@ banco["Disponible"] = (
 disponibles = int(
     banco["Disponible"].sum()
 )
+
 
 descontadas = (
     len(banco) - disponibles
@@ -23444,17 +23504,23 @@ descontadas = (
 # RESUMEN GENERAL
 # ============================================================
 
+st.markdown("### Resumen general")
+
+
 c1, c2, c3 = st.columns(3)
+
 
 c1.metric(
     "Preguntas en banco",
     len(banco)
 )
 
+
 c2.metric(
     "Descontadas",
     descontadas
 )
+
 
 c3.metric(
     "Disponibles",
@@ -23466,13 +23532,38 @@ c3.metric(
 # RESUMEN POR MÓDULO, RELACIÓN Y NIVEL
 # ============================================================
 
+st.markdown(
+    "### Disponibilidad por módulo, relación y nivel"
+)
+
+
+campos_agrupacion = [
+    "Modulo",
+    "Tipo_Relacion",
+    "Nivel"
+]
+
+
+faltantes_agrupacion = [
+    campo
+    for campo in campos_agrupacion
+    if campo not in banco.columns
+]
+
+
+if faltantes_agrupacion:
+
+    st.error(
+        "Faltan campos necesarios en el banco: "
+        + ", ".join(faltantes_agrupacion)
+    )
+
+    st.stop()
+
+
 resumen = (
     banco.groupby(
-        [
-            "Modulo",
-            "Tipo_Relacion",
-            "Nivel"
-        ],
+        campos_agrupacion,
         dropna=False
     )["Disponible"]
     .agg(
@@ -23489,6 +23580,10 @@ resumen["Preguntas_Disponibles"] = (
 )
 
 
+# ============================================================
+# CAPACIDAD DE EVALUACIONES DE 10 PREGUNTAS
+# ============================================================
+
 resumen["Evaluaciones_posibles"] = (
     resumen["Preguntas_Disponibles"] // 10
 )
@@ -23498,6 +23593,10 @@ resumen["Preguntas_en_cola"] = (
     resumen["Preguntas_Disponibles"] % 10
 )
 
+
+# ============================================================
+# MOSTRAR RESUMEN
+# ============================================================
 
 st.dataframe(
     resumen,
@@ -23510,10 +23609,9 @@ st.dataframe(
 # GUARDAR RESULTADO DE 10.2.A
 # ============================================================
 
-st.session_state["df_disponibilidad_102a"] = (
-    banco.copy()
-)
-
+st.session_state[
+    "df_disponibilidad_102a"
+] = banco.copy()
 
 # ============================================================
 # 10.2.B - CONSTRUCCIÓN DEL NUEVO BANCO DISPONIBLE
