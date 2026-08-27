@@ -1108,91 +1108,81 @@ try:
     # ========================================================
     # 16. FORMULARIO
     #
-    # IMPORTANTE:
-    # Los selectores están dentro de un formulario.
-    # Por eso seleccionar una categoría NO provoca
-    # rerun ni mueve el scroll.
+    # La clasificación se realiza únicamente mediante
+    # el selector "Clasificación correcta".
+    # RESTRICCIÓN y POSOLOGÍA ya son categorías incluidas
+    # en categorias_aprendizaje_54 y no requieren casillas
+    # adicionales.
     # ========================================================
 
-  # ========================================================
-# 16. FORMULARIO
-#
-# La clasificación se realiza únicamente mediante
-# el selector "Clasificación correcta".
-# RESTRICCIÓN y POSOLOGÍA ya son categorías incluidas
-# en categorias_aprendizaje_54 y NO requieren casillas
-# adicionales.
-# ========================================================
-
-with st.form(
-    "formulario_aprendizaje_54",
-    clear_on_submit=False
-):
-
-    validaciones_54 = []
-
-    for posicion, (
-        indice,
-        fila
-    ) in enumerate(
-        lote_actual_54.iterrows()
+    with st.form(
+        "formulario_aprendizaje_54",
+        clear_on_submit=False
     ):
 
-        producto = str(
-            fila["Producto"]
-        ).strip()
+        validaciones_54 = []
 
-        accion = str(
-            fila["Acción general"]
-        ).strip()
+        for posicion, (
+            indice,
+            fila
+        ) in enumerate(
+            lote_actual_54.iterrows()
+        ):
 
-        clasificacion_53 = str(
-            fila["Clasificación"]
-        ).strip()
+            producto = str(
+                fila["Producto"]
+            ).strip()
 
-        st.markdown(
-            f"**{posicion + 1}. {accion}**"
-        )
+            accion = str(
+                fila["Acción general"]
+            ).strip()
 
-        st.caption(
-            f"Producto: {producto}"
-        )
+            clasificacion_53 = str(
+                fila["Clasificación"]
+            ).strip()
 
-        st.caption(
-            f"Clasificación automática 5.3: "
-            f"**{clasificacion_53}**"
-        )
-
-        clasificacion_manual = st.selectbox(
-            "Clasificación correcta:",
-            [
-                "Seleccione..."
-            ]
-            + categorias_aprendizaje_54,
-            key=(
-                f"clasificacion_54_{indice}"
+            st.markdown(
+                f"**{posicion + 1}. {accion}**"
             )
+
+            st.caption(
+                f"Producto: {producto}"
+            )
+
+            st.caption(
+                f"Clasificación automática 5.3: "
+                f"**{clasificacion_53}**"
+            )
+
+            clasificacion_manual = st.selectbox(
+                "Clasificación correcta:",
+                [
+                    "Seleccione..."
+                ]
+                + categorias_aprendizaje_54,
+                key=(
+                    f"clasificacion_54_{indice}"
+                )
+            )
+
+            validaciones_54.append(
+                {
+                    "indice": indice,
+                    "Producto": producto,
+                    "Acción general": accion,
+                    "Clasificación 5.3":
+                        clasificacion_53,
+                    "Validación":
+                        clasificacion_manual,
+                }
+            )
+
+            st.divider()
+
+        guardar_54 = st.form_submit_button(
+            "💾 Guardar aprendizaje",
+            use_container_width=True
         )
-
-        validaciones_54.append(
-            {
-                "indice": indice,
-                "Producto": producto,
-                "Acción general": accion,
-                "Clasificación 5.3":
-                    clasificacion_53,
-                "Validación":
-                    clasificacion_manual,
-            }
-        )
-
-        st.divider()
-
-    guardar_54 = st.form_submit_button(
-        "💾 Guardar aprendizaje",
-        use_container_width=True
-    )
-
     # ========================================================
     # 17. GUARDAR APRENDIZAJE
     # ========================================================
