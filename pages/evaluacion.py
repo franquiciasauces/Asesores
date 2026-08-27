@@ -26512,4 +26512,319 @@ if st.button(
         "page/EVALUACIONES.csv"
     )
 
+# ============================================================
+# 11.A - CONTROL DE EVALUACIONES
+# ============================================================
 
+st.markdown("## 11.A - Control de evaluaciones")
+
+try:
+
+    # ========================================================
+    # 1. RUTA DEL CONSOLIDADO DE EVALUACIONES
+    # ========================================================
+
+    BASE_DIR_11A = Path(__file__).resolve().parent.parent
+
+    ARCHIVO_EVALUACIONES_11A = (
+        BASE_DIR_11A /
+        "page" /
+        "EVALUACIONES.csv"
+    )
+
+    # ========================================================
+    # 2. VERIFICAR ARCHIVO
+    # ========================================================
+
+    if not ARCHIVO_EVALUACIONES_11A.exists():
+
+        st.info(
+            "Todavía no existe el archivo "
+            "EVALUACIONES.csv. "
+            "Se generará cuando se complete "
+            "la persistencia de una evaluación."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 3. CARGAR EVALUACIONES
+    # ========================================================
+
+    df_evaluaciones_11a = pd.read_csv(
+        ARCHIVO_EVALUACIONES_11A,
+        encoding="utf-8-sig"
+    )
+
+    if df_evaluaciones_11a.empty:
+
+        st.info(
+            "No existen evaluaciones registradas."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 4. LIMPIAR NOMBRES DE COLUMNAS
+    # ========================================================
+
+    df_evaluaciones_11a.columns = [
+        str(columna).strip()
+        for columna in df_evaluaciones_11a.columns
+    ]
+
+    # ========================================================
+    # 5. ESTADO DE PERMANENCIA
+    # ========================================================
+
+    if "Estado_Permanencia" not in df_evaluaciones_11a.columns:
+
+        df_evaluaciones_11a[
+            "Estado_Permanencia"
+        ] = ""
+
+    df_evaluaciones_11a[
+        "Estado_Permanencia"
+    ] = (
+        df_evaluaciones_11a[
+            "Estado_Permanencia"
+        ]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    # ========================================================
+    # 6. INFORMACIÓN GENERAL
+    # ========================================================
+
+    st.info(
+        f"Evaluaciones registradas: "
+        f"**{len(df_evaluaciones_11a):,}**"
+    )
+
+    # ========================================================
+    # 7. RESUMEN
+    # ========================================================
+
+    total_11a = len(
+        df_evaluaciones_11a
+    )
+
+    permanentes_11a = len(
+        df_evaluaciones_11a[
+            df_evaluaciones_11a[
+                "Estado_Permanencia"
+            ].str.upper()
+            == "PERMANENTE"
+        ]
+    )
+
+    pendientes_11a = (
+        total_11a
+        - permanentes_11a
+    )
+
+    col1_11a, col2_11a, col3_11a = st.columns(3)
+
+    with col1_11a:
+        st.metric(
+            "Total evaluaciones",
+            total_11a
+        )
+
+    with col2_11a:
+        st.metric(
+            "En permanencia",
+            permanentes_11a
+        )
+
+    with col3_11a:
+        st.metric(
+            "Pendientes",
+            pendientes_11a
+        )
+
+    # ========================================================
+    # 8. TABLA DE EVALUACIONES
+    # ========================================================
+
+    st.markdown("### Evaluaciones registradas")
+
+    columnas_mostrar_11a = [
+        columna
+        for columna in [
+            "Evaluacion_ID",
+            "Nombre_Evaluacion",
+            "Modulo",
+            "Tipo_Relacion",
+            "Nivel",
+            "Cantidad_Preguntas",
+            "Estado_Evaluacion",
+            "Estado_Permanencia"
+        ]
+        if columna in df_evaluaciones_11a.columns
+    ]
+
+    if columnas_mostrar_11a:
+
+        st.dataframe(
+            df_evaluaciones_11a[
+                columnas_mostrar_11a
+            ],
+            use_container_width=True,
+            hide_index=True
+        )
+
+    else:
+
+        st.dataframe(
+            df_evaluaciones_11a,
+            use_container_width=True,
+            hide_index=True
+        )
+
+    # ========================================================
+    # 9. SELECCIONAR EVALUACIÓN
+    # ========================================================
+
+    if "Evaluacion_ID" not in df_evaluaciones_11a.columns:
+
+        st.warning(
+            "El archivo EVALUACIONES.csv no contiene "
+            "la columna Evaluacion_ID."
+        )
+
+        st.stop()
+
+    evaluaciones_ids_11a = (
+        df_evaluaciones_11a[
+            "Evaluacion_ID"
+        ]
+        .dropna()
+        .astype(str)
+        .tolist()
+    )
+
+    if not evaluaciones_ids_11a:
+
+        st.info(
+            "No hay evaluaciones disponibles para controlar."
+        )
+
+        st.stop()
+
+    evaluacion_seleccionada_11a = st.selectbox(
+        "Seleccione una evaluación:",
+        evaluaciones_ids_11a,
+        key="evaluacion_seleccionada_11a"
+    )
+
+    # ========================================================
+    # 10. MOSTRAR INFORMACIÓN
+    # ========================================================
+
+    fila_11a = df_evaluaciones_11a[
+        df_evaluaciones_11a[
+            "Evaluacion_ID"
+        ].astype(str)
+        == str(evaluacion_seleccionada_11a)
+    ]
+
+    if not fila_11a.empty:
+
+        registro_11a = fila_11a.iloc[0]
+
+        st.markdown("### Información de la evaluación")
+
+        for columna in columnas_mostrar_11a:
+
+            valor_11a = registro_11a.get(
+                columna,
+                ""
+            )
+
+            if pd.isna(valor_11a):
+                valor_11a = ""
+
+            st.write(
+                f"**{columna}:** {valor_11a}"
+            )
+
+    # ========================================================
+    # 11. CONTROL DE PERMANENCIA
+    # ========================================================
+
+    estado_actual_11a = ""
+
+    if not fila_11a.empty:
+
+        estado_actual_11a = str(
+            fila_11a.iloc[0].get(
+                "Estado_Permanencia",
+                ""
+            )
+        ).strip()
+
+    st.markdown("### Estado de permanencia")
+
+    nuevo_estado_11a = st.selectbox(
+        "Seleccione el estado:",
+        [
+            "",
+            "PENDIENTE",
+            "PERMANENTE"
+        ],
+        index=(
+            [
+                "",
+                "PENDIENTE",
+                "PERMANENTE"
+            ].index(
+                estado_actual_11a
+            )
+            if estado_actual_11a in [
+                "",
+                "PENDIENTE",
+                "PERMANENTE"
+            ]
+            else 0
+        ),
+        key="estado_permanencia_11a"
+    )
+
+    # ========================================================
+    # 12. GUARDAR ESTADO
+    # ========================================================
+
+    if st.button(
+        "💾 Guardar estado de permanencia",
+        key="guardar_permanencia_11a",
+        use_container_width=True
+    ):
+
+        indice_11a = fila_11a.index
+
+        df_evaluaciones_11a.loc[
+            indice_11a,
+            "Estado_Permanencia"
+        ] = nuevo_estado_11a
+
+        df_evaluaciones_11a.to_csv(
+            ARCHIVO_EVALUACIONES_11A,
+            index=False,
+            encoding="utf-8-sig"
+        )
+
+        st.success(
+            "Estado de permanencia actualizado."
+        )
+
+        st.rerun()
+
+except Exception as e:
+
+    st.error(
+        f"🔴 11.A ERROR: "
+        f"{type(e).__name__}: {e}"
+    )
