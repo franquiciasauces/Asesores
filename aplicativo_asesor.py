@@ -10939,7 +10939,6 @@ and st.session_state.get(
 )
 ):
 
-```
 evaluacion_id_seleccionada = (
     st.session_state[
         "evaluacion_controlada_ejecucion_id"
