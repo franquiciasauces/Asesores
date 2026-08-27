@@ -10627,11 +10627,10 @@ if (
 
         st.rerun()
     
+
 # ============================================================
 # GESTIONEJECUCIONEVALUACION
-# ============================================================
-# GESTIONEJECUCIONEVALUACION
-# PARTE A — ACCESO A EVALUACIONES CONTROLADAS
+# PARTE 1 — ACCESO A EVALUACIONES CONTROLADAS
 # ============================================================
 
 if (
@@ -10639,362 +10638,107 @@ if (
     and opcion_evaluacion == "Evaluaciones controladas"
 ):
 
-    st.divider()
-
-    st.markdown(
-        "## Evaluaciones controladas"
+    st.subheader(
+        "Evaluaciones controladas"
     )
 
-    st.write(
-        "Seleccione el módulo de la evaluación que desea presentar."
-    )
-
-    # ========================================================
-    # 1. CARPETA DE EVALUACIONES
-    # ========================================================
-
-    CARPETA_EVALUACIONES = (
-        BASE_DIR / "evaluacion"
-    )
-
-    # ========================================================
-    # 2. ARCHIVO PERSISTENTE
-    # ========================================================
-
-    ARCHIVO_REPOSITORIO_EVALUACIONES = (
-        CARPETA_EVALUACIONES
+    ARCHIVO_EVALUACIONES_CONTROLADAS = (
+        BASE_DIR
+        / "evaluacion"
         / "Respositorioevaluacionescontroladas.csv"
     )
 
-    # ========================================================
-    # 3. VERIFICAR CARPETA
-    # ========================================================
-
-    if not CARPETA_EVALUACIONES.exists():
-
-        st.warning(
-            "No existe la carpeta 'evaluacion' "
-            "en el repositorio de la aplicación."
-        )
-
-        st.stop()
-
-    # ========================================================
-    # 4. VERIFICAR ARCHIVO
-    # ========================================================
-
-    if not ARCHIVO_REPOSITORIO_EVALUACIONES.exists():
-
-        st.warning(
-            "No existen evaluaciones controladas "
-            "disponibles para ejecución."
-        )
-
-        st.stop()
-
-    # ========================================================
-    # 5. CARGAR REPOSITORIO
-    # ========================================================
-
-    try:
-
-        df_repositorio_evaluaciones = pd.read_csv(
-            ARCHIVO_REPOSITORIO_EVALUACIONES,
-            dtype=str,
-            keep_default_na=False
-        )
-
-    except Exception as error:
-
-        st.error(
-            "No fue posible cargar el repositorio "
-            "de evaluaciones controladas."
-        )
-
-        st.code(
-            str(error)
-        )
-
-        st.stop()
-
-    # ========================================================
-    # 6. VERIFICAR COLUMNAS
-    # ========================================================
-
-    columnas_necesarias_ejecucion = [
-        "Evaluacion_ID",
-        "Modulo",
-        "Tipo_Relacion",
-        "Nivel",
-        "Cantidad_Preguntas",
-        "Preguntas_Aprobadas",
-        "Preguntas_Rechazadas",
-        "Preguntas_No_Utilizadas",
-        "Estado_Evaluacion"
-    ]
-
-    columnas_faltantes_ejecucion = [
-        columna
-        for columna in columnas_necesarias_ejecucion
-        if columna not in df_repositorio_evaluaciones.columns
-    ]
-
-    if columnas_faltantes_ejecucion:
-
-        st.error(
-            "El repositorio de evaluaciones controladas "
-            "no tiene la estructura esperada."
-        )
-
-        st.write(
-            "Columnas faltantes:"
-        )
-
-        st.write(
-            columnas_faltantes_ejecucion
-        )
-
-        st.stop()
-
-    # ========================================================
-    # 7. LIMPIAR CAMPOS DE CONTROL
-    # ========================================================
-
-    for columna in [
-        "Evaluacion_ID",
-        "Modulo",
-        "Tipo_Relacion",
-        "Nivel",
-        "Estado_Evaluacion"
-    ]:
-
-        df_repositorio_evaluaciones[columna] = (
-            df_repositorio_evaluaciones[columna]
-            .astype(str)
-            .str.strip()
-        )
-
-    # ========================================================
-    # 8. ESTADOS QUE PUEDEN SER EJECUTADOS
-    # ========================================================
-
-    estados_ejecutables = [
-        "PERSISTIDA",
-        "ACTIVA"
-    ]
-
-    df_evaluaciones_ejecutables = (
-        df_repositorio_evaluaciones[
-            df_repositorio_evaluaciones[
-                "Estado_Evaluacion"
-            ]
-            .str.upper()
-            .isin(estados_ejecutables)
-        ]
-        .copy()
-    )
-
-    # ========================================================
-    # 9. SI NO HAY EVALUACIONES DISPONIBLES
-    # ========================================================
-
-    if df_evaluaciones_ejecutables.empty:
+    if not ARCHIVO_EVALUACIONES_CONTROLADAS.exists():
 
         st.info(
-            "No hay evaluaciones controladas disponibles "
-            "para ejecución."
+            "No hay evaluaciones controladas disponibles."
         )
 
-        st.stop()
+    else:
 
-    # ========================================================
-    # 10. MÓDULOS DISPONIBLES
-    # ========================================================
+        try:
 
-    modulos_disponibles = sorted(
-        df_evaluaciones_ejecutables[
-            "Modulo"
-        ]
-        .replace("", pd.NA)
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
-    )
-
-    # ========================================================
-    # 11. SELECCIÓN DEL MÓDULO
-    # ========================================================
-
-    st.markdown(
-        "### 1. Seleccione el módulo"
-    )
-
-    modulo_ejecucion = st.selectbox(
-        "Módulo:",
-        [
-            "Seleccione un módulo"
-        ] + modulos_disponibles,
-        key="modulo_ejecucion_controlada"
-    )
-
-    # ========================================================
-    # 12. NO SELECCIONÓ MÓDULO
-    # ========================================================
-
-    if modulo_ejecucion == "Seleccione un módulo":
-
-        st.info(
-            "Seleccione un módulo para consultar "
-            "las evaluaciones controladas disponibles."
-        )
-
-        st.stop()
-
-    # ========================================================
-    # 13. FILTRAR POR MÓDULO
-    # ========================================================
-
-    df_evaluaciones_modulo = (
-        df_evaluaciones_ejecutables[
-            df_evaluaciones_ejecutables[
-                "Modulo"
-            ] == modulo_ejecucion
-        ]
-        .copy()
-    )
-
-    # ========================================================
-    # 14. SIN EVALUACIONES PARA EL MÓDULO
-    # ========================================================
-
-    if df_evaluaciones_modulo.empty:
-
-        st.info(
-            f"No hay evaluaciones controladas disponibles "
-            f"para el módulo {modulo_ejecucion}."
-        )
-
-        st.stop()
-
-    # ========================================================
-    # 15. MOSTRAR EVALUACIONES
-    # ========================================================
-
-    st.markdown(
-        f"### 2. Evaluaciones disponibles — {modulo_ejecucion}"
-    )
-
-    columnas_mostrar = [
-        "Evaluacion_ID",
-        "Tipo_Relacion",
-        "Nivel",
-        "Cantidad_Preguntas",
-        "Preguntas_Aprobadas",
-        "Estado_Evaluacion"
-    ]
-
-    st.dataframe(
-        df_evaluaciones_modulo[
-            columnas_mostrar
-        ],
-        use_container_width=True,
-        hide_index=True
-    )
-
-    # ========================================================
-    # 16. SELECCIONAR EVALUACIÓN
-    # ========================================================
-
-    opciones_evaluaciones = (
-        df_evaluaciones_modulo[
-            "Evaluacion_ID"
-        ]
-        .astype(str)
-        .tolist()
-    )
-
-    evaluacion_seleccionada = st.selectbox(
-        "Seleccione la evaluación que desea presentar:",
-        [
-            "Seleccione una evaluación"
-        ] + opciones_evaluaciones,
-        key="evaluacion_controlada_seleccionada"
-    )
-
-    # ========================================================
-    # 17. GUARDAR EVALUACIÓN SELECCIONADA
-    # ========================================================
-
-    if (
-        evaluacion_seleccionada
-        != "Seleccione una evaluación"
-    ):
-
-        st.session_state[
-            "evaluacion_controlada_ejecucion_id"
-        ] = evaluacion_seleccionada
-
-        fila_seleccionada = (
-            df_evaluaciones_modulo[
-                df_evaluaciones_modulo[
-                    "Evaluacion_ID"
-                ]
-                == evaluacion_seleccionada
-            ]
-        )
-
-        if not fila_seleccionada.empty:
-
-            datos_evaluacion = (
-                fila_seleccionada.iloc[0]
+            df_evaluaciones_controladas = pd.read_csv(
+                ARCHIVO_EVALUACIONES_CONTROLADAS,
+                dtype=str
             )
+
+            df_evaluaciones_controladas = (
+                df_evaluaciones_controladas.fillna("")
+            )
+
+        except Exception as error:
+
+            st.error(
+                "No fue posible cargar el repositorio "
+                "de evaluaciones controladas."
+            )
+
+            st.code(
+                str(error)
+            )
+
+            df_evaluaciones_controladas = pd.DataFrame()
+
+        if not df_evaluaciones_controladas.empty:
 
             st.markdown(
-                "### 3. Evaluación seleccionada"
+                "### Seleccione el módulo"
             )
 
-            c1, c2, c3, c4 = st.columns(4)
+            modulos = sorted(
+                df_evaluaciones_controladas[
+                    "Modulo"
+                ]
+                .astype(str)
+                .str.strip()
+                .replace("", pd.NA)
+                .dropna()
+                .unique()
+                .tolist()
+            )
 
-            c1.metric(
-                "Evaluación",
-                str(
-                    datos_evaluacion[
-                        "Evaluacion_ID"
+            modulo_seleccionado = st.selectbox(
+                "Módulo:",
+                [
+                    "Seleccione un módulo"
+                ] + modulos,
+                key="modulo_ejecucion_controlada"
+            )
+
+            if (
+                modulo_seleccionado
+                != "Seleccione un módulo"
+            ):
+
+                df_modulo = (
+                    df_evaluaciones_controladas[
+                        df_evaluaciones_controladas[
+                            "Modulo"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        == modulo_seleccionado
                     ]
+                    .copy()
                 )
-            )
 
-            c2.metric(
-                "Módulo",
-                str(
-                    datos_evaluacion[
-                        "Modulo"
-                    ]
-                )
-            )
+                if df_modulo.empty:
 
-            c3.metric(
-                "Nivel",
-                str(
-                    datos_evaluacion[
-                        "Nivel"
-                    ]
-                )
-            )
+                    st.info(
+                        "No hay evaluaciones controladas "
+                        "disponibles para este módulo."
+                    )
 
-            c4.metric(
-                "Preguntas",
-                str(
-                    datos_evaluacion[
-                        "Cantidad_Preguntas"
-                    ]
-                )
-            )
+                else:
 
-            st.info(
-                "Evaluación seleccionada correctamente. "
-                "El siguiente bloque cargará las preguntas "
-                "asociadas exclusivamente a esta evaluación."
-            )
-            )
+                    st.markdown(
+                        "### Evaluaciones disponibles"
+                    )
+
+                    st.dataframe(
+                        df_modulo,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
