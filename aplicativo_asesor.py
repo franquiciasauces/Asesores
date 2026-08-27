@@ -10629,6 +10629,7 @@ if (
     
 
 
+```python
 # ============================================================
 # GESTIONEJECUCIONEVALUACION
 # PARTE 1 — ACCESO A EVALUACIONES CONTROLADAS
@@ -10644,7 +10645,7 @@ if (
     )
 
     # ========================================================
-    # 1. ARCHIVO PERSISTENTE DE EVALUACIONES
+    # 1. ARCHIVO PERSISTENTE
     # ========================================================
 
     ARCHIVO_EVALUACIONES_CONTROLADAS = (
@@ -10654,7 +10655,7 @@ if (
     )
 
     # ========================================================
-    # 2. VERIFICAR EXISTENCIA DEL ARCHIVO
+    # 2. VERIFICAR ARCHIVO
     # ========================================================
 
     if not ARCHIVO_EVALUACIONES_CONTROLADAS.exists():
@@ -10677,6 +10678,10 @@ if (
                 keep_default_na=False
             )
 
+            df_evaluaciones_controladas = (
+                df_evaluaciones_controladas.fillna("")
+            )
+
         except Exception as error:
 
             st.error(
@@ -10688,13 +10693,23 @@ if (
                 str(error)
             )
 
-            df_evaluaciones_controladas = pd.DataFrame()
+            df_evaluaciones_controladas = (
+                pd.DataFrame()
+            )
 
         # ====================================================
-        # 4. VERIFICAR QUE EXISTAN DATOS
+        # 4. GUARDAR REPOSITORIO EN MEMORIA TEMPORAL
         # ====================================================
 
         if not df_evaluaciones_controladas.empty:
+
+            st.session_state[
+                "df_evaluaciones_controladas_ejecucion"
+            ] = df_evaluaciones_controladas.copy()
+
+            # =================================================
+            # 5. VERIFICAR COLUMNAS
+            # =================================================
 
             columnas_necesarias = [
                 "Evaluacion_ID",
@@ -10725,7 +10740,7 @@ if (
             else:
 
                 # =================================================
-                # 5. NORMALIZAR CAMPOS
+                # 6. NORMALIZAR CAMPOS PRINCIPALES
                 # =================================================
 
                 for columna in columnas_necesarias:
@@ -10741,7 +10756,7 @@ if (
                     )
 
                 # =================================================
-                # 6. MOSTRAR SOLO EVALUACIONES ACTIVAS
+                # 7. SOLO EVALUACIONES ACTIVAS
                 # =================================================
 
                 df_evaluaciones_activas = (
@@ -10755,10 +10770,6 @@ if (
                     .copy()
                 )
 
-                # =================================================
-                # 7. VERIFICAR SI EXISTEN EVALUACIONES ACTIVAS
-                # =================================================
-
                 if df_evaluaciones_activas.empty:
 
                     st.info(
@@ -10766,11 +10777,20 @@ if (
                         "activas disponibles."
                     )
 
+                    st.session_state.pop(
+                        "evaluacion_controlada_ejecucion_id",
+                        None
+                    )
+
                 else:
 
-                    # =============================================
-                    # 8. MÓDULOS CON EVALUACIONES ACTIVAS
-                    # =============================================
+                    # =================================================
+                    # 8. SELECCIONAR MÓDULO
+                    # =================================================
+
+                    st.markdown(
+                        "### 1. Seleccione el módulo"
+                    )
 
                     modulos = sorted(
                         df_evaluaciones_activas[
@@ -10782,10 +10802,6 @@ if (
                         .tolist()
                     )
 
-                    st.markdown(
-                        "### 1. Seleccione el módulo"
-                    )
-
                     modulo_seleccionado = st.selectbox(
                         "Módulo:",
                         [
@@ -10794,9 +10810,9 @@ if (
                         key="modulo_ejecucion_controlada"
                     )
 
-                    # =============================================
+                    # =================================================
                     # 9. FILTRAR POR MÓDULO
-                    # =============================================
+                    # =================================================
 
                     if (
                         modulo_seleccionado
@@ -10813,10 +10829,6 @@ if (
                             .copy()
                         )
 
-                        # =========================================
-                        # 10. VERIFICAR EVALUACIONES DEL MÓDULO
-                        # =========================================
-
                         if df_modulo.empty:
 
                             st.info(
@@ -10826,13 +10838,13 @@ if (
 
                         else:
 
+                            # =========================================
+                            # 10. MOSTRAR RESUMEN
+                            # =========================================
+
                             st.markdown(
                                 "### 2. Evaluaciones disponibles"
                             )
-
-                            # =====================================
-                            # 11. MOSTRAR SOLO 4 COLUMNAS
-                            # =====================================
 
                             columnas_mostrar = [
                                 "Evaluacion_ID",
@@ -10849,33 +10861,38 @@ if (
                                 hide_index=True
                             )
 
-                            # =====================================
-                            # 12. SELECCIONAR EVALUACIÓN
-                            # =====================================
+                            # =========================================
+                            # 11. SELECCIONAR EVALUACIÓN
+                            # =========================================
+
+                            st.markdown(
+                                "### 3. Seleccione la evaluación que realizará"
+                            )
 
                             opciones_evaluaciones = (
                                 df_modulo[
                                     "Evaluacion_ID"
                                 ]
                                 .astype(str)
+                                .str.strip()
                                 .tolist()
                             )
 
-                            st.markdown(
-                                "### 3. Seleccione la evaluación que realizará"
+                            evaluacion_seleccionada = (
+                                st.selectbox(
+                                    "Evaluación:",
+                                    [
+                                        "Seleccione una evaluación"
+                                    ] + opciones_evaluaciones,
+                                    key=(
+                                        "evaluacion_controlada_selector"
+                                    )
+                                )
                             )
 
-                            evaluacion_seleccionada = st.selectbox(
-                                "Evaluación:",
-                                [
-                                    "Seleccione una evaluación"
-                                ] + opciones_evaluaciones,
-                                key="evaluacion_controlada_seleccionada"
-                            )
-
-                            # =====================================
-                            # 13. GUARDAR ID EN MEMORIA TEMPORAL
-                            # =====================================
+                            # =========================================
+                            # 12. GUARDAR SELECCIÓN TEMPORAL
+                            # =========================================
 
                             if (
                                 evaluacion_seleccionada
@@ -10884,12 +10901,23 @@ if (
 
                                 st.session_state[
                                     "evaluacion_controlada_ejecucion_id"
-                                ] = evaluacion_seleccionada
+                                ] = (
+                                    evaluacion_seleccionada
+                                )
 
                                 st.success(
-                                    f"Evaluación seleccionada: "
-                                    f"{evaluacion_seleccionada}"
+                                    "Evaluación seleccionada: "
+                                    + evaluacion_seleccionada
                                 )
+
+                            else:
+
+                                st.session_state.pop(
+                                    "evaluacion_controlada_ejecucion_id",
+                                    None
+                                )
+
+
 # ============================================================
 # GESTIONEJECUCIONEVALUACION
 # PARTE 2 — CARGA Y RESPUESTA DE LA EVALUACIÓN
@@ -10899,13 +10927,15 @@ if (
     opcion_principal == "EVALUACIÓN"
     and opcion_evaluacion == "Evaluaciones controladas"
     and st.session_state.get(
-        "evaluacion_controlada_seleccionada"
+        "evaluacion_controlada_ejecucion_id"
     )
 ):
 
-    evaluacion_id_seleccionada = st.session_state[
-        "evaluacion_controlada_seleccionada"
-    ]
+    evaluacion_id_seleccionada = (
+        st.session_state[
+            "evaluacion_controlada_ejecucion_id"
+        ]
+    )
 
     df_repositorio_ejecucion = (
         st.session_state.get(
@@ -10918,171 +10948,257 @@ if (
         and not df_repositorio_ejecucion.empty
     ):
 
-        df_preguntas_ejecucion = (
+        # ====================================================
+        # 13. FILTRAR LA EVALUACIÓN SELECCIONADA
+        # ====================================================
+
+        df_evaluacion = (
             df_repositorio_ejecucion[
                 df_repositorio_ejecucion[
                     "Evaluacion_ID"
-                ].astype(str).str.strip()
-                == str(evaluacion_id_seleccionada).strip()
+                ]
+                .astype(str)
+                .str.strip()
+                == str(
+                    evaluacion_id_seleccionada
+                ).strip()
             ]
             .copy()
         )
 
-        # ----------------------------------------------------
-        # VERIFICAR QUE EXISTAN PREGUNTAS
-        # ----------------------------------------------------
+        # ====================================================
+        # 14. SOLO FILAS QUE SON PREGUNTAS
+        # ====================================================
 
-        if df_preguntas_ejecucion.empty:
+        columnas_pregunta = [
+            "Pregunta_ID",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta"
+        ]
 
-            st.warning(
-                "La evaluación seleccionada no tiene "
-                "preguntas disponibles para presentar."
+        columnas_faltantes_preguntas = [
+            columna
+            for columna in columnas_pregunta
+            if columna not in df_evaluacion.columns
+        ]
+
+        if columnas_faltantes_preguntas:
+
+            st.error(
+                "El repositorio no contiene las columnas "
+                "necesarias para ejecutar la evaluación."
+            )
+
+            st.write(
+                "Columnas faltantes:",
+                columnas_faltantes_preguntas
             )
 
         else:
 
-            st.markdown(
-                "### Evaluación seleccionada"
-            )
+            # =================================================
+            # ELIMINAR FILAS QUE NO REPRESENTAN PREGUNTAS
+            # =================================================
 
-            primera_fila = (
-                df_preguntas_ejecucion.iloc[0]
-            )
-
-            st.write(
-                f"**Evaluación:** "
-                f"{primera_fila['Evaluacion_ID']}"
-            )
-
-            st.write(
-                f"**Módulo:** "
-                f"{primera_fila['Modulo']}"
-            )
-
-            st.write(
-                f"**Tipo de relación:** "
-                f"{primera_fila['Tipo_Relacion']}"
-            )
-
-            st.write(
-                f"**Nivel:** "
-                f"{primera_fila['Nivel']}"
-            )
-
-            st.divider()
-
-            # ------------------------------------------------
-            # INICIALIZAR RESPUESTAS TEMPORALES
-            # ------------------------------------------------
-
-            clave_respuestas = (
-                "respuestas_temporales_"
-                + str(evaluacion_id_seleccionada)
-            )
-
-            if clave_respuestas not in st.session_state:
-
-                st.session_state[
-                    clave_respuestas
-                ] = {}
-
-            respuestas_temporales = (
-                st.session_state[
-                    clave_respuestas
+            df_preguntas_ejecucion = (
+                df_evaluacion[
+                    df_evaluacion[
+                        "Pregunta_ID"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    != ""
                 ]
+                .copy()
             )
 
-            # ------------------------------------------------
-            # MOSTRAR PREGUNTAS
-            # ------------------------------------------------
+            if df_preguntas_ejecucion.empty:
 
-            for indice, (_, pregunta) in enumerate(
-                df_preguntas_ejecucion.iterrows(),
-                start=1
-            ):
-
-                pregunta_id = str(
-                    pregunta["Pregunta_ID"]
-                ).strip()
-
-                enunciado = str(
-                    pregunta["Pregunta"]
-                ).strip()
-
-                opciones = [
-                    str(pregunta["Respuesta_1"]).strip(),
-                    str(pregunta["Respuesta_2"]).strip(),
-                    str(pregunta["Respuesta_3"]).strip(),
-                    str(pregunta["Respuesta_4"]).strip()
-                ]
-
-                st.markdown(
-                    f"### Pregunta {indice} de "
-                    f"{len(df_preguntas_ejecucion)}"
+                st.warning(
+                    "La evaluación seleccionada no tiene "
+                    "preguntas disponibles para presentar."
                 )
 
-                st.write(
-                    enunciado
+            else:
+
+                # =============================================
+                # 15. INFORMACIÓN DE LA EVALUACIÓN
+                # =============================================
+
+                primera_fila = (
+                    df_preguntas_ejecucion.iloc[0]
                 )
-
-                respuesta_guardada = (
-                    respuestas_temporales.get(
-                        pregunta_id
-                    )
-                )
-
-                indice_inicial = None
-
-                if respuesta_guardada in opciones:
-
-                    indice_inicial = (
-                        opciones.index(
-                            respuesta_guardada
-                        )
-                    )
-
-                respuesta_seleccionada = st.radio(
-                    "Seleccione una respuesta:",
-                    opciones,
-                    index=indice_inicial,
-                    key=(
-                        "respuesta_ejecucion_"
-                        + str(evaluacion_id_seleccionada)
-                        + "_"
-                        + pregunta_id
-                    )
-                )
-
-                if respuesta_seleccionada:
-
-                    respuestas_temporales[
-                        pregunta_id
-                    ] = respuesta_seleccionada
 
                 st.divider()
 
-            # ------------------------------------------------
-            # ACTUALIZAR RESPUESTAS TEMPORALES
-            # ------------------------------------------------
+                st.markdown(
+                    "### Evaluación seleccionada"
+                )
 
-            st.session_state[
-                clave_respuestas
-            ] = respuestas_temporales
+                st.write(
+                    f"**Evaluación:** "
+                    f"{evaluacion_id_seleccionada}"
+                )
 
-            # ------------------------------------------------
-            # ESTADO TEMPORAL
-            # ------------------------------------------------
+                if "Modulo" in df_preguntas_ejecucion.columns:
 
-            preguntas_respondidas = len(
-                respuestas_temporales
-            )
+                    st.write(
+                        f"**Módulo:** "
+                        f"{primera_fila['Modulo']}"
+                    )
 
-            total_preguntas = len(
-                df_preguntas_ejecucion
-            )
+                if "Nombre_Evaluacion" in df_preguntas_ejecucion.columns:
 
-            st.info(
-                f"Preguntas respondidas: "
-                f"{preguntas_respondidas} de "
-                f"{total_preguntas}"
-            )
+                    st.write(
+                        f"**Nombre:** "
+                        f"{primera_fila['Nombre_Evaluacion']}"
+                    )
+
+                if "Descripcion" in df_preguntas_ejecucion.columns:
+
+                    st.write(
+                        f"**Descripción:** "
+                        f"{primera_fila['Descripcion']}"
+                    )
+
+                st.divider()
+
+                # =============================================
+                # 16. RESPUESTAS TEMPORALES
+                # =============================================
+
+                clave_respuestas = (
+                    "respuestas_temporales_"
+                    + str(
+                        evaluacion_id_seleccionada
+                    )
+                )
+
+                if (
+                    clave_respuestas
+                    not in st.session_state
+                ):
+
+                    st.session_state[
+                        clave_respuestas
+                    ] = {}
+
+                respuestas_temporales = (
+                    st.session_state[
+                        clave_respuestas
+                    ]
+                )
+
+                # =============================================
+                # 17. MOSTRAR PREGUNTAS
+                # =============================================
+
+                total_preguntas = len(
+                    df_preguntas_ejecucion
+                )
+
+                for indice, (_, pregunta) in enumerate(
+                    df_preguntas_ejecucion.iterrows(),
+                    start=1
+                ):
+
+                    pregunta_id = str(
+                        pregunta["Pregunta_ID"]
+                    ).strip()
+
+                    enunciado = str(
+                        pregunta["Pregunta"]
+                    ).strip()
+
+                    opciones = [
+                        str(
+                            pregunta["Respuesta_1"]
+                        ).strip(),
+                        str(
+                            pregunta["Respuesta_2"]
+                        ).strip(),
+                        str(
+                            pregunta["Respuesta_3"]
+                        ).strip(),
+                        str(
+                            pregunta["Respuesta_4"]
+                        ).strip()
+                    ]
+
+                    st.markdown(
+                        f"### Pregunta {indice} de "
+                        f"{total_preguntas}"
+                    )
+
+                    st.write(
+                        enunciado
+                    )
+
+                    respuesta_guardada = (
+                        respuestas_temporales.get(
+                            pregunta_id
+                        )
+                    )
+
+                    indice_inicial = None
+
+                    if (
+                        respuesta_guardada
+                        in opciones
+                    ):
+
+                        indice_inicial = (
+                            opciones.index(
+                                respuesta_guardada
+                            )
+                        )
+
+                    respuesta_seleccionada = st.radio(
+                        "Seleccione una respuesta:",
+                        opciones,
+                        index=indice_inicial,
+                        key=(
+                            "respuesta_ejecucion_"
+                            + str(
+                                evaluacion_id_seleccionada
+                            )
+                            + "_"
+                            + pregunta_id
+                        )
+                    )
+
+                    if respuesta_seleccionada:
+
+                        respuestas_temporales[
+                            pregunta_id
+                        ] = respuesta_seleccionada
+
+                    st.divider()
+
+                # =============================================
+                # 18. ACTUALIZAR MEMORIA TEMPORAL
+                # =============================================
+
+                st.session_state[
+                    clave_respuestas
+                ] = respuestas_temporales
+
+                # =============================================
+                # 19. AVANCE TEMPORAL
+                # =============================================
+
+                preguntas_respondidas = len(
+                    respuestas_temporales
+                )
+
+                st.info(
+                    f"Preguntas respondidas: "
+                    f"{preguntas_respondidas} de "
+                    f"{total_preguntas}"
+                )
+```
+
