@@ -22677,652 +22677,6 @@ if aprobadas_92 > 0:
 # ============================================================
 #MODULO 10
 # ============================================================
-# MÓDULO 10
-# ============================================================
-# 10.1 - CARGA Y CONTROL DE FUENTES DEL MÓDULO 10
-# ============================================================
-
-import streamlit as st
-import pandas as pd
-import io
-import json
-import base64
-import urllib.request
-import urllib.error
-
-
-st.markdown("## 10.1 - Carga y control de fuentes")
-
-
-# ============================================================
-# CONFIGURACIÓN DE GITHUB
-# ============================================================
-
-GITHUB_USUARIO_101 = "franquiciasauces"
-GITHUB_REPOSITORIO_101 = "Asesores"
-GITHUB_RAMA_101 = "main"
-
-
-# ============================================================
-# FUENTES
-# ============================================================
-
-ARCHIVO_BANCO_101 = (
-    "BANCO_PREGUNTAS_GENERALES.xlsx"
-)
-
-ARCHIVO_PREGUNTAS_101 = (
-    "page/PREGUNTAS_EVALUACIONES.csv"
-)
-
-ARCHIVO_EVALUACIONES_101 = (
-    "page/EVALUACIONES.csv"
-)
-
-
-# ============================================================
-# ARCHIVO PERSISTENTE GENERADO POR 10.2
-# ============================================================
-
-ARCHIVO_BANCODISPONIBLE_101 = (
-    "evaluacion/BANCODISPONIBLE_102.csv"
-)
-
-
-# ============================================================
-# URL BASE DE GITHUB
-# ============================================================
-
-URL_BASE_101 = (
-    f"https://api.github.com/repos/"
-    f"{GITHUB_USUARIO_101}/"
-    f"{GITHUB_REPOSITORIO_101}/contents/"
-)
-
-
-# ============================================================
-# LECTURA DESDE GITHUB
-# ============================================================
-
-def leer_github_101(ruta):
-
-    token = st.secrets["GITHUB_TOKEN"]
-
-    solicitud = urllib.request.Request(
-        URL_BASE_101 + ruta,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json"
-        },
-        method="GET"
-    )
-
-    try:
-
-        with urllib.request.urlopen(
-            solicitud,
-            timeout=30
-        ) as respuesta:
-
-            datos = json.loads(
-                respuesta.read().decode("utf-8")
-            )
-
-        if "content" not in datos:
-
-            return None, None
-
-        contenido = base64.b64decode(
-            datos["content"].replace("\n", "")
-        )
-
-        return contenido, datos.get("sha")
-
-    except urllib.error.HTTPError as error:
-
-        if error.code == 404:
-
-            return None, None
-
-        st.error(
-            f"10.1 ERROR leyendo {ruta}: "
-            f"HTTP {error.code}"
-        )
-
-        return None, None
-
-    except Exception as error:
-
-        st.error(
-            f"10.1 ERROR leyendo {ruta}: {error}"
-        )
-
-        return None, None
-
-
-# ============================================================
-# CARGAR BANCO GENERAL
-# ============================================================
-
-def cargar_banco_101():
-
-    contenido, sha = leer_github_101(
-        ARCHIVO_BANCO_101
-    )
-
-    if contenido is None:
-
-        st.error(
-            "10.1: no se pudo cargar "
-            "BANCO_PREGUNTAS_GENERALES.xlsx."
-        )
-
-        return None, None
-
-    try:
-
-        df = pd.read_excel(
-            io.BytesIO(contenido),
-            engine="openpyxl"
-        ).fillna("")
-
-    except Exception as error:
-
-        st.error(
-            "10.1 ERROR leyendo "
-            "BANCO_PREGUNTAS_GENERALES.xlsx."
-        )
-
-        st.exception(error)
-
-        return None, None
-
-
-    columnas_requeridas = [
-        "Pregunta_ID",
-        "Modulo",
-        "Tema",
-        "Nivel",
-        "Tipo_Relacion",
-        "Pregunta",
-        "Respuesta_1",
-        "Respuesta_2",
-        "Respuesta_3",
-        "Respuesta_4",
-        "Respuesta_Correcta",
-        "Estado",
-        "Observacion_Administrador",
-        "Fecha_Generacion",
-        "Fuente_ID"
-    ]
-
-
-    faltantes = [
-        columna
-        for columna in columnas_requeridas
-        if columna not in df.columns
-    ]
-
-
-    if faltantes:
-
-        st.error(
-            "10.1 ERROR: faltan columnas en "
-            "BANCO_PREGUNTAS_GENERALES.xlsx: "
-            + ", ".join(faltantes)
-        )
-
-        return None, None
-
-
-    for columna in [
-        "Pregunta_ID",
-        "Modulo",
-        "Tema",
-        "Nivel",
-        "Tipo_Relacion",
-        "Estado",
-        "Fuente_ID"
-    ]:
-
-        df[columna] = (
-            df[columna]
-            .astype(str)
-            .str.strip()
-        )
-
-
-    return (
-        df.reset_index(drop=True),
-        sha
-    )
-
-
-# ============================================================
-# CARGAR CSV
-# ============================================================
-
-def cargar_csv_101(ruta):
-
-    contenido, sha = leer_github_101(ruta)
-
-    if contenido is None:
-
-        return (
-            pd.DataFrame(),
-            None,
-            False
-        )
-
-    try:
-
-        df = pd.read_csv(
-            io.BytesIO(contenido),
-            dtype=str
-        ).fillna("")
-
-        return (
-            df,
-            sha,
-            True
-        )
-
-    except Exception as error:
-
-        st.error(
-            f"10.1 ERROR leyendo {ruta}."
-        )
-
-        st.exception(error)
-
-        return (
-            pd.DataFrame(),
-            sha,
-            False
-        )
-
-
-# ============================================================
-# BOTÓN DE CARGA
-# ============================================================
-
-if st.button(
-    "CARGAR FUENTES DEL MÓDULO 10",
-    key="cargar_fuentes_101"
-):
-
-    # ========================================================
-    # 1. BANCO GENERAL
-    # ========================================================
-
-    df_banco, sha_banco = cargar_banco_101()
-
-    if df_banco is None:
-
-        st.stop()
-
-
-    # ========================================================
-    # 2. PREGUNTAS_EVALUACIONES
-    # ========================================================
-
-    (
-        df_preguntas,
-        sha_preguntas,
-        existe_preguntas
-    ) = cargar_csv_101(
-        ARCHIVO_PREGUNTAS_101
-    )
-
-
-    # ========================================================
-    # 3. EVALUACIONES
-    # ========================================================
-
-    (
-        df_evaluaciones,
-        sha_evaluaciones,
-        existe_evaluaciones
-    ) = cargar_csv_101(
-        ARCHIVO_EVALUACIONES_101
-    )
-
-
-    # ========================================================
-    # 4. BANCODISPONIBLE_102
-    #
-    # ESTE ARCHIVO ES GENERADO POR 10.2.
-    #
-    # 10.1 SOLAMENTE LO CARGA.
-    # ========================================================
-
-    (
-        df_disponibilidad_102,
-        sha_disponibilidad_102,
-        existe_disponibilidad_102
-    ) = cargar_csv_101(
-        ARCHIVO_BANCODISPONIBLE_101
-    )
-
-
-    # ========================================================
-    # GUARDAR BANCO GENERAL
-    # ========================================================
-
-    st.session_state[
-        "df_banco_101"
-    ] = df_banco.copy()
-
-
-    # ========================================================
-    # GUARDAR PREGUNTAS_EVALUACIONES
-    # ========================================================
-
-    st.session_state[
-        "df_preguntas_evaluaciones_101"
-    ] = df_preguntas.copy()
-
-
-    # ========================================================
-    # GUARDAR EVALUACIONES
-    # ========================================================
-
-    st.session_state[
-        "df_evaluaciones_101"
-    ] = df_evaluaciones.copy()
-
-
-    # ========================================================
-    # GUARDAR BANCODISPONIBLE_102
-    #
-    # ESTE ES EL ÚNICO NOMBRE DEL DATAFRAME
-    # QUE UTILIZARÁ POSTERIORMENTE 10.3
-    # ========================================================
-
-    st.session_state[
-        "df_disponibilidad_102"
-    ] = df_disponibilidad_102.copy()
-
-
-    # ========================================================
-    # GUARDAR SHA
-    # ========================================================
-
-    st.session_state[
-        "sha_banco_general_101"
-    ] = sha_banco
-
-
-    st.session_state[
-        "sha_preguntas_evaluaciones_101"
-    ] = sha_preguntas
-
-
-    st.session_state[
-        "sha_evaluaciones_101"
-    ] = sha_evaluaciones
-
-
-    st.session_state[
-        "sha_disponibilidad_102"
-    ] = sha_disponibilidad_102
-
-
-    # ========================================================
-    # ESTADOS
-    # ========================================================
-
-    st.session_state[
-        "banco_101_cargado"
-    ] = True
-
-
-    st.session_state[
-        "registro_preguntas_101_existe"
-    ] = existe_preguntas
-
-
-    st.session_state[
-        "registro_evaluaciones_101_existe"
-    ] = existe_evaluaciones
-
-
-    st.session_state[
-        "BANCODISPONIBLE_102_existe"
-    ] = existe_disponibilidad_102
-
-
-    # ========================================================
-    # MENSAJE DE CARGA
-    # ========================================================
-
-    st.success(
-        "10.1: las fuentes fueron cargadas correctamente."
-    )
-
-    st.rerun()
-
-
-# ============================================================
-# MOSTRAR FUENTES
-# ============================================================
-
-if st.session_state.get(
-    "banco_101_cargado",
-    False
-):
-
-    # ========================================================
-    # RECUPERAR DATAFRAMES
-    # ========================================================
-
-    df_banco = st.session_state[
-        "df_banco_101"
-    ]
-
-
-    df_preguntas = st.session_state.get(
-        "df_preguntas_evaluaciones_101",
-        pd.DataFrame()
-    )
-
-
-    df_evaluaciones = st.session_state.get(
-        "df_evaluaciones_101",
-        pd.DataFrame()
-    )
-
-
-    df_disponibilidad_102 = st.session_state.get(
-        "df_disponibilidad_102",
-        pd.DataFrame()
-    )
-
-
-    # ========================================================
-    # 1. BANCO GENERAL
-    # ========================================================
-
-    st.markdown(
-        "### 1. Banco general de preguntas"
-    )
-
-
-    duplicados = int(
-        df_banco[
-            "Pregunta_ID"
-        ]
-        .duplicated()
-        .sum()
-    )
-
-
-    c1, c2 = st.columns(2)
-
-
-    c1.metric(
-        "Preguntas en banco",
-        len(df_banco)
-    )
-
-
-    c2.metric(
-        "Pregunta_ID duplicados",
-        duplicados
-    )
-
-
-    # ========================================================
-    # 2. PREGUNTAS_EVALUACIONES
-    # ========================================================
-
-    st.markdown(
-        "### 2. Registro persistente de preguntas"
-    )
-
-
-    if st.session_state.get(
-        "registro_preguntas_101_existe",
-        False
-    ):
-
-        st.success(
-            "PREGUNTAS_EVALUACIONES.csv cargado."
-        )
-
-
-        st.metric(
-            "Registros de preguntas",
-            len(df_preguntas)
-        )
-
-    else:
-
-        st.warning(
-            "PREGUNTAS_EVALUACIONES.csv "
-            "no existe todavía."
-        )
-
-
-    # ========================================================
-    # 3. EVALUACIONES
-    # ========================================================
-
-    st.markdown(
-        "### 3. Registro persistente de evaluaciones"
-    )
-
-
-    if st.session_state.get(
-        "registro_evaluaciones_101_existe",
-        False
-    ):
-
-        st.success(
-            "EVALUACIONES.csv cargado."
-        )
-
-
-        st.metric(
-            "Evaluaciones registradas",
-            len(df_evaluaciones)
-        )
-
-    else:
-
-        st.warning(
-            "EVALUACIONES.csv "
-            "no existe todavía."
-        )
-
-
-    # ========================================================
-    # 4. BANCODISPONIBLE_102
-    # ========================================================
-
-    st.markdown(
-        "### 4. Banco disponible para generación"
-    )
-
-
-    if st.session_state.get(
-        "BANCODISPONIBLE_102_existe",
-        False
-    ):
-
-        st.success(
-            "BANCODISPONIBLE_102.csv cargado "
-            "desde evaluacion/."
-        )
-
-
-        if df_disponibilidad_102.empty:
-
-            st.warning(
-                "BANCODISPONIBLE_102.csv existe, "
-                "pero no contiene registros."
-            )
-
-        else:
-
-            c1, c2 = st.columns(2)
-
-
-            c1.metric(
-                "Registros disponibles",
-                len(df_disponibilidad_102)
-            )
-
-
-            if (
-                "Pregunta_ID"
-                in df_disponibilidad_102.columns
-            ):
-
-                duplicados_disponibles = int(
-                    df_disponibilidad_102[
-                        "Pregunta_ID"
-                    ]
-                    .duplicated()
-                    .sum()
-                )
-
-
-                c2.metric(
-                    "Pregunta_ID duplicados",
-                    duplicados_disponibles
-                )
-
-
-            st.caption(
-                "Fuente persistente generada por 10.2 "
-                "y cargada por 10.1 para ser utilizada "
-                "posteriormente por 10.3."
-            )
-
-    else:
-
-        st.info(
-            "BANCODISPONIBLE_102.csv está en espera. "
-            "10.2 todavía no ha generado y persistido "
-            "el archivo en evaluacion/."
-        )
-
-
-    # ========================================================
-    # CONTROL GENERAL
-    # ========================================================
-
-    st.info(
-        "10.1 solamente carga y controla las fuentes. "
-        "La construcción de BANCODISPONIBLE_102.csv "
-        "corresponde a 10.2."
-    )
-
-# ============================================================
-
-
-# ============================================================
 # 10.2.A - DISPONIBILIDAD REAL DEL BANCO
 # ============================================================
 
@@ -23330,32 +22684,37 @@ import streamlit as st
 import pandas as pd
 
 
-st.markdown("## 10.2.A - Disponibilidad real del banco")
+st.markdown(
+    "## 10.2.A - Disponibilidad real del banco"
+)
 
 
 # ============================================================
 # DATOS CARGADOS POR 10.1
 # ============================================================
 
-banco = st.session_state.get(
-    "df_banco_101",
-    pd.DataFrame()
-).copy()
+banco = (
+    st.session_state.get(
+        "df_banco_101",
+        pd.DataFrame()
+    )
+    .copy()
+)
 
-permanencia = st.session_state.get(
-    "df_preguntas_evaluaciones_101",
-    pd.DataFrame()
-).copy()
+permanencia = (
+    st.session_state.get(
+        "df_preguntas_evaluaciones_101",
+        pd.DataFrame()
+    )
+    .copy()
+)
 
 
 # ============================================================
-# 10.2.A SOLO SE EJECUTA CUANDO EXISTEN LAS FUENTES
+# 10.2.A NO DEBE DETENER evaluacion.py
 #
-# IMPORTANTE:
-# NO UTILIZAR st.stop() AQUÍ.
 # Si las fuentes todavía no están disponibles,
-# 10.2.A queda en espera y permite continuar con
-# los demás bloques de evaluacion.py.
+# este bloque simplemente queda en espera.
 # ============================================================
 
 fuentes_102a_disponibles = (
@@ -23375,10 +22734,11 @@ if not fuentes_102a_disponibles:
 else:
 
     # ========================================================
-    # VALIDAR Pregunta_ID
+    # VALIDAR CAMPOS NECESARIOS
     # ========================================================
 
     errores_102a = []
+
 
     if "Pregunta_ID" not in banco.columns:
 
@@ -23386,12 +22746,14 @@ else:
             "df_banco_101 no contiene la columna Pregunta_ID."
         )
 
+
     if "Pregunta_ID" not in permanencia.columns:
 
         errores_102a.append(
             "df_preguntas_evaluaciones_101 no contiene "
             "la columna Pregunta_ID."
         )
+
 
     if "Estado_Validacion" not in permanencia.columns:
 
@@ -23402,7 +22764,7 @@ else:
 
 
     # ========================================================
-    # SI HAY ERROR, MOSTRARLO SIN DETENER evaluacion.py
+    # MOSTRAR ERRORES SIN DETENER evaluacion.py
     # ========================================================
 
     if errores_102a:
@@ -23416,7 +22778,7 @@ else:
     else:
 
         # ====================================================
-        # ESTADO DE VALIDACIÓN
+        # ESTADO DE VALIDACIÓN DE LAS PREGUNTAS
         # ====================================================
 
         estado = (
@@ -23427,14 +22789,35 @@ else:
                 ]
             ]
             .drop_duplicates(
-                "Pregunta_ID",
+                subset=[
+                    "Pregunta_ID"
+                ],
                 keep="last"
             )
+            .copy()
         )
 
 
         # ====================================================
-        # INCORPORAR ESTADO AL BANCO
+        # NORMALIZAR Pregunta_ID
+        # ====================================================
+
+        banco["Pregunta_ID"] = (
+            banco["Pregunta_ID"]
+            .astype(str)
+            .str.strip()
+        )
+
+
+        estado["Pregunta_ID"] = (
+            estado["Pregunta_ID"]
+            .astype(str)
+            .str.strip()
+        )
+
+
+        # ====================================================
+        # INCORPORAR ESTADO DE VALIDACIÓN AL BANCO
         # ====================================================
 
         banco_102a = banco.merge(
@@ -23448,7 +22831,9 @@ else:
         # NORMALIZAR ESTADO DE VALIDACIÓN
         # ====================================================
 
-        banco_102a["Estado_Validacion"] = (
+        banco_102a[
+            "Estado_Validacion"
+        ] = (
             banco_102a[
                 "Estado_Validacion"
             ]
@@ -23467,7 +22852,9 @@ else:
         # OTROS     -> disponible
         # ====================================================
 
-        banco_102a["Disponible"] = (
+        banco_102a[
+            "Disponible"
+        ] = (
             ~banco_102a[
                 "Estado_Validacion"
             ].isin(
@@ -23556,10 +22943,13 @@ else:
 
 
             resumen_102a = (
-                banco_102a.groupby(
+                banco_102a
+                .groupby(
                     campos_agrupacion_102a,
                     dropna=False
-                )["Disponible"]
+                )[
+                    "Disponible"
+                ]
                 .agg(
                     Preguntas_Banco="count",
                     Preguntas_Disponibles="sum"
@@ -23610,8 +23000,7 @@ else:
         # ====================================================
         # GUARDAR RESULTADO DE 10.2.A
         #
-        # ESTE DATAFRAME ES EL INSUMO DE 10.2.B,
-        # 10.3 Y 10.4.
+        # ESTE ES EL DATAFRAME DE TRABAJO DE 10.2.B.
         # ====================================================
 
         st.session_state[
@@ -23634,22 +23023,37 @@ st.markdown(
 
 
 # ============================================================
-# SOLO EJECUTAR 10.2.B SI 10.2.A PRODUJO SU RESULTADO
-#
-# NO UTILIZAR st.stop().
+# TOMAR EL RESULTADO DE 10.2.A
 # ============================================================
 
-df_banco_102b = st.session_state.get(
-    "df_disponibilidad_102a",
-    pd.DataFrame()
-).copy()
+df_banco_102b = (
+    st.session_state.get(
+        "df_disponibilidad_102a",
+        pd.DataFrame()
+    )
+    .copy()
+)
 
 
-df_evaluaciones_102b = st.session_state.get(
-    "df_preguntas_evaluaciones_101",
-    pd.DataFrame()
-).copy()
+# ============================================================
+# TOMAR PREGUNTAS_EVALUACIONES CARGADO POR 10.1
+# ============================================================
 
+df_evaluaciones_102b = (
+    st.session_state.get(
+        "df_preguntas_evaluaciones_101",
+        pd.DataFrame()
+    )
+    .copy()
+)
+
+
+# ============================================================
+# 10.2.B NO DEBE DETENER evaluacion.py
+#
+# Si todavía no existe el resultado de 10.2.A,
+# queda simplemente en espera.
+# ============================================================
 
 if (
     df_banco_102b.empty
@@ -23658,8 +23062,8 @@ if (
 
     st.info(
         "10.2.B está en espera. "
-        "Se ejecutará cuando 10.2.A haya construido "
-        "el dataframe de disponibilidad."
+        "Se construirá cuando 10.2.A haya generado "
+        "df_disponibilidad_102."
     )
 
 else:
@@ -23668,86 +23072,14 @@ else:
     # ELIMINAR CAMPOS QUE NO INTERESAN
     # ========================================================
 
-    df_banco_102b = df_banco_102b.drop(
-        columns=[
-            "Observacion_Administrador",
-            "Fecha_Generacion"
-        ],
-        errors="ignore"
-    )
-
-
-    df_evaluaciones_102b = (
-        df_evaluaciones_102b.drop(
-            columns=[
-                "Fecha_Persistencia"
-            ],
-            errors="ignore"
-        )
-    )
-
-
-    # ========================================================
-    # NORMALIZAR Pregunta_ID
-    # ========================================================
-
-    df_banco_102b["Pregunta_ID"] = (
-        df_banco_102b[
-            "Pregunta_ID"
-        ]
-        .astype(str)
-        .str.strip()
-    )
-
-
-    df_evaluaciones_102b["Pregunta_ID"] = (
-        df_evaluaciones_102b[
-            "Pregunta_ID"
-        ]
-        .astype(str)
-        .str.strip()
-    )
-
-
-    # ========================================================
-    # Estado_Uso
-    # ========================================================
-
-    if "Estado_Uso" in df_evaluaciones_102b.columns:
-
-        df_evaluaciones_102b[
-            "Estado_Uso"
-        ] = (
-            df_evaluaciones_102b[
-                "Estado_Uso"
-            ]
-            .where(
-                df_evaluaciones_102b[
-                    "Estado_Uso"
-                ].notna(),
-                pd.NA
-            )
-        )
-
-
-    if "Estado_Uso" not in df_banco_102b.columns:
-
-        df_banco_102b[
-            "Estado_Uso"
-        ] = pd.NA
-
-
-    # ========================================================
-    # ELIMINAR DUPLICADOS INTERNOS
-    # ========================================================
-
     df_banco_102b = (
         df_banco_102b
-        .drop_duplicates(
-            subset=[
-                "Pregunta_ID"
+        .drop(
+            columns=[
+                "Observacion_Administrador",
+                "Fecha_Generacion"
             ],
-            keep="first"
+            errors="ignore"
         )
         .copy()
     )
@@ -23755,187 +23087,315 @@ else:
 
     df_evaluaciones_102b = (
         df_evaluaciones_102b
-        .drop_duplicates(
-            subset=[
-                "Pregunta_ID"
+        .drop(
+            columns=[
+                "Fecha_Persistencia"
             ],
-            keep="last"
+            errors="ignore"
         )
         .copy()
     )
 
 
     # ========================================================
-    # ESTRUCTURA FINAL
+    # VALIDAR Pregunta_ID
     # ========================================================
 
-    columnas_finales_102 = [
-        "Pregunta_ID",
-        "Modulo",
-        "Tema",
-        "Nivel",
-        "Tipo_Relacion",
-        "Pregunta",
-        "Respuesta_1",
-        "Respuesta_2",
-        "Respuesta_3",
-        "Respuesta_4",
-        "Respuesta_Correcta",
-        "Estado",
-        "Fuente_ID",
-        "Evaluacion_ID",
-        "Estado_Validacion",
-        "Estado_Uso"
-    ]
+    if (
+        "Pregunta_ID" not in df_banco_102b.columns
+        or
+        "Pregunta_ID" not in df_evaluaciones_102b.columns
+    ):
 
+        st.error(
+            "10.2.B ERROR: las fuentes no contienen "
+            "la columna Pregunta_ID."
+        )
 
-    # ========================================================
-    # ASEGURAR ESTRUCTURA COMÚN
-    # ========================================================
+    else:
 
-    for columna in columnas_finales_102:
+        # ====================================================
+        # NORMALIZAR Pregunta_ID
+        # ====================================================
 
-        if columna not in df_banco_102b.columns:
-
+        df_banco_102b[
+            "Pregunta_ID"
+        ] = (
             df_banco_102b[
-                columna
-            ] = pd.NA
+                "Pregunta_ID"
+            ]
+            .astype(str)
+            .str.strip()
+        )
 
 
-        if columna not in df_evaluaciones_102b.columns:
+        df_evaluaciones_102b[
+            "Pregunta_ID"
+        ] = (
+            df_evaluaciones_102b[
+                "Pregunta_ID"
+            ]
+            .astype(str)
+            .str.strip()
+        )
+
+
+        # ====================================================
+        # ESTADO_Uso
+        #
+        # NO SE CREAN ESTADOS NUEVOS.
+        # Se conservan los existentes.
+        # ====================================================
+
+        if (
+            "Estado_Uso"
+            in df_evaluaciones_102b.columns
+        ):
 
             df_evaluaciones_102b[
-                columna
+                "Estado_Uso"
+            ] = (
+                df_evaluaciones_102b[
+                    "Estado_Uso"
+                ]
+                .where(
+                    df_evaluaciones_102b[
+                        "Estado_Uso"
+                    ].notna(),
+                    pd.NA
+                )
+            )
+
+
+        if (
+            "Estado_Uso"
+            not in df_banco_102b.columns
+        ):
+
+            df_banco_102b[
+                "Estado_Uso"
             ] = pd.NA
 
 
-    df_banco_102b = (
-        df_banco_102b[
-            columnas_finales_102
-        ]
-    )
+        # ====================================================
+        # ELIMINAR DUPLICADOS INTERNOS
+        # ====================================================
 
-
-    df_evaluaciones_102b = (
-        df_evaluaciones_102b[
-            columnas_finales_102
-        ]
-    )
-
-
-    # ========================================================
-    # UNIÓN
-    #
-    # Primero PREGUNTAS_EVALUACIONES para conservar
-    # su información de uso y evaluación.
-    # ========================================================
-
-    df_disponibilidad_102 = pd.concat(
-        [
-            df_evaluaciones_102b,
+        df_banco_102b = (
             df_banco_102b
-        ],
-        ignore_index=True
-    )
-
-
-    # ========================================================
-    # ELIMINAR DUPLICADOS
-    # ========================================================
-
-    df_disponibilidad_102 = (
-        df_disponibilidad_102
-        .drop_duplicates(
-            subset=[
-                "Pregunta_ID"
-            ],
-            keep="first"
+            .drop_duplicates(
+                subset=[
+                    "Pregunta_ID"
+                ],
+                keep="first"
+            )
+            .copy()
         )
-        .reset_index(
-            drop=True
+
+
+        df_evaluaciones_102b = (
+            df_evaluaciones_102b
+            .drop_duplicates(
+                subset=[
+                    "Pregunta_ID"
+                ],
+                keep="last"
+            )
+            .copy()
         )
-    )
 
 
-    # ========================================================
-    # GUARDAR DATAFRAME FINAL DE 10.2.B
-    # ========================================================
+        # ====================================================
+        # ESTRUCTURA FINAL
+        # ====================================================
 
-    st.session_state[
-        "df_disponibilidad_102"
-    ] = (
-        df_disponibilidad_102.copy()
-    )
-
-
-    st.session_state[
-        "10.2B_ejecutado"
-    ] = True
-
-
-    # ========================================================
-    # RESUMEN
-    # ========================================================
-
-    total_102 = len(
-        df_disponibilidad_102
-    )
-
-
-    usadas_102 = int(
-        df_disponibilidad_102[
+        columnas_finales_102 = [
+            "Pregunta_ID",
+            "Modulo",
+            "Tema",
+            "Nivel",
+            "Tipo_Relacion",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Estado",
+            "Fuente_ID",
+            "Evaluacion_ID",
+            "Estado_Validacion",
             "Estado_Uso"
         ]
-        .fillna("")
-        .astype(str)
-        .str.strip()
-        .str.upper()
-        .eq("USADA")
-        .sum()
-    )
 
 
-    disponibles_102 = (
-        total_102
-        - usadas_102
-    )
+        # ====================================================
+        # ASEGURAR ESTRUCTURA COMÚN
+        # ====================================================
+
+        for columna in columnas_finales_102:
+
+            if (
+                columna
+                not in df_banco_102b.columns
+            ):
+
+                df_banco_102b[
+                    columna
+                ] = pd.NA
 
 
-    c1, c2, c3 = st.columns(3)
+            if (
+                columna
+                not in df_evaluaciones_102b.columns
+            ):
+
+                df_evaluaciones_102b[
+                    columna
+                ] = pd.NA
 
 
-    c1.metric(
-        "Total nuevo banco",
-        total_102
-    )
+        df_banco_102b = (
+            df_banco_102b[
+                columnas_finales_102
+            ]
+            .copy()
+        )
 
 
-    c2.metric(
-        "Disponibles",
-        disponibles_102
-    )
+        df_evaluaciones_102b = (
+            df_evaluaciones_102b[
+                columnas_finales_102
+            ]
+            .copy()
+        )
 
 
-    c3.metric(
-        "Usadas",
-        usadas_102
-    )
+        # ====================================================
+        # UNIÓN
+        #
+        # PRIMERO PREGUNTAS_EVALUACIONES.
+        #
+        # Así, cuando una Pregunta_ID existe en ambas
+        # fuentes, se conserva la información de uso
+        # y evaluación.
+        # ====================================================
+
+        df_disponibilidad_102 = pd.concat(
+            [
+                df_evaluaciones_102b,
+                df_banco_102b
+            ],
+            ignore_index=True
+        )
 
 
-    # ========================================================
-    # VISUALIZACIÓN
-    # ========================================================
+        # ====================================================
+        # ELIMINAR DUPLICADOS
+        # ====================================================
 
-    st.markdown(
-        "### Primeros registros de df_disponibilidad_102"
-    )
+        df_disponibilidad_102 = (
+            df_disponibilidad_102
+            .drop_duplicates(
+                subset=[
+                    "Pregunta_ID"
+                ],
+                keep="first"
+            )
+            .reset_index(
+                drop=True
+            )
+        )
 
 
-    st.dataframe(
-        df_disponibilidad_102.head(20),
-        use_container_width=True,
-        hide_index=True
-    )
+        # ====================================================
+        # GUARDAR DATAFRAME FINAL DE 10.2.B
+        #
+        # ESTE ES EL DATAFRAME QUE UTILIZAN LOS BLOQUES
+        # POSTERIORES.
+        # ====================================================
+
+        st.session_state[
+            "df_disponibilidad_102"
+        ] = (
+            df_disponibilidad_102.copy()
+        )
+
+
+        st.session_state[
+            "10.2B_ejecutado"
+        ] = True
+
+
+        # ====================================================
+        # RESUMEN
+        # ====================================================
+
+        total_102 = len(
+            df_disponibilidad_102
+        )
+
+
+        usadas_102 = int(
+            df_disponibilidad_102[
+                "Estado_Uso"
+            ]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .str.upper()
+            .eq("USADA")
+            .sum()
+        )
+
+
+        disponibles_102 = (
+            total_102
+            - usadas_102
+        )
+
+
+        c1, c2, c3 = st.columns(3)
+
+
+        c1.metric(
+            "Total nuevo banco",
+            total_102
+        )
+
+
+        c2.metric(
+            "Disponibles",
+            disponibles_102
+        )
+
+
+        c3.metric(
+            "Usadas",
+            usadas_102
+        )
+
+
+        # ====================================================
+        # VISUALIZACIÓN
+        # ====================================================
+
+        st.markdown(
+            "### Primeros registros de df_disponibilidad_102"
+        )
+
+
+        st.dataframe(
+            df_disponibilidad_102.head(20),
+            use_container_width=True,
+            hide_index=True
+        )
+
+
+# ============================================================
+# FIN DEL BLOQUE 10.2.A - 10.2.B
+#
+# ============================================================
 # ============================================================
 # 10.2.C - ESTADÍSTICAS DEL NUEVO BANCO
 # ============================================================
@@ -23946,10 +23406,11 @@ st.markdown(
 
 
 # ============================================================
-# TOMAR EL NUEVO DATAFRAME
+# TOMAR EL DATAFRAME GENERADO POR 10.2.B
 #
-# 10.2.C NO DEBE DETENER evaluacion.py SI 10.2.B
-# TODAVÍA NO HA GENERADO EL DATAFRAME.
+# IMPORTANTE:
+# 10.2.C NO DEBE GENERAR ERROR SI 10.2.B
+# TODAVÍA NO HA CONSTRUIDO df_disponibilidad_102.
 # ============================================================
 
 df = (
@@ -23961,7 +23422,10 @@ df = (
 
 
 # ============================================================
-# SI TODAVÍA NO EXISTE, QUEDA EN ESPERA
+# SI 10.2.B TODAVÍA NO EXISTE
+#
+# 10.2.C QUEDA EN ESPERA Y EL APLICATIVO CONTINÚA.
+# NO UTILIZAR st.stop().
 # ============================================================
 
 if df.empty:
@@ -23976,14 +23440,30 @@ if df.empty:
 else:
 
     # ========================================================
-    # VALIDAR Estado_Uso
+    # VALIDAR CAMPOS NECESARIOS
     # ========================================================
 
-    if "Estado_Uso" not in df.columns:
+    campos_necesarios_102c = [
+        "Pregunta_ID",
+        "Modulo",
+        "Tipo_Relacion",
+        "Estado_Uso"
+    ]
+
+
+    faltantes_102c = [
+        campo
+        for campo in campos_necesarios_102c
+        if campo not in df.columns
+    ]
+
+
+    if faltantes_102c:
 
         st.error(
-            "10.2.C ERROR: df_disponibilidad_102 "
-            "no contiene la columna Estado_Uso."
+            "10.2.C ERROR: faltan campos en "
+            "df_disponibilidad_102: "
+            + ", ".join(faltantes_102c)
         )
 
     else:
@@ -23992,7 +23472,8 @@ else:
         # ESTADO_USO PARA LAS ESTADÍSTICAS
         #
         # SOLO "USADA" SE CONSIDERA UTILIZADA.
-        # TODO LO DEMÁS ES DISPONIBLE.
+        # TODO LO DEMÁS SE CONSIDERA DISPONIBLE:
+        # DISPONIBLE, vacío, None, etc.
         # ====================================================
 
         estado_uso = (
@@ -24020,9 +23501,11 @@ else:
 
         total_banco = len(df)
 
+
         total_usadas = int(
             df["Usada_102"].sum()
         )
+
 
         total_disponibles = int(
             df["Disponible_102"].sum()
@@ -24059,180 +23542,177 @@ else:
         # ESTADÍSTICAS POR MÓDULO
         # ====================================================
 
-        if "Modulo" in df.columns:
+        st.markdown(
+            "### Banco por módulo"
+        )
 
-            st.markdown(
-                "### Banco por módulo"
+
+        estadisticas_modulo = (
+            df.groupby(
+                "Modulo",
+                dropna=False
             )
-
-
-            estadisticas_modulo = (
-                df.groupby(
-                    "Modulo",
-                    dropna=False
+            .agg(
+                Total=(
+                    "Pregunta_ID",
+                    "count"
+                ),
+                Disponibles=(
+                    "Disponible_102",
+                    "sum"
+                ),
+                Usadas=(
+                    "Usada_102",
+                    "sum"
                 )
-                .agg(
-                    Total=("Pregunta_ID", "count"),
-                    Disponibles=(
-                        "Disponible_102",
-                        "sum"
-                    ),
-                    Usadas=(
-                        "Usada_102",
-                        "sum"
-                    )
-                )
-                .reset_index()
             )
+            .reset_index()
+        )
 
 
-            estadisticas_modulo[
-                "Disponibles"
-            ] = (
-                estadisticas_modulo[
-                    "Disponibles"
-                ].astype(int)
-            )
-
-
-            estadisticas_modulo[
-                "Usadas"
-            ] = (
-                estadisticas_modulo[
-                    "Usadas"
-                ].astype(int)
-            )
-
-
+        estadisticas_modulo["Total"] = (
             estadisticas_modulo[
                 "Total"
-            ] = (
-                estadisticas_modulo[
-                    "Total"
-                ].astype(int)
-            )
+            ].astype(int)
+        )
 
 
-            st.dataframe(
-                estadisticas_modulo,
-                use_container_width=True,
-                hide_index=True
-            )
+        estadisticas_modulo["Disponibles"] = (
+            estadisticas_modulo[
+                "Disponibles"
+            ].astype(int)
+        )
+
+
+        estadisticas_modulo["Usadas"] = (
+            estadisticas_modulo[
+                "Usadas"
+            ].astype(int)
+        )
+
+
+        st.dataframe(
+            estadisticas_modulo,
+            use_container_width=True,
+            hide_index=True
+        )
 
 
         # ====================================================
         # ESTADÍSTICAS POR MÓDULO Y RELACIÓN
         # ====================================================
 
-        if (
-            "Modulo" in df.columns
-            and
-            "Tipo_Relacion" in df.columns
-        ):
+        st.markdown(
+            "### Banco por módulo y tipo de relación"
+        )
 
-            st.markdown(
-                "### Banco por módulo y tipo de relación"
+
+        estadisticas_relacion = (
+            df.groupby(
+                [
+                    "Modulo",
+                    "Tipo_Relacion"
+                ],
+                dropna=False
             )
-
-
-            estadisticas_relacion = (
-                df.groupby(
-                    [
-                        "Modulo",
-                        "Tipo_Relacion"
-                    ],
-                    dropna=False
+            .agg(
+                Total=(
+                    "Pregunta_ID",
+                    "count"
+                ),
+                Disponibles=(
+                    "Disponible_102",
+                    "sum"
+                ),
+                Usadas=(
+                    "Usada_102",
+                    "sum"
                 )
-                .agg(
-                    Total=("Pregunta_ID", "count"),
-                    Disponibles=(
-                        "Disponible_102",
-                        "sum"
-                    ),
-                    Usadas=(
-                        "Usada_102",
-                        "sum"
-                    )
-                )
-                .reset_index()
             )
+            .reset_index()
+        )
 
 
-            estadisticas_relacion[
-                "Disponibles"
-            ] = (
-                estadisticas_relacion[
-                    "Disponibles"
-                ].astype(int)
-            )
-
-
-            estadisticas_relacion[
-                "Usadas"
-            ] = (
-                estadisticas_relacion[
-                    "Usadas"
-                ].astype(int)
-            )
-
-
+        estadisticas_relacion["Total"] = (
             estadisticas_relacion[
                 "Total"
-            ] = (
-                estadisticas_relacion[
-                    "Total"
-                ].astype(int)
-            )
+            ].astype(int)
+        )
 
 
-            st.dataframe(
-                estadisticas_relacion,
-                use_container_width=True,
-                hide_index=True
-            )
+        estadisticas_relacion["Disponibles"] = (
+            estadisticas_relacion[
+                "Disponibles"
+            ].astype(int)
+        )
+
+
+        estadisticas_relacion["Usadas"] = (
+            estadisticas_relacion[
+                "Usadas"
+            ].astype(int)
+        )
+
+
+        st.dataframe(
+            estadisticas_relacion,
+            use_container_width=True,
+            hide_index=True
+        )
 
 
         # ====================================================
         # CAPACIDAD DE CONSTRUIR EVALUACIONES DE 10
+        # POR MÓDULO Y RELACIÓN
         # ====================================================
 
-        if (
-            "Modulo" in df.columns
-            and
-            "Tipo_Relacion" in df.columns
-        ):
+        st.markdown(
+            "### Capacidad de construcción de evaluaciones"
+        )
 
-            st.markdown(
-                "### Capacidad de construcción de evaluaciones"
+
+        st.caption(
+            "Cada evaluación requiere 10 preguntas. "
+            "Las preguntas restantes quedan en cola."
+        )
+
+
+        evaluaciones_10 = (
+            df[
+                df["Disponible_102"]
+            ]
+            .groupby(
+                [
+                    "Modulo",
+                    "Tipo_Relacion"
+                ],
+                dropna=False
             )
-
-
-            st.caption(
-                "Cada evaluación requiere 10 preguntas. "
-                "Las preguntas restantes quedan en cola."
-            )
-
-
-            evaluaciones_10 = (
-                df[
-                    df["Disponible_102"]
-                ]
-                .groupby(
-                    [
-                        "Modulo",
-                        "Tipo_Relacion"
-                    ],
-                    dropna=False
+            .agg(
+                Preguntas_Disponibles=(
+                    "Pregunta_ID",
+                    "count"
                 )
-                .agg(
-                    Preguntas_Disponibles=(
-                        "Pregunta_ID",
-                        "count"
-                    )
-                )
-                .reset_index()
+            )
+            .reset_index()
+        )
+
+
+        # ====================================================
+        # SI NO HAY PREGUNTAS DISPONIBLES
+        # ====================================================
+
+        if evaluaciones_10.empty:
+
+            st.info(
+                "No existen preguntas disponibles "
+                "para construir evaluaciones."
             )
 
+            total_evaluaciones = 0
+            total_preguntas_cola = 0
+
+        else:
 
             # =================================================
             # CÁLCULOS
@@ -24260,11 +23740,13 @@ else:
             # ESTADO DE LA COLA
             # =================================================
 
-            def estado_cola(cantidad):
+            def estado_cola_102c(cantidad):
 
                 if cantidad == 0:
 
-                    return "Sin preguntas en cola"
+                    return (
+                        "Sin preguntas en cola"
+                    )
 
                 return "Cola incompleta"
 
@@ -24275,7 +23757,7 @@ else:
                 evaluaciones_10[
                     "Preguntas_En_Cola"
                 ]
-                .apply(estado_cola)
+                .apply(estado_cola_102c)
             )
 
 
@@ -24317,35 +23799,33 @@ else:
             )
 
 
-            st.markdown(
-                "### Resumen de capacidad"
-            )
+        # ====================================================
+        # RESUMEN DE CAPACIDAD
+        # ====================================================
+
+        st.markdown(
+            "### Resumen de capacidad"
+        )
 
 
-            c1, c2 = st.columns(2)
+        c1, c2 = st.columns(2)
 
 
-            c1.metric(
-                "Evaluaciones completas posibles",
-                total_evaluaciones
-            )
+        c1.metric(
+            "Evaluaciones completas posibles",
+            total_evaluaciones
+        )
 
 
-            c2.metric(
-                "Preguntas actualmente en cola",
-                total_preguntas_cola
-            )
+        c2.metric(
+            "Preguntas actualmente en cola",
+            total_preguntas_cola
+        )
 
 
 # ============================================================
 # 10.2.D - PERSISTENCIA DEL BANCO DISPONIBLE
 # ============================================================
-
-import streamlit as st
-import pandas as pd
-import requests
-import base64
-
 
 st.markdown(
     "## 10.2.D - Persistencia de BANCODISPONIBLE_102.csv"
@@ -24353,7 +23833,7 @@ st.markdown(
 
 
 # ============================================================
-# TOMAR EL DATAFRAME YA CONSTRUIDO EN 10.2.B
+# TOMAR EL DATAFRAME YA CONSTRUIDO POR 10.2.B
 # ============================================================
 
 df_disponibilidad_102 = (
@@ -24365,9 +23845,13 @@ df_disponibilidad_102 = (
 
 
 # ============================================================
-# 10.2.D QUEDA EN ESPERA SI 10.2.B TODAVÍA NO EXISTE
+# SI 10.2.B TODAVÍA NO HA GENERADO EL DATAFRAME
 #
-# NO UTILIZAR st.stop()
+# 10.2.D QUEDA EN ESPERA.
+#
+# IMPORTANTE:
+# NO UTILIZAR st.stop().
+# EL APLICATIVO DEBE CONTINUAR HACIA EL BLOQUE 11.
 # ============================================================
 
 if df_disponibilidad_102.empty:
@@ -24397,7 +23881,7 @@ else:
     # ========================================================
     # UBICACIÓN DEL ARCHIVO
     #
-    # SE GUARDA EN LA CARPETA DE EVALUACIÓN
+    # SE MANTIENE EXACTAMENTE LA UBICACIÓN DEFINIDA.
     # ========================================================
 
     ARCHIVO_GITHUB = (
@@ -24409,15 +23893,20 @@ else:
     # CONVERTIR DATAFRAME A CSV
     # ========================================================
 
-    csv_data = df_disponibilidad_102.to_csv(
-        index=False,
-        encoding="utf-8-sig"
+    csv_data = (
+        df_disponibilidad_102.to_csv(
+            index=False,
+            encoding="utf-8-sig"
+        )
     )
 
 
-    contenido_base64 = base64.b64encode(
-        csv_data.encode("utf-8-sig")
-    ).decode("utf-8")
+    contenido_base64 = (
+        base64.b64encode(
+            csv_data.encode("utf-8-sig")
+        )
+        .decode("utf-8")
+    )
 
 
     # ========================================================
@@ -24433,8 +23922,12 @@ else:
 
 
     headers = {
-        "Authorization": f"Bearer {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github+json"
+        "Authorization": (
+            f"Bearer {GITHUB_TOKEN}"
+        ),
+        "Accept": (
+            "application/vnd.github+json"
+        )
     }
 
 
@@ -24469,21 +23962,29 @@ else:
     elif respuesta_existencia.status_code != 404:
 
         st.error(
-            "No fue posible comprobar la existencia de "
-            "BANCODISPONIBLE_102.csv en GitHub.\n\n"
+            "10.2.D: no fue posible comprobar "
+            "la existencia de "
+            "BANCODISPONIBLE_102.csv en GitHub. "
             f"Código HTTP: "
             f"{respuesta_existencia.status_code}"
         )
 
+    else:
+
+        sha = None
+
 
     # ========================================================
-    # SOLO CONTINUAR CON LA PERSISTENCIA SI:
+    # SOLO CONTINUAR CON LA PERSISTENCIA SI LA CONSULTA
+    # DE EXISTENCIA FUE CORRECTA O EL ARCHIVO NO EXISTE.
     #
-    # 200 = archivo existente
-    # 404 = archivo todavía no existe
+    # SI HAY ERROR DE GITHUB, NO SE DETIENE EL APLICATIVO.
     # ========================================================
 
-    if respuesta_existencia.status_code in [200, 404]:
+    if (
+        respuesta_existencia.status_code
+        in [200, 404]
+    ):
 
         # ====================================================
         # PREPARAR ACTUALIZACIÓN / CREACIÓN
@@ -24491,7 +23992,8 @@ else:
 
         payload = {
             "message": (
-                "Actualizar BANCODISPONIBLE_102.csv"
+                "Actualizar "
+                "BANCODISPONIBLE_102.csv"
             ),
             "content": contenido_base64,
             "branch": GITHUB_RAMA
@@ -24499,8 +24001,7 @@ else:
 
 
         # ====================================================
-        # SI EL ARCHIVO YA EXISTE,
-        # GITHUB EXIGE SU SHA
+        # SI EL ARCHIVO YA EXISTE, GITHUB EXIGE SU SHA
         # ====================================================
 
         if sha is not None:
@@ -24527,26 +24028,28 @@ else:
         if respuesta.status_code in [200, 201]:
 
             st.success(
-                "BANCODISPONIBLE_102.csv fue persistido "
-                "correctamente en la carpeta de evaluación."
+                "BANCODISPONIBLE_102.csv fue "
+                "persistido correctamente en "
+                "la carpeta de evaluación."
             )
 
 
             st.write(
-                f"Registros persistidos: "
+                "Registros persistidos: "
                 f"{len(df_disponibilidad_102):,}"
             )
 
 
             st.write(
-                f"Ubicación: `{ARCHIVO_GITHUB}`"
+                "Ubicación: "
+                f"`{ARCHIVO_GITHUB}`"
             )
 
 
         else:
 
             st.error(
-                "No fue posible persistir "
+                "10.2.D: no fue posible persistir "
                 "BANCODISPONIBLE_102.csv en GitHub."
             )
 
@@ -24556,1432 +24059,6 @@ else:
             )
 
 
-
-# ============================================================
-# 10.3.B - VALIDADOR DE PREGUNTAS
-# ============================================================
-
-import streamlit as st
-import pandas as pd
-
-
-st.markdown("## 10.3.B - Validador de preguntas")
-
-
-# ============================================================
-# 1. TOMAR LA EVALUACIÓN GENERADA POR 10.3.A
-# ============================================================
-
-evaluacion_generada = st.session_state.get(
-    "evaluacion_generada_103",
-    pd.DataFrame()
-)
-
-
-if evaluacion_generada.empty:
-
-    st.warning(
-        "No existe una evaluación generada. "
-        "Primero debe ejecutar 10.3.A."
-    )
-
-    st.stop()
-
-
-# ============================================================
-# 2. COPIA DE TRABAJO
-# ============================================================
-
-df_generada = evaluacion_generada.copy()
-
-
-# ============================================================
-# 3. CAMPOS NECESARIOS
-# ============================================================
-
-campos_necesarios = [
-    "Evaluacion_ID",
-    "Pregunta_ID",
-    "Modulo",
-    "Tipo_Relacion",
-    "Nivel",
-    "Pregunta",
-    "Respuesta_1",
-    "Respuesta_2",
-    "Respuesta_3",
-    "Respuesta_4",
-    "Respuesta_Correcta"
-]
-
-
-faltantes = [
-    campo
-    for campo in campos_necesarios
-    if campo not in df_generada.columns
-]
-
-
-if faltantes:
-
-    st.error(
-        "Faltan campos necesarios en la evaluación: "
-        + ", ".join(faltantes)
-    )
-
-    st.stop()
-
-
-# ============================================================
-# 4. ESTADOS HOMOLOGADOS
-#
-# PENDIENTE:
-# todavía no se ha tomado una decisión.
-#
-# APROBADA:
-# la pregunta queda en la evaluación.
-#
-# RECHAZADA:
-# la pregunta no queda en la evaluación.
-#
-# AÚN NO SE UTILIZA:
-# la pregunta no queda en la evaluación.
-# ============================================================
-
-OPCIONES_VALIDACION = [
-    "PENDIENTE",
-    "APROBADA",
-    "RECHAZADA",
-    "AÚN NO SE UTILIZA"
-]
-
-
-# ============================================================
-# 5. RECUPERAR VALIDACIÓN TEMPORAL
-# ============================================================
-
-if "evaluacion_validacion_103" not in st.session_state:
-
-    df = df_generada.copy()
-
-    df["Estado_Validacion"] = "PENDIENTE"
-
-else:
-
-    df = st.session_state[
-        "evaluacion_validacion_103"
-    ].copy()
-
-
-# ============================================================
-# 6. ASEGURAR ESTADO DE VALIDACIÓN VÁLIDO
-# ============================================================
-
-if "Estado_Validacion" not in df.columns:
-
-    df["Estado_Validacion"] = "PENDIENTE"
-
-else:
-
-    df["Estado_Validacion"] = (
-        df["Estado_Validacion"]
-        .fillna("PENDIENTE")
-        .astype(str)
-        .str.strip()
-    )
-
-    df.loc[
-        ~df["Estado_Validacion"].isin(
-            OPCIONES_VALIDACION
-        ),
-        "Estado_Validacion"
-    ] = "PENDIENTE"
-
-
-# ============================================================
-# 7. IDENTIFICACIÓN DE LA EVALUACIÓN
-# ============================================================
-
-evaluacion_id = str(
-    df["Evaluacion_ID"].iloc[0]
-).strip()
-
-
-st.markdown(
-    f"### Evaluación: `{evaluacion_id}`"
-)
-
-
-# ============================================================
-# 8. INFORMACIÓN GENERAL
-# ============================================================
-
-c1, c2, c3, c4 = st.columns(4)
-
-
-with c1:
-
-    st.metric(
-        "Módulo",
-        str(df["Modulo"].iloc[0])
-    )
-
-
-with c2:
-
-    st.metric(
-        "Relación",
-        str(df["Tipo_Relacion"].iloc[0])
-    )
-
-
-with c3:
-
-    st.metric(
-        "Nivel",
-        str(df["Nivel"].iloc[0])
-    )
-
-
-with c4:
-
-    st.metric(
-        "Preguntas",
-        len(df)
-    )
-
-
-# ============================================================
-# 9. RESUMEN DE VALIDACIÓN
-# ============================================================
-
-total = len(df)
-
-pendientes = int(
-    (
-        df["Estado_Validacion"]
-        == "PENDIENTE"
-    ).sum()
-)
-
-aprobadas = int(
-    (
-        df["Estado_Validacion"]
-        == "APROBADA"
-    ).sum()
-)
-
-rechazadas = int(
-    (
-        df["Estado_Validacion"]
-        == "RECHAZADA"
-    ).sum()
-)
-
-aun_no_utilizadas = int(
-    (
-        df["Estado_Validacion"]
-        == "AÚN NO SE UTILIZA"
-    ).sum()
-)
-
-
-st.markdown("### Estado de la validación")
-
-
-c1, c2, c3, c4, c5 = st.columns(5)
-
-
-c1.metric(
-    "Generadas",
-    total
-)
-
-c2.metric(
-    "Pendientes",
-    pendientes
-)
-
-c3.metric(
-    "Aprobadas",
-    aprobadas
-)
-
-c4.metric(
-    "Rechazadas",
-    rechazadas
-)
-
-c5.metric(
-    "Aún no se utiliza",
-    aun_no_utilizadas
-)
-
-
-# ============================================================
-# 10. VALIDACIÓN POR BLOQUE
-# ============================================================
-
-st.markdown("### Validación por bloque")
-
-st.caption(
-    "La decisión seleccionada se aplicará a todas "
-    "las preguntas de esta evaluación."
-)
-
-
-decision_bloque = st.radio(
-    "Decisión para todo el bloque",
-    [
-        "PENDIENTE",
-        "APROBADA",
-        "RECHAZADA",
-        "AÚN NO SE UTILIZA"
-    ],
-    horizontal=True,
-    key="decision_bloque_103"
-)
-
-
-if st.button(
-    "Aplicar decisión al bloque",
-    type="secondary",
-    key="aplicar_bloque_103"
-):
-
-    df["Estado_Validacion"] = decision_bloque
-
-    st.session_state[
-        "evaluacion_validacion_103"
-    ] = df.copy()
-
-    st.success(
-        f"Se aplicó '{decision_bloque}' "
-        f"a las {len(df)} preguntas."
-    )
-
-    st.rerun()
-
-
-# ============================================================
-# 11. VALIDACIÓN INDIVIDUAL
-# ============================================================
-
-st.markdown("### Validación individual")
-
-st.caption(
-    "Revise la formulación completa de cada pregunta, "
-    "sus cuatro opciones de respuesta y la respuesta correcta "
-    "antes de tomar la decisión."
-)
-
-
-# ============================================================
-# 12. MOSTRAR CADA PREGUNTA
-# ============================================================
-
-for indice in range(len(df)):
-
-    pregunta_id = str(
-        df.iloc[indice]["Pregunta_ID"]
-    ).strip()
-
-
-    pregunta = str(
-        df.iloc[indice]["Pregunta"]
-    ).strip()
-
-
-    estado_actual = str(
-        df.iloc[indice]["Estado_Validacion"]
-    ).strip()
-
-
-    if estado_actual not in OPCIONES_VALIDACION:
-
-        estado_actual = "PENDIENTE"
-
-
-    indice_actual = OPCIONES_VALIDACION.index(
-        estado_actual
-    )
-
-
-    st.markdown(
-        f"---\n"
-        f"### Pregunta {indice + 1} — {pregunta_id}"
-    )
-
-
-    # ========================================================
-    # PREGUNTA
-    # ========================================================
-
-    st.markdown("**Pregunta:**")
-
-    st.write(
-        pregunta
-    )
-
-
-    # ========================================================
-    # OPCIONES DE RESPUESTA
-    # ========================================================
-
-    st.markdown(
-        "**Opciones de respuesta:**"
-    )
-
-
-    st.write(
-        f"1. {df.iloc[indice]['Respuesta_1']}"
-    )
-
-    st.write(
-        f"2. {df.iloc[indice]['Respuesta_2']}"
-    )
-
-    st.write(
-        f"3. {df.iloc[indice]['Respuesta_3']}"
-    )
-
-    st.write(
-        f"4. {df.iloc[indice]['Respuesta_4']}"
-    )
-
-
-    # ========================================================
-    # RESPUESTA CORRECTA
-    # ========================================================
-
-    st.info(
-        "Respuesta correcta: "
-        f"{df.iloc[indice]['Respuesta_Correcta']}"
-    )
-
-
-    # ========================================================
-    # DECISIÓN INDIVIDUAL
-    # ========================================================
-
-    decision_individual = st.radio(
-        "Estado de validación",
-        OPCIONES_VALIDACION,
-        index=indice_actual,
-        horizontal=True,
-        key=f"decision_individual_103_{pregunta_id}"
-    )
-
-
-    df.loc[
-        df["Pregunta_ID"].astype(str).eq(
-            pregunta_id
-        ),
-        "Estado_Validacion"
-    ] = decision_individual
-
-
-# ============================================================
-# 13. GUARDAR VALIDACIÓN TEMPORAL
-# ============================================================
-
-st.session_state[
-    "evaluacion_validacion_103"
-] = df.copy()
-
-
-# ============================================================
-# 14. EVALUACIÓN RESULTANTE
-#
-# SOLO LAS APROBADAS QUEDAN EN LA EVALUACIÓN.
-#
-# NO SE HACEN REEMPLAZOS.
-# ============================================================
-
-evaluacion_final = df[
-    df["Estado_Validacion"]
-    == "APROBADA"
-].copy()
-
-
-# ============================================================
-# 15. RESUMEN FINAL
-# ============================================================
-
-st.markdown(
-    "### Resultado actual de la evaluación"
-)
-
-
-rf1, rf2, rf3, rf4, rf5 = st.columns(5)
-
-
-rf1.metric(
-    "Generadas",
-    len(df)
-)
-
-rf2.metric(
-    "Aprobadas",
-    int(
-        (
-            df["Estado_Validacion"]
-            == "APROBADA"
-        ).sum()
-    )
-)
-
-rf3.metric(
-    "Rechazadas",
-    int(
-        (
-            df["Estado_Validacion"]
-            == "RECHAZADA"
-        ).sum()
-    )
-)
-
-rf4.metric(
-    "Aún no se utiliza",
-    int(
-        (
-            df["Estado_Validacion"]
-            == "AÚN NO SE UTILIZA"
-        ).sum()
-    )
-)
-
-rf5.metric(
-    "Pendientes",
-    int(
-        (
-            df["Estado_Validacion"]
-            == "PENDIENTE"
-        ).sum()
-    )
-)
-
-
-# ============================================================
-# 16. ALERTA DE PENDIENTES
-# ============================================================
-
-pendientes_actuales = int(
-    (
-        df["Estado_Validacion"]
-        == "PENDIENTE"
-    ).sum()
-)
-
-
-if pendientes_actuales > 0:
-
-    st.warning(
-        f"Hay {pendientes_actuales} pregunta(s) "
-        "pendientes de validación."
-    )
-
-
-# ============================================================
-# 17. PREGUNTAS QUE QUEDAN EN LA EVALUACIÓN
-# ============================================================
-
-st.markdown(
-    "### Preguntas aprobadas que quedan en la evaluación"
-)
-
-
-if not evaluacion_final.empty:
-
-    columnas_finales = [
-        "Evaluacion_ID",
-        "Pregunta_ID",
-        "Modulo",
-        "Tipo_Relacion",
-        "Nivel",
-        "Pregunta",
-        "Respuesta_1",
-        "Respuesta_2",
-        "Respuesta_3",
-        "Respuesta_4",
-        "Respuesta_Correcta",
-        "Estado_Validacion"
-    ]
-
-
-    columnas_finales = [
-        columna
-        for columna in columnas_finales
-        if columna in evaluacion_final.columns
-    ]
-
-
-    st.dataframe(
-        evaluacion_final[
-            columnas_finales
-        ],
-        use_container_width=True,
-        hide_index=True
-    )
-
-else:
-
-    st.info(
-        "Todavía no hay preguntas aprobadas."
-    )
-
-
-# ============================================================
-# 18. INFORMACIÓN DE PERSISTENCIA
-# ============================================================
-
-st.info(
-    "La validación se encuentra guardada temporalmente "
-    "en session_state como evaluacion_validacion_103. "
-    "Todavía no se ha realizado la sincronización "
-    "con EVALUACIONES.csv."
-)
-
-
-# ============================================================
-# 10.3.C - SINCRONIZADOR DE EVALUACIONES
-# ============================================================
-
-import streamlit as st
-import pandas as pd
-import io
-import json
-import base64
-import urllib.request
-import urllib.error
-from datetime import datetime
-from urllib.parse import quote
-
-
-st.markdown("## 10.3.C - Sincronización de evaluación")
-
-
-# ============================================================
-# CONFIGURACIÓN GITHUB
-# ============================================================
-
-GITHUB_USUARIO_103C = "franquiciasauces"
-GITHUB_REPOSITORIO_103C = "Asesores"
-GITHUB_RAMA_103C = "main"
-
-# ------------------------------------------------------------
-# ARCHIVOS PERSISTENTES
-# ------------------------------------------------------------
-
-ARCHIVO_EVALUACIONES_103C = "page/EVALUACIONES.csv"
-
-# ------------------------------------------------------------
-# IMPORTANTE:
-# LA EVALUACIÓN INDIVIDUAL TAMBIÉN QUEDA EN page/
-# ------------------------------------------------------------
-
-CARPETA_EVALUACIONES_103C = "page"
-
-
-URL_BASE_103C = (
-    f"https://api.github.com/repos/"
-    f"{GITHUB_USUARIO_103C}/"
-    f"{GITHUB_REPOSITORIO_103C}/contents/"
-)
-
-
-# ============================================================
-# FUNCIÓN PARA CODIFICAR CORRECTAMENTE LA RUTA
-# ============================================================
-
-def codificar_ruta_github_103c(ruta):
-
-    partes = ruta.split("/")
-
-    return "/".join(
-        quote(parte, safe="")
-        for parte in partes
-    )
-
-
-# ============================================================
-# LEER ARCHIVO DESDE GITHUB
-# ============================================================
-
-def leer_github_103c(ruta):
-
-    token = st.secrets["GITHUB_TOKEN"]
-
-    ruta_codificada = codificar_ruta_github_103c(
-        ruta
-    )
-
-    url = (
-        URL_BASE_103C
-        + ruta_codificada
-    )
-
-    solicitud = urllib.request.Request(
-        url,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json"
-        },
-        method="GET"
-    )
-
-    try:
-
-        with urllib.request.urlopen(
-            solicitud,
-            timeout=30
-        ) as respuesta:
-
-            datos = json.loads(
-                respuesta.read().decode("utf-8")
-            )
-
-        if "content" not in datos:
-
-            return None, None
-
-        contenido = base64.b64decode(
-            datos["content"].replace("\n", "")
-        )
-
-        return contenido, datos.get("sha")
-
-    except urllib.error.HTTPError as error:
-
-        if error.code == 404:
-
-            return None, None
-
-        st.error(
-            f"10.3.C ERROR leyendo {ruta}: "
-            f"HTTP {error.code}"
-        )
-
-        return None, None
-
-    except Exception as error:
-
-        st.error(
-            f"10.3.C ERROR leyendo {ruta}: "
-            f"{error}"
-        )
-
-        return None, None
-
-
-# ============================================================
-# GUARDAR / ACTUALIZAR ARCHIVO EN GITHUB
-# ============================================================
-
-def guardar_github_103c(
-    ruta,
-    contenido,
-    mensaje,
-    sha_existente=None
-):
-
-    token = st.secrets["GITHUB_TOKEN"]
-
-    ruta_codificada = codificar_ruta_github_103c(
-        ruta
-    )
-
-    url = (
-        URL_BASE_103C
-        + ruta_codificada
-    )
-
-    datos = {
-        "message": mensaje,
-        "content": base64.b64encode(
-            contenido
-        ).decode("utf-8"),
-        "branch": GITHUB_RAMA_103C
-    }
-
-    if sha_existente:
-
-        datos["sha"] = sha_existente
-
-    cuerpo = json.dumps(
-        datos
-    ).encode("utf-8")
-
-    solicitud = urllib.request.Request(
-        url,
-        data=cuerpo,
-        headers={
-            "Authorization": f"Bearer {token}",
-            "Accept": "application/vnd.github+json",
-            "Content-Type": "application/json"
-        },
-        method="PUT"
-    )
-
-    try:
-
-        with urllib.request.urlopen(
-            solicitud,
-            timeout=30
-        ) as respuesta:
-
-            resultado = json.loads(
-                respuesta.read().decode("utf-8")
-            )
-
-        return resultado
-
-    except urllib.error.HTTPError as error:
-
-        detalle = error.read().decode(
-            "utf-8",
-            errors="ignore"
-        )
-
-        st.error(
-            f"10.3.C ERROR guardando {ruta}: "
-            f"HTTP {error.code}"
-        )
-
-        st.code(detalle)
-
-        return None
-
-    except Exception as error:
-
-        st.error(
-            f"10.3.C ERROR guardando {ruta}: "
-            f"{error}"
-        )
-
-        return None
-
-
-# ============================================================
-# TOMAR VALIDACIÓN TEMPORAL
-# ============================================================
-
-evaluacion_validacion = st.session_state.get(
-    "evaluacion_validacion_103",
-    pd.DataFrame()
-)
-
-
-if evaluacion_validacion.empty:
-
-    st.warning(
-        "No existe una evaluación validada temporalmente. "
-        "Primero debe ejecutar 10.3.B."
-    )
-
-    st.stop()
-
-
-df = evaluacion_validacion.copy()
-
-
-# ============================================================
-# VALIDAR CAMPOS
-# ============================================================
-
-campos_necesarios = [
-    "Pregunta_ID",
-    "Modulo",
-    "Tipo_Relacion",
-    "Nivel",
-    "Pregunta",
-    "Respuesta_1",
-    "Respuesta_2",
-    "Respuesta_3",
-    "Respuesta_4",
-    "Respuesta_Correcta",
-    "Estado_Validacion"
-]
-
-
-faltantes = [
-    campo
-    for campo in campos_necesarios
-    if campo not in df.columns
-]
-
-
-if faltantes:
-
-    st.error(
-        "Faltan campos necesarios para sincronizar: "
-        + ", ".join(faltantes)
-    )
-
-    st.stop()
-
-
-# ============================================================
-# NORMALIZAR ESTADOS
-# ============================================================
-
-df["Estado_Validacion"] = (
-    df["Estado_Validacion"]
-    .fillna("PENDIENTE")
-    .astype(str)
-    .str.strip()
-    .str.upper()
-)
-
-
-# ============================================================
-# NO PERMITIR SINCRONIZAR PREGUNTAS PENDIENTES
-# ============================================================
-
-pendientes = int(
-    (
-        df["Estado_Validacion"]
-        == "PENDIENTE"
-    ).sum()
-)
-
-
-if pendientes > 0:
-
-    st.warning(
-        f"La evaluación todavía tiene "
-        f"{pendientes} pregunta(s) pendientes "
-        "de validación. "
-        "Debe tomar una decisión sobre todas "
-        "las preguntas antes de sincronizar."
-    )
-
-    st.stop()
-
-
-# ============================================================
-# IDENTIFICAR RESULTADOS
-# ============================================================
-
-aprobadas = df[
-    df["Estado_Validacion"]
-    == "APROBADA"
-].copy()
-
-
-rechazadas = int(
-    (
-        df["Estado_Validacion"]
-        == "RECHAZADA"
-    ).sum()
-)
-
-
-no_utilizadas = int(
-    (
-        df["Estado_Validacion"]
-        == "AÚN NO SE UTILIZA"
-    ).sum()
-)
-
-
-cantidad_aprobadas = len(
-    aprobadas
-)
-
-
-cantidad_total = len(
-    df
-)
-
-
-# ============================================================
-# DATOS DE IDENTIFICACIÓN
-# ============================================================
-
-modulo = str(
-    df["Modulo"].iloc[0]
-).strip()
-
-
-tipo_relacion = str(
-    df["Tipo_Relacion"].iloc[0]
-).strip()
-
-
-nivel = str(
-    df["Nivel"].iloc[0]
-).strip()
-
-
-# ============================================================
-# EVALUACION_ID
-#
-# 10.3.A YA DEBIÓ ASIGNARLO.
-# NO SE GENERA OTRO CÓDIGO AQUÍ.
-# ============================================================
-
-evaluacion_id = ""
-
-
-if "Evaluacion_ID" in df.columns:
-
-    valores_id = (
-        df["Evaluacion_ID"]
-        .dropna()
-        .astype(str)
-        .str.strip()
-    )
-
-    valores_id = valores_id[
-        ~valores_id.isin(
-            ["", "NAN", "NONE"]
-        )
-    ]
-
-    if not valores_id.empty:
-
-        evaluacion_id = valores_id.iloc[0]
-
-
-# ------------------------------------------------------------
-# TAMBIÉN BUSCAR EN SESSION STATE
-# ------------------------------------------------------------
-
-if not evaluacion_id:
-
-    evaluacion_id = str(
-        st.session_state.get(
-            "evaluacion_id_103",
-            ""
-        )
-    ).strip()
-
-
-if not evaluacion_id:
-
-    st.error(
-        "No existe Evaluacion_ID para esta evaluación. "
-        "10.3.A debe generar primero el código "
-        "de la evaluación."
-    )
-
-    st.stop()
-
-
-# ============================================================
-# MOSTRAR RESUMEN
-# ============================================================
-
-st.markdown("### Evaluación que será sincronizada")
-
-
-c1, c2, c3, c4 = st.columns(4)
-
-
-c1.metric(
-    "Evaluacion_ID",
-    evaluacion_id
-)
-
-c2.metric(
-    "Preguntas generadas",
-    cantidad_total
-)
-
-c3.metric(
-    "Preguntas aprobadas",
-    cantidad_aprobadas
-)
-
-c4.metric(
-    "No utilizadas",
-    no_utilizadas
-)
-
-
-st.write(
-    f"**Módulo:** {modulo}"
-)
-
-st.write(
-    f"**Relación:** {tipo_relacion}"
-)
-
-st.write(
-    f"**Nivel:** {nivel}"
-)
-
-st.write(
-    f"**Rechazadas:** {rechazadas}"
-)
-
-
-# ============================================================
-# EVALUACIÓN INDIVIDUAL
-#
-# SOLAMENTE LAS PREGUNTAS APROBADAS
-# ============================================================
-
-evaluacion_individual = aprobadas.copy()
-
-
-columnas_individual = [
-    "Evaluacion_ID",
-    "Pregunta_ID",
-    "Modulo",
-    "Tipo_Relacion",
-    "Nivel",
-    "Pregunta",
-    "Respuesta_1",
-    "Respuesta_2",
-    "Respuesta_3",
-    "Respuesta_4",
-    "Respuesta_Correcta"
-]
-
-
-# ------------------------------------------------------------
-# CREAR Evaluacion_ID SI NO EXISTE
-# ------------------------------------------------------------
-
-if "Evaluacion_ID" not in evaluacion_individual.columns:
-
-    evaluacion_individual.insert(
-        0,
-        "Evaluacion_ID",
-        evaluacion_id
-    )
-
-else:
-
-    evaluacion_individual[
-        "Evaluacion_ID"
-    ] = evaluacion_id
-
-
-# ------------------------------------------------------------
-# ASEGURAR COLUMNAS Y ORDEN
-# ------------------------------------------------------------
-
-evaluacion_individual = (
-    evaluacion_individual[
-        [
-            columna
-            for columna in columnas_individual
-            if columna in evaluacion_individual.columns
-        ]
-    ]
-    .reset_index(drop=True)
-)
-
-
-# ============================================================
-# MOSTRAR EVALUACIÓN INDIVIDUAL
-# ============================================================
-
-st.markdown(
-    "### Preguntas que quedarán en la evaluación"
-)
-
-
-if evaluacion_individual.empty:
-
-    st.error(
-        "La evaluación no tiene preguntas aprobadas. "
-        "No se puede persistir una evaluación vacía."
-    )
-
-    st.stop()
-
-
-st.dataframe(
-    evaluacion_individual,
-    use_container_width=True,
-    hide_index=True
-)
-
-
-# ============================================================
-# RUTA CORRECTA DE LA EVALUACIÓN INDIVIDUAL
-#
-# IMPORTANTE:
-# YA NO ES:
-# evaluacion/...
-#
-# AHORA ES:
-# page/...
-# ============================================================
-
-ruta_evaluacion_individual = (
-    f"{CARPETA_EVALUACIONES_103C}/"
-    f"{evaluacion_id}.csv"
-)
-
-
-# ============================================================
-# ARCHIVO INDIVIDUAL EN CSV
-# ============================================================
-
-contenido_individual = (
-    evaluacion_individual
-    .to_csv(
-        index=False,
-        encoding="utf-8-sig"
-    )
-    .encode("utf-8-sig")
-)
-
-
-# ============================================================
-# LEER EVALUACIONES.csv ACTUAL
-# ============================================================
-
-contenido_evaluaciones, sha_evaluaciones = (
-    leer_github_103c(
-        ARCHIVO_EVALUACIONES_103C
-    )
-)
-
-
-if contenido_evaluaciones is None:
-
-    df_evaluaciones = pd.DataFrame(
-        columns=[
-            "Evaluacion_ID",
-            "Modulo",
-            "Tipo_Relacion",
-            "Nivel",
-            "Cantidad_Preguntas",
-            "Preguntas_Aprobadas",
-            "Preguntas_Rechazadas",
-            "Preguntas_No_Utilizadas",
-            "Estado_Evaluacion",
-            "Fecha_Persistencia"
-        ]
-    )
-
-else:
-
-    try:
-
-        df_evaluaciones = pd.read_csv(
-            io.BytesIO(
-                contenido_evaluaciones
-            ),
-            dtype=str
-        ).fillna("")
-
-    except Exception as error:
-
-        st.error(
-            "No fue posible leer "
-            "page/EVALUACIONES.csv."
-        )
-
-        st.exception(error)
-
-        st.stop()
-
-
-# ============================================================
-# ASEGURAR COLUMNAS DEL CONSOLIDADO
-# ============================================================
-
-columnas_consolidado = [
-    "Evaluacion_ID",
-    "Modulo",
-    "Tipo_Relacion",
-    "Nivel",
-    "Cantidad_Preguntas",
-    "Preguntas_Aprobadas",
-    "Preguntas_Rechazadas",
-    "Preguntas_No_Utilizadas",
-    "Estado_Evaluacion",
-    "Fecha_Persistencia"
-]
-
-
-for columna in columnas_consolidado:
-
-    if columna not in df_evaluaciones.columns:
-
-        df_evaluaciones[columna] = ""
-
-
-# ============================================================
-# CONSTRUIR REGISTRO DE LA EVALUACIÓN
-# ============================================================
-
-fecha_persistencia = datetime.now().strftime(
-    "%Y-%m-%d %H:%M:%S"
-)
-
-
-registro = {
-    "Evaluacion_ID": evaluacion_id,
-    "Modulo": modulo,
-    "Tipo_Relacion": tipo_relacion,
-    "Nivel": nivel,
-    "Cantidad_Preguntas": str(cantidad_total),
-    "Preguntas_Aprobadas": str(cantidad_aprobadas),
-    "Preguntas_Rechazadas": str(rechazadas),
-    "Preguntas_No_Utilizadas": str(no_utilizadas),
-    "Estado_Evaluacion": "PERSISTIDA",
-    "Fecha_Persistencia": fecha_persistencia
-}
-
-
-# ============================================================
-# ACTUALIZAR O AGREGAR EL REGISTRO
-# ============================================================
-
-df_evaluaciones = df_evaluaciones[
-    df_evaluaciones[
-        "Evaluacion_ID"
-    ].astype(str).str.strip()
-    != evaluacion_id
-].copy()
-
-
-df_evaluaciones = pd.concat(
-    [
-        df_evaluaciones,
-        pd.DataFrame([registro])
-    ],
-    ignore_index=True
-)
-
-
-# ============================================================
-# ORDENAR POR Evaluacion_ID
-# ============================================================
-
-df_evaluaciones = (
-    df_evaluaciones
-    .sort_values(
-        by="Evaluacion_ID"
-    )
-    .reset_index(drop=True)
-)
-
-
-# ============================================================
-# BOTÓN DE SINCRONIZACIÓN
-# ============================================================
-
-st.markdown("### Persistencia")
-
-
-st.info(
-    f"La evaluación individual se guardará en: "
-    f"`{ruta_evaluacion_individual}`"
-)
-
-st.info(
-    "El consolidado se actualizará en: "
-    "`page/EVALUACIONES.csv`"
-)
-
-
-if st.button(
-    "SINCRONIZAR EVALUACIÓN",
-    type="primary",
-    key="sincronizar_evaluacion_103c"
-):
-
-    # ========================================================
-    # 1. GUARDAR EVALUACIÓN INDIVIDUAL EN page/
-    # ========================================================
-
-    resultado_individual = guardar_github_103c(
-        ruta_evaluacion_individual,
-        contenido_individual,
-        (
-            f"Sincronizar evaluación "
-            f"{evaluacion_id}"
-        )
-    )
-
-
-    if resultado_individual is None:
-
-        st.error(
-            "No se pudo guardar la evaluación individual."
-        )
-
-        st.stop()
-
-
-    # ========================================================
-    # 2. ACTUALIZAR EVALUACIONES.csv
-    # ========================================================
-
-    contenido_consolidado = (
-        df_evaluaciones
-        .to_csv(
-            index=False,
-            encoding="utf-8-sig"
-        )
-        .encode("utf-8-sig")
-    )
-
-
-    resultado_consolidado = guardar_github_103c(
-        ARCHIVO_EVALUACIONES_103C,
-        contenido_consolidado,
-        (
-            f"Actualizar page/EVALUACIONES.csv "
-            f"- {evaluacion_id}"
-        ),
-        sha_existente=sha_evaluaciones
-    )
-
-
-    if resultado_consolidado is None:
-
-        st.error(
-            "La evaluación individual fue guardada, "
-            "pero no se pudo actualizar "
-            "page/EVALUACIONES.csv."
-        )
-
-        st.stop()
-
-
-    # ========================================================
-    # 3. ACTUALIZAR SESSION STATE
-    # ========================================================
-
-    st.session_state[
-        "evaluacion_sincronizada_103"
-    ] = evaluacion_individual.copy()
-
-    st.session_state[
-        "evaluacion_id_sincronizada_103"
-    ] = evaluacion_id
-
-    st.session_state[
-        "evaluacion_validacion_103"
-    ] = df.copy()
-
-
-    # ========================================================
-    # 4. CONFIRMACIÓN
-    # ========================================================
-
-    st.success(
-        "La evaluación fue sincronizada correctamente."
-    )
-
-    st.success(
-        f"Evaluación individual: "
-        f"page/{evaluacion_id}.csv"
-    )
-
-    st.success(
-        "Consolidado actualizado: "
-        "page/EVALUACIONES.csv"
-    )
 
 # ============================================================
 
