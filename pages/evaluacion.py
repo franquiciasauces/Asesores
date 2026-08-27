@@ -25961,3 +25961,947 @@ else:
                         st.code(
                             respuesta_put_11b.text
                         )
+# ============================================================
+# 11.C - CONSULTA Y CONTROL DE EVALUACIONES
+# ============================================================
+
+st.divider()
+
+st.markdown("## 11.C - Consulta y control de evaluaciones")
+
+
+# ============================================================
+# CONFIGURACIÓN
+# ============================================================
+
+GITHUB_USUARIO_11C = "franquiciasauces"
+
+GITHUB_REPOSITORIO_11C = "Asesores"
+
+GITHUB_RAMA_11C = "main"
+
+ARCHIVO_GITHUB_11C = (
+    "evaluacion/"
+    "Respositorioevaluacionescontroladas.csv"
+)
+
+
+# ============================================================
+# COLUMNAS ESPERADAS
+# ============================================================
+
+COLUMNAS_11C = [
+    "Evaluacion_ID",
+    "Modulo",
+    "Nombre_Evaluacion",
+    "Descripcion",
+    "Cantidad_Preguntas",
+    "Preguntas_Creadas",
+    "Estado"
+]
+
+
+# ============================================================
+# FUNCIÓN PARA LEER LA PERSISTENCIA
+# ============================================================
+
+def leer_repositorio_11c():
+
+    token = st.secrets["GITHUB_TOKEN"]
+
+    url = (
+        f"https://api.github.com/repos/"
+        f"{GITHUB_USUARIO_11C}/"
+        f"{GITHUB_REPOSITORIO_11C}/"
+        f"contents/{ARCHIVO_GITHUB_11C}"
+    )
+
+    parametros = (
+        f"?ref={GITHUB_RAMA_11C}"
+    )
+
+    url_completa = url + parametros
+
+    solicitud = urllib.request.Request(
+        url_completa,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json"
+        },
+        method="GET"
+    )
+
+    try:
+
+        with urllib.request.urlopen(
+            solicitud,
+            timeout=30
+        ) as respuesta:
+
+            datos = json.loads(
+                respuesta.read().decode("utf-8")
+            )
+
+        contenido = datos.get(
+            "content",
+            ""
+        )
+
+        sha = datos.get(
+            "sha",
+            ""
+        )
+
+        if not contenido:
+
+            return (
+                pd.DataFrame(),
+                sha
+            )
+
+        contenido_decodificado = (
+            base64.b64decode(
+                contenido
+            )
+            .decode(
+                "utf-8-sig"
+            )
+        )
+
+        from io import StringIO
+
+        df = pd.read_csv(
+            StringIO(
+                contenido_decodificado
+            ),
+            dtype=str
+        )
+
+        return (
+            df,
+            sha
+        )
+
+    except urllib.error.HTTPError as error:
+
+        if error.code == 404:
+
+            return (
+                pd.DataFrame(),
+                None
+            )
+
+        st.error(
+            "11.C: no fue posible leer "
+            "Respositorioevaluacionescontroladas.csv. "
+            f"Código HTTP: {error.code}"
+        )
+
+        return (
+            pd.DataFrame(),
+            None
+        )
+
+    except Exception as error:
+
+        st.error(
+            "11.C: ocurrió un error al leer "
+            "la persistencia de evaluaciones."
+        )
+
+        st.code(
+            str(error)
+        )
+
+        return (
+            pd.DataFrame(),
+            None
+        )
+
+
+# ============================================================
+# LEER REPOSITORIO
+# ============================================================
+
+df_repositorio_11c, sha_11c = (
+    leer_repositorio_11c()
+)
+
+
+# ============================================================
+# VALIDAR REPOSITORIO
+# ============================================================
+
+if df_repositorio_11c.empty:
+
+    st.info(
+        "No hay evaluaciones persistidas "
+        "en Respositorioevaluacionescontroladas.csv."
+    )
+
+else:
+
+    # ========================================================
+    # NORMALIZAR COLUMNAS
+    # ========================================================
+
+    for columna in COLUMNAS_11C:
+
+        if columna not in df_repositorio_11c.columns:
+
+            df_repositorio_11c[
+                columna
+            ] = ""
+
+
+    # ========================================================
+    # TOMAR SOLAMENTE REGISTROS DE EVALUACION
+    #
+    # Si el repositorio tiene una estructura antigua con
+    # Tipo_Registro, se toman únicamente las filas EVALUACION.
+    # Si no existe Tipo_Registro, se asume que cada fila
+    # corresponde directamente a una evaluación.
+    # ========================================================
+
+    if "Tipo_Registro" in df_repositorio_11c.columns:
+
+        df_evaluaciones_11c = (
+            df_repositorio_11c[
+                df_repositorio_11c[
+                    "Tipo_Registro"
+                ]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .str.upper()
+                .eq("EVALUACION")
+            ]
+            .copy()
+        )
+
+    else:
+
+        df_evaluaciones_11c = (
+            df_repositorio_11c.copy()
+        )
+
+
+    # ========================================================
+    # ELIMINAR FILAS SIN ID DE EVALUACION
+    # ========================================================
+
+    df_evaluaciones_11c = (
+        df_evaluaciones_11c[
+            df_evaluaciones_11c[
+                "Evaluacion_ID"
+            ]
+            .fillna("")
+            .astype(str)
+            .str.strip()
+            .ne("")
+        ]
+        .copy()
+    )
+
+
+    # ========================================================
+    # NORMALIZAR ESTADO
+    # ========================================================
+
+    df_evaluaciones_11c[
+        "Estado"
+    ] = (
+        df_evaluaciones_11c[
+            "Estado"
+        ]
+        .fillna("ACTIVA")
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+
+    df_evaluaciones_11c[
+        "Estado"
+    ] = (
+        df_evaluaciones_11c[
+            "Estado"
+        ]
+        .replace(
+            {
+                "": "ACTIVA",
+                "NAN": "ACTIVA",
+                "NONE": "ACTIVA"
+            }
+        )
+    )
+
+
+    # ========================================================
+    # EVITAR DUPLICADOS DE EVALUACION
+    #
+    # CADA EVALUACION DEBE APARECER UNA SOLA VEZ.
+    # ========================================================
+
+    df_evaluaciones_11c = (
+        df_evaluaciones_11c
+        .drop_duplicates(
+            subset=[
+                "Evaluacion_ID"
+            ],
+            keep="last"
+        )
+        .reset_index(drop=True)
+    )
+
+
+    # ========================================================
+    # 11.C.1 - ESTADISTICAS
+    # ========================================================
+
+    st.markdown(
+        "### 11.C.1 - Estadísticas de evaluaciones"
+    )
+
+
+    total_evaluaciones_11c = (
+        len(
+            df_evaluaciones_11c
+        )
+    )
+
+
+    activas_11c = int(
+        df_evaluaciones_11c[
+            "Estado"
+        ]
+        .eq("ACTIVA")
+        .sum()
+    )
+
+
+    inactivas_11c = int(
+        df_evaluaciones_11c[
+            "Estado"
+        ]
+        .eq("INACTIVA")
+        .sum()
+    )
+
+
+    otros_estados_11c = (
+        total_evaluaciones_11c
+        - activas_11c
+        - inactivas_11c
+    )
+
+
+    c1, c2, c3, c4 = st.columns(4)
+
+
+    c1.metric(
+        "Evaluaciones",
+        total_evaluaciones_11c
+    )
+
+
+    c2.metric(
+        "Activas",
+        activas_11c
+    )
+
+
+    c3.metric(
+        "Inactivas",
+        inactivas_11c
+    )
+
+
+    c4.metric(
+        "Otros estados",
+        otros_estados_11c
+    )
+
+
+    # ========================================================
+    # ESTADISTICAS POR MODULO
+    # ========================================================
+
+    st.markdown(
+        "#### Evaluaciones por módulo"
+    )
+
+
+    tabla_modulos_11c = (
+        df_evaluaciones_11c
+        .assign(
+            Modulo=(
+                df_evaluaciones_11c[
+                    "Modulo"
+                ]
+                .fillna("SIN MÓDULO")
+                .astype(str)
+                .replace(
+                    {
+                        "": "SIN MÓDULO"
+                    }
+                )
+            )
+        )
+        .groupby(
+            [
+                "Modulo",
+                "Estado"
+            ],
+            dropna=False
+        )
+        .size()
+        .unstack(
+            fill_value=0
+        )
+        .reset_index()
+    )
+
+
+    if "ACTIVA" not in tabla_modulos_11c.columns:
+
+        tabla_modulos_11c[
+            "ACTIVA"
+        ] = 0
+
+
+    if "INACTIVA" not in tabla_modulos_11c.columns:
+
+        tabla_modulos_11c[
+            "INACTIVA"
+        ] = 0
+
+
+    tabla_modulos_11c[
+        "TOTAL"
+    ] = (
+        tabla_modulos_11c[
+            "ACTIVA"
+        ]
+        +
+        tabla_modulos_11c[
+            "INACTIVA"
+        ]
+    )
+
+
+    tabla_modulos_11c = (
+        tabla_modulos_11c[
+            [
+                "Modulo",
+                "TOTAL",
+                "ACTIVA",
+                "INACTIVA"
+            ]
+        ]
+        .sort_values(
+            "Modulo"
+        )
+        .reset_index(drop=True)
+    )
+
+
+    st.dataframe(
+        tabla_modulos_11c,
+        use_container_width=True,
+        hide_index=True
+    )
+
+
+    # ========================================================
+    # 11.C.2 - CONSULTA Y CAMBIO DE ESTADO
+    # ========================================================
+
+    st.markdown(
+        "### 11.C.2 - Consultar y actualizar evaluaciones"
+    )
+
+
+    # ========================================================
+    # FILTRO POR MODULO
+    # ========================================================
+
+    modulos_disponibles_11c = sorted(
+        [
+            valor
+            for valor in (
+                df_evaluaciones_11c[
+                    "Modulo"
+                ]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .unique()
+                .tolist()
+            )
+            if valor
+        ]
+    )
+
+
+    opciones_modulo_11c = [
+        "TODOS"
+    ] + modulos_disponibles_11c
+
+
+    filtro_modulo_11c = st.selectbox(
+        "Módulo",
+        opciones_modulo_11c,
+        key="filtro_modulo_11c"
+    )
+
+
+    # ========================================================
+    # FILTRO POR TEMA / NOMBRE
+    # ========================================================
+
+    temas_disponibles_11c = (
+        df_evaluaciones_11c[
+            "Nombre_Evaluacion"
+        ]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+
+    temas_disponibles_11c = sorted(
+        [
+            valor
+            for valor in (
+                temas_disponibles_11c
+                .unique()
+                .tolist()
+            )
+            if valor
+        ]
+    )
+
+
+    opciones_tema_11c = [
+        "TODOS"
+    ] + temas_disponibles_11c
+
+
+    filtro_tema_11c = st.selectbox(
+        "Tema / nombre de evaluación",
+        opciones_tema_11c,
+        key="filtro_tema_11c"
+    )
+
+
+    # ========================================================
+    # APLICAR FILTROS
+    # ========================================================
+
+    df_filtrado_11c = (
+        df_evaluaciones_11c.copy()
+    )
+
+
+    if filtro_modulo_11c != "TODOS":
+
+        df_filtrado_11c = (
+            df_filtrado_11c[
+                df_filtrado_11c[
+                    "Modulo"
+                ]
+                .fillna("")
+                .astype(str)
+                .eq(
+                    filtro_modulo_11c
+                )
+            ]
+        )
+
+
+    if filtro_tema_11c != "TODOS":
+
+        df_filtrado_11c = (
+            df_filtrado_11c[
+                df_filtrado_11c[
+                    "Nombre_Evaluacion"
+                ]
+                .fillna("")
+                .astype(str)
+                .eq(
+                    filtro_tema_11c
+                )
+            ]
+        )
+
+
+    # ========================================================
+    # CANDIDATOS ENCONTRADOS
+    # ========================================================
+
+    st.write(
+        f"Evaluaciones encontradas: "
+        f"**{len(df_filtrado_11c)}**"
+    )
+
+
+    if df_filtrado_11c.empty:
+
+        st.info(
+            "No existen evaluaciones que coincidan "
+            "con los filtros seleccionados."
+        )
+
+    else:
+
+        st.dataframe(
+            df_filtrado_11c[
+                [
+                    "Evaluacion_ID",
+                    "Modulo",
+                    "Nombre_Evaluacion",
+                    "Descripcion",
+                    "Cantidad_Preguntas",
+                    "Preguntas_Creadas",
+                    "Estado"
+                ]
+            ],
+            use_container_width=True,
+            hide_index=True
+        )
+
+
+        # ====================================================
+        # SELECCIONAR EVALUACION
+        # ====================================================
+
+        st.markdown(
+            "#### Seleccionar evaluación"
+        )
+
+
+        candidatos_11c = (
+            df_filtrado_11c[
+                "Evaluacion_ID"
+            ]
+            .astype(str)
+            .tolist()
+        )
+
+
+        evaluacion_seleccionada_11c = (
+            st.selectbox(
+                "Evaluación",
+                candidatos_11c,
+                key="evaluacion_seleccionada_11c"
+            )
+        )
+
+
+        fila_seleccionada_11c = (
+            df_evaluaciones_11c[
+                df_evaluaciones_11c[
+                    "Evaluacion_ID"
+                ]
+                .astype(str)
+                .eq(
+                    str(
+                        evaluacion_seleccionada_11c
+                    )
+                )
+            ]
+        )
+
+
+        if fila_seleccionada_11c.empty:
+
+            st.error(
+                "No fue posible localizar "
+                "la evaluación seleccionada."
+            )
+
+        else:
+
+            fila_seleccionada_11c = (
+                fila_seleccionada_11c.iloc[0]
+            )
+
+
+            estado_actual_11c = (
+                str(
+                    fila_seleccionada_11c[
+                        "Estado"
+                    ]
+                )
+                .strip()
+                .upper()
+            )
+
+
+            st.write(
+                f"**Evaluación:** "
+                f"{evaluacion_seleccionada_11c}"
+            )
+
+
+            st.write(
+                f"**Módulo:** "
+                f"{fila_seleccionada_11c['Modulo']}"
+            )
+
+
+            st.write(
+                f"**Tema:** "
+                f"{fila_seleccionada_11c['Nombre_Evaluacion']}"
+            )
+
+
+            st.write(
+                f"**Estado actual:** "
+                f"{estado_actual_11c}"
+            )
+
+
+            # =================================================
+            # NUEVO ESTADO
+            # =================================================
+
+            nuevo_estado_11c = st.selectbox(
+                "Nuevo estado",
+                [
+                    "ACTIVA",
+                    "INACTIVA"
+                ],
+                index=(
+                    0
+                    if estado_actual_11c == "ACTIVA"
+                    else 1
+                ),
+                key="nuevo_estado_11c"
+            )
+
+
+            # =================================================
+            # ACTUALIZAR
+            # =================================================
+
+            if st.button(
+                "ACTUALIZAR ESTADO DE LA EVALUACIÓN",
+                type="primary",
+                key="actualizar_estado_11c"
+            ):
+
+                df_repositorio_actualizado_11c = (
+                    df_repositorio_11c.copy()
+                )
+
+
+                # ---------------------------------------------
+                # LOCALIZAR TODAS LAS FILAS DE LA EVALUACION
+                #
+                # Esto permite mantener intactas las preguntas
+                # asociadas y cambiar solamente el estado de la
+                # evaluación.
+                # ---------------------------------------------
+
+                mascara_evaluacion_11c = (
+                    df_repositorio_actualizado_11c[
+                        "Evaluacion_ID"
+                    ]
+                    .fillna("")
+                    .astype(str)
+                    .eq(
+                        str(
+                            evaluacion_seleccionada_11c
+                        )
+                    )
+                )
+
+
+                if (
+                    "Tipo_Registro"
+                    in df_repositorio_actualizado_11c.columns
+                ):
+
+                    mascara_estado_11c = (
+                        mascara_evaluacion_11c
+                        &
+                        df_repositorio_actualizado_11c[
+                            "Tipo_Registro"
+                        ]
+                        .fillna("")
+                        .astype(str)
+                        .str.strip()
+                        .str.upper()
+                        .eq("EVALUACION")
+                    )
+
+                else:
+
+                    mascara_estado_11c = (
+                        mascara_evaluacion_11c
+                    )
+
+
+                # ---------------------------------------------
+                # ACTUALIZAR ESTADO
+                # ---------------------------------------------
+
+                df_repositorio_actualizado_11c.loc[
+                    mascara_estado_11c,
+                    "Estado"
+                ] = nuevo_estado_11c
+
+
+                # =================================================
+                # CONVERTIR A CSV
+                # =================================================
+
+                csv_data_11c = (
+                    df_repositorio_actualizado_11c.to_csv(
+                        index=False,
+                        encoding="utf-8-sig"
+                    )
+                )
+
+
+                contenido_base64_11c = (
+                    base64.b64encode(
+                        csv_data_11c.encode(
+                            "utf-8-sig"
+                        )
+                    )
+                    .decode(
+                        "utf-8"
+                    )
+                )
+
+
+                # =================================================
+                # URL GITHUB
+                # =================================================
+
+                url_11c = (
+                    f"https://api.github.com/repos/"
+                    f"{GITHUB_USUARIO_11C}/"
+                    f"{GITHUB_REPOSITORIO_11C}/"
+                    f"contents/"
+                    f"{ARCHIVO_GITHUB_11C}"
+                )
+
+
+                # =================================================
+                # PAYLOAD
+                # =================================================
+
+                payload_11c = {
+                    "message": (
+                        "Actualizar estado de "
+                        f"{evaluacion_seleccionada_11c}"
+                    ),
+                    "content": contenido_base64_11c,
+                    "branch": GITHUB_RAMA_11C
+                }
+
+
+                if sha_11c:
+
+                    payload_11c[
+                        "sha"
+                    ] = sha_11c
+
+
+                # =================================================
+                # PERSISTIR
+                # =================================================
+
+                token_11c = st.secrets[
+                    "GITHUB_TOKEN"
+                ]
+
+
+                solicitud_put_11c = (
+                    urllib.request.Request(
+                        url_11c,
+                        data=json.dumps(
+                            payload_11c
+                        ).encode(
+                            "utf-8"
+                        ),
+                        headers={
+                            "Authorization": (
+                                f"Bearer {token_11c}"
+                            ),
+                            "Accept": (
+                                "application/vnd.github+json"
+                            ),
+                            "Content-Type": (
+                                "application/json"
+                            )
+                        },
+                        method="PUT"
+                    )
+                )
+
+
+                try:
+
+                    with urllib.request.urlopen(
+                        solicitud_put_11c,
+                        timeout=30
+                    ) as respuesta_put_11c:
+
+                        resultado_put_11c = json.loads(
+                            respuesta_put_11c
+                            .read()
+                            .decode(
+                                "utf-8"
+                            )
+                        )
+
+
+                    st.success(
+                        f"La evaluación "
+                        f"{evaluacion_seleccionada_11c} "
+                        f"quedó en estado "
+                        f"{nuevo_estado_11c}."
+                    )
+
+
+                    st.rerun()
+
+
+                except urllib.error.HTTPError as error:
+
+                    detalle_error_11c = (
+                        error.read()
+                        .decode(
+                            "utf-8",
+                            errors="replace"
+                        )
+                    )
+
+
+                    st.error(
+                        "No fue posible actualizar "
+                        "el estado de la evaluación "
+                        "en GitHub."
+                    )
+
+
+                    st.code(
+                        detalle_error_11c
+                    )
+
+
+                except Exception as error:
+
+                    st.error(
+                        "Ocurrió un error al actualizar "
+                        "el estado de la evaluación."
+                    )
+
+
+                    st.code(
+                        str(error)
+                    )
