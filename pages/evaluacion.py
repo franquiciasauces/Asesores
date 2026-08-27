@@ -24234,9 +24234,9 @@ else:
             )
 
 
-            # ================================================
+            # =================================================
             # CÁLCULOS
-            # ================================================
+            # =================================================
 
             evaluaciones_10[
                 "Evaluaciones_Completas"
@@ -24256,13 +24256,14 @@ else:
             )
 
 
-            # ================================================
+            # =================================================
             # ESTADO DE LA COLA
-            # ================================================
+            # =================================================
 
             def estado_cola(cantidad):
 
                 if cantidad == 0:
+
                     return "Sin preguntas en cola"
 
                 return "Cola incompleta"
@@ -24278,9 +24279,9 @@ else:
             )
 
 
-            # ================================================
+            # =================================================
             # MOSTRAR RESULTADO
-            # ================================================
+            # =================================================
 
             st.dataframe(
                 evaluaciones_10[
@@ -24298,9 +24299,9 @@ else:
             )
 
 
-            # ================================================
+            # =================================================
             # RESUMEN DE CAPACIDAD
-            # ================================================
+            # =================================================
 
             total_evaluaciones = int(
                 evaluaciones_10[
@@ -24366,7 +24367,6 @@ df_disponibilidad_102 = (
 # ============================================================
 # 10.2.D QUEDA EN ESPERA SI 10.2.B TODAVÍA NO EXISTE
 #
-# IMPORTANTE:
 # NO UTILIZAR st.stop()
 # ============================================================
 
@@ -24382,900 +24382,178 @@ if df_disponibilidad_102.empty:
 else:
 
     # ========================================================
-    # AQUÍ CONTINÚA EL RESTO DEL CÓDIGO ORIGINAL DE 10.2.D
+    # CONFIGURACIÓN DE GITHUB
     # ========================================================
 
-# ============================================================
-# CONFIGURACIÓN DE GITHUB
-# ============================================================
+    GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
 
-GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
+    GITHUB_USUARIO = "franquiciasauces"
 
-GITHUB_USUARIO = "franquiciasauces"
+    GITHUB_REPOSITORIO = "Asesores"
 
-GITHUB_REPOSITORIO = "Asesores"
+    GITHUB_RAMA = "main"
 
-GITHUB_RAMA = "main"
 
+    # ========================================================
+    # UBICACIÓN DEL ARCHIVO
+    #
+    # SE GUARDA EN LA CARPETA DE EVALUACIÓN
+    # ========================================================
 
-# ============================================================
-# UBICACIÓN DEL ARCHIVO
-#
-# SE GUARDA EN LA CARPETA DE EVALUACIÓN
-# ============================================================
-
-ARCHIVO_GITHUB = (
-    "evaluacion/BANCODISPONIBLE_102.csv"
-)
-
-
-# ============================================================
-# CONVERTIR DATAFRAME A CSV
-# ============================================================
-
-csv_data = df_disponibilidad_102.to_csv(
-    index=False,
-    encoding="utf-8-sig"
-)
-
-
-contenido_base64 = base64.b64encode(
-    csv_data.encode("utf-8-sig")
-).decode("utf-8")
-
-
-# ============================================================
-# API DE GITHUB
-# ============================================================
-
-url = (
-    f"https://api.github.com/repos/"
-    f"{GITHUB_USUARIO}/"
-    f"{GITHUB_REPOSITORIO}/"
-    f"contents/{ARCHIVO_GITHUB}"
-)
-
-
-headers = {
-    "Authorization": f"Bearer {GITHUB_TOKEN}",
-    "Accept": "application/vnd.github+json"
-}
-
-
-# ============================================================
-# COMPROBAR SI EL ARCHIVO YA EXISTE
-# ============================================================
-
-respuesta_existencia = requests.get(
-    url,
-    headers=headers,
-    params={"ref": GITHUB_RAMA},
-    timeout=30
-)
-
-
-sha = None
-
-if respuesta_existencia.status_code == 200:
-
-    datos_existencia = (
-        respuesta_existencia.json()
-    )
-
-    sha = datos_existencia.get("sha")
-
-elif respuesta_existencia.status_code != 404:
-
-    st.error(
-        "No fue posible comprobar la existencia de "
-        "BANCODISPONIBLE_102.csv en GitHub.\n\n"
-        f"Código HTTP: {respuesta_existencia.status_code}"
-    )
-
-    st.stop()
-
-
-# ============================================================
-# PREPARAR ACTUALIZACIÓN / CREACIÓN
-# ============================================================
-
-payload = {
-    "message": (
-        "Actualizar BANCODISPONIBLE_102.csv"
-    ),
-    "content": contenido_base64,
-    "branch": GITHUB_RAMA
-}
-
-
-# Si el archivo ya existe, GitHub exige su SHA
-if sha is not None:
-
-    payload["sha"] = sha
-
-
-# ============================================================
-# PERSISTIR EN GITHUB
-# ============================================================
-
-respuesta = requests.put(
-    url,
-    headers=headers,
-    json=payload,
-    timeout=30
-)
-
-
-# ============================================================
-# RESULTADO
-# ============================================================
-
-if respuesta.status_code in [200, 201]:
-
-    st.success(
-        "BANCODISPONIBLE_102.csv fue persistido "
-        "correctamente en la carpeta de evaluación."
-    )
-
-    st.write(
-        f"Registros persistidos: "
-        f"{len(df_disponibilidad_102):,}"
-    )
-
-    st.write(
-        f"Ubicación: `{ARCHIVO_GITHUB}`"
-    )
-
-else:
-
-    st.error(
-        "No fue posible persistir "
-        "BANCODISPONIBLE_102.csv en GitHub."
-    )
-
-    st.code(
-        respuesta.text
-    )
-# ============================================================
-# 10.3.A - GENERADOR DE EVALUACIONES
-# ============================================================
-
-import streamlit as st
-import pandas as pd
-import re
-
-
-st.markdown("## 10.3.A - Generador de evaluaciones")
-
-
-# ============================================================
-# 1. TOMAR EL DATAFRAME DE DISPONIBILIDAD GENERADO POR 10.2
-# ============================================================
-
-df_disponibilidad_102 = st.session_state.get(
-    "df_disponibilidad_102",
-    pd.DataFrame()
-)
-
-
-if df_disponibilidad_102.empty:
-
-    st.warning(
-        "No existe df_disponibilidad_102. "
-        "Primero debe ejecutarse 10.2."
-    )
-
-    st.stop()
-
-
-df = df_disponibilidad_102.copy()
-
-
-# ============================================================
-# 2. TOMAR EVALUACIONES YA EXISTENTES
-#
-# EVALUACIONES.csv YA FUE CARGADO POR 10.1.
-# NO SE VUELVE A CARGAR.
-# ============================================================
-
-df_evaluaciones_101 = st.session_state.get(
-    "df_evaluaciones_101",
-    pd.DataFrame()
-)
-
-
-# ============================================================
-# 3. VALIDAR CAMPOS NECESARIOS
-# ============================================================
-
-campos_necesarios = [
-    "Pregunta_ID",
-    "Modulo",
-    "Tipo_Relacion",
-    "Nivel",
-    "Pregunta",
-    "Respuesta_1",
-    "Respuesta_2",
-    "Respuesta_3",
-    "Respuesta_4",
-    "Respuesta_Correcta",
-    "Estado_Uso"
-]
-
-
-faltantes = [
-    campo
-    for campo in campos_necesarios
-    if campo not in df.columns
-]
-
-
-if faltantes:
-
-    st.error(
-        "Faltan campos necesarios en "
-        "df_disponibilidad_102: "
-        + ", ".join(faltantes)
-    )
-
-    st.stop()
-
-
-# ============================================================
-# 4. NORMALIZAR ESTADO_USO
-#
-# VACÍO      = PREGUNTA DISPONIBLE PARA GENERAR
-# USADA      = NO UTILIZAR
-# DISPONIBLE = NO UTILIZAR
-# ============================================================
-
-df["Estado_Uso"] = (
-    df["Estado_Uso"]
-    .fillna("")
-    .astype(str)
-    .str.strip()
-    .str.upper()
-)
-
-
-# ============================================================
-# 5. FILTRAR ÚNICAMENTE PREGUNTAS DISPONIBLES
-# ============================================================
-
-df_disponibles = df[
-    df["Estado_Uso"].eq("")
-].copy()
-
-
-st.info(
-    f"Preguntas disponibles para generar evaluaciones: "
-    f"{len(df_disponibles):,}"
-)
-
-
-# ============================================================
-# 6. FUNCIÓN PARA OBTENER EL CONSECUTIVO GLOBAL
-#
-# EL NÚMERO NO DEPENDE DEL MÓDULO, RELACIÓN NI NIVEL.
-#
-# SE REVISA EVALUACIONES.csv CARGADO POR 10.1.
-#
-# EJEMPLO:
-#
-# Patologias_Sintomas_Patologia_Nivel 1_0001
-# Productos_Acciones_Nivel 2_0002
-# Patologias_Causa_Nivel 1_0003
-#
-# LA SIGUIENTE SIEMPRE SERÁ 0004.
-# ============================================================
-
-def obtener_siguiente_consecutivo_103(
-    df_evaluaciones
-):
-
-    if (
-        df_evaluaciones is None
-        or df_evaluaciones.empty
-        or "Evaluacion_ID"
-        not in df_evaluaciones.columns
-    ):
-
-        return 1
-
-
-    maximo = 0
-
-
-    ids = (
-        df_evaluaciones["Evaluacion_ID"]
-        .fillna("")
-        .astype(str)
-        .str.strip()
+    ARCHIVO_GITHUB = (
+        "evaluacion/BANCODISPONIBLE_102.csv"
     )
 
 
-    for evaluacion_id in ids:
+    # ========================================================
+    # CONVERTIR DATAFRAME A CSV
+    # ========================================================
 
-        if evaluacion_id == "":
-            continue
+    csv_data = df_disponibilidad_102.to_csv(
+        index=False,
+        encoding="utf-8-sig"
+    )
 
 
-        coincidencia = re.search(
-            r"_(\d+)\s*$",
-            evaluacion_id
+    contenido_base64 = base64.b64encode(
+        csv_data.encode("utf-8-sig")
+    ).decode("utf-8")
+
+
+    # ========================================================
+    # API DE GITHUB
+    # ========================================================
+
+    url = (
+        f"https://api.github.com/repos/"
+        f"{GITHUB_USUARIO}/"
+        f"{GITHUB_REPOSITORIO}/"
+        f"contents/{ARCHIVO_GITHUB}"
+    )
+
+
+    headers = {
+        "Authorization": f"Bearer {GITHUB_TOKEN}",
+        "Accept": "application/vnd.github+json"
+    }
+
+
+    # ========================================================
+    # COMPROBAR SI EL ARCHIVO YA EXISTE
+    # ========================================================
+
+    respuesta_existencia = requests.get(
+        url,
+        headers=headers,
+        params={
+            "ref": GITHUB_RAMA
+        },
+        timeout=30
+    )
+
+
+    sha = None
+
+
+    if respuesta_existencia.status_code == 200:
+
+        datos_existencia = (
+            respuesta_existencia.json()
+        )
+
+        sha = datos_existencia.get(
+            "sha"
         )
 
 
-        if coincidencia:
-
-            numero = int(
-                coincidencia.group(1)
-            )
-
-            if numero > maximo:
-                maximo = numero
-
-
-    return maximo + 1
-
-
-# ============================================================
-# 7. SELECCIONAR MÓDULO
-# ============================================================
-
-modulos = sorted(
-    df_disponibles["Modulo"]
-    .dropna()
-    .astype(str)
-    .str.strip()
-    .unique()
-    .tolist()
-)
-
-
-if not modulos:
-
-    st.warning(
-        "No existen preguntas disponibles para "
-        "generar evaluaciones."
-    )
-
-    st.stop()
-
-
-modulo_seleccionado = st.selectbox(
-    "Seleccione el módulo",
-    modulos,
-    key="generador_103_modulo"
-)
-
-
-# ============================================================
-# 8. FILTRAR POR MÓDULO
-# ============================================================
-
-df_modulo = df_disponibles[
-    df_disponibles["Modulo"]
-    .astype(str)
-    .str.strip()
-    .eq(modulo_seleccionado)
-].copy()
-
-
-# ============================================================
-# 9. SELECCIONAR TIPO DE RELACIÓN
-# ============================================================
-
-relaciones = sorted(
-    df_modulo["Tipo_Relacion"]
-    .dropna()
-    .astype(str)
-    .str.strip()
-    .unique()
-    .tolist()
-)
-
-
-if not relaciones:
-
-    st.warning(
-        "No existen relaciones disponibles para "
-        "el módulo seleccionado."
-    )
-
-    st.stop()
-
-
-relacion_seleccionada = st.selectbox(
-    "Seleccione el tipo de relación",
-    relaciones,
-    key="generador_103_relacion"
-)
-
-
-# ============================================================
-# 10. FILTRAR POR MÓDULO Y RELACIÓN
-# ============================================================
-
-df_relacion = df_modulo[
-    df_modulo["Tipo_Relacion"]
-    .astype(str)
-    .str.strip()
-    .eq(relacion_seleccionada)
-].copy()
-
-
-# ============================================================
-# 11. SELECCIONAR NIVEL
-# ============================================================
-
-niveles = sorted(
-    df_relacion["Nivel"]
-    .dropna()
-    .astype(str)
-    .str.strip()
-    .unique()
-    .tolist()
-)
-
-
-if not niveles:
-
-    st.warning(
-        "No existen niveles disponibles para "
-        "la combinación seleccionada."
-    )
-
-    st.stop()
-
-
-nivel_seleccionado = st.selectbox(
-    "Seleccione el nivel",
-    niveles,
-    key="generador_103_nivel"
-)
-
-
-# ============================================================
-# 12. FILTRAR COMBINACIÓN FINAL
-# ============================================================
-
-df_candidatas = df_relacion[
-    df_relacion["Nivel"]
-    .astype(str)
-    .str.strip()
-    .eq(nivel_seleccionado)
-].copy()
-
-
-# ============================================================
-# 13. ELIMINAR DUPLICADOS DE PREGUNTA
-# ============================================================
-
-df_candidatas = (
-    df_candidatas
-    .drop_duplicates(
-        subset=["Pregunta_ID"],
-        keep="first"
-    )
-    .reset_index(drop=True)
-)
-
-
-cantidad_candidatas = len(
-    df_candidatas
-)
-
-
-# ============================================================
-# 14. MOSTRAR DISPONIBILIDAD
-# ============================================================
-
-st.markdown(
-    "### Disponibilidad de la combinación seleccionada"
-)
-
-
-c1, c2, c3, c4 = st.columns(4)
-
-
-with c1:
-
-    st.metric(
-        "Módulo",
-        modulo_seleccionado
-    )
-
-
-with c2:
-
-    st.metric(
-        "Relación",
-        relacion_seleccionada
-    )
-
-
-with c3:
-
-    st.metric(
-        "Nivel",
-        nivel_seleccionado
-    )
-
-
-with c4:
-
-    st.metric(
-        "Preguntas disponibles",
-        cantidad_candidatas
-    )
-
-
-# ============================================================
-# 15. SI NO HAY PREGUNTAS
-# ============================================================
-
-if cantidad_candidatas == 0:
-
-    st.error(
-        "No hay preguntas disponibles para esta "
-        "combinación de módulo, relación y nivel."
-    )
-
-    st.stop()
-
-
-# ============================================================
-# 16. DETERMINAR CANTIDAD DE PREGUNTAS
-# ============================================================
-
-if cantidad_candidatas < 10:
-
-    st.warning(
-        f"Hay solamente {cantidad_candidatas} preguntas "
-        f"disponibles para esta combinación. "
-        f"Una evaluación completa requiere 10."
-    )
-
-
-    aceptar_incompleta = st.checkbox(
-        f"Generar la evaluación con las "
-        f"{cantidad_candidatas} preguntas disponibles.",
-        key="aceptar_evaluacion_incompleta_103"
-    )
-
-
-    cantidad_generar = cantidad_candidatas
-
-
-else:
-
-    aceptar_incompleta = True
-
-    cantidad_generar = 10
-
-
-# ============================================================
-# 17. BOTÓN DE GENERACIÓN
-# ============================================================
-
-if cantidad_candidatas >= 10:
-
-    texto_boton = (
-        "Generar evaluación de 10 preguntas"
-    )
-
-else:
-
-    texto_boton = (
-        f"Generar evaluación con "
-        f"{cantidad_candidatas} preguntas"
-    )
-
-
-generar = st.button(
-    texto_boton,
-    type="primary",
-    disabled=not aceptar_incompleta,
-    key="generar_evaluacion_103"
-)
-
-
-# ============================================================
-# 18. GENERAR EVALUACIÓN
-# ============================================================
-
-if generar:
-
-    # --------------------------------------------------------
-    # SELECCIONAR LAS PREGUNTAS
-    # --------------------------------------------------------
-
-    evaluacion = (
-        df_candidatas
-        .sample(
-            n=cantidad_generar,
-            random_state=None
+    elif respuesta_existencia.status_code != 404:
+
+        st.error(
+            "No fue posible comprobar la existencia de "
+            "BANCODISPONIBLE_102.csv en GitHub.\n\n"
+            f"Código HTTP: "
+            f"{respuesta_existencia.status_code}"
         )
-        .reset_index(drop=True)
-        .copy()
-    )
 
 
-    # --------------------------------------------------------
-    # OBTENER CONSECUTIVO GLOBAL
+    # ========================================================
+    # SOLO CONTINUAR CON LA PERSISTENCIA SI:
     #
-    # SE BUSCA EN EVALUACIONES.csv
-    # YA CARGADO POR 10.1.
-    # --------------------------------------------------------
+    # 200 = archivo existente
+    # 404 = archivo todavía no existe
+    # ========================================================
 
-    siguiente_consecutivo = (
-        obtener_siguiente_consecutivo_103(
-            df_evaluaciones_101
+    if respuesta_existencia.status_code in [200, 404]:
+
+        # ====================================================
+        # PREPARAR ACTUALIZACIÓN / CREACIÓN
+        # ====================================================
+
+        payload = {
+            "message": (
+                "Actualizar BANCODISPONIBLE_102.csv"
+            ),
+            "content": contenido_base64,
+            "branch": GITHUB_RAMA
+        }
+
+
+        # ====================================================
+        # SI EL ARCHIVO YA EXISTE,
+        # GITHUB EXIGE SU SHA
+        # ====================================================
+
+        if sha is not None:
+
+            payload["sha"] = sha
+
+
+        # ====================================================
+        # PERSISTIR EN GITHUB
+        # ====================================================
+
+        respuesta = requests.put(
+            url,
+            headers=headers,
+            json=payload,
+            timeout=30
         )
-    )
 
 
-    # --------------------------------------------------------
-    # CONSTRUIR EL EVALUACION_ID
-    #
-    # REGLA:
-    #
-    # MODULO + TIPO_RELACION + NIVEL + NUMERO
-    #
-    # EJEMPLO:
-    #
-    # Patologias_Sintomas_Patologia_Nivel 1_0001
-    # --------------------------------------------------------
+        # ====================================================
+        # RESULTADO
+        # ====================================================
 
-    evaluacion_id = (
-        f"{str(modulo_seleccionado).strip()}_"
-        f"{str(relacion_seleccionada).strip()}_"
-        f"{str(nivel_seleccionado).strip()}_"
-        f"{siguiente_consecutivo:04d}"
-    )
+        if respuesta.status_code in [200, 201]:
 
-
-    # --------------------------------------------------------
-    # CONTROL DE SEGURIDAD
-    #
-    # SI POR ALGUNA RAZÓN EL ID YA EXISTE,
-    # AVANZA AL SIGUIENTE NÚMERO.
-    # --------------------------------------------------------
-
-    while True:
-
-        existe_id = False
-
-
-        if (
-            not df_evaluaciones_101.empty
-            and "Evaluacion_ID"
-            in df_evaluaciones_101.columns
-        ):
-
-            existe_id = (
-                df_evaluaciones_101[
-                    "Evaluacion_ID"
-                ]
-                .fillna("")
-                .astype(str)
-                .str.strip()
-                .eq(evaluacion_id)
-                .any()
+            st.success(
+                "BANCODISPONIBLE_102.csv fue persistido "
+                "correctamente en la carpeta de evaluación."
             )
 
 
-        if not existe_id:
+            st.write(
+                f"Registros persistidos: "
+                f"{len(df_disponibilidad_102):,}"
+            )
 
-            break
 
+            st.write(
+                f"Ubicación: `{ARCHIVO_GITHUB}`"
+            )
 
-        siguiente_consecutivo += 1
 
+        else:
 
-        evaluacion_id = (
-            f"{str(modulo_seleccionado).strip()}_"
-            f"{str(relacion_seleccionada).strip()}_"
-            f"{str(nivel_seleccionado).strip()}_"
-            f"{siguiente_consecutivo:04d}"
-        )
+            st.error(
+                "No fue posible persistir "
+                "BANCODISPONIBLE_102.csv en GitHub."
+            )
 
 
-    # --------------------------------------------------------
-    # ASIGNAR Evaluacion_ID
-    #
-    # SI YA EXISTE LA COLUMNA, SE REEMPLAZA.
-    # NUNCA SE UTILIZA insert() SOBRE UNA COLUMNA EXISTENTE.
-    # --------------------------------------------------------
-
-    evaluacion["Evaluacion_ID"] = evaluacion_id
-
-
-    # --------------------------------------------------------
-    # COLOCAR Evaluacion_ID COMO PRIMERA COLUMNA
-    # --------------------------------------------------------
-
-    columnas = [
-        columna
-        for columna in evaluacion.columns
-        if columna != "Evaluacion_ID"
-    ]
-
-
-    evaluacion = evaluacion[
-        ["Evaluacion_ID"] + columnas
-    ].copy()
-
-
-    # --------------------------------------------------------
-    # ESTADO TEMPORAL DE VALIDACIÓN
-    # --------------------------------------------------------
-
-    evaluacion["Estado_Validacion"] = (
-        "PENDIENTE"
-    )
-
-
-    # --------------------------------------------------------
-    # GUARDAR TEMPORALMENTE PARA EL VALIDADOR
-    # --------------------------------------------------------
-
-    st.session_state[
-        "evaluacion_generada_103"
-    ] = evaluacion.copy()
-
-
-    st.session_state[
-        "evaluacion_id_103"
-    ] = evaluacion_id
-
-
-    st.session_state[
-        "evaluacion_modulo_103"
-    ] = modulo_seleccionado
-
-
-    st.session_state[
-        "evaluacion_relacion_103"
-    ] = relacion_seleccionada
-
-
-    st.session_state[
-        "evaluacion_nivel_103"
-    ] = nivel_seleccionado
-
-
-    # --------------------------------------------------------
-    # MENSAJE DE GENERACIÓN
-    # --------------------------------------------------------
-
-    if cantidad_generar == 10:
-
-        st.success(
-            "Evaluación de 10 preguntas generada "
-            "correctamente."
-        )
-
-    else:
-
-        st.warning(
-            f"Se generó una evaluación con "
-            f"{cantidad_generar} preguntas porque "
-            f"solamente había {cantidad_generar} disponibles. "
-            f"No se realizó ningún reemplazo."
-        )
-
-
-    st.info(
-        f"Evaluacion_ID: {evaluacion_id}"
-    )
-
-
-# ============================================================
-# 19. MOSTRAR EVALUACIÓN GENERADA
-# ============================================================
-
-evaluacion_generada = st.session_state.get(
-    "evaluacion_generada_103",
-    pd.DataFrame()
-)
-
-
-if not evaluacion_generada.empty:
-
-    st.markdown(
-        "### Evaluación generada"
-    )
-
-
-    # ========================================================
-    # IDENTIFICACIÓN
-    # ========================================================
-
-    evaluacion_id_mostrar = str(
-        evaluacion_generada[
-            "Evaluacion_ID"
-        ].iloc[0]
-    ).strip()
-
-
-    st.success(
-        f"**Evaluacion_ID:** "
-        f"{evaluacion_id_mostrar}"
-    )
-
-
-    c1, c2, c3 = st.columns(3)
-
-
-    with c1:
-
-        st.write(
-            f"**Módulo:** "
-            f"{evaluacion_generada['Modulo'].iloc[0]}"
-        )
-
-
-    with c2:
-
-        st.write(
-            f"**Relación:** "
-            f"{evaluacion_generada['Tipo_Relacion'].iloc[0]}"
-        )
-
-
-    with c3:
-
-        st.write(
-            f"**Nivel:** "
-            f"{evaluacion_generada['Nivel'].iloc[0]}"
-        )
-
-
-    st.write(
-        f"**Preguntas generadas:** "
-        f"{len(evaluacion_generada)}"
-    )
-
-
-    st.write(
-        "**Estado:** PENDIENTE DE VALIDACIÓN"
-    )
-
-
-    # ========================================================
-    # VISUALIZACIÓN DE LAS PREGUNTAS
-    # ========================================================
-
-    columnas_visualizacion = [
-        "Evaluacion_ID",
-        "Pregunta_ID",
-        "Pregunta",
-        "Respuesta_1",
-        "Respuesta_2",
-        "Respuesta_3",
-        "Respuesta_4",
-        "Respuesta_Correcta",
-        "Estado_Uso",
-        "Estado_Validacion"
-    ]
-
-
-    columnas_visualizacion = [
-        columna
-        for columna in columnas_visualizacion
-        if columna in evaluacion_generada.columns
-    ]
-
-
-    st.dataframe(
-        evaluacion_generada[
-            columnas_visualizacion
-        ],
-        use_container_width=True,
-        hide_index=True
-    )
+            st.code(
+                respuesta.text
+            )
 
 
 
