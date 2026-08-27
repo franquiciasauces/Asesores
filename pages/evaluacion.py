@@ -24061,42 +24061,304 @@ else:
 
 
 # ============================================================
-
-
 # ============================================================
-# 11.A - CARGA DE PERMANENCIA
+# 11.A - GENERADOR MANUAL DE PREGUNTAS ESPECIALES / CONTROLADAS
 # ============================================================
 
 st.divider()
 
-st.markdown("## 11.A - Carga de permanencia")
+st.markdown(
+    "## 11.A - Generador manual de preguntas especiales / controladas"
+)
+
+st.caption(
+    "Las preguntas se construyen manualmente y reciben un "
+    "código único. Posteriormente podrán ser asociadas a "
+    "una evaluación controlada mediante Evaluacion_ID."
+)
 
 
 # ============================================================
-# TOMAR LA PERMANENCIA DESDE SESSION_STATE
+# INICIALIZAR REGISTRO TEMPORAL DE PREGUNTAS ESPECIALES
 #
-# 11.A NO SOLICITA ARCHIVOS DESDE EL PC.
+# ESTE REGISTRO ES INDEPENDIENTE DEL BANCO DEL MÓDULO 10.
 # ============================================================
 
-df_11a = st.session_state.get(
-    "df_permanencia_11a",
-    pd.DataFrame()
-).copy()
+if "preguntas_especiales_11a" not in st.session_state:
+
+    st.session_state[
+        "preguntas_especiales_11a"
+    ] = pd.DataFrame(
+        columns=[
+            "Pregunta_Especial_ID",
+            "Tipo_Especial",
+            "Nivel",
+            "Tema",
+            "Pregunta",
+            "Respuesta_1",
+            "Respuesta_2",
+            "Respuesta_3",
+            "Respuesta_4",
+            "Respuesta_Correcta",
+            "Evaluacion_ID"
+        ]
+    )
+
+
+df_11a = st.session_state[
+    "preguntas_especiales_11a"
+].copy()
 
 
 # ============================================================
-# SI EXISTE LA PERMANENCIA
+# FUNCIÓN PARA GENERAR CÓDIGO ÚNICO
 # ============================================================
+
+def siguiente_id_11a(df):
+
+    if (
+        df is None
+        or df.empty
+        or "Pregunta_Especial_ID" not in df.columns
+    ):
+
+        return 1
+
+    maximo = 0
+
+    ids = (
+        df["Pregunta_Especial_ID"]
+        .fillna("")
+        .astype(str)
+        .str.strip()
+    )
+
+    for valor in ids:
+
+        coincidencia = re.search(
+            r"(\d+)$",
+            valor
+        )
+
+        if coincidencia:
+
+            numero = int(
+                coincidencia.group(1)
+            )
+
+            if numero > maximo:
+                maximo = numero
+
+    return maximo + 1
+
+
+# ============================================================
+# FORMULARIO DE GENERACIÓN
+# ============================================================
+
+st.markdown(
+    "### Nueva pregunta especial / controlada"
+)
+
+
+tipo_especial = st.selectbox(
+    "Tipo de pregunta",
+    [
+        "Producto",
+        "Patología",
+        "Restricciones",
+        "Otros"
+    ],
+    key="tipo_especial_11a"
+)
+
+
+nivel = st.selectbox(
+    "Nivel",
+    [
+        "Nivel 1",
+        "Nivel 2"
+    ],
+    key="nivel_especial_11a"
+)
+
+
+tema = st.text_input(
+    "Tema",
+    key="tema_especial_11a"
+)
+
+
+pregunta = st.text_area(
+    "Pregunta",
+    key="pregunta_especial_11a"
+)
+
+
+st.markdown(
+    "### Respuestas"
+)
+
+
+respuesta_1 = st.text_input(
+    "Respuesta 1",
+    key="respuesta_1_especial_11a"
+)
+
+
+respuesta_2 = st.text_input(
+    "Respuesta 2",
+    key="respuesta_2_especial_11a"
+)
+
+
+respuesta_3 = st.text_input(
+    "Respuesta 3",
+    key="respuesta_3_especial_11a"
+)
+
+
+respuesta_4 = st.text_input(
+    "Respuesta 4",
+    key="respuesta_4_especial_11a"
+)
+
+
+respuesta_correcta = st.selectbox(
+    "Respuesta correcta",
+    [
+        "Respuesta 1",
+        "Respuesta 2",
+        "Respuesta 3",
+        "Respuesta 4"
+    ],
+    key="respuesta_correcta_especial_11a"
+)
+
+
+# ============================================================
+# VALIDACIÓN DEL FORMULARIO
+# ============================================================
+
+campos_completos = all(
+    [
+        str(tema).strip(),
+        str(pregunta).strip(),
+        str(respuesta_1).strip(),
+        str(respuesta_2).strip(),
+        str(respuesta_3).strip(),
+        str(respuesta_4).strip()
+    ]
+)
+
+
+# ============================================================
+# BOTÓN GUARDAR
+# ============================================================
+
+guardar_11a = st.button(
+    "GUARDAR PREGUNTA ESPECIAL",
+    type="primary",
+    disabled=not campos_completos,
+    key="guardar_pregunta_especial_11a"
+)
+
+
+# ============================================================
+# GUARDAR PREGUNTA
+# ============================================================
+
+if guardar_11a:
+
+    siguiente = siguiente_id_11a(
+        df_11a
+    )
+
+    pregunta_id = (
+        f"ESPECIAL_{siguiente:04d}"
+    )
+
+
+    nuevo_registro = pd.DataFrame(
+        [
+            {
+                "Pregunta_Especial_ID": pregunta_id,
+                "Tipo_Especial": str(
+                    tipo_especial
+                ).strip(),
+                "Nivel": str(
+                    nivel
+                ).strip(),
+                "Tema": str(
+                    tema
+                ).strip(),
+                "Pregunta": str(
+                    pregunta
+                ).strip(),
+                "Respuesta_1": str(
+                    respuesta_1
+                ).strip(),
+                "Respuesta_2": str(
+                    respuesta_2
+                ).strip(),
+                "Respuesta_3": str(
+                    respuesta_3
+                ).strip(),
+                "Respuesta_4": str(
+                    respuesta_4
+                ).strip(),
+                "Respuesta_Correcta": str(
+                    respuesta_correcta
+                ).strip(),
+                "Evaluacion_ID": ""
+            }
+        ]
+    )
+
+
+    df_11a = pd.concat(
+        [
+            df_11a,
+            nuevo_registro
+        ],
+        ignore_index=True
+    )
+
+
+    st.session_state[
+        "preguntas_especiales_11a"
+    ] = df_11a.copy()
+
+
+    st.success(
+        f"Pregunta especial guardada correctamente. "
+        f"Código: {pregunta_id}"
+    )
+
+
+    st.info(
+        "La pregunta queda sin Evaluacion_ID. "
+        "Ese campo será asociado posteriormente "
+        "cuando la pregunta forme parte de una "
+        "evaluación controlada."
+    )
+
+
+# ============================================================
+# MOSTRAR PREGUNTAS GENERADAS
+# ============================================================
+
+df_11a = st.session_state[
+    "preguntas_especiales_11a"
+].copy()
+
 
 if not df_11a.empty:
 
-    st.success(
-        "Permanencia cargada correctamente."
+    st.markdown(
+        "### Preguntas especiales generadas"
     )
 
-    st.write(
-        f"Registros de permanencia: **{len(df_11a):,}**"
-    )
 
     st.dataframe(
         df_11a,
@@ -24105,18 +24367,14 @@ if not df_11a.empty:
     )
 
 
-# ============================================================
-# SI TODAVÍA NO EXISTE
-#
-# NO PEDIR ARCHIVO DESDE EL PC.
-# NO UTILIZAR st.stop().
-# NO BLOQUEAR EL RESTO DEL APLICATIVO.
-# ============================================================
-
+    st.caption(
+        f"Preguntas especiales registradas: "
+        f"{len(df_11a):,}"
+    )
 else:
 
     st.info(
-        "La permanencia todavía no está disponible. "
-        "11.A utilizará la permanencia desde la fuente "
-        "persistente del aplicativo."
+        "Todavía no se han generado preguntas "
+        "especiales/controladas."
     )
+
