@@ -10629,7 +10629,7 @@ if (
     
 
 
-```python
+
 # ============================================================
 # GESTIONEJECUCIONEVALUACION
 # PARTE 1 — ACCESO A EVALUACIONES CONTROLADAS
@@ -11200,5 +11200,5 @@ if (
                     f"{preguntas_respondidas} de "
                     f"{total_preguntas}"
                 )
-```
+
 
