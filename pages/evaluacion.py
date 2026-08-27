@@ -1114,95 +1114,84 @@ try:
     # rerun ni mueve el scroll.
     # ========================================================
 
-    with st.form(
-        "formulario_aprendizaje_54",
-        clear_on_submit=False
+  # ========================================================
+# 16. FORMULARIO
+#
+# La clasificación se realiza únicamente mediante
+# el selector "Clasificación correcta".
+# RESTRICCIÓN y POSOLOGÍA ya son categorías incluidas
+# en categorias_aprendizaje_54 y NO requieren casillas
+# adicionales.
+# ========================================================
+
+with st.form(
+    "formulario_aprendizaje_54",
+    clear_on_submit=False
+):
+
+    validaciones_54 = []
+
+    for posicion, (
+        indice,
+        fila
+    ) in enumerate(
+        lote_actual_54.iterrows()
     ):
 
-        validaciones_54 = []
+        producto = str(
+            fila["Producto"]
+        ).strip()
 
-        for posicion, (
-            indice,
-            fila
-        ) in enumerate(
-            lote_actual_54.iterrows()
-        ):
+        accion = str(
+            fila["Acción general"]
+        ).strip()
 
-            producto = str(
-                fila["Producto"]
-            ).strip()
+        clasificacion_53 = str(
+            fila["Clasificación"]
+        ).strip()
 
-            accion = str(
-                fila["Acción general"]
-            ).strip()
-
-            clasificacion_53 = str(
-                fila["Clasificación"]
-            ).strip()
-
-            st.markdown(
-                f"**{posicion + 1}. {accion}**"
-            )
-
-            st.caption(
-                f"Producto: {producto}"
-            )
-
-            st.caption(
-                f"Clasificación automática 5.3: "
-                f"**{clasificacion_53}**"
-            )
-
-            clasificacion_manual = st.selectbox(
-                "Clasificación correcta:",
-                [
-                    "Seleccione..."
-                ]
-                + categorias_aprendizaje_54,
-                key=(
-                    f"clasificacion_54_{indice}"
-                )
-            )
-
-            col1, col2 = st.columns(2)
-
-            with col1:
-
-                restriccion = st.checkbox(
-                    "Restricciones",
-                    key=(
-                        f"restriccion_54_{indice}"
-                    )
-                )
-
-            with col2:
-
-                posologia = st.checkbox(
-                    "Posología",
-                    key=(
-                        f"posologia_54_{indice}"
-                    )
-                )
-
-            validaciones_54.append(
-                {
-                    "indice": indice,
-                    "Producto": producto,
-                    "Acción general": accion,
-                    "Clasificación 5.3":
-                        clasificacion_53,
-                    "Validación":
-                        clasificacion_manual,
-                   
-                }
-            )
-
-            st.divider()
-
-        guardar_54 = st.form_submit_button(
-            "💾 Guardar aprendizaje",
-            use_container_width=True
+        st.markdown(
+            f"**{posicion + 1}. {accion}**"
         )
+
+        st.caption(
+            f"Producto: {producto}"
+        )
+
+        st.caption(
+            f"Clasificación automática 5.3: "
+            f"**{clasificacion_53}**"
+        )
+
+        clasificacion_manual = st.selectbox(
+            "Clasificación correcta:",
+            [
+                "Seleccione..."
+            ]
+            + categorias_aprendizaje_54,
+            key=(
+                f"clasificacion_54_{indice}"
+            )
+        )
+
+        validaciones_54.append(
+            {
+                "indice": indice,
+                "Producto": producto,
+                "Acción general": accion,
+                "Clasificación 5.3":
+                    clasificacion_53,
+                "Validación":
+                    clasificacion_manual,
+            }
+        )
+
+        st.divider()
+
+    guardar_54 = st.form_submit_button(
+        "💾 Guardar aprendizaje",
+        use_container_width=True
+    )
 
     # ========================================================
     # 17. GUARDAR APRENDIZAJE
@@ -26534,329 +26523,3 @@ if st.button(
     )
 
 
-# ============================================================
-# 11.A - CONSTRUCTOR DE EVALUACIONES ESPECIALES
-# ============================================================
-
-import streamlit as st
-import pandas as pd
-
-
-st.markdown("## 11.A - Constructor de evaluaciones especiales")
-
-
-# ============================================================
-# INICIALIZAR ESTADOS
-# ============================================================
-
-if "especial_11a_configurada" not in st.session_state:
-    st.session_state["especial_11a_configurada"] = False
-
-if "especial_11a_preguntas" not in st.session_state:
-    st.session_state["especial_11a_preguntas"] = []
-
-if "especial_11a_finalizada" not in st.session_state:
-    st.session_state["especial_11a_finalizada"] = False
-
-
-# ============================================================
-# CONFIGURACIÓN INICIAL
-# ============================================================
-
-if not st.session_state["especial_11a_configurada"]:
-
-    st.markdown("### Nueva evaluación especial")
-
-    modulo = st.selectbox(
-        "Módulo",
-        [
-            "Producto",
-            "Patologia",
-            "Restricciones",
-            "Otros"
-        ],
-        key="especial_11a_modulo"
-    )
-
-    nivel = st.selectbox(
-        "Nivel",
-        [
-            "Nivel 1",
-            "Nivel 2",
-            "Nivel 3",
-            "Nivel 4",
-            "Nivel 5"
-        ],
-        key="especial_11a_nivel"
-    )
-
-    tema = st.text_input(
-        "Tema de la evaluación",
-        key="especial_11a_tema"
-    )
-
-    descripcion = st.text_area(
-        "Descripción de la evaluación",
-        key="especial_11a_descripcion"
-    )
-
-    if st.button(
-        "Iniciar evaluación",
-        type="primary",
-        key="especial_11a_iniciar"
-    ):
-
-        if not tema.strip():
-            st.error("Debe ingresar el tema de la evaluación.")
-
-        elif not descripcion.strip():
-            st.error("Debe ingresar la descripción de la evaluación.")
-
-        else:
-
-            st.session_state["especial_11a_configurada"] = True
-            st.session_state["especial_11a_finalizada"] = False
-            st.session_state["especial_11a_preguntas"] = []
-
-            st.session_state["especial_11a_modulo_valor"] = modulo
-            st.session_state["especial_11a_nivel_valor"] = nivel
-            st.session_state["especial_11a_tema_valor"] = tema.strip()
-            st.session_state["especial_11a_descripcion_valor"] = descripcion.strip()
-
-            st.rerun()
-
-
-# ============================================================
-# CONSTRUCTOR DE PREGUNTAS
-# ============================================================
-
-if st.session_state["especial_11a_configurada"]:
-
-    modulo = st.session_state["especial_11a_modulo_valor"]
-    nivel = st.session_state["especial_11a_nivel_valor"]
-    tema = st.session_state["especial_11a_tema_valor"]
-    descripcion = st.session_state["especial_11a_descripcion_valor"]
-
-    preguntas = st.session_state["especial_11a_preguntas"]
-
-
-    # ========================================================
-    # INFORMACIÓN DE LA EVALUACIÓN
-    # ========================================================
-
-    st.markdown("### Evaluación especial")
-
-    st.write(f"**Módulo:** {modulo}")
-    st.write(f"**Nivel:** {nivel}")
-    st.write(f"**Tema:** {tema}")
-    st.write(f"**Descripción:** {descripcion}")
-
-    st.metric(
-        "Preguntas configuradas",
-        len(preguntas)
-    )
-
-
-    # ========================================================
-    # SI NO ESTÁ FINALIZADA: AGREGAR PREGUNTAS
-    # ========================================================
-
-    if not st.session_state["especial_11a_finalizada"]:
-
-        st.markdown("### Adicionar pregunta")
-
-        with st.form("formulario_especial_11a"):
-
-            pregunta = st.text_area(
-                "Enunciado de la pregunta"
-            )
-
-            respuesta_1 = st.text_input(
-                "Respuesta 1"
-            )
-
-            respuesta_2 = st.text_input(
-                "Respuesta 2"
-            )
-
-            respuesta_3 = st.text_input(
-                "Respuesta 3"
-            )
-
-            respuesta_4 = st.text_input(
-                "Respuesta 4"
-            )
-
-            respuesta_correcta = st.radio(
-                "Respuesta correcta",
-                ["1", "2", "3", "4"],
-                horizontal=True
-            )
-
-            agregar = st.form_submit_button(
-                "Adicionar pregunta",
-                type="primary"
-            )
-
-
-        # ====================================================
-        # GUARDAR PREGUNTA
-        # ====================================================
-
-        if agregar:
-
-            errores = []
-
-            if not pregunta.strip():
-                errores.append(
-                    "Debe ingresar el enunciado de la pregunta."
-                )
-
-            if not respuesta_1.strip():
-                errores.append(
-                    "Debe ingresar la respuesta 1."
-                )
-
-            if not respuesta_2.strip():
-                errores.append(
-                    "Debe ingresar la respuesta 2."
-                )
-
-            if not respuesta_3.strip():
-                errores.append(
-                    "Debe ingresar la respuesta 3."
-                )
-
-            if not respuesta_4.strip():
-                errores.append(
-                    "Debe ingresar la respuesta 4."
-                )
-
-
-            if errores:
-
-                for error in errores:
-                    st.error(error)
-
-            else:
-
-                numero = len(preguntas) + 1
-
-                nueva_pregunta = {
-                    "Pregunta_Numero": numero,
-                    "Pregunta": pregunta.strip(),
-                    "Respuesta_1": respuesta_1.strip(),
-                    "Respuesta_2": respuesta_2.strip(),
-                    "Respuesta_3": respuesta_3.strip(),
-                    "Respuesta_4": respuesta_4.strip(),
-                    "Respuesta_Correcta": respuesta_correcta
-                }
-
-                st.session_state[
-                    "especial_11a_preguntas"
-                ].append(nueva_pregunta)
-
-                st.success(
-                    f"Pregunta {numero} adicionada correctamente."
-                )
-
-                st.rerun()
-
-
-    # ========================================================
-    # MOSTRAR PREGUNTAS
-    # ========================================================
-
-    if preguntas:
-
-        st.markdown("### Preguntas configuradas")
-
-        for pregunta in preguntas:
-
-            numero = pregunta["Pregunta_Numero"]
-
-            with st.expander(
-                f"Pregunta {numero}",
-                expanded=True
-            ):
-
-                st.write(
-                    pregunta["Pregunta"]
-                )
-
-                st.write(
-                    f"1. {pregunta['Respuesta_1']}"
-                )
-
-                st.write(
-                    f"2. {pregunta['Respuesta_2']}"
-                )
-
-                st.write(
-                    f"3. {pregunta['Respuesta_3']}"
-                )
-
-                st.write(
-                    f"4. {pregunta['Respuesta_4']}"
-                )
-
-                st.success(
-                    "Respuesta correcta: "
-                    + pregunta["Respuesta_Correcta"]
-                )
-
-
-    # ========================================================
-    # TERMINAR EVALUACIÓN
-    # ========================================================
-
-    if (
-        preguntas
-        and not st.session_state["especial_11a_finalizada"]
-    ):
-
-        st.markdown("### Finalizar")
-
-        if st.button(
-            "Terminar configuración de la evaluación",
-            type="primary",
-            key="especial_11a_terminar"
-        ):
-
-            st.session_state[
-                "especial_11a_finalizada"
-            ] = True
-
-            st.rerun()
-
-
-    # ========================================================
-    # EVALUACIÓN FINALIZADA
-    # ========================================================
-
-    if st.session_state["especial_11a_finalizada"]:
-
-        st.markdown("## Evaluación especial configurada")
-
-        st.success(
-            "La evaluación fue construida correctamente "
-            "y permanece disponible temporalmente en la sesión."
-        )
-
-        st.metric(
-            "Total de preguntas",
-            len(preguntas)
-        )
-
-        df_especial_11a = pd.DataFrame(preguntas)
-
-        st.dataframe(
-            df_especial_11a,
-            use_container_width=True,
-            hide_index=True
-        )
-
-        st.info(
-            "La persistencia y sincronización se desarrollarán "
-            "posteriormente."
-        )
