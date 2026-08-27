@@ -24059,83 +24059,162 @@ else:
             )
 
 # ============================================================
-# 11.A - GENERADOR MANUAL DE PREGUNTAS ESPECIALES / CONTROLADAS
+# 11.A - GENERADOR DE EVALUACIONES CONTROLADAS
 # ============================================================
+
+import streamlit as st
+import pandas as pd
+import requests
+import base64
+import io
+import re
+
 
 st.divider()
 
 st.markdown(
-    "## 11.A - Generador manual de preguntas especiales / controladas"
-)
-
-st.caption(
-    "Las preguntas se construyen manualmente y reciben un "
-    "código único. Posteriormente podrán ser asociadas a "
-    "una evaluación controlada mediante Evaluacion_ID."
+    "## 11.A - Generador de evaluaciones controladas"
 )
 
 
 # ============================================================
-# INICIALIZAR REGISTRO TEMPORAL DE PREGUNTAS ESPECIALES
-#
-# ESTE REGISTRO ES INDEPENDIENTE DEL BANCO DEL MÓDULO 10.
+# CONFIGURACIÓN
 # ============================================================
 
-if "preguntas_especiales_11a" not in st.session_state:
+GITHUB_USUARIO_11A = "franquiciasauces"
 
-    st.session_state[
-        "preguntas_especiales_11a"
-    ] = pd.DataFrame(
-        columns=[
-            "Pregunta_Especial_ID",
-            "Tipo_Especial",
-            "Nivel",
-            "Tema",
-            "Pregunta",
-            "Respuesta_1",
-            "Respuesta_2",
-            "Respuesta_3",
-            "Respuesta_4",
-            "Respuesta_Correcta",
-            "Evaluacion_ID"
-        ]
+GITHUB_REPOSITORIO_11A = "Asesores"
+
+GITHUB_RAMA_11A = "main"
+
+ARCHIVO_EVALUACIONES_ESPECIALES_11A = (
+    "page/EVALUACIONES_ESPECIALES.csv"
+)
+
+
+# ============================================================
+# FUNCIONES DE APOYO
+# ============================================================
+
+def leer_evaluaciones_especiales_11a():
+
+    try:
+
+        token = st.secrets["GITHUB_TOKEN"]
+
+    except Exception:
+
+        return pd.DataFrame()
+
+
+    url = (
+        f"https://api.github.com/repos/"
+        f"{GITHUB_USUARIO_11A}/"
+        f"{GITHUB_REPOSITORIO_11A}/contents/"
+        f"{ARCHIVO_EVALUACIONES_ESPECIALES_11A}"
     )
 
 
-df_11a = st.session_state[
-    "preguntas_especiales_11a"
-].copy()
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/vnd.github+json"
+    }
+
+
+    try:
+
+        respuesta = requests.get(
+            url,
+            headers=headers,
+            params={"ref": GITHUB_RAMA_11A},
+            timeout=30
+        )
+
+
+        if respuesta.status_code == 404:
+
+            return pd.DataFrame()
+
+
+        if respuesta.status_code != 200:
+
+            return pd.DataFrame()
+
+
+        datos = respuesta.json()
+
+
+        if "content" not in datos:
+
+            return pd.DataFrame()
+
+
+        contenido = base64.b64decode(
+            datos["content"].replace("\n", "")
+        )
+
+
+        df = pd.read_csv(
+            io.BytesIO(contenido),
+            dtype=str
+        ).fillna("")
+
+
+        return df
+
+
+    except Exception:
+
+        return pd.DataFrame()
 
 
 # ============================================================
-# FUNCIÓN PARA GENERAR CÓDIGO ÚNICO
+# OBTENER SIGUIENTE CÓDIGO
+#
+# FORMATO:
+#
+# EVAL_CONTROLADA_0001
+# EVAL_CONTROLADA_0002
+# EVAL_CONTROLADA_0003
+#
+# EL CONSECUTIVO ES GLOBAL.
+# NO DEPENDE DEL MÓDULO NI DEL TEMA.
 # ============================================================
 
-def siguiente_id_11a(df):
+def obtener_siguiente_evaluacion_11a(
+    df_evaluaciones
+):
 
     if (
-        df is None
-        or df.empty
-        or "Pregunta_Especial_ID" not in df.columns
+        df_evaluaciones is None
+        or df_evaluaciones.empty
+        or "Evaluacion_ID"
+        not in df_evaluaciones.columns
     ):
 
         return 1
 
+
     maximo = 0
 
+
     ids = (
-        df["Pregunta_Especial_ID"]
+        df_evaluaciones[
+            "Evaluacion_ID"
+        ]
         .fillna("")
         .astype(str)
         .str.strip()
     )
 
-    for valor in ids:
+
+    for evaluacion_id in ids:
 
         coincidencia = re.search(
-            r"(\d+)$",
-            valor
+            r"(\d+)\s*$",
+            evaluacion_id
         )
+
 
         if coincidencia:
 
@@ -24143,236 +24222,970 @@ def siguiente_id_11a(df):
                 coincidencia.group(1)
             )
 
+
             if numero > maximo:
+
                 maximo = numero
+
 
     return maximo + 1
 
 
 # ============================================================
-# FORMULARIO DE GENERACIÓN
+# CARGAR PERMANENCIA AUTOMÁTICAMENTE
+#
+# NO SE UTILIZA FILE_UPLOADER.
+# NO SE CARGA NADA DESDE EL PC.
 # ============================================================
 
-st.markdown(
-    "### Nueva pregunta especial / controlada"
-)
+if (
+    "evaluaciones_especiales_11a"
+    not in st.session_state
+):
 
-
-tipo_especial = st.selectbox(
-    "Tipo de pregunta",
-    [
-        "Producto",
-        "Patología",
-        "Restricciones",
-        "Otros"
-    ],
-    key="tipo_especial_11a"
-)
-
-
-nivel = st.selectbox(
-    "Nivel",
-    [
-        "Nivel 1",
-        "Nivel 2"
-    ],
-    key="nivel_especial_11a"
-)
-
-
-tema = st.text_input(
-    "Tema",
-    key="tema_especial_11a"
-)
-
-
-pregunta = st.text_area(
-    "Pregunta",
-    key="pregunta_especial_11a"
-)
-
-
-st.markdown(
-    "### Respuestas"
-)
-
-
-respuesta_1 = st.text_input(
-    "Respuesta 1",
-    key="respuesta_1_especial_11a"
-)
-
-
-respuesta_2 = st.text_input(
-    "Respuesta 2",
-    key="respuesta_2_especial_11a"
-)
-
-
-respuesta_3 = st.text_input(
-    "Respuesta 3",
-    key="respuesta_3_especial_11a"
-)
-
-
-respuesta_4 = st.text_input(
-    "Respuesta 4",
-    key="respuesta_4_especial_11a"
-)
-
-
-respuesta_correcta = st.selectbox(
-    "Respuesta correcta",
-    [
-        "Respuesta 1",
-        "Respuesta 2",
-        "Respuesta 3",
-        "Respuesta 4"
-    ],
-    key="respuesta_correcta_especial_11a"
-)
-
-
-# ============================================================
-# VALIDACIÓN DEL FORMULARIO
-# ============================================================
-
-campos_completos = all(
-    [
-        str(tema).strip(),
-        str(pregunta).strip(),
-        str(respuesta_1).strip(),
-        str(respuesta_2).strip(),
-        str(respuesta_3).strip(),
-        str(respuesta_4).strip()
-    ]
-)
-
-
-# ============================================================
-# BOTÓN GUARDAR
-# ============================================================
-
-guardar_11a = st.button(
-    "GUARDAR PREGUNTA ESPECIAL",
-    type="primary",
-    disabled=not campos_completos,
-    key="guardar_pregunta_especial_11a"
-)
-
-
-# ============================================================
-# GUARDAR PREGUNTA
-# ============================================================
-
-if guardar_11a:
-
-    siguiente = siguiente_id_11a(
-        df_11a
-    )
-
-    pregunta_id = (
-        f"ESPECIAL_{siguiente:04d}"
-    )
-
-
-    nuevo_registro = pd.DataFrame(
-        [
-            {
-                "Pregunta_Especial_ID": pregunta_id,
-                "Tipo_Especial": str(
-                    tipo_especial
-                ).strip(),
-                "Nivel": str(
-                    nivel
-                ).strip(),
-                "Tema": str(
-                    tema
-                ).strip(),
-                "Pregunta": str(
-                    pregunta
-                ).strip(),
-                "Respuesta_1": str(
-                    respuesta_1
-                ).strip(),
-                "Respuesta_2": str(
-                    respuesta_2
-                ).strip(),
-                "Respuesta_3": str(
-                    respuesta_3
-                ).strip(),
-                "Respuesta_4": str(
-                    respuesta_4
-                ).strip(),
-                "Respuesta_Correcta": str(
-                    respuesta_correcta
-                ).strip(),
-                "Evaluacion_ID": ""
-            }
-        ]
-    )
-
-
-    df_11a = pd.concat(
-        [
-            df_11a,
-            nuevo_registro
-        ],
-        ignore_index=True
+    df_evaluaciones_especiales_11a = (
+        leer_evaluaciones_especiales_11a()
     )
 
 
     st.session_state[
-        "preguntas_especiales_11a"
-    ] = df_11a.copy()
-
-
-    st.success(
-        f"Pregunta especial guardada correctamente. "
-        f"Código: {pregunta_id}"
+        "evaluaciones_especiales_11a"
+    ] = (
+        df_evaluaciones_especiales_11a.copy()
     )
 
+
+else:
+
+    df_evaluaciones_especiales_11a = (
+        st.session_state[
+            "evaluaciones_especiales_11a"
+        ].copy()
+    )
+
+
+# ============================================================
+# ESTRUCTURA DE PERMANENCIA
+# ============================================================
+
+columnas_evaluaciones_11a = [
+    "Evaluacion_ID",
+    "Descripcion",
+    "Cantidad_Preguntas",
+    "Preguntas_Creadas",
+    "Estado"
+]
+
+
+if df_evaluaciones_especiales_11a.empty:
+
+    df_evaluaciones_especiales_11a = pd.DataFrame(
+        columns=columnas_evaluaciones_11a
+    )
+
+
+else:
+
+    for columna in columnas_evaluaciones_11a:
+
+        if columna not in df_evaluaciones_especiales_11a.columns:
+
+            df_evaluaciones_especiales_11a[
+                columna
+            ] = ""
+
+
+# ============================================================
+# SECCIÓN 1
+# CREAR NUEVA EVALUACIÓN CONTROLADA
+# ============================================================
+
+st.markdown(
+    "### 1. Crear evaluación controlada"
+)
+
+
+st.write(
+    "Primero cree la evaluación indicando su descripción "
+    "y el número de preguntas que tendrá. "
+    "Después podrá agregar las preguntas manualmente."
+)
+
+
+descripcion_nueva = st.text_input(
+    "Descripción de la evaluación",
+    key="descripcion_nueva_11a"
+)
+
+
+cantidad_nueva = st.number_input(
+    "Cantidad de preguntas que tendrá la evaluación",
+    min_value=1,
+    step=1,
+    value=10,
+    key="cantidad_nueva_11a"
+)
+
+
+crear_evaluacion = st.button(
+    "CREAR EVALUACIÓN CONTROLADA",
+    type="primary",
+    key="crear_evaluacion_controlada_11a"
+)
+
+
+if crear_evaluacion:
+
+    descripcion_limpia = (
+        str(descripcion_nueva)
+        .strip()
+    )
+
+
+    if descripcion_limpia == "":
+
+        st.error(
+            "Debe ingresar la descripción de la evaluación."
+        )
+
+
+    else:
+
+        # ====================================================
+        # OBTENER CONSECUTIVO
+        # ====================================================
+
+        siguiente = (
+            obtener_siguiente_evaluacion_11a(
+                df_evaluaciones_especiales_11a
+            )
+        )
+
+
+        evaluacion_id_nueva = (
+            f"EVAL_CONTROLADA_{siguiente:04d}"
+        )
+
+
+        # ====================================================
+        # CREAR REGISTRO DE LA EVALUACIÓN
+        # ====================================================
+
+        nuevo_registro = pd.DataFrame(
+            [
+                {
+                    "Evaluacion_ID":
+                        evaluacion_id_nueva,
+
+                    "Descripcion":
+                        descripcion_limpia,
+
+                    "Cantidad_Preguntas":
+                        int(cantidad_nueva),
+
+                    "Preguntas_Creadas":
+                        0,
+
+                    "Estado":
+                        "ACTIVA"
+                }
+            ]
+        )
+
+
+        df_evaluaciones_especiales_11a = pd.concat(
+            [
+                df_evaluaciones_especiales_11a,
+                nuevo_registro
+            ],
+            ignore_index=True
+        )
+
+
+        # ====================================================
+        # GUARDAR EN SESSION STATE
+        # ====================================================
+
+        st.session_state[
+            "evaluaciones_especiales_11a"
+        ] = (
+            df_evaluaciones_especiales_11a.copy()
+        )
+
+
+        # ====================================================
+        # ACTIVAR LA EVALUACIÓN PARA AGREGAR PREGUNTAS
+        # ====================================================
+
+        st.session_state[
+            "evaluacion_controlada_activa_11a"
+        ] = evaluacion_id_nueva
+
+
+        st.success(
+            f"Evaluación creada correctamente: "
+            f"{evaluacion_id_nueva}"
+        )
+
+
+        st.rerun()
+
+
+# ============================================================
+# SECCIÓN 2
+# SELECCIONAR EVALUACIÓN CONTROLADA
+# ============================================================
+
+st.markdown(
+    "### 2. Evaluaciones controladas existentes"
+)
+
+
+if df_evaluaciones_especiales_11a.empty:
 
     st.info(
-        "La pregunta queda sin Evaluacion_ID. "
-        "Ese campo será asociado posteriormente "
-        "cuando la pregunta forme parte de una "
-        "evaluación controlada."
+        "Todavía no existen evaluaciones controladas creadas."
     )
 
 
-# ============================================================
-# MOSTRAR PREGUNTAS GENERADAS
-# ============================================================
+else:
 
-df_11a = st.session_state[
-    "preguntas_especiales_11a"
-].copy()
+    # ========================================================
+    # NORMALIZAR CAMPOS
+    # ========================================================
 
-
-if not df_11a.empty:
-
-    st.markdown(
-        "### Preguntas especiales generadas"
+    df_evaluaciones_especiales_11a[
+        "Evaluacion_ID"
+    ] = (
+        df_evaluaciones_especiales_11a[
+            "Evaluacion_ID"
+        ]
+        .fillna("")
+        .astype(str)
+        .str.strip()
     )
 
+
+    df_evaluaciones_especiales_11a[
+        "Estado"
+    ] = (
+        df_evaluaciones_especiales_11a[
+            "Estado"
+        ]
+        .fillna("ACTIVA")
+        .astype(str)
+        .str.strip()
+        .str.upper()
+    )
+
+
+    # ========================================================
+    # MOSTRAR ESTADÍSTICAS
+    # ========================================================
+
+    total_evaluaciones_11a = len(
+        df_evaluaciones_especiales_11a
+    )
+
+
+    activas_11a = int(
+        df_evaluaciones_especiales_11a[
+            "Estado"
+        ]
+        .eq("ACTIVA")
+        .sum()
+    )
+
+
+    inactivas_11a = int(
+        df_evaluaciones_especiales_11a[
+            "Estado"
+        ]
+        .eq("INACTIVA")
+        .sum()
+    )
+
+
+    c1, c2, c3 = st.columns(3)
+
+
+    c1.metric(
+        "Evaluaciones creadas",
+        total_evaluaciones_11a
+    )
+
+
+    c2.metric(
+        "Activas",
+        activas_11a
+    )
+
+
+    c3.metric(
+        "Inactivas",
+        inactivas_11a
+    )
+
+
+    # ========================================================
+    # TABLA
+    # ========================================================
 
     st.dataframe(
-        df_11a,
+        df_evaluaciones_especiales_11a[
+            [
+                "Evaluacion_ID",
+                "Descripcion",
+                "Cantidad_Preguntas",
+                "Preguntas_Creadas",
+                "Estado"
+            ]
+        ],
         use_container_width=True,
         hide_index=True
     )
 
 
-    st.caption(
-        f"Preguntas especiales registradas: "
-        f"{len(df_11a):,}"
+    # ========================================================
+    # SELECCIÓN
+    # ========================================================
+
+    opciones_evaluaciones = (
+        df_evaluaciones_especiales_11a[
+            "Evaluacion_ID"
+        ]
+        .tolist()
     )
-else:
 
-    st.info(
-        "Todavía no se han generado preguntas "
-        "especiales/controladas."
+
+    evaluacion_guardada = st.session_state.get(
+        "evaluacion_controlada_activa_11a",
+        ""
     )
 
 
+    indice_default = 0
+
+
+    if evaluacion_guardada in opciones_evaluaciones:
+
+        indice_default = (
+            opciones_evaluaciones.index(
+                evaluacion_guardada
+            )
+        )
+
+
+    evaluacion_seleccionada = st.selectbox(
+        "Seleccione la evaluación que desea trabajar",
+        opciones_evaluaciones,
+        index=indice_default,
+        key="seleccion_evaluacion_controlada_11a"
+    )
+
+
+    # ========================================================
+    # GUARDAR SELECCIÓN
+    # ========================================================
+
+    st.session_state[
+        "evaluacion_controlada_activa_11a"
+    ] = evaluacion_seleccionada
+
+
+    # ========================================================
+    # DATOS DE LA EVALUACIÓN
+    # ========================================================
+
+    fila_evaluacion = (
+        df_evaluaciones_especiales_11a[
+            df_evaluaciones_especiales_11a[
+                "Evaluacion_ID"
+            ]
+            .eq(evaluacion_seleccionada)
+        ]
+    )
+
+
+    if not fila_evaluacion.empty:
+
+        descripcion_actual = str(
+            fila_evaluacion[
+                "Descripcion"
+            ].iloc[0]
+        )
+
+
+        cantidad_actual = int(
+            pd.to_numeric(
+                fila_evaluacion[
+                    "Cantidad_Preguntas"
+                ].iloc[0],
+                errors="coerce"
+            )
+            if str(
+                fila_evaluacion[
+                    "Cantidad_Preguntas"
+                ].iloc[0]
+            ).strip() != ""
+            else 0
+        )
+
+
+        preguntas_creadas_actual = int(
+            pd.to_numeric(
+                fila_evaluacion[
+                    "Preguntas_Creadas"
+                ].iloc[0],
+                errors="coerce"
+            )
+            if str(
+                fila_evaluacion[
+                    "Preguntas_Creadas"
+                ].iloc[0]
+            ).strip() != ""
+            else 0
+        )
+
+
+        estado_actual = str(
+            fila_evaluacion[
+                "Estado"
+            ].iloc[0]
+        ).strip().upper()
+
+
+        st.markdown(
+            "### Información de la evaluación"
+        )
+
+
+        c1, c2, c3, c4 = st.columns(4)
+
+
+        c1.metric(
+            "Código",
+            evaluacion_seleccionada
+        )
+
+
+        c2.metric(
+            "Preguntas previstas",
+            cantidad_actual
+        )
+
+
+        c3.metric(
+            "Preguntas creadas",
+            preguntas_creadas_actual
+        )
+
+
+        c4.metric(
+            "Estado",
+            estado_actual
+        )
+
+
+        st.write(
+            f"**Descripción:** {descripcion_actual}"
+        )
+
+
+        # ====================================================
+        # CONTROL DE COMPLETITUD
+        # ====================================================
+
+        preguntas_restantes = (
+            cantidad_actual
+            - preguntas_creadas_actual
+        )
+
+
+        if preguntas_restantes > 0:
+
+            st.info(
+                f"Faltan {preguntas_restantes} "
+                f"preguntas por crear."
+            )
+
+        elif preguntas_restantes == 0:
+
+            st.success(
+                "La evaluación ya tiene todas "
+                "las preguntas previstas."
+            )
+
+        else:
+
+            st.warning(
+                "La cantidad de preguntas creadas "
+                "supera la cantidad inicialmente prevista."
+            )
+
+
+        # ====================================================
+        # SECCIÓN 3
+        # AGREGAR PREGUNTA
+        # ====================================================
+
+        st.markdown(
+            "### 3. Agregar pregunta manualmente"
+        )
+
+
+        if estado_actual == "INACTIVA":
+
+            st.warning(
+                "Esta evaluación está INACTIVA. "
+                "No se agregarán nuevas preguntas."
+            )
+
+
+        elif preguntas_restantes <= 0:
+
+            st.success(
+                "La evaluación está completa. "
+                "No es necesario agregar más preguntas."
+            )
+
+
+        else:
+
+            # =================================================
+            # IDENTIFICACIÓN DE LA PREGUNTA
+            # =================================================
+
+            pregunta_texto = st.text_area(
+                "Pregunta",
+                key=(
+                    "pregunta_especial_texto_11a"
+                )
+            )
+
+
+            # =================================================
+            # RESPUESTAS
+            # =================================================
+
+            respuesta_1 = st.text_input(
+                "Respuesta 1",
+                key="respuesta_especial_1_11a"
+            )
+
+
+            respuesta_2 = st.text_input(
+                "Respuesta 2",
+                key="respuesta_especial_2_11a"
+            )
+
+
+            respuesta_3 = st.text_input(
+                "Respuesta 3",
+                key="respuesta_especial_3_11a"
+            )
+
+
+            respuesta_4 = st.text_input(
+                "Respuesta 4",
+                key="respuesta_especial_4_11a"
+            )
+
+
+            respuesta_correcta = st.selectbox(
+                "Respuesta correcta",
+                [
+                    "Respuesta 1",
+                    "Respuesta 2",
+                    "Respuesta 3",
+                    "Respuesta 4"
+                ],
+                key=(
+                    "respuesta_correcta_especial_11a"
+                )
+            )
+
+
+            # =================================================
+            # BOTÓN
+            # =================================================
+
+            agregar_pregunta = st.button(
+                "AGREGAR PREGUNTA A LA EVALUACIÓN",
+                type="primary",
+                key="agregar_pregunta_especial_11a"
+            )
+
+
+            if agregar_pregunta:
+
+                errores_pregunta = []
+
+
+                if not str(
+                    pregunta_texto
+                ).strip():
+
+                    errores_pregunta.append(
+                        "Debe ingresar la pregunta."
+                    )
+
+
+                if not str(
+                    respuesta_1
+                ).strip():
+
+                    errores_pregunta.append(
+                        "Debe ingresar la Respuesta 1."
+                    )
+
+
+                if not str(
+                    respuesta_2
+                ).strip():
+
+                    errores_pregunta.append(
+                        "Debe ingresar la Respuesta 2."
+                    )
+
+
+                if not str(
+                    respuesta_3
+                ).strip():
+
+                    errores_pregunta.append(
+                        "Debe ingresar la Respuesta 3."
+                    )
+
+
+                if not str(
+                    respuesta_4
+                ).strip():
+
+                    errores_pregunta.append(
+                        "Debe ingresar la Respuesta 4."
+                    )
+
+
+                if errores_pregunta:
+
+                    for error in errores_pregunta:
+
+                        st.error(error)
+
+
+                else:
+
+                    # =========================================
+                    # CARGAR LAS PREGUNTAS TEMPORALES
+                    # =========================================
+
+                    clave_preguntas = (
+                        f"preguntas_"
+                        f"{evaluacion_seleccionada}"
+                        f"_11a"
+                    )
+
+
+                    if clave_preguntas not in st.session_state:
+
+                        st.session_state[
+                            clave_preguntas
+                        ] = pd.DataFrame(
+                            columns=[
+                                "Evaluacion_ID",
+                                "Pregunta_ID",
+                                "Pregunta",
+                                "Respuesta_1",
+                                "Respuesta_2",
+                                "Respuesta_3",
+                                "Respuesta_4",
+                                "Respuesta_Correcta",
+                                "Estado"
+                            ]
+                        )
+
+
+                    df_preguntas_controladas = (
+                        st.session_state[
+                            clave_preguntas
+                        ].copy()
+                    )
+
+
+                    # =========================================
+                    # CONSECUTIVO DE PREGUNTA
+                    # =========================================
+
+                    numero_pregunta = (
+                        len(
+                            df_preguntas_controladas
+                        ) + 1
+                    )
+
+
+                    pregunta_id = (
+                        f"{evaluacion_seleccionada}_"
+                        f"P{numero_pregunta:03d}"
+                    )
+
+
+                    # =========================================
+                    # CONSTRUIR REGISTRO
+                    # =========================================
+
+                    nueva_pregunta = pd.DataFrame(
+                        [
+                            {
+                                "Evaluacion_ID":
+                                    evaluacion_seleccionada,
+
+                                "Pregunta_ID":
+                                    pregunta_id,
+
+                                "Pregunta":
+                                    str(
+                                        pregunta_texto
+                                    ).strip(),
+
+                                "Respuesta_1":
+                                    str(
+                                        respuesta_1
+                                    ).strip(),
+
+                                "Respuesta_2":
+                                    str(
+                                        respuesta_2
+                                    ).strip(),
+
+                                "Respuesta_3":
+                                    str(
+                                        respuesta_3
+                                    ).strip(),
+
+                                "Respuesta_4":
+                                    str(
+                                        respuesta_4
+                                    ).strip(),
+
+                                "Respuesta_Correcta":
+                                    respuesta_correcta,
+
+                                "Estado":
+                                    "ACTIVA"
+                            }
+                        ]
+                    )
+
+
+                    # =========================================
+                    # AGREGAR
+                    # =========================================
+
+                    df_preguntas_controladas = pd.concat(
+                        [
+                            df_preguntas_controladas,
+                            nueva_pregunta
+                        ],
+                        ignore_index=True
+                    )
+
+
+                    # =========================================
+                    # GUARDAR TEMPORALMENTE
+                    # =========================================
+
+                    st.session_state[
+                        clave_preguntas
+                    ] = (
+                        df_preguntas_controladas.copy()
+                    )
+
+
+                    # =========================================
+                    # ACTUALIZAR CANTIDAD
+                    # =========================================
+
+                    mascara_evaluacion = (
+                        df_evaluaciones_especiales_11a[
+                            "Evaluacion_ID"
+                        ]
+                        .eq(
+                            evaluacion_seleccionada
+                        )
+                    )
+
+
+                    df_evaluaciones_especiales_11a.loc[
+                        mascara_evaluacion,
+                        "Preguntas_Creadas"
+                    ] = len(
+                        df_preguntas_controladas
+                    )
+
+
+                    # =========================================
+                    # GUARDAR PERMANENCIA EN SESSION STATE
+                    # =========================================
+
+                    st.session_state[
+                        "evaluaciones_especiales_11a"
+                    ] = (
+                        df_evaluaciones_especiales_11a.copy()
+                    )
+
+
+                    st.success(
+                        f"Pregunta {pregunta_id} "
+                        f"agregada correctamente."
+                    )
+
+
+                    st.rerun()
+
+
+        # ====================================================
+        # SECCIÓN 4
+        # PREGUNTAS YA CREADAS
+        # ====================================================
+
+        clave_preguntas = (
+            f"preguntas_"
+            f"{evaluacion_seleccionada}"
+            f"_11a"
+        )
+
+
+        df_preguntas_controladas = (
+            st.session_state.get(
+                clave_preguntas,
+                pd.DataFrame()
+            )
+        )
+
+
+        if not df_preguntas_controladas.empty:
+
+            st.markdown(
+                "### 4. Preguntas de la evaluación"
+            )
+
+
+            st.dataframe(
+                df_preguntas_controladas[
+                    [
+                        "Pregunta_ID",
+                        "Pregunta",
+                        "Respuesta_1",
+                        "Respuesta_2",
+                        "Respuesta_3",
+                        "Respuesta_4",
+                        "Respuesta_Correcta",
+                        "Estado"
+                    ]
+                ],
+                use_container_width=True,
+                hide_index=True
+            )
+
+
+# ============================================================
+# SECCIÓN 5
+# ESTADO DE LAS EVALUACIONES
+# ============================================================
+
+if not df_evaluaciones_especiales_11a.empty:
+
+    st.markdown(
+        "### 5. Estado de las evaluaciones controladas"
+    )
+
+
+    evaluacion_estado = st.selectbox(
+        "Seleccione una evaluación para ajustar su estado",
+        df_evaluaciones_especiales_11a[
+            "Evaluacion_ID"
+        ].tolist(),
+        key="estado_evaluacion_11a"
+    )
+
+
+    fila_estado = (
+        df_evaluaciones_especiales_11a[
+            df_evaluaciones_especiales_11a[
+                "Evaluacion_ID"
+            ]
+            .eq(evaluacion_estado)
+        ]
+    )
+
+
+    estado_actual_selector = str(
+        fila_estado[
+            "Estado"
+        ].iloc[0]
+    ).strip().upper()
+
+
+    nuevo_estado = st.selectbox(
+        "Nuevo estado",
+        [
+            "ACTIVA",
+            "INACTIVA"
+        ],
+        index=(
+            0
+            if estado_actual_selector == "ACTIVA"
+            else 1
+        ),
+        key="nuevo_estado_evaluacion_11a"
+    )
+
+
+    cambiar_estado = st.button(
+        "ACTUALIZAR ESTADO",
+        key="actualizar_estado_11a"
+    )
+
+
+    if cambiar_estado:
+
+        mascara_estado = (
+            df_evaluaciones_especiales_11a[
+                "Evaluacion_ID"
+            ]
+            .eq(evaluacion_estado)
+        )
+
+
+        df_evaluaciones_especiales_11a.loc[
+            mascara_estado,
+            "Estado"
+        ] = nuevo_estado
+
+
+        st.session_state[
+            "evaluaciones_especiales_11a"
+        ] = (
+            df_evaluaciones_especiales_11a.copy()
+        )
+
+
+        st.success(
+            f"{evaluacion_estado} "
+            f"actualizada a {nuevo_estado}."
+        )
+
+
+        st.rerun()
+
+
+# ============================================================
+# NOTA PARA 11.B
+# ============================================================
+
+st.caption(
+    "Las evaluaciones y preguntas creadas en 11.A "
+    "quedan preparadas para la persistencia/sincronización "
+    "del módulo 11.B."
+)
