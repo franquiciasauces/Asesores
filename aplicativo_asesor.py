@@ -1945,33 +1945,18 @@ elif opcion_principal == "EVALUACIÓN":
         "y el seguimiento de resultados."
     )
 
-    if ROL_ACTUAL == "ADMINISTRADOR":
-
-        opciones_evaluacion = [
-            "Seleccione una opción",
-            "Banco general de preguntas",
-            "Banco de preguntas especiales",
-            "Evaluaciones generales",
-            "Evaluación controlada",
-            "Historial de evaluaciones"
-        ]
-
-    else:
-
-        opciones_evaluacion = [
-            "Seleccione una opción",
-            "Evaluaciones generales",
-            "Evaluación controlada",
-            "Historial de evaluaciones"
-        ]
+    opciones_evaluacion = [
+        "Seleccione una opción",
+        "Evaluación general",
+        "Evaluaciones controladas",
+        "Historial de evaluaciones"
+    ]
 
     opcion_evaluacion = st.selectbox(
         "Seleccione una opción:",
         opciones_evaluacion,
         key="menu_evaluacion"
     )
-  
-
 # ============================================================
 # 8. PIE DE APLICACIÓN
 # ============================================================
@@ -10642,3 +10627,348 @@ if (
 
         st.rerun()
     
+# ============================================================
+# GESTIONEJECUCIONEVALUACION
+# PARTE A — ACCESO A EVALUACIONES CONTROLADAS
+# ============================================================
+
+if (
+    opcion_principal == "EVALUACIÓN"
+    and opcion_evaluacion == "Evaluaciones controladas"
+):
+
+    st.divider()
+
+    st.markdown(
+        "## Evaluaciones controladas"
+    )
+
+    st.write(
+        "Seleccione el módulo de la evaluación que desea presentar."
+    )
+
+    # ========================================================
+    # 1. ARCHIVO PERSISTENTE DE EVALUACIONES CONTROLADAS
+    # ========================================================
+
+    ARCHIVO_REPOSITORIO_EVALUACIONES = (
+        BASE_DIR
+        / "evaluacion"
+        / "Repositorioevaluacionescontroladas.csv"
+    )
+
+    # ========================================================
+    # 2. VERIFICAR EXISTENCIA DEL ARCHIVO
+    # ========================================================
+
+    if not ARCHIVO_REPOSITORIO_EVALUACIONES.exists():
+
+        st.warning(
+            "No existen evaluaciones controladas disponibles."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 3. CARGAR REPOSITORIO
+    # ========================================================
+
+    try:
+
+        df_repositorio_evaluaciones = pd.read_csv(
+            ARCHIVO_REPOSITORIO_EVALUACIONES,
+            dtype=str,
+            keep_default_na=False
+        )
+
+    except Exception as error:
+
+        st.error(
+            "No fue posible cargar el repositorio "
+            "de evaluaciones controladas."
+        )
+
+        st.code(str(error))
+
+        st.stop()
+
+    # ========================================================
+    # 4. VERIFICAR COLUMNAS MÍNIMAS
+    # ========================================================
+
+    columnas_necesarias_ejecucion = [
+        "Evaluacion_ID",
+        "Modulo",
+        "Tipo_Relacion",
+        "Nivel",
+        "Cantidad_Preguntas",
+        "Preguntas_Aprobadas",
+        "Preguntas_Rechazadas",
+        "Preguntas_No_Utilizadas",
+        "Estado_Evaluacion"
+    ]
+
+    columnas_faltantes_ejecucion = [
+        columna
+        for columna in columnas_necesarias_ejecucion
+        if columna not in df_repositorio_evaluaciones.columns
+    ]
+
+    if columnas_faltantes_ejecucion:
+
+        st.error(
+            "El repositorio de evaluaciones controladas "
+            "no tiene la estructura esperada."
+        )
+
+        st.write(
+            "Columnas faltantes:"
+        )
+
+        st.write(
+            columnas_faltantes_ejecucion
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 5. LIMPIAR CAMPOS PRINCIPALES
+    # ========================================================
+
+    for columna in [
+        "Evaluacion_ID",
+        "Modulo",
+        "Tipo_Relacion",
+        "Nivel",
+        "Estado_Evaluacion"
+    ]:
+
+        df_repositorio_evaluaciones[columna] = (
+            df_repositorio_evaluaciones[columna]
+            .astype(str)
+            .str.strip()
+        )
+
+    # ========================================================
+    # 6. SOLO EVALUACIONES DISPONIBLES PARA EJECUCIÓN
+    # ========================================================
+
+    estados_ejecutables = [
+        "PERSISTIDA",
+        "ACTIVA"
+    ]
+
+    df_evaluaciones_ejecutables = (
+        df_repositorio_evaluaciones[
+            df_repositorio_evaluaciones[
+                "Estado_Evaluacion"
+            ].str.upper().isin(
+                estados_ejecutables
+            )
+        ]
+        .copy()
+    )
+
+    # ========================================================
+    # 7. SI NO HAY EVALUACIONES EJECUTABLES
+    # ========================================================
+
+    if df_evaluaciones_ejecutables.empty:
+
+        st.info(
+            "No hay evaluaciones controladas disponibles "
+            "para ejecución en este momento."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 8. OBTENER MÓDULOS DISPONIBLES
+    # ========================================================
+
+    modulos_disponibles = sorted(
+        df_evaluaciones_ejecutables[
+            "Modulo"
+        ]
+        .replace("", pd.NA)
+        .dropna()
+        .astype(str)
+        .unique()
+        .tolist()
+    )
+
+    # ========================================================
+    # 9. FILTRO PRINCIPAL POR MÓDULO
+    # ========================================================
+
+    st.markdown(
+        "### 1. Seleccione el módulo"
+    )
+
+    modulo_ejecucion = st.selectbox(
+        "Módulo:",
+        [
+            "Seleccione un módulo"
+        ] + modulos_disponibles,
+        key="modulo_ejecucion_controlada"
+    )
+
+    # ========================================================
+    # 10. TODAVÍA NO SELECCIONÓ MÓDULO
+    # ========================================================
+
+    if modulo_ejecucion == "Seleccione un módulo":
+
+        st.info(
+            "Seleccione un módulo para consultar "
+            "las evaluaciones controladas disponibles."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 11. FILTRAR EVALUACIONES DEL MÓDULO
+    # ========================================================
+
+    df_evaluaciones_modulo = (
+        df_evaluaciones_ejecutables[
+            df_evaluaciones_ejecutables[
+                "Modulo"
+            ] == modulo_ejecucion
+        ]
+        .copy()
+    )
+
+    # ========================================================
+    # 12. SI NO HAY EVALUACIONES PARA EL MÓDULO
+    # ========================================================
+
+    if df_evaluaciones_modulo.empty:
+
+        st.info(
+            f"No hay evaluaciones controladas disponibles "
+            f"para el módulo {modulo_ejecucion}."
+        )
+
+        st.stop()
+
+    # ========================================================
+    # 13. MOSTRAR EVALUACIONES DISPONIBLES
+    # ========================================================
+
+    st.markdown(
+        f"### 2. Evaluaciones disponibles — {modulo_ejecucion}"
+    )
+
+    columnas_mostrar_ejecucion = [
+        "Evaluacion_ID",
+        "Tipo_Relacion",
+        "Nivel",
+        "Cantidad_Preguntas",
+        "Preguntas_Aprobadas",
+        "Estado_Evaluacion"
+    ]
+
+    st.dataframe(
+        df_evaluaciones_modulo[
+            columnas_mostrar_ejecucion
+        ],
+        use_container_width=True,
+        hide_index=True
+    )
+
+    # ========================================================
+    # 14. SELECCIONAR UNA EVALUACIÓN
+    # ========================================================
+
+    opciones_evaluaciones_controladas = (
+        df_evaluaciones_modulo[
+            "Evaluacion_ID"
+        ]
+        .astype(str)
+        .tolist()
+    )
+
+    evaluacion_controlada_seleccionada = st.selectbox(
+        "Seleccione la evaluación que desea presentar:",
+        [
+            "Seleccione una evaluación"
+        ] + opciones_evaluaciones_controladas,
+        key="evaluacion_controlada_seleccionada"
+    )
+
+    # ========================================================
+    # 15. GUARDAR SELECCIÓN
+    # ========================================================
+
+    if (
+        evaluacion_controlada_seleccionada
+        != "Seleccione una evaluación"
+    ):
+
+        st.session_state[
+            "evaluacion_controlada_ejecucion_id"
+        ] = evaluacion_controlada_seleccionada
+
+        fila_evaluacion_ejecucion = (
+            df_evaluaciones_modulo[
+                df_evaluaciones_modulo[
+                    "Evaluacion_ID"
+                ]
+                == evaluacion_controlada_seleccionada
+            ]
+        )
+
+        if not fila_evaluacion_ejecucion.empty:
+
+            datos_evaluacion_ejecucion = (
+                fila_evaluacion_ejecucion.iloc[0]
+            )
+
+            st.markdown(
+                "### 3. Evaluación seleccionada"
+            )
+
+            c1, c2, c3, c4 = st.columns(4)
+
+            c1.metric(
+                "Evaluación",
+                str(
+                    datos_evaluacion_ejecucion[
+                        "Evaluacion_ID"
+                    ]
+                )
+            )
+
+            c2.metric(
+                "Módulo",
+                str(
+                    datos_evaluacion_ejecucion[
+                        "Modulo"
+                    ]
+                )
+            )
+
+            c3.metric(
+                "Nivel",
+                str(
+                    datos_evaluacion_ejecucion[
+                        "Nivel"
+                    ]
+                )
+            )
+
+            c4.metric(
+                "Preguntas",
+                str(
+                    datos_evaluacion_ejecucion[
+                        "Cantidad_Preguntas"
+                    ]
+                )
+            )
+
+            st.info(
+                "La evaluación está disponible para ser presentada. "
+                "El siguiente bloque cargará sus preguntas y permitirá "
+                "registrar las respuestas del asesor."
+            )
