@@ -24058,9 +24058,6 @@ else:
                 respuesta.text
             )
 
-
-
-# ============================================================
 # ============================================================
 # 11.A - GENERADOR MANUAL DE PREGUNTAS ESPECIALES / CONTROLADAS
 # ============================================================
@@ -24377,4 +24374,5 @@ else:
         "Todavía no se han generado preguntas "
         "especiales/controladas."
     )
+
 
