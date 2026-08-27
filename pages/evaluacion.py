@@ -24062,6 +24062,7 @@ else:
 
 # ============================================================
 
+
 # ============================================================
 # 11.A - CARGA DE PERMANENCIA
 # ============================================================
@@ -24070,33 +24071,52 @@ st.divider()
 
 st.markdown("## 11.A - Carga de permanencia")
 
-st.write("Este módulo permite cargar el archivo de permanencia.")
 
-archivo_11a = st.file_uploader(
-    "Cargar archivo de permanencia",
-    type=["csv", "xlsx"],
-    key="carga_permanencia_11a"
-)
+# ============================================================
+# TOMAR LA PERMANENCIA DESDE SESSION_STATE
+#
+# 11.A NO SOLICITA ARCHIVOS DESDE EL PC.
+# ============================================================
 
-if archivo_11a is not None:
+df_11a = st.session_state.get(
+    "df_permanencia_11a",
+    pd.DataFrame()
+).copy()
 
-    if archivo_11a.name.lower().endswith(".csv"):
-        df_11a = pd.read_csv(archivo_11a)
-    else:
-        df_11a = pd.read_excel(archivo_11a)
 
-    st.session_state["df_permanencia_11a"] = df_11a.copy()
+# ============================================================
+# SI EXISTE LA PERMANENCIA
+# ============================================================
+
+if not df_11a.empty:
 
     st.success(
-        f"Archivo cargado correctamente: {archivo_11a.name}"
+        "Permanencia cargada correctamente."
     )
 
     st.write(
-        f"Registros cargados: **{len(df_11a):,}**"
+        f"Registros de permanencia: **{len(df_11a):,}**"
     )
 
     st.dataframe(
         df_11a,
         use_container_width=True,
         hide_index=True
+    )
+
+
+# ============================================================
+# SI TODAVÍA NO EXISTE
+#
+# NO PEDIR ARCHIVO DESDE EL PC.
+# NO UTILIZAR st.stop().
+# NO BLOQUEAR EL RESTO DEL APLICATIVO.
+# ============================================================
+
+else:
+
+    st.info(
+        "La permanencia todavía no está disponible. "
+        "11.A utilizará la permanencia desde la fuente "
+        "persistente del aplicativo."
     )
