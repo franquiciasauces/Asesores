@@ -1,10 +1,44 @@
-﻿Tipo_Registro,Evaluacion_ID,Modulo,Nombre_Evaluacion,Descripcion,Cantidad_Preguntas,Preguntas_Creadas,Estado,Pregunta_ID,Nivel,Enunciado,Respuesta_1,Respuesta_2,Respuesta_3,Respuesta_4,Respuesta_Correcta
-EVALUACION,EVAL_CONTROLADA_0001,Producto,GLOBXAN,"Indaga sobre aspectos relacionados con el GLOBXAN, y sus componentes",8,8,ACTIVA,,,,,,,,
-PREGUNTA,EVAL_CONTROLADA_0001,,,,,,,EVAL_CONTROLADA_0001_P001,1,Cuál del siguiente grupo de vitaminas y oligoelementos hacen parte de la composición del globxan?,"Calcio, bitonina, b12","Zinc, magnesio, hierro, b12","Vitamina c, vitamina b6, Vitamina b9","Hierro, Vitamina 9, Vitamina 12, L-Arginina",Respuesta 3
-PREGUNTA,EVAL_CONTROLADA_0001,,,,,,,EVAL_CONTROLADA_0001_P002,1,Cuál de las vitaminas que contine el Globxan contribuye con la maduración de los globulos rojos y al correcto funcionamiento del sistema nervioso.?,Vitamina D3,Vitamina B12,Vitamina E,Calcio,Respuesta 2
-PREGUNTA,EVAL_CONTROLADA_0001,,,,,,,EVAL_CONTROLADA_0001_P003,1,"Cuál es la principal funcion en el organismo, del siguientes componentes que contiene el Globxan: hierro, las vitaminas b6, b9, y b12, junto con la vitamina  C",Regular la producción de insulina,Actuar como antioxidantes,Favorecer la formación y mantenimiento de huesos y dientes,Contribuir a la formación de huesos y dientes,Respuesta 4
-PREGUNTA,EVAL_CONTROLADA_0001,,,,,,,EVAL_CONTROLADA_0001_P004,1,"El globxan contine vitaminas b3, b5 y biotina, cuál es la función de estos en el organismo?","Contribuyen al metabolismo energético, ayudando a tranformar los nutrientes en energía para las celulas",Favorecen la formación de globulos rojos y la síntesis de hemoglobina,Aumentan la absorción de calcio para fortalecer los huesos,Estimular la producción de colágeno y la cicatrización de la piel,Respuesta 1
-PREGUNTA,EVAL_CONTROLADA_0001,,,,,,,EVAL_CONTROLADA_0001_P005,1,"Existen 9 vitaminas del complejo B reconocidas oficialmente, y el Globxan tiene 8 de ellas, cual sería la unica vitamina del complejo B que faltaría?",B4,B5,B8,B1,Respuesta 4
-PREGUNTA,EVAL_CONTROLADA_0001,,,,,,,EVAL_CONTROLADA_0001_P006,1,"La vitamina b1 (tiamina) se encarga principalmente de contribuir con el metabolismo de los carbohidrados y apooya el funcionamiento normal del sistema nervioso. Aunque el Globxan no la contine, , esta función es apoyada de forma complementaria por los siguientes componentes:","Hierro, Vitamina b2, b6, biotina","Hierro, zinc, vitamina b2, b6","Vitaminas B2, B3, B5, B6, biotina, zinc","Magnesio, Zinc, Hierro, Biotina",Respuesta 3
-PREGUNTA,EVAL_CONTROLADA_0001,,,,,,,EVAL_CONTROLADA_0001_P007,1,Cuál de la siguientes afirmaciones es verdadera para la hemoglobina,"Es la proteína principal de los glóbulos rojos. Contiene grupos hemo con hierro, que captan oxígeno en los pulmones y lo transportan a los tejidos del cuerpo. También participa en el transporte de dióxido de carbono desde los tejidos hasta los pulmones.","Ayuda a formar y mantener tejidos como la piel, los huesos, los músculos y los tendones. También proporciona fuerza y elasticidad a diferentes partes del cuerpo. Además, ayuda en la reparación de tejidos cuando se producen heridas o lesiones","Las produce el sistema inmunológico para defender al organismo. Reconocen y atacan sustancias extrañas como virus, bacterias y otros microorganismos. Ayudan a prevenir enfermedades y a proteger al cuerpo de posibles infecciones.","Ayudan a acelerar las reacciones químicas que ocurren en el organismo. Por ejemplo, participan en la digestión de los alimentos, ayudando a descomponerlos en sustancias más pequeñas.",Respuesta 1
-PREGUNTA,EVAL_CONTROLADA_0001,,,,,,,EVAL_CONTROLADA_0001_P008,1,¿Cuál es la enfermedad asociada al exceso de hierro en el organismo?,Anemia,Escorbuto,Hemocromatosis,Hipotiroidismo,Respuesta 3
+﻿Evaluacion_ID,Modulo,Nombre_Evaluacion,Descripcion,Cantidad_Preguntas,Preguntas_Creadas,Estado,Pregunta,Opcion_1,Opcion_2,Opcion_3,Opcion_4,Respuesta_Correcta
+EVAL_CONTROLADA_0001,Producto,GLOBXAN,"Indaga sobre aspectos relacionados con el GLOBXAN, y sus componentes",8,8,ACTIVA,"EVAL_CONTROLADA_0001_P001 | Nivel 1 | Cuál del siguiente grupo de vitaminas y oligoelementos hacen parte de la composición del globxan?
+EVAL_CONTROLADA_0001_P002 | Nivel 1 | Cuál de las vitaminas que contine el Globxan contribuye con la maduración de los globulos rojos y al correcto funcionamiento del sistema nervioso.?
+EVAL_CONTROLADA_0001_P003 | Nivel 1 | Cuál es la principal funcion en el organismo, del siguientes componentes que contiene el Globxan: hierro, las vitaminas b6, b9, y b12, junto con la vitamina  C
+EVAL_CONTROLADA_0001_P004 | Nivel 1 | El globxan contine vitaminas b3, b5 y biotina, cuál es la función de estos en el organismo?
+EVAL_CONTROLADA_0001_P005 | Nivel 1 | Existen 9 vitaminas del complejo B reconocidas oficialmente, y el Globxan tiene 8 de ellas, cual sería la unica vitamina del complejo B que faltaría?
+EVAL_CONTROLADA_0001_P006 | Nivel 1 | La vitamina b1 (tiamina) se encarga principalmente de contribuir con el metabolismo de los carbohidrados y apooya el funcionamiento normal del sistema nervioso. Aunque el Globxan no la contine, , esta función es apoyada de forma complementaria por los siguientes componentes:
+EVAL_CONTROLADA_0001_P007 | Nivel 1 | Cuál de la siguientes afirmaciones es verdadera para la hemoglobina
+EVAL_CONTROLADA_0001_P008 | Nivel 1 | ¿Cuál es la enfermedad asociada al exceso de hierro en el organismo?","EVAL_CONTROLADA_0001_P001 | Calcio, bitonina, b12
+EVAL_CONTROLADA_0001_P002 | Vitamina D3
+EVAL_CONTROLADA_0001_P003 | Regular la producción de insulina
+EVAL_CONTROLADA_0001_P004 | Contribuyen al metabolismo energético, ayudando a tranformar los nutrientes en energía para las celulas
+EVAL_CONTROLADA_0001_P005 | B4
+EVAL_CONTROLADA_0001_P006 | Hierro, Vitamina b2, b6, biotina
+EVAL_CONTROLADA_0001_P007 | Es la proteína principal de los glóbulos rojos. Contiene grupos hemo con hierro, que captan oxígeno en los pulmones y lo transportan a los tejidos del cuerpo. También participa en el transporte de dióxido de carbono desde los tejidos hasta los pulmones.
+EVAL_CONTROLADA_0001_P008 | Anemia","EVAL_CONTROLADA_0001_P001 | Zinc, magnesio, hierro, b12
+EVAL_CONTROLADA_0001_P002 | Vitamina B12
+EVAL_CONTROLADA_0001_P003 | Actuar como antioxidantes
+EVAL_CONTROLADA_0001_P004 | Favorecen la formación de globulos rojos y la síntesis de hemoglobina
+EVAL_CONTROLADA_0001_P005 | B5
+EVAL_CONTROLADA_0001_P006 | Hierro, zinc, vitamina b2, b6
+EVAL_CONTROLADA_0001_P007 | Ayuda a formar y mantener tejidos como la piel, los huesos, los músculos y los tendones. También proporciona fuerza y elasticidad a diferentes partes del cuerpo. Además, ayuda en la reparación de tejidos cuando se producen heridas o lesiones
+EVAL_CONTROLADA_0001_P008 | Escorbuto","EVAL_CONTROLADA_0001_P001 | Vitamina c, vitamina b6, Vitamina b9
+EVAL_CONTROLADA_0001_P002 | Vitamina E
+EVAL_CONTROLADA_0001_P003 | Favorecer la formación y mantenimiento de huesos y dientes
+EVAL_CONTROLADA_0001_P004 | Aumentan la absorción de calcio para fortalecer los huesos
+EVAL_CONTROLADA_0001_P005 | B8
+EVAL_CONTROLADA_0001_P006 | Vitaminas B2, B3, B5, B6, biotina, zinc
+EVAL_CONTROLADA_0001_P007 | Las produce el sistema inmunológico para defender al organismo. Reconocen y atacan sustancias extrañas como virus, bacterias y otros microorganismos. Ayudan a prevenir enfermedades y a proteger al cuerpo de posibles infecciones.
+EVAL_CONTROLADA_0001_P008 | Hemocromatosis","EVAL_CONTROLADA_0001_P001 | Hierro, Vitamina 9, Vitamina 12, L-Arginina
+EVAL_CONTROLADA_0001_P002 | Calcio
+EVAL_CONTROLADA_0001_P003 | Contribuir a la formación de huesos y dientes
+EVAL_CONTROLADA_0001_P004 | Estimular la producción de colágeno y la cicatrización de la piel
+EVAL_CONTROLADA_0001_P005 | B1
+EVAL_CONTROLADA_0001_P006 | Magnesio, Zinc, Hierro, Biotina
+EVAL_CONTROLADA_0001_P007 | Ayudan a acelerar las reacciones químicas que ocurren en el organismo. Por ejemplo, participan en la digestión de los alimentos, ayudando a descomponerlos en sustancias más pequeñas.
+EVAL_CONTROLADA_0001_P008 | Hipotiroidismo","EVAL_CONTROLADA_0001_P001 | Respuesta 3
+EVAL_CONTROLADA_0001_P002 | Respuesta 2
+EVAL_CONTROLADA_0001_P003 | Respuesta 4
+EVAL_CONTROLADA_0001_P004 | Respuesta 1
+EVAL_CONTROLADA_0001_P005 | Respuesta 4
+EVAL_CONTROLADA_0001_P006 | Respuesta 3
+EVAL_CONTROLADA_0001_P007 | Respuesta 1
+EVAL_CONTROLADA_0001_P008 | Respuesta 3"
