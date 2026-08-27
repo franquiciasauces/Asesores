@@ -25,10 +25,12 @@ st.set_page_config(
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# ============================================================
-# LA RUTA DEL ARCHIVO DE PERMANENCIA DE 11.B
-# SE DEFINIRÁ CUANDO 11.B ESTÉ FUNCIONANDO.
-# ============================================================
+# ------------------------------------------------------------
+# La ruta del archivo de permanencia generado por 11.B
+# se incorporará cuando 11.B esté funcionando.
+# ------------------------------------------------------------
+
+ARCHIVO_PERMANENCIA = None
 
 
 # ============================================================
@@ -45,22 +47,32 @@ ROL = st.session_state.get(
     ""
 )
 
+
+# ============================================================
+# 4. CONTROL DE ACCESO
+# ============================================================
+
 if not USUARIO:
+
     st.warning(
         "Debe ingresar primero al Aplicativo Asesor."
     )
+
     st.stop()
 
+
 if ROL.upper() != "ADMINISTRADOR":
+
     st.error(
         "Este módulo está disponible únicamente "
         "para el administrador."
     )
+
     st.stop()
 
 
 # ============================================================
-# 4. ENCABEZADO
+# 5. ENCABEZADO
 # ============================================================
 
 st.title(
@@ -73,10 +85,12 @@ st.write(
 
 
 # ============================================================
-# 5. CARGA DE PERMANENCIA
+# 6. CONTENIDO INICIAL
 # ============================================================
 
-st.markdown("### Evaluaciones especiales y controladas")
+st.markdown(
+    "### Evaluaciones especiales y controladas"
+)
 
 st.info(
     "Este aplicativo utilizará únicamente las preguntas "
@@ -84,7 +98,52 @@ st.info(
     "generado por 11.B."
 )
 
+
 # ============================================================
-# AQUÍ SE INCORPORARÁ LA LECTURA DE 11.B
-# CUANDO EL ARCHIVO ESTÉ GENERADO Y CONFIRMADO.
+# 7. ESTADO DEL ARCHIVO DE PERMANENCIA
 # ============================================================
+
+st.markdown("### Estado de la fuente")
+
+if ARCHIVO_PERMANENCIA is None:
+
+    st.warning(
+        "La permanencia de 11.B todavía no está disponible. "
+        "La fuente se conectará cuando el módulo 11.B "
+        "esté funcionando."
+    )
+
+else:
+
+    archivo_permanencia = Path(
+        ARCHIVO_PERMANENCIA
+    )
+
+    if archivo_permanencia.exists():
+
+        st.success(
+            "🟢 Archivo de permanencia encontrado."
+        )
+
+    else:
+
+        st.error(
+            "🔴 No se encontró el archivo de permanencia."
+        )
+
+
+# ============================================================
+# 8. ESTADO DEL APLICATIVO
+# ============================================================
+
+st.divider()
+
+st.caption(
+    "FITOASISTE — Módulo de evaluaciones especiales "
+    "y controladas."
+)
+
+st.caption(
+    "La construcción de este módulo se realizará "
+    "a partir de la permanencia generada por 11.B."
+)
