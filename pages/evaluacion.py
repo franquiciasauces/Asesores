@@ -26513,56 +26513,42 @@ if st.button(
     )
 
 # ============================================================
-# 11.A - CARGA DE ARCHIVO DE PERMANENCIA
+
 # ============================================================
+# 11.A - CARGA DE PERMANENCIA
+# ============================================================
+
+st.divider()
 
 st.markdown("## 11.A - Carga de permanencia")
 
-st.write(
-    "Cargue el archivo de permanencia generado por el sistema."
-)
+st.write("Este módulo permite cargar el archivo de permanencia.")
 
-archivo_permanencia_11a = st.file_uploader(
-    "Seleccione el archivo de permanencia:",
+archivo_11a = st.file_uploader(
+    "Cargar archivo de permanencia",
     type=["csv", "xlsx"],
-    key="archivo_permanencia_11a"
+    key="carga_permanencia_11a"
 )
 
-if archivo_permanencia_11a is not None:
+if archivo_11a is not None:
 
-    try:
+    if archivo_11a.name.lower().endswith(".csv"):
+        df_11a = pd.read_csv(archivo_11a)
+    else:
+        df_11a = pd.read_excel(archivo_11a)
 
-        if archivo_permanencia_11a.name.lower().endswith(".csv"):
-            df_permanencia_11a = pd.read_csv(
-                archivo_permanencia_11a
-            )
-        else:
-            df_permanencia_11a = pd.read_excel(
-                archivo_permanencia_11a
-            )
+    st.session_state["df_permanencia_11a"] = df_11a.copy()
 
-        st.session_state[
-            "df_permanencia_11a"
-        ] = df_permanencia_11a.copy()
+    st.success(
+        f"Archivo cargado correctamente: {archivo_11a.name}"
+    )
 
-        st.success(
-            f"Archivo cargado correctamente: "
-            f"**{archivo_permanencia_11a.name}**"
-        )
+    st.write(
+        f"Registros cargados: **{len(df_11a):,}**"
+    )
 
-        st.info(
-            f"Registros cargados: **{len(df_permanencia_11a):,}**"
-        )
-
-        st.dataframe(
-            df_permanencia_11a.head(20),
-            use_container_width=True,
-            hide_index=True
-        )
-
-    except Exception as e:
-
-        st.error(
-            f"Error al cargar el archivo: "
-            f"{type(e).__name__}: {e}"
-        )
+    st.dataframe(
+        df_11a,
+        use_container_width=True,
+        hide_index=True
+    )
