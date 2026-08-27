@@ -24057,7 +24057,6 @@ else:
             st.code(
                 respuesta.text
             )
-
 # ============================================================
 # 11.A - GENERADOR DE EVALUACIONES CONTROLADAS
 # ============================================================
@@ -24073,27 +24072,61 @@ st.markdown("## 11.A - Generador de evaluaciones controladas")
 
 
 # ============================================================
-# PERMANENCIA TEMPORAL DE EVALUACIONES
+# ESTRUCTURAS
+# ============================================================
+
+COLUMNAS_EVALUACIONES_11A = [
+    "Evaluacion_ID",
+    "Modulo",
+    "Nombre_Evaluacion",
+    "Descripcion",
+    "Cantidad_Preguntas",
+    "Preguntas_Creadas",
+    "Estado"
+]
+
+
+COLUMNAS_PREGUNTAS_11A = [
+    "Evaluacion_ID",
+    "Pregunta_ID",
+    "Nivel",
+    "Enunciado",
+    "Respuesta_1",
+    "Respuesta_2",
+    "Respuesta_3",
+    "Respuesta_4",
+    "Respuesta_Correcta"
+]
+
+
+# ============================================================
+# INICIALIZAR EVALUACIONES
 # ============================================================
 
 if "evaluaciones_controladas_11a" not in st.session_state:
 
-    st.session_state["evaluaciones_controladas_11a"] = pd.DataFrame(
-        columns=[
-            "Evaluacion_ID",
-            "Modulo",
-            "Nombre_Evaluacion",
-            "Descripcion",
-            "Cantidad_Preguntas",
-            "Preguntas_Creadas",
-            "Estado"
-        ]
+    st.session_state["evaluaciones_controladas_11a"] = (
+        pd.DataFrame(columns=COLUMNAS_EVALUACIONES_11A)
     )
 
 
 df_evaluaciones_11a = st.session_state[
     "evaluaciones_controladas_11a"
 ].copy()
+
+
+# ============================================================
+# VERIFICAR ESTRUCTURA
+# ============================================================
+
+if list(df_evaluaciones_11a.columns) != COLUMNAS_EVALUACIONES_11A:
+
+    st.error(
+        "La estructura temporal de 11.A corresponde a una versión anterior. "
+        "Debe reiniciar la sesión de Streamlit para comenzar con la nueva estructura."
+    )
+
+    st.stop()
 
 
 # ============================================================
@@ -24105,6 +24138,7 @@ def siguiente_evaluacion_11a(df):
     mayor = 0
 
     if df.empty:
+
         return 1
 
     for valor in df["Evaluacion_ID"].fillna("").astype(str):
@@ -24116,10 +24150,13 @@ def siguiente_evaluacion_11a(df):
 
         if coincidencia:
 
-            mayor = max(
-                mayor,
-                int(coincidencia.group(1))
+            numero = int(
+                coincidencia.group(1)
             )
+
+            if numero > mayor:
+
+                mayor = numero
 
     return mayor + 1
 
@@ -24170,57 +24207,50 @@ if st.button(
     key="crear_11a"
 ):
 
-    nombre_limpio = nombre_evaluacion.strip()
-    descripcion_limpia = descripcion.strip()
+    errores = []
 
-    errores_creacion = []
+    if not nombre_evaluacion.strip():
 
-    if not nombre_limpio:
-
-        errores_creacion.append(
+        errores.append(
             "Debe ingresar el nombre de la evaluación."
         )
 
-    if not descripcion_limpia:
+    if not descripcion.strip():
 
-        errores_creacion.append(
+        errores.append(
             "Debe ingresar la descripción de la evaluación."
         )
 
-    if errores_creacion:
+    if errores:
 
-        for error in errores_creacion:
+        for error in errores:
 
             st.error(error)
 
     else:
 
-        numero = siguiente_evaluacion_11a(
+        numero_evaluacion = siguiente_evaluacion_11a(
             df_evaluaciones_11a
         )
 
         evaluacion_id = (
-            f"EVAL_CONTROLADA_{numero:04d}"
+            f"EVAL_CONTROLADA_{numero_evaluacion:04d}"
         )
 
-        nueva_evaluacion = pd.DataFrame(
-            [
-                {
-                    "Evaluacion_ID": evaluacion_id,
-                    "Modulo": modulo,
-                    "Nombre_Evaluacion": nombre_limpio,
-                    "Descripcion": descripcion_limpia,
-                    "Cantidad_Preguntas": int(cantidad),
-                    "Preguntas_Creadas": 0,
-                    "Estado": "ACTIVA"
-                }
-            ]
-        )
+        nueva_evaluacion = {
+            "Evaluacion_ID": evaluacion_id,
+            "Modulo": modulo,
+            "Nombre_Evaluacion": nombre_evaluacion.strip(),
+            "Descripcion": descripcion.strip(),
+            "Cantidad_Preguntas": int(cantidad),
+            "Preguntas_Creadas": 0,
+            "Estado": "ACTIVA"
+        }
 
         df_evaluaciones_11a = pd.concat(
             [
                 df_evaluaciones_11a,
-                nueva_evaluacion
+                pd.DataFrame([nueva_evaluacion])
             ],
             ignore_index=True
         )
@@ -24234,14 +24264,14 @@ if st.button(
         ] = evaluacion_id
 
         st.success(
-            f"Evaluación creada correctamente: {evaluacion_id}"
+            f"Evaluación creada: {evaluacion_id}"
         )
 
         st.rerun()
 
 
 # ============================================================
-# 2. EVALUACIONES CREADAS
+# 2. EVALUACIONES EXISTENTES
 # ============================================================
 
 if not df_evaluaciones_11a.empty:
@@ -24250,15 +24280,7 @@ if not df_evaluaciones_11a.empty:
 
     st.dataframe(
         df_evaluaciones_11a[
-            [
-                "Evaluacion_ID",
-                "Modulo",
-                "Nombre_Evaluacion",
-                "Descripcion",
-                "Cantidad_Preguntas",
-                "Preguntas_Creadas",
-                "Estado"
-            ]
+            COLUMNAS_EVALUACIONES_11A
         ],
         use_container_width=True,
         hide_index=True
@@ -24271,6 +24293,7 @@ if not df_evaluaciones_11a.empty:
 
     st.markdown("### 3. Trabajar evaluación")
 
+
     opciones_evaluaciones = (
         df_evaluaciones_11a[
             "Evaluacion_ID"
@@ -24279,23 +24302,31 @@ if not df_evaluaciones_11a.empty:
         .tolist()
     )
 
+
     evaluacion_guardada = st.session_state.get(
-        "evaluacion_activa_11a",
-        opciones_evaluaciones[0]
+        "evaluacion_activa_11a"
     )
+
 
     if evaluacion_guardada not in opciones_evaluaciones:
 
         evaluacion_guardada = opciones_evaluaciones[0]
 
+
+    indice_evaluacion = (
+        opciones_evaluaciones.index(
+            evaluacion_guardada
+        )
+    )
+
+
     evaluacion = st.selectbox(
         "Seleccione la evaluación",
         opciones_evaluaciones,
-        index=opciones_evaluaciones.index(
-            evaluacion_guardada
-        ),
+        index=indice_evaluacion,
         key="seleccion_11a"
     )
+
 
     st.session_state[
         "evaluacion_activa_11a"
@@ -24303,41 +24334,43 @@ if not df_evaluaciones_11a.empty:
 
 
     # ========================================================
-    # 4. INFORMACION DE LA EVALUACION
+    # 4. DATOS DE LA EVALUACION
     # ========================================================
 
-    fila = df_evaluaciones_11a[
+    fila_evaluacion = df_evaluaciones_11a[
         df_evaluaciones_11a[
             "Evaluacion_ID"
-        ].eq(evaluacion)
+        ] == evaluacion
     ].iloc[0]
 
+
     modulo_actual = str(
-        fila["Modulo"]
+        fila_evaluacion["Modulo"]
     )
+
 
     nombre_actual = str(
-        fila["Nombre_Evaluacion"]
+        fila_evaluacion["Nombre_Evaluacion"]
     )
+
 
     descripcion_actual = str(
-        fila["Descripcion"]
+        fila_evaluacion["Descripcion"]
     )
+
 
     cantidad_actual = int(
-        pd.to_numeric(
-            fila["Cantidad_Preguntas"],
-            errors="coerce"
-        )
+        fila_evaluacion["Cantidad_Preguntas"]
     )
 
+
     estado_actual = str(
-        fila["Estado"]
-    ).strip().upper()
+        fila_evaluacion["Estado"]
+    )
 
 
     # ========================================================
-    # 5. CLAVE DE PREGUNTAS
+    # 5. CARGAR PREGUNTAS DE LA EVALUACION
     # ========================================================
 
     clave_preguntas = (
@@ -24345,49 +24378,42 @@ if not df_evaluaciones_11a.empty:
         + evaluacion
     )
 
+
     if clave_preguntas not in st.session_state:
 
         st.session_state[
             clave_preguntas
         ] = pd.DataFrame(
-            columns=[
-                "Evaluacion_ID",
-                "Pregunta_ID",
-                "Nivel",
-                "Enunciado",
-                "Respuesta_1",
-                "Respuesta_2",
-                "Respuesta_3",
-                "Respuesta_4",
-                "Respuesta_Correcta"
-            ]
+            columns=COLUMNAS_PREGUNTAS_11A
         )
 
 
-    df_preguntas = st.session_state[
+    df_preguntas_11a = st.session_state[
         clave_preguntas
     ].copy()
 
 
+    # ========================================================
+    # 6. CONTADOR
+    # ========================================================
+
     preguntas_creadas = len(
-        df_preguntas
+        df_preguntas_11a
     )
 
 
-    # ========================================================
-    # 6. ACTUALIZAR CONTADOR
-    # ========================================================
-
-    mascara = (
+    mascara_evaluacion = (
         df_evaluaciones_11a[
             "Evaluacion_ID"
-        ].eq(evaluacion)
+        ] == evaluacion
     )
 
+
     df_evaluaciones_11a.loc[
-        mascara,
+        mascara_evaluacion,
         "Preguntas_Creadas"
     ] = preguntas_creadas
+
 
     st.session_state[
         "evaluaciones_controladas_11a"
@@ -24395,36 +24421,43 @@ if not df_evaluaciones_11a.empty:
 
 
     # ========================================================
-    # 7. INFORMACION VISIBLE
+    # 7. INFORMACION
     # ========================================================
 
     st.markdown("### Información de la evaluación")
 
+
     c1, c2, c3, c4 = st.columns(4)
+
 
     c1.metric(
         "Código / ID",
         evaluacion
     )
 
+
     c2.metric(
         "Módulo",
         modulo_actual
     )
+
 
     c3.metric(
         "Preguntas",
         f"{preguntas_creadas}/{cantidad_actual}"
     )
 
+
     c4.metric(
         "Estado",
         estado_actual
     )
 
+
     st.write(
         f"**Nombre:** {nombre_actual}"
     )
+
 
     st.write(
         f"**Descripción:** {descripcion_actual}"
@@ -24432,7 +24465,7 @@ if not df_evaluaciones_11a.empty:
 
 
     # ========================================================
-    # 8. CARGAR SIGUIENTE PREGUNTA
+    # 8. CREAR SIGUIENTE PREGUNTA
     # ========================================================
 
     if preguntas_creadas < cantidad_actual:
@@ -24440,6 +24473,7 @@ if not df_evaluaciones_11a.empty:
         numero_pregunta = (
             preguntas_creadas + 1
         )
+
 
         st.markdown(
             f"### 4. Pregunta {numero_pregunta} de {cantidad_actual}"
@@ -24450,12 +24484,13 @@ if not df_evaluaciones_11a.empty:
         # NIVEL
         # ----------------------------------------------------
 
-        nivel = st.selectbox(
-            "Nivel de la pregunta",
+        nivel = st.radio(
+            "Nivel de pregunta",
             [
                 1,
                 2
             ],
+            horizontal=True,
             key=(
                 f"nivel_11a_"
                 f"{evaluacion}_"
@@ -24467,13 +24502,13 @@ if not df_evaluaciones_11a.empty:
         if nivel == 1:
 
             st.info(
-                "Nivel 1: debe seleccionar una sola respuesta correcta."
+                "Nivel 1: una respuesta correcta y tres distractores."
             )
 
         else:
 
             st.info(
-                "Nivel 2: debe seleccionar dos respuestas correctas."
+                "Nivel 2: dos respuestas correctas y dos distractores."
             )
 
 
@@ -24482,7 +24517,7 @@ if not df_evaluaciones_11a.empty:
         # ----------------------------------------------------
 
         enunciado = st.text_area(
-            "Enunciado de la pregunta",
+            "Enunciado",
             key=(
                 f"enunciado_11a_"
                 f"{evaluacion}_"
@@ -24492,7 +24527,7 @@ if not df_evaluaciones_11a.empty:
 
 
         # ----------------------------------------------------
-        # RESPUESTAS
+        # OPCIONES
         # ----------------------------------------------------
 
         respuesta_1 = st.text_input(
@@ -24536,12 +24571,12 @@ if not df_evaluaciones_11a.empty:
 
 
         # ----------------------------------------------------
-        # RESPUESTA CORRECTA
+        # RESPUESTAS CORRECTAS
         # ----------------------------------------------------
 
         if nivel == 1:
 
-            correcta = st.selectbox(
+            respuesta_correcta = st.selectbox(
                 "Respuesta correcta",
                 [
                     "Respuesta 1",
@@ -24556,12 +24591,12 @@ if not df_evaluaciones_11a.empty:
                 )
             )
 
-            respuestas_correctas = correcta
+            correctas_nivel_2 = []
 
 
         else:
 
-            correctas = st.multiselect(
+            correctas_nivel_2 = st.multiselect(
                 "Respuestas correctas",
                 [
                     "Respuesta 1",
@@ -24577,73 +24612,73 @@ if not df_evaluaciones_11a.empty:
                 )
             )
 
-            respuestas_correctas = ", ".join(
-                correctas
+            respuesta_correcta = ", ".join(
+                correctas_nivel_2
             )
 
 
         # ----------------------------------------------------
-        # GUARDAR PREGUNTA
+        # GUARDAR
         # ----------------------------------------------------
 
         if st.button(
             f"GUARDAR PREGUNTA {numero_pregunta}",
             type="primary",
             key=(
-                f"guardar_pregunta_11a_"
+                f"guardar_11a_"
                 f"{evaluacion}_"
                 f"{numero_pregunta}"
             )
         ):
 
-            errores = []
+            errores_pregunta = []
 
 
             if not enunciado.strip():
 
-                errores.append(
-                    "Debe ingresar el enunciado de la pregunta."
+                errores_pregunta.append(
+                    "Debe ingresar el enunciado."
                 )
 
 
             if not respuesta_1.strip():
 
-                errores.append(
+                errores_pregunta.append(
                     "Debe ingresar la Respuesta 1."
                 )
 
 
             if not respuesta_2.strip():
 
-                errores.append(
+                errores_pregunta.append(
                     "Debe ingresar la Respuesta 2."
                 )
 
 
             if not respuesta_3.strip():
 
-                errores.append(
+                errores_pregunta.append(
                     "Debe ingresar la Respuesta 3."
                 )
 
 
             if not respuesta_4.strip():
 
-                errores.append(
+                errores_pregunta.append(
                     "Debe ingresar la Respuesta 4."
                 )
 
 
-            if nivel == 2 and len(correctas) != 2:
+            if nivel == 2 and len(correctas_nivel_2) != 2:
 
-                errores.append(
-                    "En el Nivel 2 debe seleccionar exactamente dos respuestas correctas."
+                errores_pregunta.append(
+                    "En Nivel 2 debe seleccionar exactamente dos respuestas correctas."
                 )
 
 
-            if errores:
+            if errores_pregunta:
 
-                for error in errores:
+                for error in errores_pregunta:
 
                     st.error(error)
 
@@ -24655,27 +24690,23 @@ if not df_evaluaciones_11a.empty:
                 )
 
 
-                nueva_pregunta = pd.DataFrame(
-                    [
-                        {
-                            "Evaluacion_ID": evaluacion,
-                            "Pregunta_ID": pregunta_id,
-                            "Nivel": int(nivel),
-                            "Enunciado": enunciado.strip(),
-                            "Respuesta_1": respuesta_1.strip(),
-                            "Respuesta_2": respuesta_2.strip(),
-                            "Respuesta_3": respuesta_3.strip(),
-                            "Respuesta_4": respuesta_4.strip(),
-                            "Respuesta_Correcta": respuestas_correctas
-                        }
-                    ]
-                )
+                nueva_pregunta = {
+                    "Evaluacion_ID": evaluacion,
+                    "Pregunta_ID": pregunta_id,
+                    "Nivel": int(nivel),
+                    "Enunciado": enunciado.strip(),
+                    "Respuesta_1": respuesta_1.strip(),
+                    "Respuesta_2": respuesta_2.strip(),
+                    "Respuesta_3": respuesta_3.strip(),
+                    "Respuesta_4": respuesta_4.strip(),
+                    "Respuesta_Correcta": respuesta_correcta
+                }
 
 
-                df_preguntas = pd.concat(
+                df_preguntas_11a = pd.concat(
                     [
-                        df_preguntas,
-                        nueva_pregunta
+                        df_preguntas_11a,
+                        pd.DataFrame([nueva_pregunta])
                     ],
                     ignore_index=True
                 )
@@ -24683,7 +24714,7 @@ if not df_evaluaciones_11a.empty:
 
                 st.session_state[
                     clave_preguntas
-                ] = df_preguntas.copy()
+                ] = df_preguntas_11a.copy()
 
 
                 st.success(
@@ -24697,8 +24728,8 @@ if not df_evaluaciones_11a.empty:
     else:
 
         st.success(
-            f"La evaluación {evaluacion} está completa: "
-            f"{cantidad_actual} de {cantidad_actual} preguntas."
+            f"Evaluación completa: "
+            f"{preguntas_creadas} de {cantidad_actual} preguntas."
         )
 
 
@@ -24706,38 +24737,23 @@ if not df_evaluaciones_11a.empty:
     # 9. PREGUNTAS CREADAS
     # ========================================================
 
-    if not df_preguntas.empty:
+    if not df_preguntas_11a.empty:
 
         st.markdown("### 5. Preguntas creadas")
 
 
         st.dataframe(
-            df_preguntas[
-                [
-                    "Pregunta_ID",
-                    "Nivel",
-                    "Enunciado",
-                    "Respuesta_1",
-                    "Respuesta_2",
-                    "Respuesta_3",
-                    "Respuesta_4",
-                    "Respuesta_Correcta"
-                ]
+            df_preguntas_11a[
+                COLUMNAS_PREGUNTAS_11A
             ],
             use_container_width=True,
             hide_index=True
         )
 
 
-        # ====================================================
-        # RESUMEN FINAL
-        # ====================================================
-
-        if len(df_preguntas) == cantidad_actual:
+        if preguntas_creadas == cantidad_actual:
 
             st.success(
-                f"Evaluación {evaluacion} completada correctamente "
-                f"con {cantidad_actual} preguntas."
+                f"La evaluación {evaluacion} quedó completa."
             )
-
 
