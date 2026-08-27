@@ -10651,12 +10651,11 @@ if (
     # 1. ARCHIVO PERSISTENTE DE EVALUACIONES CONTROLADAS
     # ========================================================
 
-    ARCHIVO_REPOSITORIO_EVALUACIONES = (
-        BASE_DIR
-        / "evaluacion"
-        / "Repositorioevaluacionescontroladas.csv"
-    )
-
+   ARCHIVO_REPOSITORIO_EVALUACIONES = (
+    BASE_DIR
+    / "evaluacion"
+    / "Respositorioevaluacionescontroladas.csv"
+)
     # ========================================================
     # 2. VERIFICAR EXISTENCIA DEL ARCHIVO
     # ========================================================
