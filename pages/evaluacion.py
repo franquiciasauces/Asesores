@@ -24740,6 +24740,9 @@ if not df_preguntas_11a.empty:
         hide_index=True
     )
 # ============================================================
+
+
+# ============================================================
 # 11.B - PERSISTENCIA DE EVALUACIONES CONTROLADAS
 # ============================================================
 
@@ -24762,17 +24765,17 @@ GITHUB_RAMA = "main"
 
 
 # ============================================================
-# UBICACION DEL REPOSITORIO
+# ARCHIVO DE PERSISTENCIA
 # ============================================================
 
-ARCHIVO_GITHUB = (
+ARCHIVO_GITHUB_11B = (
     "evaluacion/"
     "Respositorioevaluacionescontroladas.csv"
 )
 
 
 # ============================================================
-# COLUMNAS DEL REPOSITORIO
+# ESTRUCTURA DEL REPOSITORIO
 # ============================================================
 
 COLUMNAS_REPOSITORIO_11B = [
@@ -24796,13 +24799,8 @@ COLUMNAS_REPOSITORIO_11B = [
 
 
 # ============================================================
-# TOMAR LA EVALUACION ACTIVA DE 11.A
+# TOMAR LAS EVALUACIONES EXISTENTES EN EL TEMPORAL
 # ============================================================
-
-evaluacion_activa_11b = st.session_state.get(
-    "evaluacion_activa_11a"
-)
-
 
 df_evaluaciones_11b = (
     st.session_state.get(
@@ -24816,65 +24814,117 @@ df_evaluaciones_11b = (
 # VERIFICAR QUE EXISTA UNA EVALUACION
 # ============================================================
 
-if (
-    evaluacion_activa_11b is None
-    or df_evaluaciones_11b.empty
-):
+if df_evaluaciones_11b.empty:
 
     st.info(
-        "11.B está en espera. "
-        "Primero debe crear una evaluación en 11.A."
+        "No existen evaluaciones temporales para persistir."
     )
 
 else:
 
     # ========================================================
-    # LOCALIZAR LA EVALUACION
+    # EVALUACION ACTIVA
     # ========================================================
 
-    fila_evaluacion_11b = (
-        df_evaluaciones_11b[
-            df_evaluaciones_11b[
-                "Evaluacion_ID"
-            ].astype(str)
-            == str(evaluacion_activa_11b)
-        ]
+    evaluacion_activa_11b = st.session_state.get(
+        "evaluacion_activa_11a"
     )
 
 
-    if fila_evaluacion_11b.empty:
+    opciones_11b = (
+        df_evaluaciones_11b[
+            "Evaluacion_ID"
+        ]
+        .astype(str)
+        .tolist()
+    )
+
+
+    if evaluacion_activa_11b not in opciones_11b:
+
+        evaluacion_activa_11b = opciones_11b[-1]
+
+
+    indice_11b = opciones_11b.index(
+        evaluacion_activa_11b
+    )
+
+
+    evaluacion_seleccionada_11b = st.selectbox(
+        "Evaluación a persistir",
+        opciones_11b,
+        index=indice_11b,
+        key="evaluacion_persistir_11b"
+    )
+
+
+    # ========================================================
+    # GUARDAR COMO EVALUACION ACTIVA
+    # ========================================================
+
+    st.session_state[
+        "evaluacion_activa_11a"
+    ] = evaluacion_seleccionada_11b
+
+
+    # ========================================================
+    # LOCALIZAR LA EVALUACION
+    # ========================================================
+
+    fila_11b = df_evaluaciones_11b[
+        df_evaluaciones_11b[
+            "Evaluacion_ID"
+        ].astype(str)
+        == str(evaluacion_seleccionada_11b)
+    ]
+
+
+    if fila_11b.empty:
 
         st.error(
-            "11.B no pudo localizar la evaluación activa "
-            "generada por 11.A."
+            "No fue posible localizar la evaluación seleccionada."
         )
 
     else:
 
-        fila_evaluacion_11b = (
-            fila_evaluacion_11b.iloc[0]
-        )
+        fila_11b = fila_11b.iloc[0]
 
 
         evaluacion_id_11b = str(
-            fila_evaluacion_11b[
-                "Evaluacion_ID"
-            ]
+            fila_11b["Evaluacion_ID"]
+        )
+
+
+        modulo_11b = str(
+            fila_11b["Modulo"]
+        )
+
+
+        nombre_11b = str(
+            fila_11b["Nombre_Evaluacion"]
+        )
+
+
+        descripcion_11b = str(
+            fila_11b["Descripcion"]
         )
 
 
         cantidad_11b = int(
             pd.to_numeric(
-                fila_evaluacion_11b[
-                    "Cantidad_Preguntas"
-                ],
+                fila_11b["Cantidad_Preguntas"],
                 errors="coerce"
             )
         )
 
 
+        estado_11b = str(
+            fila_11b["Estado"]
+        )
+
+
         # ====================================================
-        # TOMAR LAS PREGUNTAS DE ESA EVALUACION
+        # BUSCAR LAS PREGUNTAS EN EL TEMPORAL
         # ====================================================
 
         clave_preguntas_11b = (
@@ -24891,117 +24941,170 @@ else:
         )
 
 
-        preguntas_11b = len(
+        preguntas_creadas_11b = len(
             df_preguntas_11b
         )
 
 
         # ====================================================
-        # VERIFICAR SI ESTA COMPLETA
+        # INFORMACION
         # ====================================================
 
-        if preguntas_11b < cantidad_11b:
+        st.markdown(
+            "### Información de la evaluación"
+        )
 
-            st.info(
-                f"La evaluación {evaluacion_id_11b} "
-                f"todavía no está completa. "
-                f"Tiene {preguntas_11b} de "
-                f"{cantidad_11b} preguntas."
+
+        c1, c2, c3, c4 = st.columns(4)
+
+
+        c1.metric(
+            "Código / ID",
+            evaluacion_id_11b
+        )
+
+
+        c2.metric(
+            "Módulo",
+            modulo_11b
+        )
+
+
+        c3.metric(
+            "Preguntas",
+            f"{preguntas_creadas_11b}/{cantidad_11b}"
+        )
+
+
+        c4.metric(
+            "Estado",
+            estado_11b
+        )
+
+
+        st.write(
+            f"**Nombre:** {nombre_11b}"
+        )
+
+
+        st.write(
+            f"**Descripción:** {descripcion_11b}"
+        )
+
+
+        # ====================================================
+        # INFORMAR SI ESTA COMPLETA O INCOMPLETA
+        # ====================================================
+
+        if preguntas_creadas_11b < cantidad_11b:
+
+            st.warning(
+                f"La evaluación tiene "
+                f"{preguntas_creadas_11b} de "
+                f"{cantidad_11b} preguntas. "
+                "Se puede persistir tal como está "
+                "para no perder el trabajo realizado."
             )
 
         else:
 
             st.success(
-                f"La evaluación {evaluacion_id_11b} "
-                f"está completa y lista para persistir."
+                "La evaluación está completa."
+            )
+
+
+        # ====================================================
+        # MOSTRAR PREGUNTAS TEMPORALES
+        # ====================================================
+
+        if not df_preguntas_11b.empty:
+
+            st.markdown(
+                "### Preguntas actualmente guardadas"
+            )
+
+
+            columnas_mostrar_11b = [
+                columna
+                for columna in [
+                    "Pregunta_ID",
+                    "Nivel",
+                    "Enunciado",
+                    "Respuesta_1",
+                    "Respuesta_2",
+                    "Respuesta_3",
+                    "Respuesta_4",
+                    "Respuesta_Correcta"
+                ]
+                if columna in df_preguntas_11b.columns
+            ]
+
+
+            st.dataframe(
+                df_preguntas_11b[
+                    columnas_mostrar_11b
+                ],
+                use_container_width=True,
+                hide_index=True
+            )
+
+        else:
+
+            st.info(
+                "La evaluación todavía no tiene preguntas guardadas."
+            )
+
+
+        # ====================================================
+        # PERSISTIR
+        # ====================================================
+
+        if st.button(
+            "PERSISTIR EVALUACIÓN",
+            type="primary",
+            key="persistir_evaluacion_11b"
+        ):
+
+            # =================================================
+            # CREAR REGISTRO DE LA EVALUACION
+            # =================================================
+
+            registros_11b = []
+
+
+            registros_11b.append(
+                {
+                    "Tipo_Registro": "EVALUACION",
+                    "Evaluacion_ID": evaluacion_id_11b,
+                    "Modulo": modulo_11b,
+                    "Nombre_Evaluacion": nombre_11b,
+                    "Descripcion": descripcion_11b,
+                    "Cantidad_Preguntas": cantidad_11b,
+                    "Preguntas_Creadas": preguntas_creadas_11b,
+                    "Estado": estado_11b,
+                    "Pregunta_ID": "",
+                    "Nivel": "",
+                    "Enunciado": "",
+                    "Respuesta_1": "",
+                    "Respuesta_2": "",
+                    "Respuesta_3": "",
+                    "Respuesta_4": "",
+                    "Respuesta_Correcta": ""
+                }
             )
 
 
             # =================================================
-            # INFORMACION
+            # CREAR REGISTROS DE LAS PREGUNTAS
             # =================================================
 
-            c1, c2, c3 = st.columns(3)
+            if not df_preguntas_11b.empty:
 
+                for _, pregunta_11b in (
+                    df_preguntas_11b.iterrows()
+                ):
 
-            c1.metric(
-                "Evaluación",
-                evaluacion_id_11b
-            )
-
-
-            c2.metric(
-                "Preguntas",
-                f"{preguntas_11b}/{cantidad_11b}"
-            )
-
-
-            c3.metric(
-                "Estado",
-                str(
-                    fila_evaluacion_11b[
-                        "Estado"
-                    ]
-                )
-            )
-
-
-            # =================================================
-            # BOTON DE PERSISTENCIA
-            # =================================================
-
-            if st.button(
-                "PERSISTIR EVALUACIÓN",
-                type="primary",
-                key="persistir_11b"
-            ):
-
-                # =============================================
-                # CREAR REGISTROS DE LA EVALUACION
-                # =============================================
-
-                registros_nuevos_11b = []
-
-
-                registros_nuevos_11b.append(
-                    {
-                        "Tipo_Registro": "EVALUACION",
-                        "Evaluacion_ID": evaluacion_id_11b,
-                        "Modulo": fila_evaluacion_11b[
-                            "Modulo"
-                        ],
-                        "Nombre_Evaluacion": fila_evaluacion_11b[
-                            "Nombre_Evaluacion"
-                        ],
-                        "Descripcion": fila_evaluacion_11b[
-                            "Descripcion"
-                        ],
-                        "Cantidad_Preguntas": fila_evaluacion_11b[
-                            "Cantidad_Preguntas"
-                        ],
-                        "Preguntas_Creadas": preguntas_11b,
-                        "Estado": fila_evaluacion_11b[
-                            "Estado"
-                        ],
-                        "Pregunta_ID": "",
-                        "Nivel": "",
-                        "Enunciado": "",
-                        "Respuesta_1": "",
-                        "Respuesta_2": "",
-                        "Respuesta_3": "",
-                        "Respuesta_4": "",
-                        "Respuesta_Correcta": ""
-                    }
-                )
-
-
-                # =============================================
-                # CREAR REGISTROS DE LAS PREGUNTAS
-                # =============================================
-
-                for _, pregunta in df_preguntas_11b.iterrows():
-
-                    registros_nuevos_11b.append(
+                    registros_11b.append(
                         {
                             "Tipo_Registro": "PREGUNTA",
                             "Evaluacion_ID": evaluacion_id_11b,
@@ -25011,35 +25114,35 @@ else:
                             "Cantidad_Preguntas": "",
                             "Preguntas_Creadas": "",
                             "Estado": "",
-                            "Pregunta_ID": pregunta.get(
+                            "Pregunta_ID": pregunta_11b.get(
                                 "Pregunta_ID",
                                 ""
                             ),
-                            "Nivel": pregunta.get(
+                            "Nivel": pregunta_11b.get(
                                 "Nivel",
                                 ""
                             ),
-                            "Enunciado": pregunta.get(
+                            "Enunciado": pregunta_11b.get(
                                 "Enunciado",
                                 ""
                             ),
-                            "Respuesta_1": pregunta.get(
+                            "Respuesta_1": pregunta_11b.get(
                                 "Respuesta_1",
                                 ""
                             ),
-                            "Respuesta_2": pregunta.get(
+                            "Respuesta_2": pregunta_11b.get(
                                 "Respuesta_2",
                                 ""
                             ),
-                            "Respuesta_3": pregunta.get(
+                            "Respuesta_3": pregunta_11b.get(
                                 "Respuesta_3",
                                 ""
                             ),
-                            "Respuesta_4": pregunta.get(
+                            "Respuesta_4": pregunta_11b.get(
                                 "Respuesta_4",
                                 ""
                             ),
-                            "Respuesta_Correcta": pregunta.get(
+                            "Respuesta_Correcta": pregunta_11b.get(
                                 "Respuesta_Correcta",
                                 ""
                             )
@@ -25047,296 +25150,292 @@ else:
                     )
 
 
-                df_nuevo_11b = pd.DataFrame(
-                    registros_nuevos_11b,
-                    columns=COLUMNAS_REPOSITORIO_11B
+            # =================================================
+            # DATAFRAME NUEVO
+            # =================================================
+
+            df_nuevo_11b = pd.DataFrame(
+                registros_11b,
+                columns=COLUMNAS_REPOSITORIO_11B
+            )
+
+
+            # =================================================
+            # URL DE GITHUB
+            # =================================================
+
+            url_11b = (
+                f"https://api.github.com/repos/"
+                f"{GITHUB_USUARIO}/"
+                f"{GITHUB_REPOSITORIO}/"
+                f"contents/{ARCHIVO_GITHUB_11B}"
+            )
+
+
+            headers_11b = {
+                "Authorization": (
+                    f"Bearer {GITHUB_TOKEN}"
+                ),
+                "Accept": (
+                    "application/vnd.github+json"
+                )
+            }
+
+
+            # =================================================
+            # LEER ARCHIVO EXISTENTE
+            # =================================================
+
+            respuesta_get_11b = requests.get(
+                url_11b,
+                headers=headers_11b,
+                params={
+                    "ref": GITHUB_RAMA
+                },
+                timeout=30
+            )
+
+
+            sha_11b = None
+
+
+            if respuesta_get_11b.status_code == 200:
+
+                datos_11b = (
+                    respuesta_get_11b.json()
                 )
 
 
-                # =================================================
-                # API DE GITHUB
-                # =================================================
-
-                url_11b = (
-                    f"https://api.github.com/repos/"
-                    f"{GITHUB_USUARIO}/"
-                    f"{GITHUB_REPOSITORIO}/"
-                    f"contents/{ARCHIVO_GITHUB}"
+                sha_11b = datos_11b.get(
+                    "sha"
                 )
 
 
-                headers_11b = {
-                    "Authorization": (
-                        f"Bearer {GITHUB_TOKEN}"
-                    ),
-                    "Accept": (
-                        "application/vnd.github+json"
-                    )
-                }
-
-
-                # =================================================
-                # COMPROBAR SI EL REPOSITORIO YA EXISTE
-                # =================================================
-
-                respuesta_existencia_11b = requests.get(
-                    url_11b,
-                    headers=headers_11b,
-                    params={
-                        "ref": GITHUB_RAMA
-                    },
-                    timeout=30
+                contenido_11b = datos_11b.get(
+                    "content",
+                    ""
                 )
 
 
-                sha_11b = None
+                if contenido_11b:
 
-
-                if respuesta_existencia_11b.status_code == 200:
-
-                    datos_existencia_11b = (
-                        respuesta_existencia_11b.json()
-                    )
-
-                    sha_11b = (
-                        datos_existencia_11b.get(
-                            "sha"
+                    contenido_decodificado_11b = (
+                        base64.b64decode(
+                            contenido_11b
+                        )
+                        .decode(
+                            "utf-8-sig"
                         )
                     )
 
 
-                    # =============================================
-                    # LEER ARCHIVO EXISTENTE
-                    # =============================================
+                    from io import StringIO
 
-                    contenido_existente_11b = (
-                        datos_existencia_11b.get(
-                            "content",
-                            ""
-                        )
+
+                    df_existente_11b = pd.read_csv(
+                        StringIO(
+                            contenido_decodificado_11b
+                        ),
+                        dtype=str
                     )
 
-
-                    if contenido_existente_11b:
-
-                        contenido_decodificado_11b = (
-                            base64.b64decode(
-                                contenido_existente_11b
-                            )
-                            .decode(
-                                "utf-8-sig"
-                            )
-                        )
-
-
-                        from io import StringIO
-
-
-                        df_existente_11b = pd.read_csv(
-                            StringIO(
-                                contenido_decodificado_11b
-                            ),
-                            dtype=str
-                        )
-
-
-                        # =========================================
-                        # GARANTIZAR COLUMNAS
-                        # =========================================
-
-                        for columna in COLUMNAS_REPOSITORIO_11B:
-
-                            if columna not in df_existente_11b.columns:
-
-                                df_existente_11b[
-                                    columna
-                                ] = ""
-
-
-                        df_existente_11b = (
-                            df_existente_11b[
-                                COLUMNAS_REPOSITORIO_11B
-                            ]
-                        )
-
-
-                    else:
-
-                        df_existente_11b = pd.DataFrame(
-                            columns=COLUMNAS_REPOSITORIO_11B
-                        )
-
-
-                elif respuesta_existencia_11b.status_code == 404:
+                else:
 
                     df_existente_11b = pd.DataFrame(
                         columns=COLUMNAS_REPOSITORIO_11B
                     )
 
 
+            elif respuesta_get_11b.status_code == 404:
+
+                df_existente_11b = pd.DataFrame(
+                    columns=COLUMNAS_REPOSITORIO_11B
+                )
+
+
+            else:
+
+                st.error(
+                    "No fue posible consultar "
+                    "Respositorioevaluacionescontroladas.csv "
+                    f"en GitHub. Código HTTP: "
+                    f"{respuesta_get_11b.status_code}"
+                )
+
+                df_existente_11b = None
+
+
+            # =================================================
+            # CONTINUAR SOLO SI LA LECTURA FUE CORRECTA
+            # =================================================
+
+            if df_existente_11b is not None:
+
+                # =============================================
+                # GARANTIZAR TODAS LAS COLUMNAS
+                # =============================================
+
+                for columna in COLUMNAS_REPOSITORIO_11B:
+
+                    if columna not in df_existente_11b.columns:
+
+                        df_existente_11b[
+                            columna
+                        ] = ""
+
+
+                df_existente_11b = (
+                    df_existente_11b[
+                        COLUMNAS_REPOSITORIO_11B
+                    ]
+                )
+
+
+                # =============================================
+                # ELIMINAR VERSION ANTERIOR DE LA EVALUACION
+                #
+                # ESTO PERMITE VOLVER A PERSISTIRLA DESPUES
+                # DE AGREGAR MAS PREGUNTAS.
+                # =============================================
+
+                if not df_existente_11b.empty:
+
+                    df_existente_11b = (
+                        df_existente_11b[
+                            df_existente_11b[
+                                "Evaluacion_ID"
+                            ].astype(str)
+                            != evaluacion_id_11b
+                        ]
+                    )
+
+
+                # =============================================
+                # AGREGAR VERSION ACTUAL
+                # =============================================
+
+                df_repositorio_11b = pd.concat(
+                    [
+                        df_existente_11b,
+                        df_nuevo_11b
+                    ],
+                    ignore_index=True
+                )
+
+
+                # =============================================
+                # ORDENAR
+                # =============================================
+
+                df_repositorio_11b = (
+                    df_repositorio_11b[
+                        COLUMNAS_REPOSITORIO_11B
+                    ]
+                    .reset_index(drop=True)
+                )
+
+
+                # =============================================
+                # CONVERTIR A CSV
+                # =============================================
+
+                csv_data_11b = (
+                    df_repositorio_11b.to_csv(
+                        index=False,
+                        encoding="utf-8-sig"
+                    )
+                )
+
+
+                contenido_base64_11b = (
+                    base64.b64encode(
+                        csv_data_11b.encode(
+                            "utf-8-sig"
+                        )
+                    )
+                    .decode("utf-8")
+                )
+
+
+                # =============================================
+                # PREPARAR ACTUALIZACION
+                # =============================================
+
+                payload_11b = {
+                    "message": (
+                        "Actualizar "
+                        "Respositorioevaluacionescontroladas.csv"
+                    ),
+                    "content": contenido_base64_11b,
+                    "branch": GITHUB_RAMA
+                }
+
+
+                if sha_11b is not None:
+
+                    payload_11b["sha"] = sha_11b
+
+
+                # =============================================
+                # PERSISTIR EN GITHUB
+                # =============================================
+
+                respuesta_put_11b = requests.put(
+                    url_11b,
+                    headers=headers_11b,
+                    json=payload_11b,
+                    timeout=30
+                )
+
+
+                # =============================================
+                # RESULTADO
+                # =============================================
+
+                if respuesta_put_11b.status_code in [
+                    200,
+                    201
+                ]:
+
+                    st.success(
+                        "La evaluación fue persistida "
+                        "correctamente."
+                    )
+
+
+                    st.write(
+                        f"**Evaluación:** "
+                        f"`{evaluacion_id_11b}`"
+                    )
+
+
+                    st.write(
+                        f"**Preguntas persistidas:** "
+                        f"{preguntas_creadas_11b}"
+                    )
+
+
+                    st.write(
+                        f"**Registros totales:** "
+                        f"{len(df_repositorio_11b):,}"
+                    )
+
+
+                    st.write(
+                        "**Archivo:** "
+                        "`evaluacion/"
+                        "Respositorioevaluacionescontroladas.csv`"
+                    )
+
+
                 else:
 
                     st.error(
-                        "11.B: no fue posible comprobar "
-                        "el repositorio existente en GitHub. "
-                        f"Código HTTP: "
-                        f"{respuesta_existencia_11b.status_code}"
-                    )
-
-                    df_existente_11b = None
-
-
-                # =================================================
-                # CONTINUAR SOLO SI SE PUDO LEER EL REPOSITORIO
-                # =================================================
-
-                if df_existente_11b is not None:
-
-                    # =============================================
-                    # ELIMINAR VERSION ANTERIOR DE ESTA EVALUACION
-                    # =============================================
-
-                    if not df_existente_11b.empty:
-
-                        df_existente_11b = (
-                            df_existente_11b[
-                                df_existente_11b[
-                                    "Evaluacion_ID"
-                                ].astype(str)
-                                != evaluacion_id_11b
-                            ]
-                        )
-
-
-                    # =============================================
-                    # AGREGAR EVALUACION ACTUALIZADA
-                    # =============================================
-
-                    df_repositorio_11b = pd.concat(
-                        [
-                            df_existente_11b,
-                            df_nuevo_11b
-                        ],
-                        ignore_index=True
+                        "No fue posible persistir "
+                        "la evaluación en GitHub."
                     )
 
 
-                    # =============================================
-                    # ELIMINAR DUPLICADOS
-                    # =============================================
-
-                    df_repositorio_11b = (
-                        df_repositorio_11b
-                        .drop_duplicates(
-                            subset=[
-                                "Tipo_Registro",
-                                "Evaluacion_ID",
-                                "Pregunta_ID"
-                            ],
-                            keep="last"
-                        )
-                        .reset_index(drop=True)
+                    st.code(
+                        respuesta_put_11b.text
                     )
-
-
-                    # =============================================
-                    # CONVERTIR A CSV
-                    # =============================================
-
-                    csv_data_11b = (
-                        df_repositorio_11b.to_csv(
-                            index=False,
-                            encoding="utf-8-sig"
-                        )
-                    )
-
-
-                    contenido_base64_11b = (
-                        base64.b64encode(
-                            csv_data_11b.encode(
-                                "utf-8-sig"
-                            )
-                        )
-                        .decode("utf-8")
-                    )
-
-
-                    # =============================================
-                    # PAYLOAD
-                    # =============================================
-
-                    payload_11b = {
-                        "message": (
-                            "Actualizar "
-                            "Respositorioevaluacionescontroladas.csv"
-                        ),
-                        "content": contenido_base64_11b,
-                        "branch": GITHUB_RAMA
-                    }
-
-
-                    if sha_11b is not None:
-
-                        payload_11b["sha"] = sha_11b
-
-
-                    # =============================================
-                    # PERSISTIR
-                    # =============================================
-
-                    respuesta_11b = requests.put(
-                        url_11b,
-                        headers=headers_11b,
-                        json=payload_11b,
-                        timeout=30
-                    )
-
-
-                    # =============================================
-                    # RESULTADO
-                    # =============================================
-
-                    if respuesta_11b.status_code in [200, 201]:
-
-                        st.success(
-                            "La evaluación fue persistida "
-                            "correctamente en "
-                            "Respositorioevaluacionescontroladas.csv."
-                        )
-
-
-                        st.write(
-                            "Evaluación: "
-                            f"`{evaluacion_id_11b}`"
-                        )
-
-
-                        st.write(
-                            "Preguntas persistidas: "
-                            f"{preguntas_11b}"
-                        )
-
-
-                        st.write(
-                            "Registros totales del repositorio: "
-                            f"{len(df_repositorio_11b):,}"
-                        )
-
-
-                        st.write(
-                            "Ubicación: "
-                            f"`{ARCHIVO_GITHUB}`"
-                        )
-
-
-                    else:
-
-                        st.error(
-                            "11.B: no fue posible persistir "
-                            "la evaluación en GitHub."
-                        )
-
-
-                        st.code(
-                            respuesta_11b.text
-                        )
