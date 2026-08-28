@@ -11364,3 +11364,538 @@ if (
                         f"{preguntas_respondidas} de "
                         f"{total_preguntas}"
                     )
+# ============================================================
+# GESTIONEJECUCIONEVALUACION
+# PARTE 3 — EVALUACIÓN, CALIFICACIÓN Y PERSISTENCIA
+# ============================================================
+
+if (
+    opcion_principal == "EVALUACIÓN"
+    and opcion_evaluacion == "Evaluaciones controladas"
+    and st.session_state.get(
+        "evaluacion_controlada_ejecucion_id"
+    )
+):
+
+    evaluacion_id_seleccionada = st.session_state[
+        "evaluacion_controlada_ejecucion_id"
+    ]
+
+    # ========================================================
+    # 1. OBTENER USUARIO ACTUAL
+    # ========================================================
+
+    usuario_actual = str(
+        st.session_state.get(
+            "USUARIO_ACTUAL",
+            st.session_state.get(
+                "usuario_actual",
+                ""
+            )
+        )
+    ).strip()
+
+    # ========================================================
+    # 2. OBTENER REPOSITORIO DE PREGUNTAS
+    # ========================================================
+
+    ARCHIVO_EVALUACIONES_CONTROLADAS = (
+        BASE_DIR
+        / "evaluacion"
+        / "Respositorioevaluacionescontroladas.csv"
+    )
+
+    if not ARCHIVO_EVALUACIONES_CONTROLADAS.exists():
+
+        st.error(
+            "No se encuentra el repositorio de "
+            "evaluaciones controladas."
+        )
+
+    else:
+
+        try:
+
+            df_repositorio_ejecucion = pd.read_csv(
+                ARCHIVO_EVALUACIONES_CONTROLADAS,
+                dtype=str,
+                keep_default_na=False
+            )
+
+        except Exception as error:
+
+            st.error(
+                "No fue posible cargar el repositorio "
+                "de evaluaciones controladas."
+            )
+
+            st.code(
+                str(error)
+            )
+
+            df_repositorio_ejecucion = pd.DataFrame()
+
+        # ====================================================
+        # 3. FILTRAR LA EVALUACIÓN SELECCIONADA
+        # ====================================================
+
+        if not df_repositorio_ejecucion.empty:
+
+            df_preguntas_ejecucion = (
+                df_repositorio_ejecucion[
+                    df_repositorio_ejecucion[
+                        "Evaluacion_ID"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    == str(
+                        evaluacion_id_seleccionada
+                    ).strip()
+                ]
+                .copy()
+            )
+
+            # =================================================
+            # 4. VERIFICAR PREGUNTAS
+            # =================================================
+
+            if df_preguntas_ejecucion.empty:
+
+                st.warning(
+                    "La evaluación seleccionada no contiene "
+                    "preguntas disponibles."
+                )
+
+            else:
+
+                # =================================================
+                # 5. RESPUESTAS TEMPORALES DEL ASESOR
+                # =================================================
+
+                clave_respuestas = (
+                    "respuestas_temporales_"
+                    + str(
+                        evaluacion_id_seleccionada
+                    )
+                )
+
+                respuestas_temporales = (
+                    st.session_state.get(
+                        clave_respuestas,
+                        {}
+                    )
+                )
+
+                total_preguntas = len(
+                    df_preguntas_ejecucion
+                )
+
+                # =================================================
+                # 6. VERIFICAR QUE TODAS ESTÉN RESPONDIDAS
+                # =================================================
+
+                if len(respuestas_temporales) < total_preguntas:
+
+                    st.warning(
+                        "Debe responder todas las preguntas "
+                        "antes de calcular la evaluación."
+                    )
+
+                else:
+
+                    # =================================================
+                    # 7. CALCULAR RESPUESTAS CORRECTAS
+                    # =================================================
+
+                    respuestas_correctas = 0
+
+                    for _, pregunta in (
+                        df_preguntas_ejecucion.iterrows()
+                    ):
+
+                        pregunta_id = str(
+                            pregunta["Pregunta_ID"]
+                        ).strip()
+
+                        respuesta_asesor = str(
+                            respuestas_temporales.get(
+                                pregunta_id,
+                                ""
+                            )
+                        ).strip()
+
+                        respuesta_correcta = str(
+                            pregunta["Respuesta_Correcta"]
+                        ).strip()
+
+                        if (
+                            respuesta_asesor
+                            == respuesta_correcta
+                        ):
+
+                            respuestas_correctas += 1
+
+                    # =================================================
+                    # 8. CALCULAR PORCENTAJE
+                    # =================================================
+
+                    porcentaje = round(
+                        (
+                            respuestas_correctas
+                            / total_preguntas
+                        ) * 100,
+                        2
+                    )
+
+                    # =================================================
+                    # 9. MENSAJE SEGÚN RESULTADO
+                    # =================================================
+
+                    if porcentaje == 100:
+
+                        mensaje_resultado = (
+                            "Felicitaciones lo hiciste muy bien, "
+                            "coloca siempre en practica tus conocimientos."
+                        )
+
+                    elif porcentaje >= 80:
+
+                        mensaje_resultado = (
+                            "Lo hiciste bien, pero lo puedes hacer mejor."
+                        )
+
+                    elif porcentaje >= 60:
+
+                        mensaje_resultado = (
+                            "Aun tienes muchos vacíos en la tematica "
+                            "evaluada, debes repasar para fortalecer "
+                            "tus competencias."
+                        )
+
+                    else:
+
+                        mensaje_resultado = (
+                            "Tus resultados no fueron los mejores "
+                            "es necesario que dediques tiempo a repasar, "
+                            "e indagar más sobre la tematica."
+                        )
+
+                    # =================================================
+                    # 10. MOSTRAR RESULTADO
+                    # =================================================
+
+                    st.divider()
+
+                    st.subheader(
+                        "Resultado de la evaluación"
+                    )
+
+                    st.metric(
+                        "Calificación",
+                        f"{porcentaje:.2f}%"
+                    )
+
+                    st.write(
+                        f"Respuestas correctas: "
+                        f"{respuestas_correctas} de "
+                        f"{total_preguntas}"
+                    )
+
+                    st.info(
+                        mensaje_resultado
+                    )
+
+                    # =================================================
+                    # 11. ARCHIVO DE HISTORIAL
+                    # =================================================
+
+                    ARCHIVO_HISTORIAL = (
+                        BASE_DIR
+                        / "evaluacion"
+                        / "Historialdesarrolloevaluaciones.csv"
+                    )
+
+                    # =================================================
+                    # 12. CARGAR HISTORIAL EXISTENTE
+                    # =================================================
+
+                    if ARCHIVO_HISTORIAL.exists():
+
+                        try:
+
+                            df_historial = pd.read_csv(
+                                ARCHIVO_HISTORIAL,
+                                dtype=str,
+                                keep_default_na=False
+                            )
+
+                        except Exception as error:
+
+                            st.error(
+                                "No fue posible cargar el historial "
+                                "de evaluaciones."
+                            )
+
+                            st.code(
+                                str(error)
+                            )
+
+                            df_historial = pd.DataFrame()
+
+                    else:
+
+                        df_historial = pd.DataFrame(
+                            columns=[
+                                "Registro_Evaluacion_ID",
+                                "Evaluacion_ID",
+                                "Tipo_Evaluación",
+                                "Modulo",
+                                "Nombre_Evaluacion",
+                                "Descripcion",
+                                "Tipo_Relacion",
+                                "Usuario",
+                                "Fecha_Diligenciamiento",
+                                "Hoa_Diligenciamiento",
+                                "Total_Preguntas",
+                                "Respuestas_Correctas",
+                                "Porcentaje",
+                                "Mensaje_Resultado"
+                            ]
+                        )
+
+                    # =================================================
+                    # 13. VERIFICAR SI YA EXISTE UNA NOTA
+                    # =================================================
+
+                    nota_existente = False
+
+                    if (
+                        not df_historial.empty
+                        and "Evaluacion_ID"
+                        in df_historial.columns
+                        and "Usuario"
+                        in df_historial.columns
+                    ):
+
+                        coincidencias = (
+                            df_historial[
+                                (
+                                    df_historial[
+                                        "Evaluacion_ID"
+                                    ]
+                                    .astype(str)
+                                    .str.strip()
+                                    ==
+                                    str(
+                                        evaluacion_id_seleccionada
+                                    ).strip()
+                                )
+                                &
+                                (
+                                    df_historial[
+                                        "Usuario"
+                                    ]
+                                    .astype(str)
+                                    .str.strip()
+                                    ==
+                                    usuario_actual
+                                )
+                            ]
+                        )
+
+                        if not coincidencias.empty:
+
+                            nota_existente = True
+
+                    # =================================================
+                    # 14. SI YA EXISTE, NO ACTUALIZAR
+                    # =================================================
+
+                    if nota_existente:
+
+                        st.warning(
+                            "Ya tienes una nota previa asignada "
+                            "para esta evaluación. "
+                            "La nueva ejecución no modificará "
+                            "ni reemplazará tu resultado histórico."
+                        )
+
+                    else:
+
+                        # =============================================
+                        # 15. GENERAR CONSECUTIVO
+                        # =============================================
+
+                        siguiente_numero = 1
+
+                        if (
+                            not df_historial.empty
+                            and "Registro_Evaluacion_ID"
+                            in df_historial.columns
+                        ):
+
+                            numeros = (
+                                df_historial[
+                                    "Registro_Evaluacion_ID"
+                                ]
+                                .astype(str)
+                                .str.extract(
+                                    r"(\d+)$",
+                                    expand=False
+                                )
+                            )
+
+                            numeros = pd.to_numeric(
+                                numeros,
+                                errors="coerce"
+                            )
+
+                            if numeros.notna().any():
+
+                                siguiente_numero = (
+                                    int(
+                                        numeros.max()
+                                    )
+                                    + 1
+                                )
+
+                        registro_evaluacion_id = (
+                            f"REG{str(siguiente_numero).zfill(6)}"
+                        )
+
+                        # =============================================
+                        # 16. INFORMACIÓN DE LA EVALUACIÓN
+                        # =============================================
+
+                        primera_fila = (
+                            df_preguntas_ejecucion.iloc[0]
+                        )
+
+                        modulo = str(
+                            primera_fila.get(
+                                "Modulo",
+                                ""
+                            )
+                        ).strip()
+
+                        nombre_evaluacion = str(
+                            primera_fila.get(
+                                "Nombre_Evaluacion",
+                                ""
+                            )
+                        ).strip()
+
+                        descripcion = str(
+                            primera_fila.get(
+                                "Descripcion",
+                                ""
+                            )
+                        ).strip()
+
+                        # =============================================
+                        # 17. FECHA Y HORA
+                        # =============================================
+
+                        fecha_diligenciamiento = (
+                            pd.Timestamp.now().strftime(
+                                "%Y-%m-%d"
+                            )
+                        )
+
+                        hora_diligenciamiento = (
+                            pd.Timestamp.now().strftime(
+                                "%H:%M:%S"
+                            )
+                        )
+
+                        # =============================================
+                        # 18. CREAR REGISTRO
+                        # =============================================
+
+                        nuevo_registro = {
+                            "Registro_Evaluacion_ID":
+                                registro_evaluacion_id,
+
+                            "Evaluacion_ID":
+                                evaluacion_id_seleccionada,
+
+                            "Tipo_Evaluación":
+                                "CONTROLADA",
+
+                            "Modulo":
+                                modulo,
+
+                            "Nombre_Evaluacion":
+                                nombre_evaluacion,
+
+                            "Descripcion":
+                                descripcion,
+
+                            "Tipo_Relacion":
+                                "",
+
+                            "Usuario":
+                                usuario_actual,
+
+                            "Fecha_Diligenciamiento":
+                                fecha_diligenciamiento,
+
+                            "Hoa_Diligenciamiento":
+                                hora_diligenciamiento,
+
+                            "Total_Preguntas":
+                                str(total_preguntas),
+
+                            "Respuestas_Correctas":
+                                str(respuestas_correctas),
+
+                            "Porcentaje":
+                                str(porcentaje),
+
+                            "Mensaje_Resultado":
+                                mensaje_resultado
+                        }
+
+                        # =============================================
+                        # 19. AGREGAR AL HISTORIAL
+                        # =============================================
+
+                        df_nuevo_registro = pd.DataFrame(
+                            [nuevo_registro]
+                        )
+
+                        df_historial = pd.concat(
+                            [
+                                df_historial,
+                                df_nuevo_registro
+                            ],
+                            ignore_index=True
+                        )
+
+                        # =============================================
+                        # 20. GUARDAR HISTORIAL
+                        # =============================================
+
+                        try:
+
+                            df_historial.to_csv(
+                                ARCHIVO_HISTORIAL,
+                                index=False,
+                                encoding="utf-8-sig"
+                            )
+
+                            st.success(
+                                "Resultado guardado correctamente "
+                                "en el historial de evaluaciones."
+                            )
+
+                        except Exception as error:
+
+                            st.error(
+                                "No fue posible guardar el resultado "
+                                "en el historial."
+                            )
+
+                            st.code(
+                                str(error)
+                            )
