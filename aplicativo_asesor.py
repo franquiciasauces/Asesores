@@ -11493,3 +11493,357 @@ if (
                     f"{preguntas_respondidas} de "
                     f"{total_preguntas}"
                 )
+# ============================================================
+# GESTIONEJECUCIONEVALUACION
+# PARTE 3 — EVALUAR Y GENERAR RETROALIMENTACIÓN TEMPORAL
+# ============================================================
+
+if (
+    opcion_principal == "EVALUACIÓN"
+    and opcion_evaluacion == "Evaluaciones controladas"
+    and st.session_state.get(
+        "evaluacion_controlada_ejecucion_id"
+    )
+    and "df_evaluacion" in locals()
+    and not df_evaluacion.empty
+    and "preguntas_ejecucion" in locals()
+    and preguntas_ejecucion
+):
+
+    # ========================================================
+    # IDENTIFICAR EVALUACIÓN
+    # ========================================================
+
+    evaluacion_id_seleccionada = str(
+        st.session_state[
+            "evaluacion_controlada_ejecucion_id"
+        ]
+    ).strip()
+
+
+    # ========================================================
+    # CLAVE DE RESPUESTAS TEMPORALES
+    # ========================================================
+
+    clave_respuestas = (
+        "respuestas_temporales_"
+        + evaluacion_id_seleccionada
+    )
+
+    respuestas_temporales = (
+        st.session_state.get(
+            clave_respuestas,
+            {}
+        )
+    )
+
+
+    # ========================================================
+    # CLAVE DEL RESULTADO TEMPORAL
+    # ========================================================
+
+    clave_resultado = (
+        "resultado_temporal_"
+        + evaluacion_id_seleccionada
+    )
+
+
+    # ========================================================
+    # BOTÓN PARA EVALUAR
+    # ========================================================
+
+    if st.button(
+        "Finalizar y evaluar",
+        key=(
+            "finalizar_evaluar_"
+            + evaluacion_id_seleccionada
+        )
+    ):
+
+        # ====================================================
+        # VALIDAR QUE TODAS LAS PREGUNTAS ESTÉN RESPONDIDAS
+        # ====================================================
+
+        total_preguntas = len(
+            preguntas_ejecucion
+        )
+
+        preguntas_respondidas = len(
+            respuestas_temporales
+        )
+
+        if (
+            preguntas_respondidas
+            < total_preguntas
+        ):
+
+            st.warning(
+                f"Debe responder todas las preguntas "
+                f"antes de finalizar. "
+                f"Ha respondido "
+                f"{preguntas_respondidas} de "
+                f"{total_preguntas}."
+            )
+
+        else:
+
+            # =================================================
+            # EVALUAR TODAS LAS RESPUESTAS
+            # =================================================
+
+            respuestas_correctas_usuario = 0
+
+            retroalimentacion = []
+
+
+            for indice, pregunta in enumerate(
+                preguntas_ejecucion
+            ):
+
+                pregunta_id = str(
+                    pregunta["Pregunta_ID"]
+                ).strip()
+
+                enunciado = str(
+                    pregunta["Pregunta"]
+                ).strip()
+
+                opciones = (
+                    opciones_por_pregunta[
+                        indice
+                    ]
+                )
+
+                respuesta_usuario = str(
+                    respuestas_temporales.get(
+                        pregunta_id,
+                        ""
+                    )
+                ).strip()
+
+                respuesta_correcta = str(
+                    respuestas_correctas[
+                        indice
+                    ]
+                ).strip()
+
+
+                # =============================================
+                # COMPARAR RESPUESTA
+                # =============================================
+
+                es_correcta = (
+                    respuesta_usuario
+                    == respuesta_correcta
+                )
+
+
+                if es_correcta:
+
+                    respuestas_correctas_usuario += 1
+
+
+                # =============================================
+                # GUARDAR RETROALIMENTACIÓN TEMPORAL
+                # =============================================
+
+                retroalimentacion.append(
+                    {
+                        "Pregunta_ID":
+                            pregunta_id,
+
+                        "Pregunta":
+                            enunciado,
+
+                        "Respuesta_Usuario":
+                            respuesta_usuario,
+
+                        "Respuesta_Correcta":
+                            respuesta_correcta,
+
+                        "Es_Correcta":
+                            es_correcta,
+
+                        "Opciones":
+                            opciones
+                    }
+                )
+
+
+            # =================================================
+            # CALCULAR PORCENTAJE
+            # =================================================
+
+            porcentaje = round(
+                (
+                    respuestas_correctas_usuario
+                    / total_preguntas
+                )
+                * 100,
+                2
+            )
+
+
+            # =================================================
+            # DETERMINAR MENSAJE
+            # =================================================
+
+            if porcentaje == 100:
+
+                mensaje_resultado = (
+                    "Felicitaciones, lo hiciste muy bien, "
+                    "aplica lo que sabes en tu proceso de "
+                    "venta"
+                )
+
+            elif porcentaje >= 80:
+
+                mensaje_resultado = (
+                    "Lo hiciste bien, aunque puedes mejorar. "
+                    "Continúa mejorando tu conocimiento y "
+                    "aplícalo en tu proceso de venta"
+                )
+
+            elif porcentaje >= 60:
+
+                mensaje_resultado = (
+                    "No lo hiciste tan mal, pero aún hay "
+                    "muchas cosas por mejorar, saca tiempo "
+                    "para repasar. El éxito en las ventas "
+                    "depende también de tu conocimiento"
+                )
+
+            else:
+
+                mensaje_resultado = (
+                    "Tu resultado no es satisfactorio, "
+                    "es necesario que refuerces tu conocimiento, "
+                    "utiliza diferentes fuentes de aprendizaje. "
+                    "Mejorar tu desempeño depende de ti."
+                )
+
+
+            # =================================================
+            # GUARDAR RESULTADO COMPLETO EN TEMPORAL
+            # =================================================
+
+            st.session_state[
+                clave_resultado
+            ] = {
+
+                "Evaluacion_ID":
+                    evaluacion_id_seleccionada,
+
+                "Total_Preguntas":
+                    total_preguntas,
+
+                "Respuestas_Correctas":
+                    respuestas_correctas_usuario,
+
+                "Porcentaje":
+                    porcentaje,
+
+                "Mensaje_Resultado":
+                    mensaje_resultado,
+
+                "Retroalimentacion":
+                    retroalimentacion
+            }
+
+
+    # ========================================================
+    # MOSTRAR RESULTADO TEMPORAL
+    # ========================================================
+
+    if (
+        clave_resultado
+        in st.session_state
+    ):
+
+        resultado = st.session_state[
+            clave_resultado
+        ]
+
+
+        # ====================================================
+        # RETROALIMENTACIÓN
+        # ====================================================
+
+        st.divider()
+
+        st.subheader(
+            "Retroalimentación de la evaluación"
+        )
+
+
+        for indice, item in enumerate(
+            resultado[
+                "Retroalimentacion"
+            ],
+            start=1
+        ):
+
+            st.markdown(
+                f"### Pregunta {indice}"
+            )
+
+            st.write(
+                item["Pregunta"]
+            )
+
+
+            if item["Es_Correcta"]:
+
+                st.success(
+                    "✓ Respuesta correcta"
+                )
+
+                st.write(
+                    f"**Tu respuesta:** "
+                    f"{item['Respuesta_Usuario']}"
+                )
+
+            else:
+
+                st.error(
+                    "✗ Respuesta incorrecta"
+                )
+
+                st.write(
+                    f"**Tu respuesta:** "
+                    f"{item['Respuesta_Usuario']}"
+                )
+
+                st.info(
+                    f"**Respuesta correcta:** "
+                    f"{item['Respuesta_Correcta']}"
+                )
+
+            st.divider()
+
+
+        # ====================================================
+        # RESULTADO FINAL
+        # ====================================================
+
+        st.subheader(
+            "Resultado de la evaluación"
+        )
+
+        st.write(
+            f"**Respuestas correctas:** "
+            f"{resultado['Respuestas_Correctas']} "
+            f"de "
+            f"{resultado['Total_Preguntas']}"
+        )
+
+        st.metric(
+            "Porcentaje",
+            f"{resultado['Porcentaje']:.2f}%"
+        )
+
+        st.info(
+            resultado[
+                "Mensaje_Resultado"
+            ]
+        )
