@@ -10922,32 +10922,49 @@ if (
 # GESTIONEJECUCIONEVALUACION
 # PARTE 2 — CARGA Y RESPUESTA DE LA EVALUACIÓN
 # ============================================================
+# ============================================================
+
+# GESTIONEJECUCIONEVALUACION
+
+# PARTE 2 — CARGA Y RESPUESTA DE LA EVALUACIÓN
+
+# ============================================================
 
 if (
-    opcion_principal == "EVALUACIÓN"
-    and opcion_evaluacion == "Evaluaciones controladas"
-    and st.session_state.get("evaluacion_controlada_ejecucion_id")
+opcion_principal == "EVALUACIÓN"
+and opcion_evaluacion == "Evaluaciones controladas"
+and st.session_state.get(
+"evaluacion_controlada_ejecucion_id"
+)
 ):
 
-    evaluacion_id_seleccionada = str(
-        st.session_state[
-            "evaluacion_controlada_ejecucion_id"
-        ]
-    ).strip()
 
-    ARCHIVO_EVALUACIONES_CONTROLADAS = (
-        BASE_DIR
-        / "evaluacion"
-        / "Respositorioevaluacionescontroladas.csv"
+evaluacion_id_seleccionada = str(
+    st.session_state[
+        "evaluacion_controlada_ejecucion_id"
+    ]
+).strip()
+
+ARCHIVO_EVALUACIONES_CONTROLADAS = (
+    BASE_DIR
+    / "evaluacion"
+    / "Respositorioevaluacionescontroladas.csv"
+)
+
+if not ARCHIVO_EVALUACIONES_CONTROLADAS.exists():
+
+    st.error(
+        "No se encuentra el repositorio de evaluaciones controladas."
     )
+
+else:
 
     try:
 
         df_repositorio_ejecucion = pd.read_csv(
             ARCHIVO_EVALUACIONES_CONTROLADAS,
             dtype=str,
-            keep_default_na=False,
-            encoding="utf-8-sig"
+            keep_default_na=False
         )
 
         df_repositorio_ejecucion = (
@@ -10967,221 +10984,169 @@ if (
 
     if not df_repositorio_ejecucion.empty:
 
-        columnas_necesarias = [
-            "Evaluacion_ID",
-            "Modulo",
-            "Nombre_Evaluacion",
-            "Descripcion",
-            "Cantidad_Preguntas",
-            "Preguntas_Creadas",
-            "Estado",
-            "Pregunta",
-            "Opcion_1",
-            "Opcion_2",
-            "Opcion_3",
-            "Opcion_4",
-            "Respuesta_Correcta"
-        ]
+        # ====================================================
+        # FILTRAR LA EVALUACIÓN SELECCIONADA
+        # ====================================================
 
-        columnas_faltantes = [
-            columna
-            for columna in columnas_necesarias
-            if columna not in df_repositorio_ejecucion.columns
-        ]
+        df_evaluacion = (
+            df_repositorio_ejecucion[
+                df_repositorio_ejecucion[
+                    "Evaluacion_ID"
+                ]
+                .astype(str)
+                .str.strip()
+                == evaluacion_id_seleccionada
+            ]
+            .copy()
+        )
 
-        if columnas_faltantes:
+        if df_evaluacion.empty:
 
-            st.error(
-                "El repositorio no tiene la estructura "
-                "esperada para ejecutar la evaluación."
-            )
-
-            st.write(
-                "Columnas faltantes:",
-                columnas_faltantes
+            st.warning(
+                "No se encontró la evaluación seleccionada "
+                "en el repositorio de evaluaciones controladas."
             )
 
         else:
 
-            df_evaluacion = (
-                df_repositorio_ejecucion[
-                    df_repositorio_ejecucion[
-                        "Evaluacion_ID"
-                    ]
-                    .astype(str)
-                    .str.strip()
-                    == evaluacion_id_seleccionada
-                ]
-                .copy()
-            )
+            fila_evaluacion = df_evaluacion.iloc[0]
 
-            if df_evaluacion.empty:
+            estado_evaluacion = str(
+                fila_evaluacion.get(
+                    "Estado",
+                    ""
+                )
+            ).strip().upper()
+
+            if estado_evaluacion != "ACTIVA":
 
                 st.warning(
-                    "No se encontró la evaluación seleccionada "
-                    "en el repositorio."
+                    "La evaluación seleccionada "
+                    "no se encuentra activa."
                 )
 
             else:
 
-                fila_evaluacion = df_evaluacion.iloc[0]
+                # =================================================
+                # INFORMACIÓN GENERAL DE LA EVALUACIÓN
+                # =================================================
 
-                estado_evaluacion = str(
-                    fila_evaluacion["Estado"]
-                ).strip().upper()
-
-                if estado_evaluacion != "ACTIVA":
-
-                    st.warning(
-                        "La evaluación seleccionada "
-                        "no se encuentra activa."
+                nombre_evaluacion = str(
+                    fila_evaluacion.get(
+                        "Nombre_Evaluacion",
+                        ""
                     )
+                ).strip()
 
-                else:
-
-                    nombre_evaluacion = str(
-                        fila_evaluacion["Nombre_Evaluacion"]
-                    ).strip()
-
-                    modulo_evaluacion = str(
-                        fila_evaluacion["Modulo"]
-                    ).strip()
-
-                    descripcion_evaluacion = str(
-                        fila_evaluacion["Descripcion"]
-                    ).strip()
-
-                    st.subheader(
-                        nombre_evaluacion
+                modulo_evaluacion = str(
+                    fila_evaluacion.get(
+                        "Modulo",
+                        ""
                     )
+                ).strip()
+
+                descripcion_evaluacion = str(
+                    fila_evaluacion.get(
+                        "Descripcion",
+                        ""
+                    )
+                ).strip()
+
+                st.subheader(
+                    nombre_evaluacion
+                )
+
+                st.write(
+                    f"Módulo: {modulo_evaluacion}"
+                )
+
+                if descripcion_evaluacion:
 
                     st.write(
-                        f"Módulo: {modulo_evaluacion}"
+                        descripcion_evaluacion
                     )
 
-                    if descripcion_evaluacion:
+                st.divider()
 
-                        st.write(
-                            descripcion_evaluacion
-                        )
+                # =================================================
+                # OBTENER CAMPOS CONCATENADOS
+                # =================================================
 
-                    st.divider()
+                preguntas_raw = str(
+                    fila_evaluacion.get(
+                        "Pregunta",
+                        ""
+                    )
+                ).strip()
 
-                    # =================================================
-                    # FUNCIÓN PARA SEPARAR LOS REGISTROS CONCATENADOS
-                    # =================================================
+                opcion_1_raw = str(
+                    fila_evaluacion.get(
+                        "Opcion_1",
+                        ""
+                    )
+                ).strip()
 
-                    def separar_registros_controlados(valor):
+                opcion_2_raw = str(
+                    fila_evaluacion.get(
+                        "Opcion_2",
+                        ""
+                    )
+                ).strip()
 
-                        texto = str(valor).strip()
+                opcion_3_raw = str(
+                    fila_evaluacion.get(
+                        "Opcion_3",
+                        ""
+                    )
+                ).strip()
 
-                        if not texto:
+                opcion_4_raw = str(
+                    fila_evaluacion.get(
+                        "Opcion_4",
+                        ""
+                    )
+                ).strip()
 
-                            return []
+                # =================================================
+                # SEPARADOR REAL DEL REPOSITORIO
+                # =================================================
 
-                        patron = (
-                            r"EVAL_CONTROLADA_\d+_P\d+"
-                            r"\s*\|\s*"
-                        )
+                separador = (
+                    "EVAL_CONTROLADA_"
+                    + evaluacion_id_seleccionada.split(
+                        "EVAL_CONTROLADA_"
+                    )[-1]
+                    + "_P"
+                )
 
-                        posiciones = [
-                            coincidencia.start()
-                            for coincidencia in re.finditer(
-                                patron,
-                                texto
-                            )
-                        ]
+                # =================================================
+                # RECONSTRUIR PREGUNTAS
+                # =================================================
 
-                        if not posiciones:
+                bloques_preguntas = (
+                    preguntas_raw.split(
+                        separador
+                    )
+                )
 
-                            return [texto]
+                bloques_preguntas = [
+                    bloque.strip()
+                    for bloque in bloques_preguntas
+                    if bloque.strip()
+                ]
 
-                        registros = []
+                preguntas_ejecucion = []
 
-                        for indice, posicion in enumerate(
-                            posiciones
-                        ):
+                for bloque in bloques_preguntas:
 
-                            if indice + 1 < len(posiciones):
-
-                                registro = texto[
-                                    posicion:posiciones[indice + 1]
-                                ]
-
-                            else:
-
-                                registro = texto[
-                                    posicion:
-                                ]
-
-                            registro = registro.strip()
-
-                            if registro:
-
-                                registros.append(
-                                    registro
-                                )
-
-                        return registros
-
-                    # =================================================
-                    # EXTRAER PREGUNTAS
-                    # =================================================
-
-                    registros_preguntas = (
-                        separar_registros_controlados(
-                            fila_evaluacion["Pregunta"]
-                        )
+                    partes = bloque.split(
+                        " | ",
+                        2
                     )
 
-                    registros_opcion_1 = (
-                        separar_registros_controlados(
-                            fila_evaluacion["Opcion_1"]
-                        )
-                    )
+                    if len(partes) == 3:
 
-                    registros_opcion_2 = (
-                        separar_registros_controlados(
-                            fila_evaluacion["Opcion_2"]
-                        )
-                    )
-
-                    registros_opcion_3 = (
-                        separar_registros_controlados(
-                            fila_evaluacion["Opcion_3"]
-                        )
-                    )
-
-                    registros_opcion_4 = (
-                        separar_registros_controlados(
-                            fila_evaluacion["Opcion_4"]
-                        )
-                    )
-
-                    registros_correctas = (
-                        separar_registros_controlados(
-                            fila_evaluacion["Respuesta_Correcta"]
-                        )
-                    )
-
-                    # =================================================
-                    # CONSTRUIR PREGUNTAS INDIVIDUALES
-                    # =================================================
-
-                    preguntas_ejecucion = []
-
-                    for registro in registros_preguntas:
-
-                        partes = registro.split(
-                            "|",
-                            2
-                        )
-
-                        if len(partes) < 3:
-
-                            continue
-
-                        pregunta_id = (
+                        numero_pregunta = (
                             partes[0]
                             .strip()
                         )
@@ -11196,275 +11161,275 @@ if (
                             .strip()
                         )
 
+                        pregunta_id = (
+                            evaluacion_id_seleccionada
+                            + "_P"
+                            + numero_pregunta
+                        )
+
                         preguntas_ejecucion.append(
                             {
-                                "Pregunta_ID": pregunta_id,
-                                "Nivel": nivel,
-                                "Pregunta": pregunta_texto
+                                "Pregunta_ID":
+                                    pregunta_id,
+                                "Nivel":
+                                    nivel,
+                                "Pregunta":
+                                    pregunta_texto
                             }
                         )
 
-                    # =================================================
-                    # CONSTRUIR OPCIONES POR PREGUNTA
-                    # =================================================
+                # =================================================
+                # RECONSTRUIR OPCIONES
+                # =================================================
 
-                    registros_opciones = [
-                        registros_opcion_1,
-                        registros_opcion_2,
-                        registros_opcion_3,
-                        registros_opcion_4
+                bloques_opcion_1 = [
+                    bloque.strip()
+                    for bloque in opcion_1_raw.split(
+                        separador
+                    )
+                    if bloque.strip()
+                ]
+
+                bloques_opcion_2 = [
+                    bloque.strip()
+                    for bloque in opcion_2_raw.split(
+                        separador
+                    )
+                    if bloque.strip()
+                ]
+
+                bloques_opcion_3 = [
+                    bloque.strip()
+                    for bloque in opcion_3_raw.split(
+                        separador
+                    )
+                    if bloque.strip()
+                ]
+
+                bloques_opcion_4 = [
+                    bloque.strip()
+                    for bloque in opcion_4_raw.split(
+                        separador
+                    )
+                    if bloque.strip()
+                ]
+
+                opciones_por_pregunta = []
+
+                for indice in range(
+                    len(preguntas_ejecucion)
+                ):
+
+                    opciones = []
+
+                    bloques_opciones = [
+                        bloques_opcion_1,
+                        bloques_opcion_2,
+                        bloques_opcion_3,
+                        bloques_opcion_4
                     ]
 
-                    opciones_por_pregunta = []
+                    for bloques in bloques_opciones:
 
-                    for indice in range(
-                        len(preguntas_ejecucion)
-                    ):
+                        if indice < len(bloques):
 
-                        opciones = []
-
-                        for registros in registros_opciones:
-
-                            if indice >= len(registros):
-
-                                opciones.append("")
-
-                                continue
-
-                            registro = registros[indice]
-
-                            partes = registro.split(
-                                "|",
-                                1
+                            texto_opcion = (
+                                bloques[indice]
+                                .strip()
                             )
 
-                            if len(partes) == 2:
+                            partes_opcion = (
+                                texto_opcion.split(
+                                    " | ",
+                                    1
+                                )
+                            )
+
+                            if len(partes_opcion) == 2:
 
                                 opcion = (
-                                    partes[1]
+                                    partes_opcion[1]
                                     .strip()
                                 )
 
                             else:
 
                                 opcion = (
-                                    registro
-                                    .strip()
+                                    texto_opcion
                                 )
 
                             opciones.append(
                                 opcion
                             )
 
-                        opciones_por_pregunta.append(
-                            opciones
-                        )
+                        else:
+
+                            opciones.append("")
+
+                    opciones_por_pregunta.append(
+                        opciones
+                    )
+
+                # =================================================
+                # VERIFICAR QUE SE HAYAN RECONSTRUIDO PREGUNTAS
+                # =================================================
+
+                if not preguntas_ejecucion:
+
+                    st.warning(
+                        "La evaluación seleccionada no contiene "
+                        "preguntas que puedan ser presentadas."
+                    )
+
+                else:
 
                     # =================================================
-                    # CONSTRUIR RESPUESTAS CORRECTAS
-                    # SOLO SE UTILIZAN INTERNAMENTE
+                    # MEMORIA TEMPORAL DE RESPUESTAS
                     # =================================================
 
-                    respuestas_correctas_por_pregunta = {}
+                    clave_respuestas = (
+                        "respuestas_temporales_"
+                        + evaluacion_id_seleccionada
+                    )
 
-                    for registro in registros_correctas:
-
-                        partes = registro.split(
-                            "|",
-                            1
-                        )
-
-                        if len(partes) == 2:
-
-                            pregunta_id = (
-                                partes[0]
-                                .strip()
-                            )
-
-                            respuesta_correcta = (
-                                partes[1]
-                                .strip()
-                            )
-
-                            respuestas_correctas_por_pregunta[
-                                pregunta_id
-                            ] = respuesta_correcta
-
-                    # =================================================
-                    # VALIDAR QUE SE HAYAN PODIDO RECONSTRUIR
-                    # =================================================
-
-                    if not preguntas_ejecucion:
-
-                        st.error(
-                            "No fue posible reconstruir las preguntas "
-                            "de la evaluación seleccionada."
-                        )
-
-                    else:
-
-                        # =================================================
-                        # GUARDAR INFORMACIÓN DE LA EVALUACIÓN EN MEMORIA
-                        # =================================================
+                    if (
+                        clave_respuestas
+                        not in st.session_state
+                    ):
 
                         st.session_state[
-                            "evaluacion_controlada_datos_temporales"
-                        ] = {
-                            "Evaluacion_ID":
-                                evaluacion_id_seleccionada,
+                            clave_respuestas
+                        ] = {}
 
-                            "Modulo":
-                                modulo_evaluacion,
+                    respuestas_temporales = (
+                        st.session_state[
+                            clave_respuestas
+                        ]
+                    )
 
-                            "Nombre_Evaluacion":
-                                nombre_evaluacion,
+                    # =================================================
+                    # MOSTRAR PREGUNTAS Y OPCIONES
+                    # =================================================
 
-                            "Descripcion":
-                                descripcion_evaluacion,
+                    for indice, pregunta in enumerate(
+                        preguntas_ejecucion
+                    ):
 
-                            "Preguntas":
-                                preguntas_ejecucion,
+                        pregunta_id = str(
+                            pregunta[
+                                "Pregunta_ID"
+                            ]
+                        ).strip()
 
-                            "Opciones":
-                                opciones_por_pregunta,
+                        nivel = str(
+                            pregunta[
+                                "Nivel"
+                            ]
+                        ).strip()
 
-                            "Respuestas_Correctas":
-                                respuestas_correctas_por_pregunta
-                        }
+                        enunciado = str(
+                            pregunta[
+                                "Pregunta"
+                            ]
+                        ).strip()
 
-                        # =================================================
-                        # MEMORIA TEMPORAL DE RESPUESTAS DEL ASESOR
-                        # =================================================
+                        opciones = (
+                            opciones_por_pregunta[
+                                indice
+                            ]
+                        )
 
-                        clave_respuestas = (
-                            "respuestas_temporales_"
-                            + evaluacion_id_seleccionada
+                        opciones = [
+                            opcion
+                            for opcion in opciones
+                            if str(opcion).strip() != ""
+                        ]
+
+                        st.markdown(
+                            f"### Pregunta "
+                            f"{indice + 1} de "
+                            f"{len(preguntas_ejecucion)}"
+                        )
+
+                        if nivel:
+
+                            st.caption(
+                                f"Nivel: {nivel}"
+                            )
+
+                        st.write(
+                            enunciado
+                        )
+
+                        respuesta_guardada = (
+                            respuestas_temporales.get(
+                                pregunta_id
+                            )
                         )
 
                         if (
-                            clave_respuestas
-                            not in st.session_state
+                            respuesta_guardada
+                            in opciones
                         ):
 
-                            st.session_state[
-                                clave_respuestas
-                            ] = {}
+                            indice_inicial = (
+                                opciones.index(
+                                    respuesta_guardada
+                                )
+                            )
 
-                        respuestas_temporales = (
-                            st.session_state[
-                                clave_respuestas
-                            ]
+                        else:
+
+                            indice_inicial = None
+
+                        respuesta_seleccionada = st.radio(
+                            "Seleccione la respuesta que considera correcta:",
+                            opciones,
+                            index=indice_inicial,
+                            key=(
+                                "respuesta_controlada_"
+                                + evaluacion_id_seleccionada
+                                + "_"
+                                + pregunta_id
+                            )
                         )
 
-                        # =================================================
-                        # MOSTRAR PREGUNTAS
-                        # =================================================
-
-                        for indice, pregunta in enumerate(
-                            preguntas_ejecucion
+                        if (
+                            respuesta_seleccionada
+                            is not None
                         ):
 
-                            pregunta_id = (
-                                pregunta["Pregunta_ID"]
-                            )
-
-                            nivel = (
-                                pregunta["Nivel"]
-                            )
-
-                            enunciado = (
-                                pregunta["Pregunta"]
-                            )
-
-                            opciones = (
-                                opciones_por_pregunta[
-                                    indice
-                                ]
-                            )
-
-                            opciones = [
-                                opcion
-                                for opcion in opciones
-                                if str(opcion).strip()
-                            ]
-
-                            st.markdown(
-                                f"### Pregunta {indice + 1} "
-                                f"de {len(preguntas_ejecucion)}"
-                            )
-
-                            st.caption(
-                                f"{pregunta_id} — {nivel}"
-                            )
-
-                            st.write(
-                                enunciado
-                            )
-
-                            respuesta_guardada = (
-                                respuestas_temporales.get(
-                                    pregunta_id
-                                )
-                            )
-
-                            if (
-                                respuesta_guardada
-                                in opciones
-                            ):
-
-                                indice_inicial = (
-                                    opciones.index(
-                                        respuesta_guardada
-                                    )
-                                )
-
-                            else:
-
-                                indice_inicial = None
-
-                            respuesta_seleccionada = st.radio(
-                                "Seleccione la respuesta que considera correcta:",
-                                opciones,
-                                index=indice_inicial,
-                                key=(
-                                    "respuesta_controlada_"
-                                    + evaluacion_id_seleccionada
-                                    + "_"
-                                    + pregunta_id
-                                )
-                            )
-
-                            if (
+                            respuestas_temporales[
+                                pregunta_id
+                            ] = (
                                 respuesta_seleccionada
-                                is not None
-                            ):
+                            )
 
-                                respuestas_temporales[
-                                    pregunta_id
-                                ] = (
-                                    respuesta_seleccionada
-                                )
+                        st.divider()
 
-                            st.divider()
+                    # =================================================
+                    # ACTUALIZAR MEMORIA TEMPORAL
+                    # =================================================
 
-                        # =================================================
-                        # ACTUALIZAR MEMORIA TEMPORAL
-                        # =================================================
+                    st.session_state[
+                        clave_respuestas
+                    ] = respuestas_temporales
 
-                        st.session_state[
-                            clave_respuestas
-                        ] = respuestas_temporales
+                    # =================================================
+                    # INFORMACIÓN TEMPORAL
+                    # =================================================
 
-                        preguntas_respondidas = len(
-                            respuestas_temporales
-                        )
+                    preguntas_respondidas = len(
+                        respuestas_temporales
+                    )
 
-                        total_preguntas = len(
-                            preguntas_ejecucion
-                        )
+                    total_preguntas = len(
+                        preguntas_ejecucion
+                    )
 
-                        st.info(
-                            f"Preguntas respondidas: "
-                            f"{preguntas_respondidas} de "
-                            f"{total_preguntas}"
-                        )
+                    st.info(
+                        f"Preguntas respondidas: "
+                        f"{preguntas_respondidas} de "
+                        f"{total_preguntas}"
+                    )
+
