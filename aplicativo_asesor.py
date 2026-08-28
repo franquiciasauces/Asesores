@@ -11494,6 +11494,8 @@ if (
                     f"{total_preguntas}"
                 )
 # ============================================================
+
+# ============================================================
 # GESTIONEJECUCIONEVALUACION
 # PARTE 3 — EVALUAR Y GENERAR RETROALIMENTACIÓN TEMPORAL
 # ============================================================
@@ -11549,7 +11551,7 @@ if (
 
 
     # ========================================================
-    # BOTÓN PARA EVALUAR
+    # BOTÓN PARA FINALIZAR Y EVALUAR
     # ========================================================
 
     if st.button(
@@ -11588,13 +11590,17 @@ if (
         else:
 
             # =================================================
-            # EVALUAR TODAS LAS RESPUESTAS
+            # CONTADORES
             # =================================================
 
             respuestas_correctas_usuario = 0
 
             retroalimentacion = []
 
+
+            # =================================================
+            # EVALUAR CADA PREGUNTA
+            # =================================================
 
             for indice, pregunta in enumerate(
                 preguntas_ejecucion
@@ -11608,11 +11614,27 @@ if (
                     pregunta["Pregunta"]
                 ).strip()
 
+
+                # =============================================
+                # OPCIONES DE LA PREGUNTA
+                # =============================================
+
                 opciones = (
                     opciones_por_pregunta[
                         indice
                     ]
                 )
+
+                opciones = [
+                    str(opcion).strip()
+                    for opcion in opciones
+                    if str(opcion).strip()
+                ]
+
+
+                # =============================================
+                # RESPUESTA DEL USUARIO
+                # =============================================
 
                 respuesta_usuario = str(
                     respuestas_temporales.get(
@@ -11621,7 +11643,18 @@ if (
                     )
                 ).strip()
 
-                respuesta_correcta = str(
+
+                # =============================================
+                # RESPUESTA CORRECTA DEL REPOSITORIO
+                #
+                # EJEMPLO:
+                # "Respuesta 3"
+                #
+                # significa que la opción correcta
+                # es la tercera opción.
+                # =============================================
+
+                respuesta_correcta_id = str(
                     respuestas_correctas[
                         indice
                     ]
@@ -11629,14 +11662,74 @@ if (
 
 
                 # =============================================
-                # COMPARAR RESPUESTA
+                # CONVERTIR "Respuesta X" A POSICIÓN
+                # =============================================
+
+                indice_correcto = None
+
+                texto_correcto = ""
+
+
+                if respuesta_correcta_id:
+
+                    partes_correcta = (
+                        respuesta_correcta_id
+                        .split()
+                    )
+
+                    if len(
+                        partes_correcta
+                    ) >= 2:
+
+                        numero_opcion = (
+                            partes_correcta[-1]
+                        )
+
+                        try:
+
+                            indice_correcto = (
+                                int(
+                                    numero_opcion
+                                ) - 1
+                            )
+
+                        except ValueError:
+
+                            indice_correcto = None
+
+
+                # =============================================
+                # OBTENER TEXTO DE LA RESPUESTA CORRECTA
+                # =============================================
+
+                if (
+                    indice_correcto is not None
+                    and 0
+                    <= indice_correcto
+                    < len(opciones)
+                ):
+
+                    texto_correcto = (
+                        opciones[
+                            indice_correcto
+                        ]
+                    )
+
+
+                # =============================================
+                # COMPARAR RESPUESTA DEL USUARIO
                 # =============================================
 
                 es_correcta = (
                     respuesta_usuario
-                    == respuesta_correcta
+                    == texto_correcto
+                    and texto_correcto != ""
                 )
 
+
+                # =============================================
+                # SUMAR PUNTO
+                # =============================================
 
                 if es_correcta:
 
@@ -11644,7 +11737,7 @@ if (
 
 
                 # =============================================
-                # GUARDAR RETROALIMENTACIÓN TEMPORAL
+                # GUARDAR RETROALIMENTACIÓN
                 # =============================================
 
                 retroalimentacion.append(
@@ -11658,14 +11751,14 @@ if (
                         "Respuesta_Usuario":
                             respuesta_usuario,
 
+                        "Respuesta_Correcta_ID":
+                            respuesta_correcta_id,
+
                         "Respuesta_Correcta":
-                            respuesta_correcta,
+                            texto_correcto,
 
                         "Es_Correcta":
-                            es_correcta,
-
-                        "Opciones":
-                            opciones
+                            es_correcta
                     }
                 )
 
@@ -11674,18 +11767,23 @@ if (
             # CALCULAR PORCENTAJE
             # =================================================
 
-            porcentaje = round(
-                (
-                    respuestas_correctas_usuario
-                    / total_preguntas
+            if total_preguntas > 0:
+
+                porcentaje = round(
+                    (
+                        respuestas_correctas_usuario
+                        / total_preguntas
+                    ) * 100,
+                    2
                 )
-                * 100,
-                2
-            )
+
+            else:
+
+                porcentaje = 0
 
 
             # =================================================
-            # DETERMINAR MENSAJE
+            # MENSAJE SEGÚN PORCENTAJE
             # =================================================
 
             if porcentaje == 100:
@@ -11724,7 +11822,7 @@ if (
 
 
             # =================================================
-            # GUARDAR RESULTADO COMPLETO EN TEMPORAL
+            # GUARDAR RESULTADO TEMPORAL
             # =================================================
 
             st.session_state[
@@ -11752,7 +11850,7 @@ if (
 
 
     # ========================================================
-    # MOSTRAR RESULTADO TEMPORAL
+    # MOSTRAR RETROALIMENTACIÓN Y RESULTADO
     # ========================================================
 
     if (
