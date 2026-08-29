@@ -11948,6 +11948,9 @@ if (
         )
 # ============================================================
 
+
+
+# ============================================================
 # GESTIONEJECUCIONEVALUACION
 # PARTE 4 — PERSISTENCIA AUTOMÁTICA DEL PRIMER RESULTADO
 # ============================================================
@@ -12042,7 +12045,7 @@ if (
 
                 ARCHIVO_HISTORIAL_EVALUACIONES = (
                     BASE_DIR
-                    / "evalacion"
+                    / "evaluacion"
                     / "Historialdesarrolloevaluaciones.csv"
                 )
 
@@ -12083,6 +12086,9 @@ if (
 
                     # =========================================
                     # CARGAR HISTORIAL LOCAL
+                    #
+                    # IMPORTANTE:
+                    # El archivo utiliza ";" como separador.
                     # =========================================
 
                     if (
@@ -12094,7 +12100,8 @@ if (
                         df_historial = pd.read_csv(
                             ARCHIVO_HISTORIAL_EVALUACIONES,
                             dtype=str,
-                            keep_default_na=False
+                            keep_default_na=False,
+                            sep=";"
                         )
 
                         df_historial = (
@@ -12109,7 +12116,7 @@ if (
 
 
                     # =========================================
-                    # ASEGURAR COLUMNAS
+                    # ASEGURAR QUE EXISTAN TODAS LAS COLUMNAS
                     # =========================================
 
                     for columna in columnas_historial:
@@ -12123,6 +12130,10 @@ if (
                                 columna
                             ] = ""
 
+
+                    # =========================================
+                    # CONSERVAR EXACTAMENTE EL ORDEN DEFINIDO
+                    # =========================================
 
                     df_historial = df_historial[
                         columnas_historial
@@ -12156,11 +12167,13 @@ if (
 
 
                     # =========================================
-                    # VERIFICAR PRIMER INTENTO
+                    # VERIFICAR SI YA EXISTE RESULTADO
                     #
-                    # LA NOTA SE PROTEGE POR:
+                    # La protección se realiza por:
                     #
                     # Evaluacion_ID + Usuario
+                    #
+                    # Si ya existe, NO se modifica la nota.
                     # =========================================
 
                     ya_tiene_nota = (
@@ -12182,7 +12195,7 @@ if (
 
                     # =========================================
                     # SI YA EXISTE:
-                    # NO CAMBIAR LA NOTA
+                    # NO GUARDAR NUEVAMENTE
                     # =========================================
 
                     if ya_tiene_nota:
@@ -12194,13 +12207,24 @@ if (
 
                     # =========================================
                     # SI NO EXISTE:
-                    # GUARDAR PRIMER RESULTADO
+                    # GENERAR Y GUARDAR EL PRIMER RESULTADO
                     # =========================================
 
                     else:
 
                         # =====================================
-                        # INFORMACIÓN DE LA EVALUACIÓN
+                        # CAMPOS GENERALES
+                        #
+                        # Los campos:
+                        #
+                        # Nombre_Evaluacion
+                        # Descripcion
+                        # Tipo_Relacion
+                        #
+                        # son OPCIONALES.
+                        #
+                        # Si no existen en el formato de
+                        # evaluación, permanecen vacíos.
                         # =====================================
 
                         modulo = ""
@@ -12209,6 +12233,10 @@ if (
                         tipo_relacion = ""
                         tipo_evaluacion = ""
 
+
+                        # =====================================
+                        # OBTENER INFORMACIÓN DE LA EVALUACIÓN
+                        # =====================================
 
                         if (
                             "df_evaluacion"
@@ -12227,6 +12255,10 @@ if (
                             )
 
 
+                            # ---------------------------------
+                            # MODULO
+                            # ---------------------------------
+
                             if (
                                 "Modulo"
                                 in fila_evaluacion.index
@@ -12238,6 +12270,11 @@ if (
                                     ]
                                 ).strip()
 
+
+                            # ---------------------------------
+                            # NOMBRE EVALUACIÓN
+                            # OPCIONAL
+                            # ---------------------------------
 
                             if (
                                 "Nombre_Evaluacion"
@@ -12251,6 +12288,11 @@ if (
                                 ).strip()
 
 
+                            # ---------------------------------
+                            # DESCRIPCIÓN
+                            # OPCIONAL
+                            # ---------------------------------
+
                             if (
                                 "Descripcion"
                                 in fila_evaluacion.index
@@ -12263,6 +12305,11 @@ if (
                                 ).strip()
 
 
+                            # ---------------------------------
+                            # TIPO RELACIÓN
+                            # OPCIONAL
+                            # ---------------------------------
+
                             if (
                                 "Tipo_Relacion"
                                 in fila_evaluacion.index
@@ -12274,6 +12321,11 @@ if (
                                     ]
                                 ).strip()
 
+
+                            # ---------------------------------
+                            # TIPO EVALUACIÓN
+                            # OPCIONAL
+                            # ---------------------------------
 
                             if (
                                 "Tipo_Evaluación"
@@ -12307,7 +12359,7 @@ if (
 
 
                         # =====================================
-                        # RESULTADO
+                        # RESULTADOS CALCULADOS EN PARTE 3
                         # =====================================
 
                         total_preguntas = int(
@@ -12345,6 +12397,7 @@ if (
 
                         siguiente_numero = 1
 
+
                         if not df_historial.empty:
 
                             numeros = (
@@ -12361,6 +12414,7 @@ if (
                                 numeros,
                                 errors="coerce"
                             )
+
 
                             if numeros.notna().any():
 
@@ -12430,11 +12484,19 @@ if (
                         }
 
 
+                        # =====================================
+                        # DATAFRAME DEL NUEVO REGISTRO
+                        # =====================================
+
                         df_nuevo_registro = pd.DataFrame(
                             [nuevo_registro],
                             columns=columnas_historial
                         )
 
+
+                        # =====================================
+                        # AGREGAR AL HISTORIAL
+                        # =====================================
 
                         df_historial_actualizado = pd.concat(
                             [
@@ -12446,29 +12508,42 @@ if (
 
 
                         # =====================================
-                        # CONVERTIR A CSV EN MEMORIA
+                        # CONVERTIR A CSV
+                        #
+                        # IMPORTANTE:
+                        # Separador ";" para conservar el
+                        # formato definido del historial.
                         # =====================================
 
                         contenido_csv = (
                             df_historial_actualizado.to_csv(
-                                index=False
+                                index=False,
+                                sep=";"
                             )
                         )
 
 
                         # =====================================
-                        # DATOS DEL REPOSITORIO
+                        # DATOS DEL REPOSITORIO GITHUB
                         # =====================================
 
                         github_token = GITHUB_TOKEN
-                        github_usuario = GITHUB_USUARIO
+
+                        github_usuario = (
+                            GITHUB_USUARIO
+                        )
+
                         github_repositorio = (
                             GITHUB_REPOSITORIO
                         )
 
 
+                        # =====================================
+                        # RUTA CORRECTA EN GITHUB
+                        # =====================================
+
                         ruta_github = (
-                            "evalacion/"
+                            "evaluacion/"
                             "Historialdesarrolloevaluaciones.csv"
                         )
 
@@ -12498,7 +12573,7 @@ if (
 
 
                         # =====================================
-                        # OBTENER SHA ACTUAL
+                        # CONSULTAR ARCHIVO ACTUAL EN GITHUB
                         # =====================================
 
                         respuesta_get = requests.get(
@@ -12542,7 +12617,7 @@ if (
 
 
                         # =====================================
-                        # CODIFICAR CSV
+                        # CODIFICAR CSV EN BASE64
                         # =====================================
 
                         contenido_base64 = (
@@ -12573,6 +12648,11 @@ if (
                         }
 
 
+                        # =====================================
+                        # SI EL ARCHIVO YA EXISTE,
+                        # ENVIAR SHA PARA ACTUALIZARLO
+                        # =====================================
+
                         if sha_actual:
 
                             datos_put[
@@ -12593,7 +12673,7 @@ if (
 
 
                         # =====================================
-                        # CONFIRMAR QUE GITHUB GUARDÓ
+                        # CONFIRMAR PERSISTENCIA
                         # =====================================
 
                         if respuesta_put.status_code in [
