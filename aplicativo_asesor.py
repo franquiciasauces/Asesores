@@ -12481,20 +12481,11 @@ if (
                             # DATOS DEL REPOSITORIO
                             # =================================
 
-                            github_token = st.secrets[
-                                "GITHUB_TOKEN"
-                            ]
+                            github_token = GITHUB_TOKEN
+                            github_usuario = GITHUB_USUARIO
+                            github_repositorio = GITHUB_REPOSITORIO
 
-                            github_usuario = st.secrets[
-                                "GITHUB_USUARIO"
-                            ]
-
-                            github_repositorio = (
-                                st.secrets.get(
-                                    "GITHUB_REPOSITORIO",
-                                    "Asesores"
-                                )
-                            )
+                           
 
 
                             ruta_github = (
