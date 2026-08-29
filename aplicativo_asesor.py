@@ -8,6 +8,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
+
 import base64
 import urllib.request
 import urllib.error
@@ -11949,7 +11950,7 @@ if (
 # GESTIONEJECUCIONEVALUACION
 # PARTE 4 — PERSISTENCIA AUTOMÁTICA DEL PRIMER RESULTADO
 # ============================================================
-
+from datetime import datetime
 if (
     opcion_principal == "EVALUACIÓN"
     and opcion_evaluacion == "Evaluaciones controladas"
