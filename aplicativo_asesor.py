@@ -11948,7 +11948,6 @@ if (
         )
 # ============================================================
 
-# ============================================================
 # GESTIONEJECUCIONEVALUACION
 # PARTE 4 — PERSISTENCIA AUTOMÁTICA DEL PRIMER RESULTADO
 # ============================================================
@@ -11992,13 +11991,13 @@ if (
 
 
     # ========================================================
-    # SOLO CONTINUAR SI LA EVALUACIÓN YA FUE CALIFICADA
+    # SOLO CONTINUAR SI EXISTE UNA EVALUACIÓN CALIFICADA
     # ========================================================
 
     if resultado_temporal is not None:
 
         # ====================================================
-        # EVITAR REPETIR LA PERSISTENCIA EN LOS RECARGOS
+        # EVITAR REPETIR LA PERSISTENCIA DURANTE LOS RECARGOS
         # ====================================================
 
         clave_persistencia = (
@@ -12012,35 +12011,15 @@ if (
         ):
 
             # =================================================
-            # IDENTIFICAR USUARIO
+            # IDENTIFICAR USUARIO AUTENTICADO
             # =================================================
 
-            usuario = ""
-
-            posibles_claves_usuario = [
-                "Usuario",
-                "usuario",
-                "usuario_actual",
-                "usuario_logueado",
-                "nombre_usuario",
-                "Usuario_ID"
-            ]
-
-            for clave_usuario in posibles_claves_usuario:
-
-                if clave_usuario in st.session_state:
-
-                    valor_usuario = str(
-                        st.session_state[
-                            clave_usuario
-                        ]
-                    ).strip()
-
-                    if valor_usuario:
-
-                        usuario = valor_usuario
-
-                        break
+            usuario = str(
+                st.session_state.get(
+                    "usuario_actual",
+                    ""
+                )
+            ).strip().upper()
 
 
             # =================================================
@@ -12069,7 +12048,7 @@ if (
 
 
                 # =============================================
-                # ESTRUCTURA DEL HISTORIAL
+                # COLUMNAS DEL HISTORIAL
                 # =============================================
 
                 columnas_historial = [
@@ -12093,7 +12072,7 @@ if (
                 try:
 
                     # =========================================
-                    # ASEGURAR CARPETA
+                    # CREAR CARPETA LOCAL SI NO EXISTE
                     # =========================================
 
                     ARCHIVO_HISTORIAL_EVALUACIONES.parent.mkdir(
@@ -12103,7 +12082,7 @@ if (
 
 
                     # =========================================
-                    # CARGAR HISTORIAL EXISTENTE
+                    # CARGAR HISTORIAL LOCAL
                     # =========================================
 
                     if (
@@ -12130,7 +12109,7 @@ if (
 
 
                     # =========================================
-                    # ASEGURAR TODAS LAS COLUMNAS
+                    # ASEGURAR COLUMNAS
                     # =========================================
 
                     for columna in columnas_historial:
@@ -12144,11 +12123,6 @@ if (
                                 columna
                             ] = ""
 
-
-                    # =========================================
-                    # CONSERVAR SOLAMENTE LA ESTRUCTURA
-                    # DEFINIDA PARA EL HISTORIAL
-                    # =========================================
 
                     df_historial = df_historial[
                         columnas_historial
@@ -12177,15 +12151,19 @@ if (
                         ]
                         .astype(str)
                         .str.strip()
+                        .str.upper()
                     )
 
 
                     # =========================================
-                    # VERIFICAR SI ESTE USUARIO YA PRESENTÓ
-                    # ESTA EVALUACIÓN
+                    # VERIFICAR PRIMER INTENTO
+                    #
+                    # LA NOTA SE PROTEGE POR:
+                    #
+                    # Evaluacion_ID + Usuario
                     # =========================================
 
-                    registro_existente = (
+                    ya_tiene_nota = (
                         (
                             df_historial[
                                 "Evaluacion_ID"
@@ -12199,18 +12177,13 @@ if (
                             ]
                             == usuario
                         )
-                    )
+                    ).any()
 
 
-                    ya_tiene_nota = (
-                        registro_existente.any()
-                    )
-
-
-                    # =================================================
+                    # =========================================
                     # SI YA EXISTE:
-                    # NO MODIFICAR LA NOTA
-                    # =================================================
+                    # NO CAMBIAR LA NOTA
+                    # =========================================
 
                     if ya_tiene_nota:
 
@@ -12219,18 +12192,23 @@ if (
                         ] = True
 
 
-                    # =================================================
-                    # PRIMER INTENTO:
-                    # CREAR REGISTRO
-                    # =================================================
+                    # =========================================
+                    # SI NO EXISTE:
+                    # GUARDAR PRIMER RESULTADO
+                    # =========================================
 
                     else:
 
-                        # =============================================
-                        # OBTENER INFORMACIÓN DE LA EVALUACIÓN
-                        # =============================================
+                        # =====================================
+                        # INFORMACIÓN DE LA EVALUACIÓN
+                        # =====================================
 
-                        fila_evaluacion = None
+                        modulo = ""
+                        nombre_evaluacion = ""
+                        descripcion = ""
+                        tipo_relacion = ""
+                        tipo_evaluacion = ""
+
 
                         if (
                             "df_evaluacion"
@@ -12249,20 +12227,10 @@ if (
                             )
 
 
-                        # =============================================
-                        # CAMPOS OPCIONALES
-                        # =============================================
-
-                        modulo = ""
-                        nombre_evaluacion = ""
-                        descripcion = ""
-                        tipo_relacion = ""
-                        tipo_evaluacion = ""
-
-
-                        if fila_evaluacion is not None:
-
-                            if "Modulo" in fila_evaluacion.index:
+                            if (
+                                "Modulo"
+                                in fila_evaluacion.index
+                            ):
 
                                 modulo = str(
                                     fila_evaluacion[
@@ -12319,9 +12287,9 @@ if (
                                 ).strip()
 
 
-                        # =============================================
+                        # =====================================
                         # FECHA Y HORA
-                        # =============================================
+                        # =====================================
 
                         ahora = datetime.now()
 
@@ -12338,9 +12306,9 @@ if (
                         )
 
 
-                        # =============================================
-                        # RESULTADO DE LA EVALUACIÓN
-                        # =============================================
+                        # =====================================
+                        # RESULTADO
+                        # =====================================
 
                         total_preguntas = int(
                             resultado_temporal.get(
@@ -12371,9 +12339,9 @@ if (
                         ).strip()
 
 
-                        # =============================================
-                        # GENERAR ID DEL REGISTRO
-                        # =============================================
+                        # =====================================
+                        # GENERAR REGISTRO_EVALUACION_ID
+                        # =====================================
 
                         siguiente_numero = 1
 
@@ -12412,9 +12380,9 @@ if (
                         )
 
 
-                        # =============================================
-                        # NUEVO REGISTRO
-                        # =============================================
+                        # =====================================
+                        # CREAR REGISTRO
+                        # =====================================
 
                         nuevo_registro = {
 
@@ -12477,9 +12445,9 @@ if (
                         )
 
 
-                        # =============================================
-                        # GENERAR CONTENIDO CSV EN MEMORIA
-                        # =============================================
+                        # =====================================
+                        # CONVERTIR A CSV EN MEMORIA
+                        # =====================================
 
                         contenido_csv = (
                             df_historial_actualizado.to_csv(
@@ -12488,9 +12456,9 @@ if (
                         )
 
 
-                        # =============================================
+                        # =====================================
                         # DATOS DEL REPOSITORIO
-                        # =============================================
+                        # =====================================
 
                         github_token = GITHUB_TOKEN
                         github_usuario = GITHUB_USUARIO
@@ -12529,9 +12497,9 @@ if (
                         }
 
 
-                        # =============================================
-                        # OBTENER SHA DEL ARCHIVO ACTUAL
-                        # =============================================
+                        # =====================================
+                        # OBTENER SHA ACTUAL
+                        # =====================================
 
                         respuesta_get = requests.get(
                             url_github,
@@ -12559,8 +12527,8 @@ if (
                         else:
 
                             st.error(
-                                "No fue posible consultar el "
-                                "historial en GitHub."
+                                "No fue posible consultar "
+                                "el historial de evaluaciones."
                             )
 
                             st.code(
@@ -12569,14 +12537,13 @@ if (
 
                             raise Exception(
                                 "Error al consultar el archivo "
-                                "Historialdesarrolloevaluaciones.csv "
                                 "en GitHub."
                             )
 
 
-                        # =============================================
+                        # =====================================
                         # CODIFICAR CSV
-                        # =============================================
+                        # =====================================
 
                         contenido_base64 = (
                             base64.b64encode(
@@ -12589,9 +12556,9 @@ if (
                         )
 
 
-                        # =============================================
+                        # =====================================
                         # PREPARAR ACTUALIZACIÓN
-                        # =============================================
+                        # =====================================
 
                         datos_put = {
 
@@ -12613,9 +12580,9 @@ if (
                             ] = sha_actual
 
 
-                        # =============================================
+                        # =====================================
                         # ACTUALIZAR GITHUB
-                        # =============================================
+                        # =====================================
 
                         respuesta_put = requests.put(
                             url_github,
@@ -12625,29 +12592,23 @@ if (
                         )
 
 
-                        # =============================================
-                        # CONFIRMAR PERSISTENCIA
-                        # =============================================
+                        # =====================================
+                        # CONFIRMAR QUE GITHUB GUARDÓ
+                        # =====================================
 
                         if respuesta_put.status_code in [
                             200,
                             201
                         ]:
 
-                            # =========================================
-                            # SOLO AHORA SE MARCA COMO PERSISTIDO
-                            # =========================================
-
                             st.session_state[
                                 clave_persistencia
                             ] = True
-
 
                             st.success(
                                 "Tu nota ha sido guardada "
                                 "en tu historial"
                             )
-
 
                         else:
 
@@ -12672,3 +12633,4 @@ if (
                     st.code(
                         str(error_historial)
                     )
+
