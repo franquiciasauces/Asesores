@@ -14561,6 +14561,8 @@ if (
             )
 
 # ============================================================
+
+# ============================================================
 # EVALUACIÓN GENERAL
 # PARTE 4 — PERSISTENCIA DEL RESULTADO
 # ============================================================
@@ -14610,13 +14612,13 @@ if (
             )
 
             # =================================================
-            # 4. ARCHIVO DE HISTORIAL
+            # 4. ARCHIVO REAL DE HISTORIAL
             # =================================================
 
             ARCHIVO_HISTORIAL_EVALUACIONES = (
                 BASE_DIR
                 / "evaluacion"
-                / "RegistroEvaluaciones.csv"
+                / "historialdesarrolloevaluacioes.csv"
             )
 
             # =================================================
@@ -14691,7 +14693,7 @@ if (
             )
 
             # =================================================
-            # 8. OBTENER INFORMACIÓN DE LA EVALUACIÓN
+            # 8. OBTENER MÓDULO Y TIPO_RELACION
             # =================================================
 
             modulo = ""
@@ -14751,10 +14753,17 @@ if (
             # 9. PREPARAR REGISTRO
             # =================================================
             #
-            # Nombre_Evaluacion y Descripcion
-            # NO APLICAN para Evaluación general.
+            # Para Evaluación general:
             #
-            # Tipo_Relacion SÍ APLICA.
+            # Evaluacion_ID       → SÍ
+            # Tipo_Evaluación     → General
+            # Modulo              → SÍ
+            # Nombre_Evaluacion   → NO APLICA
+            # Descripcion         → NO APLICA
+            # Tipo_Relacion       → SÍ
+            # Usuario             → SÍ
+            # Fecha/Hora          → SÍ
+            # Resultado           → SÍ
             # =================================================
 
             registro_evaluacion = {
@@ -14849,7 +14858,14 @@ if (
             ]
 
             # =================================================
-            # 11. VERIFICAR SI YA FUE GUARDADA
+            # 11. VERIFICAR SI YA EXISTE ESTE RESULTADO
+            # =================================================
+            #
+            # La misma evaluación NO se vuelve a guardar
+            # para el mismo usuario.
+            #
+            # Otro usuario SÍ puede presentar y registrar
+            # la misma evaluación.
             # =================================================
 
             ya_guardada = False
@@ -14870,10 +14886,6 @@ if (
                     df_historial = (
                         df_historial.fillna("")
                     )
-
-                    # -----------------------------------------
-                    # Buscar por Evaluacion_ID y Usuario
-                    # -----------------------------------------
 
                     if (
                         "Evaluacion_ID"
@@ -14913,12 +14925,19 @@ if (
 
                             ya_guardada = True
 
-                except Exception:
+                except Exception as error:
 
-                    ya_guardada = False
+                    st.error(
+                        "No fue posible verificar "
+                        "el historial de evaluaciones."
+                    )
+
+                    st.code(
+                        str(error)
+                    )
 
             # =================================================
-            # 12. GUARDAR SI NO EXISTE REGISTRO
+            # 12. GUARDAR SOLO SI NO EXISTE
             # =================================================
 
             if not ya_guardada:
@@ -14930,9 +14949,9 @@ if (
                     columns=columnas_historial
                 )
 
-                # =============================================
-                # 13. SI EL ARCHIVO YA EXISTE
-                # =============================================
+                # =================================================
+                # 13. ACTUALIZAR ARCHIVO EXISTENTE
+                # =================================================
 
                 if (
                     ARCHIVO_HISTORIAL_EVALUACIONES.exists()
@@ -14954,9 +14973,9 @@ if (
                             .fillna("")
                         )
 
-                        # -------------------------------------
-                        # Asegurar todas las columnas
-                        # -------------------------------------
+                        # -----------------------------------------
+                        # Asegurar que todas las columnas existan
+                        # -----------------------------------------
 
                         for columna in (
                             columnas_historial
@@ -14972,9 +14991,9 @@ if (
                                     columna
                                 ] = ""
 
-                        # -------------------------------------
-                        # Mantener orden de columnas
-                        # -------------------------------------
+                        # -----------------------------------------
+                        # Mantener estructura del archivo
+                        # -----------------------------------------
 
                         df_historial_existente = (
                             df_historial_existente[
@@ -14982,9 +15001,9 @@ if (
                             ]
                         )
 
-                        # -------------------------------------
+                        # -----------------------------------------
                         # Agregar nuevo registro
-                        # -------------------------------------
+                        # -----------------------------------------
 
                         df_historial_final = pd.concat(
                             [
@@ -15007,9 +15026,9 @@ if (
 
                         df_historial_final = None
 
-                # =============================================
-                # 14. SI EL ARCHIVO NO EXISTE
-                # =============================================
+                # =================================================
+                # 14. CREAR ARCHIVO SI NO EXISTE
+                # =================================================
 
                 else:
 
@@ -15018,7 +15037,7 @@ if (
                     )
 
                 # =================================================
-                # 15. ESCRIBIR ARCHIVO
+                # 15. GUARDAR EN DISCO
                 # =================================================
 
                 if (
@@ -15061,7 +15080,7 @@ if (
                         )
 
             # =================================================
-            # 16. AVISO SI YA ESTABA GUARDADA
+            # 16. SI YA ESTABA GUARDADA
             # =================================================
 
             else:
