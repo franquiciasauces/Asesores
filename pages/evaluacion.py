@@ -26909,128 +26909,128 @@ else:
 # ============================================================
 # 12 - HISTORIAL DE EVALUACIONES POR USUARIO
 # ============================================================
+# 12 - CONSULTA HISTORIAL DE NOTAS
+# ============================================================
 
 st.markdown(
-    "### 12 - Historial de evaluaciones"
+    "### Consulta historial notas"
 )
 
-# ============================================================
-# 12.1 - CARGAR HISTORIAL
-# ============================================================
-
-ruta_historial_12 = (
-    "evaluacion/"
-    "Historialdesarrolloevaluaciones.csv"
+ejecutar_consulta_historial_12 = st.checkbox(
+    "Consulta historial notas",
+    key="ejecutar_consulta_historial_12"
 )
 
-try:
-
-    df_historial_12 = pd.read_csv(
-        ruta_historial_12,
-        dtype=str,
-        keep_default_na=False,
-        sep=";"
-    )
-
-    df_historial_12 = (
-        df_historial_12.fillna("")
-    )
-
-except Exception as error_historial_12:
-
-    st.error(
-        "No fue posible cargar el historial "
-        "de evaluaciones."
-    )
-
-    st.code(
-        str(error_historial_12)
-    )
-
-    df_historial_12 = pd.DataFrame()
-
 
 # ============================================================
-# 12.2 - VERIFICAR INFORMACIÓN
+# 12.1 - EJECUTAR CONSULTA
 # ============================================================
 
-if not df_historial_12.empty:
+if ejecutar_consulta_historial_12:
 
-    # ========================================================
-    # 12.3 - CONVERTIR PORCENTAJE A NUMÉRICO
-    # ========================================================
+    ruta_historial_12 = (
+        "evaluacion/"
+        "Historialdesarrolloevaluaciones.csv"
+    )
 
-    df_historial_12[
-        "Porcentaje"
-    ] = pd.to_numeric(
+    try:
+
+        df_historial_12 = pd.read_csv(
+            ruta_historial_12,
+            dtype=str,
+            keep_default_na=False,
+            sep=";"
+        )
+
+        df_historial_12 = (
+            df_historial_12.fillna("")
+        )
+
+
+        # ====================================================
+        # CONVERTIR PORCENTAJE A NUMÉRICO
+        # ====================================================
+
         df_historial_12[
             "Porcentaje"
-        ],
-        errors="coerce"
-    )
-
-    # ========================================================
-    # 12.4 - AGRUPAR POR USUARIO
-    # ========================================================
-
-    df_promedio_usuarios_12 = (
-        df_historial_12
-        .groupby(
-            "Usuario",
-            as_index=False
+        ] = pd.to_numeric(
+            df_historial_12[
+                "Porcentaje"
+            ],
+            errors="coerce"
         )
-        .agg(
-            Evaluaciones_Realizadas=(
-                "Evaluacion_ID",
-                "count"
-            ),
-            Promedio_Notas=(
-                "Porcentaje",
-                "mean"
+
+
+        # ====================================================
+        # AGRUPAR POR USUARIO
+        # ====================================================
+
+        df_promedio_usuarios_12 = (
+            df_historial_12
+            .groupby(
+                "Usuario",
+                as_index=False
+            )
+            .agg(
+                Evaluaciones_Realizadas=(
+                    "Evaluacion_ID",
+                    "count"
+                ),
+                Promedio_Notas=(
+                    "Porcentaje",
+                    "mean"
+                )
             )
         )
-    )
 
-    # ========================================================
-    # 12.5 - REDONDEAR PROMEDIO
-    # ========================================================
 
-    df_promedio_usuarios_12[
-        "Promedio_Notas"
-    ] = (
+        # ====================================================
+        # REDONDEAR PROMEDIO
+        # ====================================================
+
         df_promedio_usuarios_12[
             "Promedio_Notas"
-        ]
-        .round(2)
-    )
-
-    # ========================================================
-    # 12.6 - ORDENAR POR USUARIO
-    # ========================================================
-
-    df_promedio_usuarios_12 = (
-        df_promedio_usuarios_12
-        .sort_values(
-            "Usuario"
+        ] = (
+            df_promedio_usuarios_12[
+                "Promedio_Notas"
+            ]
+            .round(2)
         )
-        .reset_index(
-            drop=True
+
+
+        # ====================================================
+        # ORDENAR
+        # ====================================================
+
+        df_promedio_usuarios_12 = (
+            df_promedio_usuarios_12
+            .sort_values(
+                "Usuario"
+            )
+            .reset_index(
+                drop=True
+            )
         )
-    )
 
-    # ========================================================
-    # 12.7 - MOSTRAR RESULTADO
-    # ========================================================
 
-    st.dataframe(
-        df_promedio_usuarios_12,
-        use_container_width=True,
-        hide_index=True
-    )
+        # ====================================================
+        # MOSTRAR RESULTADO
+        # ====================================================
 
-else:
+        st.dataframe(
+            df_promedio_usuarios_12,
+            use_container_width=True,
+            hide_index=True
+        )
 
-    st.info(
-        "No existen resultados registrados "
-        "en el historial de evaluaciones."
-    )
+
+    except Exception as error_historial_12:
+
+        st.error(
+            "No fue posible consultar el historial "
+            "de notas."
+        )
+
+        st.code(
+            str(error_historial_12)
+        )
