@@ -14251,7 +14251,7 @@ if (
                                 str(
                                     respuesta_usuario
                                 ).split(",")
-                                if str(x).strip()
+                                if x.strip()
                             ]
 
                         # -------------------------------------
@@ -14406,7 +14406,7 @@ if (
                     )
 
                 # =================================================
-                # 9. GUARDAR RESULTADO
+                # 9. GUARDAR RESULTADO TEMPORAL
                 # =================================================
 
                 st.session_state[
@@ -14432,8 +14432,21 @@ if (
                         preguntas_incorrectas
                 }
 
+                # =================================================
+                # 10. ACTIVAR PERSISTENCIA
+                #
+                # ESTA ES LA PARTE QUE FALTABA.
+                #
+                # La Parte 4 detectará esta bandera y procederá
+                # a guardar el resultado en GitHub.
+                # =================================================
+
+                st.session_state[
+                    "guardar_resultado_evaluacion_general"
+                ] = True
+
             # =================================================
-            # 10. RECUPERAR RESULTADO
+            # 11. RECUPERAR RESULTADO
             # =================================================
 
             resultado = st.session_state[
@@ -14441,7 +14454,7 @@ if (
             ]
 
             # =================================================
-            # 11. RESULTADO FINAL
+            # 12. RESULTADO FINAL
             # =================================================
 
             st.divider()
@@ -14470,20 +14483,16 @@ if (
             )
 
             # =================================================
-            # 12. RETROALIMENTACIÓN
+            # 13. RETROALIMENTACIÓN
             # =================================================
 
             st.subheader(
                 "Retroalimentación"
             )
 
-            # -------------------------------------------------
-            # RECUPERAR PREGUNTAS INCORRECTAS
-            # -------------------------------------------------
-
             preguntas_incorrectas = resultado.get(
                 "Preguntas_Incorrectas",
-                None
+                []
             )
 
             # -------------------------------------------------
@@ -14527,7 +14536,7 @@ if (
                         )
 
             # -------------------------------------------------
-            # MOSTRAR RESULTADO DE RETROALIMENTACIÓN
+            # MOSTRAR SOLO PREGUNTAS INCORRECTAS
             # -------------------------------------------------
 
             if not preguntas_incorrectas:
@@ -14552,13 +14561,14 @@ if (
                     )
 
             # =================================================
-            # 13. BLOQUEO DE LA EVALUACIÓN
+            # 14. BLOQUEO DE LA EVALUACIÓN
             # =================================================
 
             st.info(
                 "La evaluación ya fue enviada y "
                 "las respuestas no pueden modificarse."
             )
+
 
 # ============================================================
 # ============================================================
@@ -14574,7 +14584,7 @@ from io import StringIO
 
 
 # ============================================================
-# 1. VERIFICAR SI LA PARTE 3 ACABA DE GENERAR UN RESULTADO
+# 1. VERIFICAR SI LA PARTE 3 GENERÓ UN RESULTADO PARA GUARDAR
 # ============================================================
 
 if (
@@ -14631,7 +14641,7 @@ if (
     else:
 
         # ====================================================
-        # 5. IDENTIFICAR RESULTADO TEMPORAL
+        # 5. IDENTIFICAR RESULTADO
         # ====================================================
 
         clave_resultado = (
@@ -14648,7 +14658,7 @@ if (
 
 
         # ====================================================
-        # 6. VERIFICAR QUE EXISTA EL RESULTADO
+        # 6. VERIFICAR QUE EXISTA
         # ====================================================
 
         if resultado_temporal is None:
@@ -14662,9 +14672,7 @@ if (
         else:
 
             # =================================================
-            # 7. CLAVE PARA EVITAR PROCESAR DOS VECES
-            #
-            # USUARIO + EVALUACIÓN
+            # 7. CLAVE PARA EVITAR DUPLICADOS
             # =================================================
 
             clave_persistencia = (
@@ -14676,7 +14684,7 @@ if (
 
 
             # =================================================
-            # 8. SOLO PROCESAR SI NO SE HA PERSISTIDO
+            # 8. SOLO PROCESAR SI NO SE HA GUARDADO
             # =================================================
 
             if not st.session_state.get(
@@ -14685,20 +14693,25 @@ if (
             ):
 
                 # =============================================
-                # 9. OBTENER INFORMACIÓN DESDE LAS PREGUNTAS
+                # 9. OBTENER DATOS DE LA EVALUACIÓN
                 # =============================================
 
                 modulo = ""
 
                 tipo_relacion = ""
 
-                tipo_evaluacion = ""
+                tipo_evaluacion = (
+                    "Evaluación general"
+                )
+
+                nombre_evaluacion = ""
+
+                descripcion = ""
 
 
-                # ------------------------------------------------
-                # df_preguntas debe estar disponible porque la
-                # Parte 3 utilizó este dataframe para calificar.
-                # ------------------------------------------------
+                # =============================================
+                # 10. OBTENER PREGUNTAS
+                # =============================================
 
                 df_preguntas = (
                     st.session_state.get(
@@ -14715,11 +14728,14 @@ if (
                     and not df_preguntas.empty
                 ):
 
-                    # --------------------------------------------
+                    # -----------------------------------------
                     # MODULO
-                    # --------------------------------------------
+                    # -----------------------------------------
 
-                    if "Modulo" in df_preguntas.columns:
+                    if (
+                        "Modulo"
+                        in df_preguntas.columns
+                    ):
 
                         modulo = str(
                             df_preguntas.iloc[0][
@@ -14728,11 +14744,14 @@ if (
                         ).strip()
 
 
-                    # --------------------------------------------
+                    # -----------------------------------------
                     # TIPO DE RELACIÓN
-                    # --------------------------------------------
+                    # -----------------------------------------
 
-                    if "Tipo_Relacion" in df_preguntas.columns:
+                    if (
+                        "Tipo_Relacion"
+                        in df_preguntas.columns
+                    ):
 
                         tipo_relacion = str(
                             df_preguntas.iloc[0][
@@ -14741,20 +14760,8 @@ if (
                         ).strip()
 
 
-                    # --------------------------------------------
-                    # TIPO DE EVALUACIÓN
-                    #
-                    # Para evaluación general se identifica
-                    # como Evaluación general.
-                    # --------------------------------------------
-
-                    tipo_evaluacion = (
-                        "Evaluación general"
-                    )
-
-
                 # =============================================
-                # 10. OBTENER RESULTADOS
+                # 11. OBTENER RESULTADOS
                 # =============================================
 
                 total_preguntas = int(
@@ -14790,7 +14797,7 @@ if (
 
 
                 # =============================================
-                # 11. FECHA Y HORA
+                # 12. FECHA Y HORA
                 # =============================================
 
                 ahora = datetime.now()
@@ -14811,7 +14818,7 @@ if (
 
 
                 # =============================================
-                # 12. GENERAR ID ÚNICO DEL REGISTRO
+                # 13. GENERAR ID ÚNICO
                 # =============================================
 
                 usuario_id = re.sub(
@@ -14841,7 +14848,7 @@ if (
 
 
                 # =============================================
-                # 13. COLUMNAS EXACTAS DEL HISTORIAL
+                # 14. COLUMNAS EXACTAS DEL HISTORIAL
                 # =============================================
 
                 columnas_historial = [
@@ -14864,20 +14871,7 @@ if (
 
 
                 # =============================================
-                # 14. CAMPOS QUE NO APLICAN
-                #
-                # En evaluación general no tenemos:
-                # Nombre_Evaluacion
-                # Descripcion
-                # =============================================
-
-                nombre_evaluacion = ""
-
-                descripcion = ""
-
-
-                # =============================================
-                # 15. RUTA DEL ARCHIVO EN GITHUB
+                # 15. RUTA DEL ARCHIVO
                 # =============================================
 
                 ruta_github = (
@@ -14895,7 +14889,7 @@ if (
 
 
                 # =============================================
-                # 16. ENCABEZADOS DE GITHUB
+                # 16. ENCABEZADOS
                 # =============================================
 
                 headers_github = {
@@ -14977,7 +14971,7 @@ if (
 
 
                         # =====================================
-                        # 19. DECODIFICAR ARCHIVO ACTUAL
+                        # 19. DECODIFICAR ARCHIVO
                         # =====================================
 
                         if contenido_base64:
@@ -15023,7 +15017,7 @@ if (
 
 
                         # =====================================
-                        # 21. ASEGURAR TODAS LAS COLUMNAS
+                        # 21. ASEGURAR COLUMNAS
                         # =====================================
 
                         for columna in columnas_historial:
@@ -15039,7 +15033,7 @@ if (
 
 
                         # =====================================
-                        # 22. CONSERVAR ORDEN EXACTO
+                        # 22. CONSERVAR ORDEN
                         # =====================================
 
                         df_historial = (
@@ -15084,15 +15078,7 @@ if (
                         # =====================================
                         # 25. COMPROBAR SI YA TIENE NOTA
                         #
-                        # COMBINACIÓN:
-                        #
                         # Evaluacion_ID + Usuario
-                        #
-                        # Si existe:
-                        # NO SE MODIFICA.
-                        #
-                        # Si no existe:
-                        # SE AGREGA.
                         # =====================================
 
                         ya_tiene_nota = (
@@ -15119,7 +15105,7 @@ if (
 
 
                         # =====================================
-                        # 26. SI YA EXISTE LA NOTA
+                        # 26. SI YA EXISTE
                         # =====================================
 
                         if ya_tiene_nota:
@@ -15142,7 +15128,7 @@ if (
 
 
                         # =====================================
-                        # 27. SI ES UN NUEVO RESULTADO
+                        # 27. SI NO EXISTE
                         # =====================================
 
                         else:
@@ -15198,7 +15184,7 @@ if (
 
 
                             # =================================
-                            # 28. DATAFRAME NUEVO
+                            # 28. DATAFRAME DEL REGISTRO
                             # =================================
 
                             df_nuevo_registro = pd.DataFrame(
@@ -15236,7 +15222,7 @@ if (
 
 
                             # =================================
-                            # 31. CODIFICAR PARA GITHUB
+                            # 31. CODIFICAR CSV
                             # =================================
 
                             contenido_base64_nuevo = (
@@ -15252,7 +15238,7 @@ if (
 
 
                             # =================================
-                            # 32. PREPARAR ACTUALIZACIÓN
+                            # 32. DATOS PARA GITHUB
                             # =================================
 
                             datos_put = {
@@ -15355,3 +15341,5 @@ if (
                     st.code(
                         str(error_historial)
                     )
+
+
