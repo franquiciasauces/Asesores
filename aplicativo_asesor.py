@@ -12804,3 +12804,526 @@ if (
                         str(error_historial)
                     )
 
+# ============================================================
+# GESTIONEJECUCIONEVALUACION
+# EVALUACIÓN GENERAL
+# PARTE 1 — CARGA Y SELECCIÓN DE EVALUACIONES DISPONIBLES
+# ============================================================
+
+if (
+    opcion_principal == "EVALUACIÓN"
+    and opcion_evaluacion == "Evaluación general"
+):
+
+    st.subheader(
+        "Evaluación general"
+    )
+
+    # ========================================================
+    # 1. ARCHIVO MADRE DE EVALUACIONES GENERALES
+    # ========================================================
+
+    ARCHIVO_EVALUACIONES_GENERALES = (
+        BASE_DIR
+        / "page"
+        / "EVALUACIONES.csv"
+    )
+
+    # ========================================================
+    # 2. VERIFICAR QUE EXISTA EL ARCHIVO
+    # ========================================================
+
+    if not ARCHIVO_EVALUACIONES_GENERALES.exists():
+
+        st.error(
+            "No se encontró el archivo de evaluaciones generales."
+        )
+
+    else:
+
+        # ====================================================
+        # 3. CARGAR ARCHIVO MADRE
+        # ====================================================
+
+        try:
+
+            df_evaluaciones_generales = pd.read_csv(
+                ARCHIVO_EVALUACIONES_GENERALES,
+                dtype=str,
+                keep_default_na=False
+            )
+
+            df_evaluaciones_generales = (
+                df_evaluaciones_generales.fillna("")
+            )
+
+        except Exception as error:
+
+            st.error(
+                "No fue posible cargar el archivo "
+                "de evaluaciones generales."
+            )
+
+            st.code(
+                str(error)
+            )
+
+            df_evaluaciones_generales = (
+                pd.DataFrame()
+            )
+
+        # ====================================================
+        # 4. GUARDAR ARCHIVO MADRE EN MEMORIA TEMPORAL
+        # ====================================================
+
+        if not df_evaluaciones_generales.empty:
+
+            st.session_state[
+                "df_evaluaciones_generales_ejecucion"
+            ] = (
+                df_evaluaciones_generales.copy()
+            )
+
+            # =================================================
+            # 5. VERIFICAR COLUMNAS NECESARIAS
+            # =================================================
+
+            columnas_necesarias = [
+                "Evaluacion_ID",
+                "Modulo",
+                "Tipo_Relacion",
+                "Nivel",
+                "Cantidad_Preguntas",
+                "Preguntas_Aprobadas",
+                "Preguntas_Rechazadas",
+                "Preguntas_No_Utilizadas",
+                "Estado_Evaluacion",
+                "Fecha_Persistencia"
+            ]
+
+            columnas_faltantes = [
+                columna
+                for columna in columnas_necesarias
+                if columna
+                not in df_evaluaciones_generales.columns
+            ]
+
+            if columnas_faltantes:
+
+                st.error(
+                    "El archivo EVALUACIONES.csv "
+                    "no tiene la estructura esperada."
+                )
+
+                st.write(
+                    "Columnas faltantes:",
+                    columnas_faltantes
+                )
+
+            else:
+
+                # =================================================
+                # 6. NORMALIZAR CAMPOS
+                # =================================================
+
+                for columna in columnas_necesarias:
+
+                    df_evaluaciones_generales[
+                        columna
+                    ] = (
+                        df_evaluaciones_generales[
+                            columna
+                        ]
+                        .astype(str)
+                        .str.strip()
+                    )
+
+                # =================================================
+                # 7. FILTRAR SOLO EVALUACIONES PERSISTIDAS
+                #
+                # Solo se deben ofrecer al asesor evaluaciones
+                # que hayan sido previamente generadas,
+                # revisadas y persistidas.
+                # =================================================
+
+                df_evaluaciones_disponibles = (
+                    df_evaluaciones_generales[
+                        df_evaluaciones_generales[
+                            "Estado_Evaluacion"
+                        ]
+                        .str.upper()
+                        .isin(
+                            [
+                                "PERSISTIDA",
+                                "ACTIVA"
+                            ]
+                        )
+                    ]
+                    .copy()
+                )
+
+                # =================================================
+                # 8. VERIFICAR DISPONIBILIDAD
+                # =================================================
+
+                if df_evaluaciones_disponibles.empty:
+
+                    st.info(
+                        "No existen evaluaciones generales "
+                        "disponibles para realizar."
+                    )
+
+                    st.session_state.pop(
+                        "evaluacion_general_ejecucion_id",
+                        None
+                    )
+
+                else:
+
+                    # =================================================
+                    # 9. DEFINIR LOS CUATRO MÓDULOS
+                    # =================================================
+
+                    modulos_permitidos = [
+                        "Producto",
+                        "Patologia",
+                        "Restricciones",
+                        "Complementarios"
+                    ]
+
+                    # =================================================
+                    # 10. OBTENER MÓDULOS REALMENTE DISPONIBLES
+                    # =================================================
+
+                    modulos_disponibles = []
+
+                    for modulo in modulos_permitidos:
+
+                        existe_modulo = (
+                            df_evaluaciones_disponibles[
+                                "Modulo"
+                            ]
+                            .str.casefold()
+                            == modulo.casefold()
+                        ).any()
+
+                        if existe_modulo:
+
+                            modulos_disponibles.append(
+                                modulo
+                            )
+
+                    # =================================================
+                    # 11. SELECCIONAR MÓDULO
+                    # =================================================
+
+                    st.markdown(
+                        "### 1. Seleccione el módulo"
+                    )
+
+                    modulo_seleccionado = st.selectbox(
+                        "Módulo:",
+                        [
+                            "Seleccione un módulo"
+                        ]
+                        + modulos_disponibles,
+                        key=(
+                            "modulo_ejecucion_general"
+                        )
+                    )
+
+                    # =================================================
+                    # 12. CONTINUAR SOLO SI SE SELECCIONÓ MÓDULO
+                    # =================================================
+
+                    if (
+                        modulo_seleccionado
+                        != "Seleccione un módulo"
+                    ):
+
+                        # =============================================
+                        # 13. FILTRAR POR MÓDULO
+                        # =============================================
+
+                        df_modulo_general = (
+                            df_evaluaciones_disponibles[
+                                df_evaluaciones_disponibles[
+                                    "Modulo"
+                                ]
+                                .str.casefold()
+                                ==
+                                modulo_seleccionado.casefold()
+                            ]
+                            .copy()
+                        )
+
+                        # =============================================
+                        # 14. OBTENER NIVELES DISPONIBLES
+                        #
+                        # No se asume que todos los módulos tengan
+                        # Nivel 1 y Nivel 2.
+                        # Se muestran únicamente los niveles
+                        # realmente existentes.
+                        # =============================================
+
+                        niveles_disponibles = (
+                            df_modulo_general[
+                                "Nivel"
+                            ]
+                            .replace("", pd.NA)
+                            .dropna()
+                            .unique()
+                            .tolist()
+                        )
+
+                        niveles_disponibles = sorted(
+                            niveles_disponibles,
+                            key=lambda nivel: (
+                                0
+                                if str(nivel)
+                                .strip()
+                                .casefold()
+                                == "nivel 1"
+                                else
+                                1
+                                if str(nivel)
+                                .strip()
+                                .casefold()
+                                == "nivel 2"
+                                else
+                                2,
+                                str(nivel)
+                            )
+                        )
+
+                        # =============================================
+                        # 15. SELECCIONAR NIVEL
+                        # =============================================
+
+                        st.markdown(
+                            "### 2. Seleccione el nivel"
+                        )
+
+                        nivel_seleccionado = st.selectbox(
+                            "Nivel:",
+                            [
+                                "Seleccione un nivel"
+                            ]
+                            + niveles_disponibles,
+                            key=(
+                                "nivel_ejecucion_general"
+                            )
+                        )
+
+                        # =============================================
+                        # 16. CONTINUAR SI SE SELECCIONÓ NIVEL
+                        # =============================================
+
+                        if (
+                            nivel_seleccionado
+                            != "Seleccione un nivel"
+                        ):
+
+                            # =========================================
+                            # 17. FILTRAR POR MÓDULO Y NIVEL
+                            # =========================================
+
+                            df_modulo_nivel = (
+                                df_modulo_general[
+                                    df_modulo_general[
+                                        "Nivel"
+                                    ]
+                                    .str.casefold()
+                                    ==
+                                    nivel_seleccionado.casefold()
+                                ]
+                                .copy()
+                            )
+
+                            # =========================================
+                            # 18. TIPO DE RELACIÓN
+                            #
+                            # Es OPCIONAL.
+                            #
+                            # Por eso se ofrece "Todas" y no se obliga
+                            # al asesor a escoger una relación.
+                            # =========================================
+
+                            tipos_relacion = (
+                                df_modulo_nivel[
+                                    "Tipo_Relacion"
+                                ]
+                                .replace("", pd.NA)
+                                .dropna()
+                                .unique()
+                                .tolist()
+                            )
+
+                            tipos_relacion = sorted(
+                                tipos_relacion
+                            )
+
+                            # =========================================
+                            # 19. SELECCIONAR TIPO DE RELACIÓN
+                            # =========================================
+
+                            if tipos_relacion:
+
+                                st.markdown(
+                                    "### 3. Tipo de relación "
+                                    "(opcional)"
+                                )
+
+                                tipo_relacion_seleccionado = (
+                                    st.selectbox(
+                                        "Tipo de relación:",
+                                        [
+                                            "Todas"
+                                        ]
+                                        + tipos_relacion,
+                                        key=(
+                                            "tipo_relacion_ejecucion_general"
+                                        )
+                                    )
+                                )
+
+                            else:
+
+                                tipo_relacion_seleccionado = (
+                                    "Todas"
+                                )
+
+                            # =========================================
+                            # 20. FILTRAR POR TIPO DE RELACIÓN
+                            #
+                            # Si se selecciona "Todas", no se aplica
+                            # ningún filtro adicional.
+                            # =========================================
+
+                            if (
+                                tipo_relacion_seleccionado
+                                == "Todas"
+                            ):
+
+                                df_evaluaciones_finales = (
+                                    df_modulo_nivel.copy()
+                                )
+
+                            else:
+
+                                df_evaluaciones_finales = (
+                                    df_modulo_nivel[
+                                        df_modulo_nivel[
+                                            "Tipo_Relacion"
+                                        ]
+                                        .str.casefold()
+                                        ==
+                                        tipo_relacion_seleccionado.casefold()
+                                    ]
+                                    .copy()
+                                )
+
+                            # =========================================
+                            # 21. VERIFICAR SI HAY EVALUACIONES
+                            # =========================================
+
+                            if (
+                                df_evaluaciones_finales.empty
+                            ):
+
+                                st.info(
+                                    "No existen evaluaciones "
+                                    "disponibles para los criterios "
+                                    "seleccionados."
+                                )
+
+                                st.session_state.pop(
+                                    "evaluacion_general_ejecucion_id",
+                                    None
+                                )
+
+                            else:
+
+                                # =====================================
+                                # 22. MOSTRAR EVALUACIONES DISPONIBLES
+                                # =====================================
+
+                                st.markdown(
+                                    "### 4. Evaluaciones disponibles"
+                                )
+
+                                columnas_mostrar = [
+                                    "Evaluacion_ID",
+                                    "Modulo",
+                                    "Tipo_Relacion",
+                                    "Nivel",
+                                    "Cantidad_Preguntas",
+                                    "Preguntas_Aprobadas",
+                                    "Estado_Evaluacion"
+                                ]
+
+                                st.dataframe(
+                                    df_evaluaciones_finales[
+                                        columnas_mostrar
+                                    ],
+                                    use_container_width=True,
+                                    hide_index=True
+                                )
+
+                                # =====================================
+                                # 23. SELECCIONAR EVALUACIÓN
+                                # =====================================
+
+                                st.markdown(
+                                    "### 5. Seleccione la evaluación "
+                                    "que realizará"
+                                )
+
+                                opciones_evaluaciones = (
+                                    df_evaluaciones_finales[
+                                        "Evaluacion_ID"
+                                    ]
+                                    .astype(str)
+                                    .str.strip()
+                                    .tolist()
+                                )
+
+                                evaluacion_seleccionada = (
+                                    st.selectbox(
+                                        "Evaluación:",
+                                        [
+                                            "Seleccione una evaluación"
+                                        ]
+                                        + opciones_evaluaciones,
+                                        key=(
+                                            "evaluacion_general_selector"
+                                        )
+                                    )
+                                )
+
+                                # =====================================
+                                # 24. GUARDAR SELECCIÓN TEMPORAL
+                                # =====================================
+
+                                if (
+                                    evaluacion_seleccionada
+                                    != "Seleccione una evaluación"
+                                ):
+
+                                    st.session_state[
+                                        "evaluacion_general_ejecucion_id"
+                                    ] = (
+                                        evaluacion_seleccionada
+                                    )
+
+                                    st.success(
+                                        "Evaluación seleccionada: "
+                                        + evaluacion_seleccionada
+                                    )
+
+                                else:
+
+                                    st.session_state.pop(
+                                        "evaluacion_general_ejecucion_id",
+                                        None
+                                    )
