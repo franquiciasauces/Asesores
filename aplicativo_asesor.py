@@ -14054,6 +14054,7 @@ if (
 
 
 # ============================================================
+# ============================================================
 # EVALUACIÓN GENERAL
 # PARTE 3 — CALIFICACIÓN Y RETROALIMENTACIÓN
 # ============================================================
@@ -14094,7 +14095,7 @@ if (
         )
 
         # ====================================================
-        # 2. SOLO CALIFICAR SI FUE FINALIZADA
+        # 2. VERIFICAR QUE LA EVALUACIÓN FUE FINALIZADA
         # ====================================================
 
         if (
@@ -14123,7 +14124,7 @@ if (
             )
 
             # =================================================
-            # 3. CALIFICAR UNA SOLA VEZ
+            # 3. CALIFICAR SOLO UNA VEZ
             # =================================================
 
             if (
@@ -14154,7 +14155,7 @@ if (
                     nivel_evaluacion = "Nivel 1"
 
                 # =============================================
-                # 5. VARIABLES
+                # 5. VARIABLES DE CALIFICACIÓN
                 # =============================================
 
                 total_preguntas = len(
@@ -14166,7 +14167,7 @@ if (
                 preguntas_incorrectas = []
 
                 # =============================================
-                # 6. RECORRER PREGUNTAS
+                # 6. RECORRER LAS PREGUNTAS
                 # =============================================
 
                 for indice, fila in (
@@ -14216,7 +14217,7 @@ if (
                     ):
 
                         # -------------------------------------
-                        # NORMALIZAR CORRECTAS
+                        # RESPUESTAS CORRECTAS
                         # -------------------------------------
 
                         correctas = [
@@ -14227,7 +14228,7 @@ if (
                         ]
 
                         # -------------------------------------
-                        # NORMALIZAR SELECCIONADAS
+                        # RESPUESTAS DEL USUARIO
                         # -------------------------------------
 
                         if isinstance(
@@ -14254,26 +14255,47 @@ if (
                             ]
 
                         # -------------------------------------
+                        # NORMALIZAR ORDEN
+                        #
                         # 2,3 = 3,2
                         # -------------------------------------
 
-                        correctas_ordenadas = sorted(
-                            correctas,
-                            key=lambda x: int(x)
-                            if x.isdigit()
-                            else x
+                        def ordenar_respuestas(valor):
+
+                            try:
+
+                                return sorted(
+                                    [
+                                        int(x)
+                                        for x in valor
+                                    ]
+                                )
+
+                            except Exception:
+
+                                return sorted(
+                                    [
+                                        str(x).strip()
+                                        for x in valor
+                                    ]
+                                )
+
+                        correctas_ordenadas = (
+                            ordenar_respuestas(
+                                correctas
+                            )
                         )
 
-                        seleccionadas_ordenadas = sorted(
-                            seleccionadas,
-                            key=lambda x: int(x)
-                            if x.isdigit()
-                            else x
+                        seleccionadas_ordenadas = (
+                            ordenar_respuestas(
+                                seleccionadas
+                            )
                         )
 
                         es_correcta = (
                             seleccionadas_ordenadas
-                            == correctas_ordenadas
+                            ==
+                            correctas_ordenadas
                         )
 
                     # =========================================
@@ -14285,8 +14307,7 @@ if (
                         respuesta_usuario_normalizada = (
                             str(
                                 respuesta_usuario
-                            )
-                            .strip()
+                            ).strip()
                         )
 
                         respuesta_correcta_normalizada = (
@@ -14301,7 +14322,7 @@ if (
                         )
 
                     # =========================================
-                    # CONTABILIZAR
+                    # CONTABILIZAR ACIERTOS
                     # =========================================
 
                     if es_correcta:
@@ -14309,6 +14330,10 @@ if (
                         respuestas_correctas += 1
 
                     else:
+
+                        # =====================================
+                        # GUARDAR SOLO PREGUNTAS INCORRECTAS
+                        # =====================================
 
                         preguntas_incorrectas.append(
                             {
@@ -14328,7 +14353,8 @@ if (
 
                     porcentaje = (
                         respuestas_correctas
-                        / total_preguntas
+                        /
+                        total_preguntas
                     ) * 100
 
                 else:
@@ -14415,7 +14441,7 @@ if (
             ]
 
             # =================================================
-            # 11. RESULTADO
+            # 11. RESULTADO FINAL
             # =================================================
 
             st.divider()
@@ -14426,20 +14452,21 @@ if (
 
             st.write(
                 f"**Respuestas correctas:** "
-                f"{resultado['Respuestas_Correctas']} "
+                f"{resultado.get('Respuestas_Correctas', 0)} "
                 f"de "
-                f"{resultado['Total_Preguntas']}"
+                f"{resultado.get('Total_Preguntas', 0)}"
             )
 
             st.metric(
                 "Porcentaje",
-                f"{resultado['Porcentaje']:.2f}%"
+                f"{float(resultado.get('Porcentaje', 0)):.2f}%"
             )
 
             st.info(
-                resultado[
-                    "Mensaje_Resultado"
-                ]
+                resultado.get(
+                    "Mensaje_Resultado",
+                    ""
+                )
             )
 
             # =================================================
@@ -14450,11 +14477,58 @@ if (
                 "Retroalimentación"
             )
 
-            preguntas_incorrectas = (
-                resultado[
-                    "Preguntas_Incorrectas"
-                ]
+            # -------------------------------------------------
+            # RECUPERAR PREGUNTAS INCORRECTAS
+            # -------------------------------------------------
+
+            preguntas_incorrectas = resultado.get(
+                "Preguntas_Incorrectas",
+                None
             )
+
+            # -------------------------------------------------
+            # COMPATIBILIDAD CON RESULTADOS ANTERIORES
+            # -------------------------------------------------
+
+            if preguntas_incorrectas is None:
+
+                preguntas_incorrectas = []
+
+                retroalimentacion_anterior = (
+                    resultado.get(
+                        "Retroalimentacion",
+                        []
+                    )
+                )
+
+                for indice, item in enumerate(
+                    retroalimentacion_anterior,
+                    start=1
+                ):
+
+                    if not item.get(
+                        "Es_Correcta",
+                        False
+                    ):
+
+                        preguntas_incorrectas.append(
+                            {
+                                "Numero":
+                                    indice,
+
+                                "Pregunta":
+                                    str(
+                                        item.get(
+                                            "Pregunta",
+                                            ""
+                                        )
+                                    )
+                            }
+                        )
+
+            # -------------------------------------------------
+            # MOSTRAR RESULTADO DE RETROALIMENTACIÓN
+            # -------------------------------------------------
 
             if not preguntas_incorrectas:
 
@@ -14477,7 +14551,11 @@ if (
                         f"{item['Pregunta']}"
                     )
 
-                st.info(
-                    "La evaluación ya fue enviada y "
-                    "las respuestas no pueden modificarse."
-                )
+            # =================================================
+            # 13. BLOQUEO DE LA EVALUACIÓN
+            # =================================================
+
+            st.info(
+                "La evaluación ya fue enviada y "
+                "las respuestas no pueden modificarse."
+            )
