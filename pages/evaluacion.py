@@ -27034,3 +27034,501 @@ if ejecutar_consulta_historial_12:
         st.code(
             str(error_historial_12)
         )
+
+# ============================================================
+# 13 - CONSULTA HISTORIAL POR USUARIO
+# ============================================================
+
+st.markdown(
+    "### Consulta historial por usuario"
+)
+
+ejecutar_consulta_usuario_13 = st.checkbox(
+    "Consulta historial por usuario",
+    key="ejecutar_consulta_usuario_13"
+)
+
+
+# ============================================================
+# 13.1 - EJECUTAR CONSULTA
+# ============================================================
+
+if ejecutar_consulta_usuario_13:
+
+    # ========================================================
+    # 13.1.1 - CARGAR HISTORIAL DE EVALUACIONES
+    # ========================================================
+
+    ruta_historial_13 = (
+        "evaluacion/"
+        "Historialdesarrolloevaluaciones.csv"
+    )
+
+
+    # ========================================================
+    # 13.1.2 - CARGAR EVALUACIONES CONTROLADAS
+    # ========================================================
+
+    ruta_controladas_13 = (
+        "evaluacion/"
+        "Respositorioevaluacionescontroladas.csv"
+    )
+
+
+    # ========================================================
+    # 13.1.3 - CARGAR EVALUACIONES GENERALES
+    # ========================================================
+
+    ruta_generales_13 = (
+        "page/"
+        "EVALUACIONES.csv"
+    )
+
+
+    try:
+
+        df_historial_13 = pd.read_csv(
+            ruta_historial_13,
+            dtype=str,
+            keep_default_na=False,
+            sep=";"
+        )
+
+        df_historial_13 = (
+            df_historial_13.fillna("")
+        )
+
+
+        df_controladas_13 = pd.read_csv(
+            ruta_controladas_13,
+            dtype=str,
+            keep_default_na=False
+        )
+
+        df_controladas_13 = (
+            df_controladas_13.fillna("")
+        )
+
+
+        df_generales_13 = pd.read_csv(
+            ruta_generales_13,
+            dtype=str,
+            keep_default_na=False
+        )
+
+        df_generales_13 = (
+            df_generales_13.fillna("")
+        )
+
+
+        # ====================================================
+        # 13.2 - USUARIOS DISPONIBLES
+        # ====================================================
+
+        usuarios_13 = sorted(
+            [
+                usuario
+                for usuario in (
+                    df_historial_13[
+                        "Usuario"
+                    ]
+                    .fillna("")
+                    .astype(str)
+                    .str.strip()
+                    .str.upper()
+                    .unique()
+                    .tolist()
+                )
+                if usuario
+            ]
+        )
+
+
+        if not usuarios_13:
+
+            st.info(
+                "No existen usuarios con evaluaciones "
+                "registradas en el historial."
+            )
+
+        else:
+
+            # =================================================
+            # 13.3 - SELECCIONAR USUARIO
+            # =================================================
+
+            usuario_seleccionado_13 = st.selectbox(
+                "Seleccione el usuario del que quiere conocer su historial",
+                usuarios_13,
+                key="usuario_seleccionado_13"
+            )
+
+
+            # =================================================
+            # 13.4 - FILTRAR HISTORIAL DEL USUARIO
+            # =================================================
+
+            df_usuario_13 = (
+                df_historial_13[
+                    df_historial_13[
+                        "Usuario"
+                    ]
+                    .fillna("")
+                    .astype(str)
+                    .str.strip()
+                    .str.upper()
+                    .eq(
+                        usuario_seleccionado_13
+                    )
+                ]
+                .copy()
+            )
+
+
+            # =================================================
+            # 13.5 - CONVERTIR NOTAS A NÚMERO
+            # =================================================
+
+            df_usuario_13[
+                "Porcentaje"
+            ] = pd.to_numeric(
+                df_usuario_13[
+                    "Porcentaje"
+                ],
+                errors="coerce"
+            )
+
+
+            # =================================================
+            # 13.6 - PROMEDIO DEL USUARIO
+            # =================================================
+
+            if not df_usuario_13.empty:
+
+                promedio_usuario_13 = (
+                    df_usuario_13[
+                        "Porcentaje"
+                    ]
+                    .mean()
+                )
+
+            else:
+
+                promedio_usuario_13 = 0
+
+
+            st.markdown(
+                "#### Resumen del usuario"
+            )
+
+
+            c1_13, c2_13 = st.columns(2)
+
+
+            c1_13.metric(
+                "Promedio de notas",
+                f"{promedio_usuario_13:.2f}%"
+            )
+
+
+            c2_13.metric(
+                "Evaluaciones realizadas",
+                len(df_usuario_13)
+            )
+
+
+            # =================================================
+            # 13.7 - HISTORIAL DE EVALUACIONES REALIZADAS
+            # =================================================
+
+            st.markdown(
+                "#### Evaluaciones realizadas"
+            )
+
+
+            if df_usuario_13.empty:
+
+                st.info(
+                    "El usuario no tiene evaluaciones "
+                    "registradas."
+                )
+
+            else:
+
+                columnas_mostrar_13 = [
+                    "Evaluacion_ID",
+                    "Tipo_Evaluación",
+                    "Modulo",
+                    "Nombre_Evaluacion",
+                    "Tipo_Relacion",
+                    "Fecha_Diligenciamiento",
+                    "Hoa_Diligenciamiento",
+                    "Total_Preguntas",
+                    "Respuestas_Correctas",
+                    "Porcentaje"
+                ]
+
+
+                columnas_disponibles_13 = [
+                    columna
+                    for columna in columnas_mostrar_13
+                    if columna in df_usuario_13.columns
+                ]
+
+
+                df_mostrar_usuario_13 = (
+                    df_usuario_13[
+                        columnas_disponibles_13
+                    ]
+                    .copy()
+                )
+
+
+                st.dataframe(
+                    df_mostrar_usuario_13,
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+
+            # =================================================
+            # 13.8 - EVALUACIONES CONTROLADAS ACTIVAS
+            # =================================================
+
+            df_controladas_unicas_13 = (
+                df_controladas_13[
+                    [
+                        "Evaluacion_ID",
+                        "Modulo",
+                        "Nombre_Evaluacion"
+                    ]
+                ]
+                .drop_duplicates(
+                    subset=[
+                        "Evaluacion_ID"
+                    ]
+                )
+                .copy()
+            )
+
+
+            if "Estado" in df_controladas_13.columns:
+
+                estados_controladas_13 = (
+                    df_controladas_13[
+                        [
+                            "Evaluacion_ID",
+                            "Estado"
+                        ]
+                    ]
+                    .drop_duplicates(
+                        subset=[
+                            "Evaluacion_ID"
+                        ]
+                    )
+                )
+
+
+                df_controladas_unicas_13 = (
+                    df_controladas_unicas_13
+                    .merge(
+                        estados_controladas_13,
+                        on="Evaluacion_ID",
+                        how="left"
+                    )
+                )
+
+
+                df_controladas_unicas_13 = (
+                    df_controladas_unicas_13[
+                        df_controladas_unicas_13[
+                            "Estado"
+                        ]
+                        .fillna("")
+                        .astype(str)
+                        .str.strip()
+                        .str.upper()
+                        .eq("ACTIVA")
+                    ]
+                    .copy()
+                )
+
+
+            # =================================================
+            # 13.9 - EVALUACIONES GENERALES DISPONIBLES
+            # =================================================
+
+            df_generales_unicas_13 = (
+                df_generales_13[
+                    [
+                        "Evaluacion_ID",
+                        "Modulo",
+                        "Tipo_Relacion",
+                        "Nivel"
+                    ]
+                ]
+                .drop_duplicates(
+                    subset=[
+                        "Evaluacion_ID"
+                    ]
+                )
+                .copy()
+            )
+
+
+            # =================================================
+            # 13.10 - EVALUACIONES YA REALIZADAS
+            # =================================================
+
+            evaluaciones_realizadas_13 = set(
+                df_usuario_13[
+                    "Evaluacion_ID"
+                ]
+                .fillna("")
+                .astype(str)
+                .str.strip()
+                .tolist()
+            )
+
+
+            # =================================================
+            # 13.11 - CONTROLADAS PENDIENTES
+            # =================================================
+
+            controladas_pendientes_13 = (
+                df_controladas_unicas_13[
+                    ~df_controladas_unicas_13[
+                        "Evaluacion_ID"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .isin(
+                        evaluaciones_realizadas_13
+                    )
+                ]
+                .copy()
+            )
+
+
+            # =================================================
+            # 13.12 - GENERALES PENDIENTES
+            # =================================================
+
+            generales_pendientes_13 = (
+                df_generales_unicas_13[
+                    ~df_generales_unicas_13[
+                        "Evaluacion_ID"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .isin(
+                        evaluaciones_realizadas_13
+                    )
+                ]
+                .copy()
+            )
+
+
+            # =================================================
+            # 13.13 - RESUMEN DE PENDIENTES
+            # =================================================
+
+            st.markdown(
+                "#### Evaluaciones pendientes"
+            )
+
+
+            c3_13, c4_13 = st.columns(2)
+
+
+            c3_13.metric(
+                "Controladas pendientes",
+                len(
+                    controladas_pendientes_13
+                )
+            )
+
+
+            c4_13.metric(
+                "Generales pendientes",
+                len(
+                    generales_pendientes_13
+                )
+            )
+
+
+            # =================================================
+            # 13.14 - DETALLE DE CONTROLADAS PENDIENTES
+            # =================================================
+
+            st.markdown(
+                "##### Evaluaciones controladas pendientes"
+            )
+
+
+            if controladas_pendientes_13.empty:
+
+                st.success(
+                    "El usuario no tiene evaluaciones "
+                    "controladas pendientes."
+                )
+
+            else:
+
+                st.dataframe(
+                    controladas_pendientes_13[
+                        [
+                            "Evaluacion_ID",
+                            "Modulo",
+                            "Nombre_Evaluacion"
+                        ]
+                    ],
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+
+            # =================================================
+            # 13.15 - DETALLE DE GENERALES PENDIENTES
+            # =================================================
+
+            st.markdown(
+                "##### Evaluaciones generales pendientes"
+            )
+
+
+            if generales_pendientes_13.empty:
+
+                st.success(
+                    "El usuario no tiene evaluaciones "
+                    "generales pendientes."
+                )
+
+            else:
+
+                st.dataframe(
+                    generales_pendientes_13[
+                        [
+                            "Evaluacion_ID",
+                            "Modulo",
+                            "Tipo_Relacion",
+                            "Nivel"
+                        ]
+                    ],
+                    use_container_width=True,
+                    hide_index=True
+                )
+
+
+    except Exception as error_consulta_usuario_13:
+
+        st.error(
+            "No fue posible realizar la consulta "
+            "del historial del usuario."
+        )
+
+        st.code(
+            str(
+                error_consulta_usuario_13
+            )
+        )
