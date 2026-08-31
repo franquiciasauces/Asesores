@@ -26905,3 +26905,132 @@ else:
                     st.code(
                         str(error)
                     )
+
+# ============================================================
+# 12 - HISTORIAL DE EVALUACIONES POR USUARIO
+# ============================================================
+
+st.markdown(
+    "### 12 - Historial de evaluaciones"
+)
+
+# ============================================================
+# 12.1 - CARGAR HISTORIAL
+# ============================================================
+
+ruta_historial_12 = (
+    "evaluacion/"
+    "Historialdesarrolloevaluaciones.csv"
+)
+
+try:
+
+    df_historial_12 = pd.read_csv(
+        ruta_historial_12,
+        dtype=str,
+        keep_default_na=False,
+        sep=";"
+    )
+
+    df_historial_12 = (
+        df_historial_12.fillna("")
+    )
+
+except Exception as error_historial_12:
+
+    st.error(
+        "No fue posible cargar el historial "
+        "de evaluaciones."
+    )
+
+    st.code(
+        str(error_historial_12)
+    )
+
+    df_historial_12 = pd.DataFrame()
+
+
+# ============================================================
+# 12.2 - VERIFICAR INFORMACIÓN
+# ============================================================
+
+if not df_historial_12.empty:
+
+    # ========================================================
+    # 12.3 - CONVERTIR PORCENTAJE A NUMÉRICO
+    # ========================================================
+
+    df_historial_12[
+        "Porcentaje"
+    ] = pd.to_numeric(
+        df_historial_12[
+            "Porcentaje"
+        ],
+        errors="coerce"
+    )
+
+    # ========================================================
+    # 12.4 - AGRUPAR POR USUARIO
+    # ========================================================
+
+    df_promedio_usuarios_12 = (
+        df_historial_12
+        .groupby(
+            "Usuario",
+            as_index=False
+        )
+        .agg(
+            Evaluaciones_Realizadas=(
+                "Evaluacion_ID",
+                "count"
+            ),
+            Promedio_Notas=(
+                "Porcentaje",
+                "mean"
+            )
+        )
+    )
+
+    # ========================================================
+    # 12.5 - REDONDEAR PROMEDIO
+    # ========================================================
+
+    df_promedio_usuarios_12[
+        "Promedio_Notas"
+    ] = (
+        df_promedio_usuarios_12[
+            "Promedio_Notas"
+        ]
+        .round(2)
+    )
+
+    # ========================================================
+    # 12.6 - ORDENAR POR USUARIO
+    # ========================================================
+
+    df_promedio_usuarios_12 = (
+        df_promedio_usuarios_12
+        .sort_values(
+            "Usuario"
+        )
+        .reset_index(
+            drop=True
+        )
+    )
+
+    # ========================================================
+    # 12.7 - MOSTRAR RESULTADO
+    # ========================================================
+
+    st.dataframe(
+        df_promedio_usuarios_12,
+        use_container_width=True,
+        hide_index=True
+    )
+
+else:
+
+    st.info(
+        "No existen resultados registrados "
+        "en el historial de evaluaciones."
+    )
