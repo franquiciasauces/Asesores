@@ -11822,130 +11822,142 @@ if (
                 )
 
 
-            # =================================================
-            # GUARDAR RESULTADO TEMPORAL
-            # =================================================
+            ```python
+# =================================================
+# GUARDAR RESULTADO TEMPORAL
+# =================================================
 
-            st.session_state[
-                clave_resultado
-            ] = {
+st.session_state[
+    clave_resultado
+] = {
 
-                "Evaluacion_ID":
-                    evaluacion_id_seleccionada,
+    "Evaluacion_ID":
+        evaluacion_id_seleccionada,
 
-                "Total_Preguntas":
-                    total_preguntas,
+    "Total_Preguntas":
+        total_preguntas,
 
-                "Respuestas_Correctas":
-                    respuestas_correctas_usuario,
+    "Respuestas_Correctas":
+        respuestas_correctas_usuario,
 
-                "Porcentaje":
-                    porcentaje,
+    "Porcentaje":
+        porcentaje,
 
-                "Mensaje_Resultado":
-                    mensaje_resultado,
+    "Mensaje_Resultado":
+        mensaje_resultado,
 
-                "Retroalimentacion":
-                    retroalimentacion
-            }
+    "Retroalimentacion":
+        retroalimentacion
+}
 
 
-    # ========================================================
-    # MOSTRAR RETROALIMENTACIÓN Y RESULTADO
-    # ========================================================
+# =================================================
+# INDICAR QUE EL RESULTADO NUEVO DEBE PERSISTIRSE
+# =================================================
 
-    if (
+st.session_state[
+    "guardar_resultado_evaluacion"
+] = True
+
+
+# ========================================================
+# MOSTRAR RETROALIMENTACIÓN Y RESULTADO
+# ========================================================
+
+if (
+    clave_resultado
+    in st.session_state
+):
+
+    resultado = st.session_state[
         clave_resultado
-        in st.session_state
+    ]
+
+
+    # ====================================================
+    # RETROALIMENTACIÓN
+    # ====================================================
+
+    st.divider()
+
+    st.subheader(
+        "Retroalimentación de la evaluación"
+    )
+
+
+    for indice, item in enumerate(
+        resultado[
+            "Retroalimentacion"
+        ],
+        start=1
     ):
 
-        resultado = st.session_state[
-            clave_resultado
-        ]
-
-
-        # ====================================================
-        # RETROALIMENTACIÓN
-        # ====================================================
-
-        st.divider()
-
-        st.subheader(
-            "Retroalimentación de la evaluación"
-        )
-
-
-        for indice, item in enumerate(
-            resultado[
-                "Retroalimentacion"
-            ],
-            start=1
-        ):
-
-            st.markdown(
-                f"### Pregunta {indice}"
-            )
-
-            st.write(
-                item["Pregunta"]
-            )
-
-
-            if item["Es_Correcta"]:
-
-                st.success(
-                    "✓ Respuesta correcta"
-                )
-
-                st.write(
-                    f"**Tu respuesta:** "
-                    f"{item['Respuesta_Usuario']}"
-                )
-
-            else:
-
-                st.error(
-                    "✗ Respuesta incorrecta"
-                )
-
-                st.write(
-                    f"**Tu respuesta:** "
-                    f"{item['Respuesta_Usuario']}"
-                )
-
-                st.info(
-                    f"**Respuesta correcta:** "
-                    f"{item['Respuesta_Correcta']}"
-                )
-
-            st.divider()
-
-
-        # ====================================================
-        # RESULTADO FINAL
-        # ====================================================
-
-        st.subheader(
-            "Resultado de la evaluación"
+        st.markdown(
+            f"### Pregunta {indice}"
         )
 
         st.write(
-            f"**Respuestas correctas:** "
-            f"{resultado['Respuestas_Correctas']} "
-            f"de "
-            f"{resultado['Total_Preguntas']}"
+            item["Pregunta"]
         )
 
-        st.metric(
-            "Porcentaje",
-            f"{resultado['Porcentaje']:.2f}%"
-        )
 
-        st.info(
-            resultado[
-                "Mensaje_Resultado"
-            ]
-        )
+        if item["Es_Correcta"]:
+
+            st.success(
+                "✓ Respuesta correcta"
+            )
+
+            st.write(
+                f"**Tu respuesta:** "
+                f"{item['Respuesta_Usuario']}"
+            )
+
+        else:
+
+            st.error(
+                "✗ Respuesta incorrecta"
+            )
+
+            st.write(
+                f"**Tu respuesta:** "
+                f"{item['Respuesta_Usuario']}"
+            )
+
+            st.info(
+                f"**Respuesta correcta:** "
+                f"{item['Respuesta_Correcta']}"
+            )
+
+        st.divider()
+
+
+    # ====================================================
+    # RESULTADO FINAL
+    # ====================================================
+
+    st.subheader(
+        "Resultado de la evaluación"
+    )
+
+    st.write(
+        f"**Respuestas correctas:** "
+        f"{resultado['Respuestas_Correctas']} "
+        f"de "
+        f"{resultado['Total_Preguntas']}"
+    )
+
+    st.metric(
+        "Porcentaje",
+        f"{resultado['Porcentaje']:.2f}%"
+    )
+
+    st.info(
+        resultado[
+            "Mensaje_Resultado"
+        ]
+    )
+```
+
 # ============================================================
 ### PARTE 4 — PERSISTENCIA AUTOMÁTICA DEL RESULTADO
 
