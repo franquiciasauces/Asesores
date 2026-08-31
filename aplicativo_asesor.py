@@ -13366,9 +13366,9 @@ if (
 # ============================================================
 
 # ============================================================
-# ============================================================
+# EVALUACIÓN GENERAL
+# PARTE 2 — CARGAR PREGUNTAS DE LA EVALUACIÓN SELECCIONADA
 # PRUEBA PROVISIONAL
-# CARGAR TODAS LAS PREGUNTAS DE UNA EVALUACIÓN GENERAL
 # ============================================================
 
 if (
@@ -13376,36 +13376,29 @@ if (
     and opcion_evaluacion == "Evaluación general"
 ):
 
-    st.header("Evaluación general")
-
     # ========================================================
-    # 1. VERIFICAR QUE EXISTA UNA EVALUACIÓN SELECCIONADA
+    # 1. VERIFICAR EVALUACIÓN SELECCIONADA
     # ========================================================
 
     if (
-        "evaluacion_general_id_seleccionada"
+        "evaluacion_general_ejecucion_id"
         not in st.session_state
     ):
 
-        st.warning(
-            "Primero debe seleccionar una evaluación."
+        st.info(
+            "Seleccione una evaluación para comenzar."
         )
 
     else:
 
         evaluacion_id = str(
             st.session_state[
-                "evaluacion_general_id_seleccionada"
+                "evaluacion_general_ejecucion_id"
             ]
         ).strip()
 
-        st.write(
-            "Evaluación seleccionada:",
-            evaluacion_id
-        )
-
         # ====================================================
-        # 2. UBICACIÓN DE LA CARPETA PAGE
+        # 2. UBICAR CARPETA PAGE
         # ====================================================
 
         carpeta_page = BASE_DIR / "page"
@@ -13419,43 +13412,39 @@ if (
         else:
 
             # =================================================
-            # 3. BUSCAR TODOS LOS ARCHIVOS DENTRO DE PAGE
-            #    Y SUS SUBCARPETAS
+            # 3. BUSCAR ARCHIVOS
+            #    EN PAGE Y TODAS SUS SUBCARPETAS
             # =================================================
 
-            archivos_encontrados = []
+            archivos_evaluaciones = []
 
             for ruta_archivo in carpeta_page.rglob("*"):
 
                 if not ruta_archivo.is_file():
                     continue
 
-                # Solo archivos que puedan contener las preguntas
-                if ruta_archivo.suffix.lower() not in [
+                if ruta_archivo.suffix.lower() in [
                     ".csv",
                     ".xlsx",
                     ".xls"
                 ]:
-                    continue
 
-                archivos_encontrados.append(
-                    ruta_archivo
-                )
+                    archivos_evaluaciones.append(
+                        ruta_archivo
+                    )
 
             # =================================================
-            # 4. BUSCAR LA EVALUACIÓN POR SU Evaluacion_ID
+            # 4. BUSCAR LA EVALUACIÓN POR Evaluacion_ID
             # =================================================
 
-            preguntas_evaluacion = []
+            coincidencias = []
 
-            archivo_origen = None
-
-            for ruta_archivo in archivos_encontrados:
+            for ruta_archivo in archivos_evaluaciones:
 
                 try:
 
                     # -----------------------------------------
-                    # CSV
+                    # LEER CSV
                     # -----------------------------------------
 
                     if (
@@ -13471,7 +13460,7 @@ if (
                         )
 
                     # -----------------------------------------
-                    # EXCEL
+                    # LEER EXCEL
                     # -----------------------------------------
 
                     else:
@@ -13482,7 +13471,7 @@ if (
                         )
 
                     # -----------------------------------------
-                    # LIMPIAR NOMBRES DE COLUMNAS
+                    # NORMALIZAR NOMBRES DE COLUMNAS
                     # -----------------------------------------
 
                     df_temp.columns = (
@@ -13492,14 +13481,14 @@ if (
                     )
 
                     # -----------------------------------------
-                    # ESTE ARCHIVO NO ES DE PREGUNTAS
-                    # SI NO TIENE Evaluacion_ID
+                    # VERIFICAR COLUMNA Evaluacion_ID
                     # -----------------------------------------
 
                     if (
                         "Evaluacion_ID"
                         not in df_temp.columns
                     ):
+
                         continue
 
                     # -----------------------------------------
@@ -13517,7 +13506,7 @@ if (
                     )
 
                     # -----------------------------------------
-                    # BUSCAR LA EVALUACIÓN
+                    # BUSCAR COINCIDENCIAS
                     # -----------------------------------------
 
                     df_coincidencias = (
@@ -13531,28 +13520,31 @@ if (
                     )
 
                     if df_coincidencias.empty:
+
                         continue
 
                     # -----------------------------------------
-                    # SE ENCONTRÓ
+                    # GUARDAR RESULTADO
                     # -----------------------------------------
 
-                    preguntas_evaluacion.append(
-                        df_coincidencias
-                    )
-
-                    archivo_origen = (
-                        ruta_archivo
+                    coincidencias.append(
+                        (
+                            ruta_archivo,
+                            df_coincidencias
+                        )
                     )
 
                 except Exception:
+
+                    # Si un archivo no puede ser leído,
+                    # simplemente se continúa con el siguiente.
                     continue
 
             # =================================================
-            # 5. UNIR TODAS LAS COINCIDENCIAS
+            # 5. VERIFICAR SI SE ENCONTRÓ LA EVALUACIÓN
             # =================================================
 
-            if not preguntas_evaluacion:
+            if not coincidencias:
 
                 st.error(
                     "No se encontraron preguntas para la "
@@ -13560,19 +13552,37 @@ if (
                 )
 
                 st.write(
-                    "Evaluacion_ID buscado:",
+                    "Evaluacion_ID buscado:"
+                )
+
+                st.code(
                     evaluacion_id
                 )
 
             else:
 
+                # =================================================
+                # 6. UNIR TODAS LAS PREGUNTAS ENCONTRADAS
+                # =================================================
+
+                bloques_preguntas = []
+
+                for (
+                    ruta_archivo,
+                    df_coincidencias
+                ) in coincidencias:
+
+                    bloques_preguntas.append(
+                        df_coincidencias
+                    )
+
                 df_preguntas = pd.concat(
-                    preguntas_evaluacion,
+                    bloques_preguntas,
                     ignore_index=True
                 )
 
                 # =================================================
-                # 6. ELIMINAR FILAS COMPLETAMENTE VACÍAS
+                # 7. ELIMINAR FILAS COMPLETAMENTE VACÍAS
                 # =================================================
 
                 df_preguntas = (
@@ -13585,7 +13595,15 @@ if (
                 )
 
                 # =================================================
-                # 7. MOSTRAR INFORMACIÓN DE CONTROL
+                # 8. GUARDAR PREGUNTAS EN SESSION STATE
+                # =================================================
+
+                st.session_state[
+                    "evaluacion_general_preguntas"
+                ] = df_preguntas.copy()
+
+                # =================================================
+                # 9. MOSTRAR CONFIRMACIÓN
                 # =================================================
 
                 st.success(
@@ -13593,12 +13611,7 @@ if (
                 )
 
                 st.write(
-                    "Archivo donde fue encontrada:",
-                    str(archivo_origen)
-                )
-
-                st.write(
-                    "Evaluacion_ID:",
+                    "Evaluación seleccionada:",
                     evaluacion_id
                 )
 
@@ -13608,7 +13621,21 @@ if (
                 )
 
                 # =================================================
-                # 8. MOSTRAR LAS PREGUNTAS
+                # 10. MOSTRAR ARCHIVO(S) DE ORIGEN
+                # =================================================
+
+                for (
+                    ruta_archivo,
+                    df_coincidencias
+                ) in coincidencias:
+
+                    st.caption(
+                        "Archivo encontrado: "
+                        + str(ruta_archivo.relative_to(BASE_DIR))
+                    )
+
+                # =================================================
+                # 11. MOSTRAR PREGUNTAS
                 # =================================================
 
                 st.divider()
@@ -13616,6 +13643,10 @@ if (
                 st.subheader(
                     "Preguntas de la evaluación"
                 )
+
+                # =================================================
+                # 12. RECORRER TODAS LAS PREGUNTAS
+                # =================================================
 
                 for indice, fila in (
                     df_preguntas
@@ -13636,67 +13667,120 @@ if (
                     # -----------------------------------------
 
                     st.write(
+                        str(
+                            fila.get(
+                                "Pregunta",
+                                ""
+                            )
+                        )
+                    )
+
+                    # -----------------------------------------
+                    # PREGUNTA ID
+                    # -----------------------------------------
+
+                    pregunta_id = str(
                         fila.get(
-                            "Pregunta",
+                            "Pregunta_ID",
                             ""
                         )
-                    )
+                    ).strip()
 
-                    # -----------------------------------------
-                    # INFORMACIÓN DE CONTROL
-                    # -----------------------------------------
+                    if pregunta_id:
 
-                    st.caption(
-                        "Pregunta_ID: "
-                        + str(
-                            fila.get(
-                                "Pregunta_ID",
-                                ""
-                            )
+                        st.caption(
+                            "Pregunta_ID: "
+                            + pregunta_id
                         )
-                        + " | Nivel: "
-                        + str(
-                            fila.get(
-                                "Nivel",
-                                ""
-                            )
+
+                    # -----------------------------------------
+                    # NIVEL
+                    # -----------------------------------------
+
+                    nivel = str(
+                        fila.get(
+                            "Nivel",
+                            ""
                         )
-                    )
+                    ).strip()
+
+                    if nivel:
+
+                        st.caption(
+                            "Nivel: "
+                            + nivel
+                        )
 
                     # -----------------------------------------
-                    # RESPUESTAS
+                    # RESPUESTA 1
                     # -----------------------------------------
 
-                    st.write(
-                        "Respuesta 1:",
+                    respuesta_1 = str(
                         fila.get(
                             "Respuesta_1",
                             ""
                         )
-                    )
+                    ).strip()
 
-                    st.write(
-                        "Respuesta 2:",
+                    if respuesta_1:
+
+                        st.write(
+                            "Respuesta 1:",
+                            respuesta_1
+                        )
+
+                    # -----------------------------------------
+                    # RESPUESTA 2
+                    # -----------------------------------------
+
+                    respuesta_2 = str(
                         fila.get(
                             "Respuesta_2",
                             ""
                         )
-                    )
+                    ).strip()
 
-                    st.write(
-                        "Respuesta 3:",
+                    if respuesta_2:
+
+                        st.write(
+                            "Respuesta 2:",
+                            respuesta_2
+                        )
+
+                    # -----------------------------------------
+                    # RESPUESTA 3
+                    # -----------------------------------------
+
+                    respuesta_3 = str(
                         fila.get(
                             "Respuesta_3",
                             ""
                         )
-                    )
+                    ).strip()
 
-                    st.write(
-                        "Respuesta 4:",
+                    if respuesta_3:
+
+                        st.write(
+                            "Respuesta 3:",
+                            respuesta_3
+                        )
+
+                    # -----------------------------------------
+                    # RESPUESTA 4
+                    # -----------------------------------------
+
+                    respuesta_4 = str(
                         fila.get(
                             "Respuesta_4",
                             ""
                         )
-                    )
+                    ).strip()
+
+                    if respuesta_4:
+
+                        st.write(
+                            "Respuesta 4:",
+                            respuesta_4
+                        )
 
                     st.divider()
