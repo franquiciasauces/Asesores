@@ -13363,3 +13363,977 @@ if (
                                             )
 
 
+# ============================================================
+
+# GESTIONEJECUCIONEVALUACION
+
+# PARTE 2 — CARGA Y RESPUESTA DE EVALUACIÓN GENERAL
+
+# ============================================================
+
+if (
+opcion_principal == "EVALUACIÓN"
+and opcion_evaluacion == "Evaluación general"
+and st.session_state.get(
+"evaluacion_general_ejecucion_id"
+)
+):
+
+
+# ========================================================
+# 1. IDENTIFICAR EVALUACIÓN SELECCIONADA
+# ========================================================
+
+evaluacion_general_id_seleccionada = str(
+    st.session_state[
+        "evaluacion_general_ejecucion_id"
+    ]
+).strip()
+
+
+# ========================================================
+# 2. IDENTIFICAR USUARIO ACTUAL
+# ========================================================
+
+usuario_general = str(
+    st.session_state.get(
+        "usuario_actual",
+        ""
+    )
+).strip().upper()
+
+
+# ========================================================
+# 3. VALIDAR USUARIO
+# ========================================================
+
+if not usuario_general:
+
+    st.error(
+        "No fue posible identificar el usuario "
+        "que está diligenciando la evaluación."
+    )
+
+else:
+
+    # ====================================================
+    # 4. BUSCAR AUTOMÁTICAMENTE EL ARCHIVO INDIVIDUAL
+    #
+    # El nombre del archivo corresponde exactamente
+    # a la Evaluacion_ID seleccionada.
+    #
+    # Ejemplo:
+    #
+    # Evaluacion_ID:
+    # Patologias_Sintomas_Patologia_Nivel 1_0002
+    #
+    # Archivo buscado:
+    # page/Patologias_Sintomas_Patologia_Nivel 1_0002.csv
+    # ====================================================
+
+    ARCHIVO_EVALUACION_GENERAL = (
+        BASE_DIR
+        / "page"
+        / (
+            evaluacion_general_id_seleccionada
+            + ".csv"
+        )
+    )
+
+
+    # ====================================================
+    # 5. VERIFICAR QUE EL ARCHIVO EXISTA
+    # ====================================================
+
+    if not ARCHIVO_EVALUACION_GENERAL.exists():
+
+        st.error(
+            "No fue posible encontrar el archivo "
+            "correspondiente a la evaluación seleccionada."
+        )
+
+        st.write(
+            "Evaluación seleccionada:",
+            evaluacion_general_id_seleccionada
+        )
+
+        st.write(
+            "Ruta buscada:",
+            str(
+                ARCHIVO_EVALUACION_GENERAL
+            )
+        )
+
+    else:
+
+        # =================================================
+        # 6. CARGAR ARCHIVO INDIVIDUAL
+        # =================================================
+
+        try:
+
+            df_evaluacion_general = pd.read_csv(
+                ARCHIVO_EVALUACION_GENERAL,
+                dtype=str,
+                keep_default_na=False
+            )
+
+            df_evaluacion_general = (
+                df_evaluacion_general.fillna("")
+            )
+
+        except Exception as error:
+
+            st.error(
+                "No fue posible cargar el archivo "
+                "de la evaluación seleccionada."
+            )
+
+            st.code(
+                str(error)
+            )
+
+            df_evaluacion_general = (
+                pd.DataFrame()
+            )
+
+
+        # =================================================
+        # 7. VERIFICAR QUE EL ARCHIVO TENGA DATOS
+        # =================================================
+
+        if df_evaluacion_general.empty:
+
+            st.error(
+                "El archivo de la evaluación seleccionada "
+                "no contiene preguntas."
+            )
+
+        else:
+
+            # =============================================
+            # 8. NORMALIZAR NOMBRES DE COLUMNAS
+            # =============================================
+
+            df_evaluacion_general.columns = (
+                df_evaluacion_general.columns
+                .astype(str)
+                .str.strip()
+            )
+
+
+            # =============================================
+            # 9. COLUMNAS NECESARIAS
+            # =============================================
+
+            columnas_necesarias_general = [
+
+                "Evaluacion_ID",
+                "Pregunta_ID",
+                "Modulo",
+                "Tipo_Relacion",
+                "Nivel",
+                "Pregunta",
+                "Respuesta_1",
+                "Respuesta_2",
+                "Respuesta_3",
+                "Respuesta_4",
+                "Respuesta_Correcta"
+
+            ]
+
+
+            # =============================================
+            # 10. VERIFICAR COLUMNAS
+            # =============================================
+
+            columnas_faltantes_general = [
+
+                columna
+
+                for columna
+                in columnas_necesarias_general
+
+                if columna
+                not in df_evaluacion_general.columns
+
+            ]
+
+
+            if columnas_faltantes_general:
+
+                st.error(
+                    "El archivo de la evaluación general "
+                    "no tiene la estructura esperada."
+                )
+
+                st.write(
+                    "Columnas faltantes:",
+                    columnas_faltantes_general
+                )
+
+            else:
+
+                # =========================================
+                # 11. NORMALIZAR CAMPOS
+                # =========================================
+
+                for columna in columnas_necesarias_general:
+
+                    df_evaluacion_general[
+                        columna
+                    ] = (
+
+                        df_evaluacion_general[
+                            columna
+                        ]
+
+                        .astype(str)
+
+                        .str.strip()
+
+                    )
+
+
+                # =========================================
+                # 12. VERIFICAR EVALUACION_ID
+                #
+                # El archivo individual debe corresponder
+                # a la evaluación que seleccionó el asesor.
+                # =========================================
+
+                df_evaluacion_general = (
+                    df_evaluacion_general[
+                        df_evaluacion_general[
+                            "Evaluacion_ID"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        ==
+                        evaluacion_general_id_seleccionada
+                    ]
+                    .copy()
+                )
+
+
+                # =========================================
+                # 13. VERIFICAR COINCIDENCIA
+                # =========================================
+
+                if df_evaluacion_general.empty:
+
+                    st.error(
+                        "El archivo encontrado no corresponde "
+                        "a la Evaluacion_ID seleccionada."
+                    )
+
+                    st.write(
+                        "Evaluación seleccionada:",
+                        evaluacion_general_id_seleccionada
+                    )
+
+                else:
+
+                    # =====================================
+                    # 14. IDENTIFICAR NIVEL
+                    # =====================================
+
+                    niveles_encontrados = (
+
+                        df_evaluacion_general[
+                            "Nivel"
+                        ]
+
+                        .replace(
+                            "",
+                            pd.NA
+                        )
+
+                        .dropna()
+
+                        .astype(str)
+
+                        .str.strip()
+
+                        .unique()
+
+                        .tolist()
+
+                    )
+
+
+                    if not niveles_encontrados:
+
+                        st.error(
+                            "No fue posible identificar "
+                            "el nivel de la evaluación."
+                        )
+
+                    else:
+
+                        # =================================
+                        # 15. NIVEL DE LA EVALUACIÓN
+                        # =================================
+
+                        nivel_general = str(
+                            niveles_encontrados[0]
+                        ).strip()
+
+
+                        # =================================
+                        # 16. DETERMINAR CANTIDAD DE
+                        #     RESPUESTAS PERMITIDAS
+                        # =================================
+
+                        if (
+                            nivel_general.upper()
+                            == "NIVEL 1"
+                        ):
+
+                            cantidad_respuestas_general = 1
+
+                        elif (
+                            nivel_general.upper()
+                            == "NIVEL 2"
+                        ):
+
+                            cantidad_respuestas_general = 2
+
+                        else:
+
+                            st.error(
+                                "El nivel de la evaluación "
+                                "no corresponde a Nivel 1 "
+                                "ni Nivel 2."
+                            )
+
+                            cantidad_respuestas_general = 0
+
+
+                        # =================================
+                        # 17. CONTINUAR SI NIVEL VÁLIDO
+                        # =================================
+
+                        if (
+                            cantidad_respuestas_general
+                            > 0
+                        ):
+
+                            # =============================
+                            # 18. DATOS GENERALES
+                            # =============================
+
+                            fila_general = (
+                                df_evaluacion_general.iloc[0]
+                            )
+
+
+                            modulo_general = str(
+                                fila_general[
+                                    "Modulo"
+                                ]
+                            ).strip()
+
+
+                            tipo_relacion_general = str(
+                                fila_general[
+                                    "Tipo_Relacion"
+                                ]
+                            ).strip()
+
+
+                            # =============================
+                            # 19. ENCABEZADO
+                            # =============================
+
+                            st.subheader(
+                                "Evaluación general"
+                            )
+
+
+                            st.write(
+                                f"**Módulo:** "
+                                f"{modulo_general}"
+                            )
+
+
+                            if tipo_relacion_general:
+
+                                st.write(
+                                    f"**Tipo de relación:** "
+                                    f"{tipo_relacion_general}"
+                                )
+
+
+                            st.write(
+                                f"**Evaluación:** "
+                                f"{evaluacion_general_id_seleccionada}"
+                            )
+
+
+                            st.write(
+                                f"**Nivel:** "
+                                f"{nivel_general}"
+                            )
+
+
+                            st.divider()
+
+
+                            # =============================
+                            # 20. INSTRUCCIÓN NIVEL 1
+                            # =============================
+
+                            if (
+                                cantidad_respuestas_general
+                                == 1
+                            ):
+
+                                st.info(
+                                    "Vas a responder una "
+                                    "evaluación nivel 1, "
+                                    "en razón de ello debes "
+                                    "seleccionar la respuesta "
+                                    "que consideres correcta "
+                                    "de acuerdo con el "
+                                    "enunciado de cada pregunta."
+                                )
+
+
+                            # =============================
+                            # 21. INSTRUCCIÓN NIVEL 2
+                            # =============================
+
+                            else:
+
+                                st.info(
+                                    "Vas a responder una "
+                                    "evaluación nivel 2, "
+                                    "en razón de ello debes "
+                                    "seleccionar las dos "
+                                    "respuestas que consideres "
+                                    "correctas de acuerdo con "
+                                    "el enunciado de cada pregunta."
+                                )
+
+
+                            st.divider()
+
+
+                            # =============================
+                            # 22. CLAVE RESPUESTAS TEMPORALES
+                            #
+                            # Se separa por usuario y evaluación.
+                            # Esto permite que varios asesores
+                            # puedan responder la misma evaluación
+                            # sin cruzar sus respuestas.
+                            # =============================
+
+                            clave_respuestas_general = (
+
+                                "respuestas_temporales_general_"
+
+                                + usuario_general
+
+                                + "_"
+
+                                + evaluacion_general_id_seleccionada
+
+                            )
+
+
+                            # =============================
+                            # 23. CREAR TEMPORAL SI NO EXISTE
+                            # =============================
+
+                            if (
+                                clave_respuestas_general
+                                not in st.session_state
+                            ):
+
+                                st.session_state[
+                                    clave_respuestas_general
+                                ] = {}
+
+
+                            respuestas_general_temporales = (
+                                st.session_state[
+                                    clave_respuestas_general
+                                ]
+                            )
+
+
+                            # =============================
+                            # 24. TOTAL DE PREGUNTAS
+                            # =============================
+
+                            total_preguntas_general = len(
+                                df_evaluacion_general
+                            )
+
+
+                            # =============================
+                            # 25. MOSTRAR PREGUNTAS
+                            # =============================
+
+                            for indice, fila_pregunta in (
+                                df_evaluacion_general
+                                .iterrows()
+                            ):
+
+                                pregunta_id_general = str(
+                                    fila_pregunta[
+                                        "Pregunta_ID"
+                                    ]
+                                ).strip()
+
+
+                                pregunta_texto_general = str(
+                                    fila_pregunta[
+                                        "Pregunta"
+                                    ]
+                                ).strip()
+
+
+                                # =========================
+                                # OPCIONES
+                                # =========================
+
+                                opciones_general = []
+
+
+                                for numero_opcion in range(
+                                    1,
+                                    5
+                                ):
+
+                                    nombre_columna = (
+                                        "Respuesta_"
+                                        + str(
+                                            numero_opcion
+                                        )
+                                    )
+
+
+                                    texto_opcion = str(
+                                        fila_pregunta[
+                                            nombre_columna
+                                        ]
+                                    ).strip()
+
+
+                                    if texto_opcion:
+
+                                        opciones_general.append(
+                                            texto_opcion
+                                        )
+
+
+                                # =========================
+                                # VERIFICAR OPCIONES
+                                # =========================
+
+                                if not opciones_general:
+
+                                    st.error(
+                                        "La pregunta "
+                                        + str(
+                                            pregunta_id_general
+                                        )
+                                        + " no tiene "
+                                        "opciones de respuesta."
+                                    )
+
+                                    continue
+
+
+                                # =========================
+                                # NÚMERO DE PREGUNTA
+                                # =========================
+
+                                st.markdown(
+                                    f"### Pregunta "
+                                    f"{indice + 1} de "
+                                    f"{total_preguntas_general}"
+                                )
+
+
+                                st.caption(
+                                    pregunta_id_general
+                                )
+
+
+                                st.write(
+                                    pregunta_texto_general
+                                )
+
+
+                                # =========================
+                                # RESPUESTA GUARDADA
+                                # =========================
+
+                                respuesta_guardada_general = (
+
+                                    respuestas_general_temporales.get(
+
+                                        pregunta_id_general
+
+                                    )
+
+                                )
+
+
+                                # =========================
+                                # NIVEL 1
+                                #
+                                # UNA SOLA RESPUESTA
+                                # =========================
+
+                                if (
+                                    cantidad_respuestas_general
+                                    == 1
+                                ):
+
+                                    indice_inicial_general = None
+
+
+                                    if (
+
+                                        isinstance(
+                                            respuesta_guardada_general,
+                                            str
+                                        )
+
+                                        and
+
+                                        respuesta_guardada_general
+                                        in opciones_general
+
+                                    ):
+
+                                        indice_inicial_general = (
+
+                                            opciones_general.index(
+
+                                                respuesta_guardada_general
+
+                                            )
+
+                                        )
+
+
+                                    respuesta_seleccionada_general = (
+
+                                        st.radio(
+
+                                            "Seleccione la respuesta "
+                                            "que considera correcta:",
+
+                                            opciones_general,
+
+                                            index=(
+                                                indice_inicial_general
+                                            ),
+
+                                            key=(
+
+                                                "respuesta_general_nivel1_"
+
+                                                + usuario_general
+
+                                                + "_"
+
+                                                + evaluacion_general_id_seleccionada
+
+                                                + "_"
+
+                                                + pregunta_id_general
+
+                                            )
+
+                                        )
+
+                                    )
+
+
+                                    if (
+                                        respuesta_seleccionada_general
+                                        is not None
+                                    ):
+
+                                        respuestas_general_temporales[
+                                            pregunta_id_general
+                                        ] = (
+                                            respuesta_seleccionada_general
+                                        )
+
+
+                                # =========================
+                                # NIVEL 2
+                                #
+                                # DOS RESPUESTAS
+                                # =========================
+
+                                else:
+
+                                    opciones_guardadas_general = []
+
+
+                                    if (
+                                        isinstance(
+                                            respuesta_guardada_general,
+                                            list
+                                        )
+                                    ):
+
+                                        opciones_guardadas_general = [
+
+                                            opcion
+
+                                            for opcion
+                                            in respuesta_guardada_general
+
+                                            if opcion
+                                            in opciones_general
+
+                                        ]
+
+
+                                    respuestas_seleccionadas_general = (
+
+                                        st.multiselect(
+
+                                            "Seleccione las dos "
+                                            "respuestas que considera "
+                                            "correctas:",
+
+                                            opciones_general,
+
+                                            default=(
+
+                                                opciones_guardadas_general
+
+                                            ),
+
+                                            max_selections=2,
+
+                                            key=(
+
+                                                "respuesta_general_nivel2_"
+
+                                                + usuario_general
+
+                                                + "_"
+
+                                                + evaluacion_general_id_seleccionada
+
+                                                + "_"
+
+                                                + pregunta_id_general
+
+                                            )
+
+                                        )
+
+                                    )
+
+
+                                    # =========================
+                                    # GUARDAR RESPUESTAS
+                                    # =========================
+
+                                    respuestas_general_temporales[
+                                        pregunta_id_general
+                                    ] = (
+
+                                        respuestas_seleccionadas_general
+
+                                    )
+
+
+                                st.divider()
+
+
+                            # =============================
+                            # 26. ACTUALIZAR TEMPORAL
+                            # =============================
+
+                            st.session_state[
+                                clave_respuestas_general
+                            ] = (
+                                respuestas_general_temporales
+                            )
+
+
+                            # =============================
+                            # 27. CONTAR PREGUNTAS RESPONDIDAS
+                            # =============================
+
+                            preguntas_respondidas_general = 0
+
+
+                            for respuesta in (
+                                respuestas_general_temporales.values()
+                            ):
+
+                                if (
+                                    cantidad_respuestas_general
+                                    == 1
+                                ):
+
+                                    if (
+                                        isinstance(
+                                            respuesta,
+                                            str
+                                        )
+                                        and
+                                        respuesta.strip()
+                                    ):
+
+                                        preguntas_respondidas_general += 1
+
+                                else:
+
+                                    if (
+                                        isinstance(
+                                            respuesta,
+                                            list
+                                        )
+                                        and
+                                        len(
+                                            respuesta
+                                        ) == 2
+                                    ):
+
+                                        preguntas_respondidas_general += 1
+
+
+                            # =============================
+                            # 28. MOSTRAR CONTADOR
+                            # =============================
+
+                            st.info(
+                                f"Preguntas respondidas: "
+                                f"{preguntas_respondidas_general} "
+                                f"de "
+                                f"{total_preguntas_general}"
+                            )
+
+
+                            # =============================
+                            # 29. BOTÓN FINALIZAR Y ENVIAR
+                            # =============================
+
+                            if st.button(
+
+                                "Finalizar y enviar",
+
+                                key=(
+
+                                    "finalizar_enviar_general_"
+
+                                    + usuario_general
+
+                                    + "_"
+
+                                    + evaluacion_general_id_seleccionada
+
+                                )
+
+                            ):
+
+                                # =========================
+                                # VALIDAR COMPLETITUD
+                                # =========================
+
+                                if (
+                                    preguntas_respondidas_general
+                                    < total_preguntas_general
+                                ):
+
+                                    st.warning(
+
+                                        f"Debe responder todas "
+                                        f"las preguntas antes de "
+                                        f"finalizar. Ha respondido "
+                                        f"{preguntas_respondidas_general} "
+                                        f"de "
+                                        f"{total_preguntas_general}."
+
+                                    )
+
+                                else:
+
+                                    # =========================
+                                    # 30. CREAR RESULTADO TEMPORAL
+                                    #
+                                    # La Parte 3 utilizará
+                                    # exactamente esta variable.
+                                    # =========================
+
+                                    clave_resultado_general = (
+
+                                        "resultado_temporal_general_"
+
+                                        + usuario_general
+
+                                        + "_"
+
+                                        + evaluacion_general_id_seleccionada
+
+                                    )
+
+
+                                    st.session_state[
+                                        clave_resultado_general
+                                    ] = {
+
+                                        "Usuario":
+                                            usuario_general,
+
+                                        "Evaluacion_ID":
+                                            evaluacion_general_id_seleccionada,
+
+                                        "Modulo":
+                                            modulo_general,
+
+                                        "Tipo_Relacion":
+                                            tipo_relacion_general,
+
+                                        "Nivel":
+                                            nivel_general,
+
+                                        "Total_Preguntas":
+                                            total_preguntas_general,
+
+                                        "Respuestas":
+                                            respuestas_general_temporales.copy()
+
+                                    }
+
+
+                                    # =========================
+                                    # 31. INDICADOR PARA PARTE 3
+                                    # =========================
+
+                                    st.session_state[
+                                        "evaluacion_general_lista_para_calificar"
+                                    ] = True
+
+
+                                    # =========================
+                                    # 32. CONFIRMACIÓN
+                                    # =========================
+
+                                    st.success(
+                                        "Evaluación enviada. "
+                                        "Se está procesando el resultado."
+                                    )
+
+
+                                    # =========================
+                                    # 33. RECARGAR APLICACIÓN
+                                    # =========================
+
+                                    st.rerun()
+
