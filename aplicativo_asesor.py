@@ -14005,3 +14005,464 @@ if (
                     st.code(
                         str(error)
                     )
+
+# ============================================================
+# EVALUACIÓN GENERAL
+# PARTE 3 — CALIFICACIÓN Y RETROALIMENTACIÓN
+# ============================================================
+
+if (
+    opcion_principal == "EVALUACIÓN"
+    and opcion_evaluacion == "Evaluación general"
+):
+
+    # ========================================================
+    # 1. VERIFICAR SI LA EVALUACIÓN FUE FINALIZADA
+    # ========================================================
+
+    if (
+        "evaluacion_general_ejecucion_id"
+        in st.session_state
+    ):
+
+        evaluacion_id = str(
+            st.session_state[
+                "evaluacion_general_ejecucion_id"
+            ]
+        ).strip()
+
+        clave_respuestas = (
+            "respuestas_evaluacion_general_"
+            + evaluacion_id
+        )
+
+        clave_finalizacion = (
+            "finalizar_evaluacion_general_"
+            + evaluacion_id
+        )
+
+        # ====================================================
+        # 2. VERIFICAR SI EXISTEN LAS RESPUESTAS
+        # ====================================================
+
+        if (
+            clave_finalizacion
+            in st.session_state
+            and st.session_state[
+                clave_finalizacion
+            ] is True
+            and clave_respuestas
+            in st.session_state
+            and "evaluacion_general_preguntas"
+            in st.session_state
+        ):
+
+            df_preguntas = (
+                st.session_state[
+                    "evaluacion_general_preguntas"
+                ]
+                .copy()
+            )
+
+            respuestas_usuario = (
+                st.session_state[
+                    clave_respuestas
+                ]
+            )
+
+            # =================================================
+            # 3. EVITAR CALIFICAR DOS VECES
+            # =================================================
+
+            clave_resultado = (
+                "resultado_evaluacion_general_"
+                + evaluacion_id
+            )
+
+            if (
+                clave_resultado
+                not in st.session_state
+            ):
+
+                # =============================================
+                # 4. IDENTIFICAR NIVEL
+                # =============================================
+
+                niveles = (
+                    df_preguntas[
+                        "Nivel"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .unique()
+                    .tolist()
+                )
+
+                if (
+                    "Nivel 2"
+                    in niveles
+                ):
+
+                    nivel_evaluacion = "Nivel 2"
+
+                else:
+
+                    nivel_evaluacion = "Nivel 1"
+
+                # =============================================
+                # 5. VARIABLES DE CALIFICACIÓN
+                # =============================================
+
+                total_preguntas = len(
+                    df_preguntas
+                )
+
+                respuestas_correctas = 0
+
+                retroalimentacion = []
+
+                # =============================================
+                # 6. RECORRER TODAS LAS PREGUNTAS
+                # =============================================
+
+                for indice, fila in (
+                    df_preguntas
+                    .reset_index(
+                        drop=True
+                    )
+                    .iterrows()
+                ):
+
+                    pregunta_id = str(
+                        fila[
+                            "Pregunta_ID"
+                        ]
+                    ).strip()
+
+                    pregunta = str(
+                        fila[
+                            "Pregunta"
+                        ]
+                    ).strip()
+
+                    respuesta_correcta_texto = str(
+                        fila[
+                            "Respuesta_Correcta"
+                        ]
+                    ).strip()
+
+                    # =========================================
+                    # RESPUESTA DEL USUARIO
+                    # =========================================
+
+                    respuesta_usuario = (
+                        respuestas_usuario.get(
+                            pregunta_id,
+                            ""
+                        )
+                    )
+
+                    # =========================================
+                    # NIVEL 2
+                    # =========================================
+
+                    if (
+                        nivel_evaluacion
+                        == "Nivel 2"
+                    ):
+
+                        # -------------------------------------
+                        # RESPUESTAS CORRECTAS CONFIGURADAS
+                        # -------------------------------------
+
+                        correctas = [
+                            x.strip()
+                            for x in
+                            respuesta_correcta_texto.split(
+                                ","
+                            )
+                            if x.strip()
+                        ]
+
+                        # -------------------------------------
+                        # RESPUESTAS SELECCIONADAS
+                        # -------------------------------------
+
+                        if isinstance(
+                            respuesta_usuario,
+                            list
+                        ):
+
+                            seleccionadas = [
+                                str(x).strip()
+                                for x in
+                                respuesta_usuario
+                                if str(x).strip()
+                            ]
+
+                        else:
+
+                            seleccionadas = [
+                                x.strip()
+                                for x in
+                                str(
+                                    respuesta_usuario
+                                ).split(",")
+                                if x.strip()
+                            ]
+
+                        # -------------------------------------
+                        # ORDENAR PARA QUE 2,3 = 3,2
+                        # -------------------------------------
+
+                        correctas_ordenadas = sorted(
+                            correctas
+                        )
+
+                        seleccionadas_ordenadas = sorted(
+                            seleccionadas
+                        )
+
+                        es_correcta = (
+                            seleccionadas_ordenadas
+                            == correctas_ordenadas
+                        )
+
+                    # =========================================
+                    # NIVEL 1
+                    # =========================================
+
+                    else:
+
+                        respuesta_usuario_normalizada = (
+                            str(
+                                respuesta_usuario
+                            )
+                            .strip()
+                        )
+
+                        respuesta_correcta_normalizada = (
+                            respuesta_correcta_texto
+                            .strip()
+                        )
+
+                        es_correcta = (
+                            respuesta_usuario_normalizada
+                            ==
+                            respuesta_correcta_normalizada
+                        )
+
+                    # =========================================
+                    # CONTABILIZAR ACIERTOS
+                    # =========================================
+
+                    if es_correcta:
+
+                        respuestas_correctas += 1
+
+                    # =========================================
+                    # GUARDAR RETROALIMENTACIÓN
+                    # =========================================
+
+                    retroalimentacion.append(
+                        {
+                            "Pregunta":
+                                pregunta,
+
+                            "Respuesta_Usuario":
+                                respuesta_usuario,
+
+                            "Respuesta_Correcta":
+                                respuesta_correcta_texto,
+
+                            "Es_Correcta":
+                                es_correcta
+                        }
+                    )
+
+                # =================================================
+                # 7. CALCULAR PORCENTAJE
+                # =================================================
+
+                if total_preguntas > 0:
+
+                    porcentaje = (
+                        respuestas_correctas
+                        / total_preguntas
+                    ) * 100
+
+                else:
+
+                    porcentaje = 0
+
+                # =================================================
+                # 8. MENSAJE SEGÚN RESULTADO
+                # =================================================
+
+                if porcentaje < 60:
+
+                    mensaje_resultado = (
+                        "Tu nota no fue satisfactoria, "
+                        "debes estudiar más, para ello "
+                        "utiliza diferentes fuentes de "
+                        "información. Recuerda que tus "
+                        "resultados en ventas dependen "
+                        "en gran medida del nivel de "
+                        "conocimiento que tengas. "
+                        "¡Ánimo!"
+                    )
+
+                elif porcentaje < 80:
+
+                    mensaje_resultado = (
+                        "Tu resultado puede mejorar. "
+                        "Continúa estudiando y fortaleciendo "
+                        "tus conocimientos para mejorar "
+                        "tu desempeño en ventas."
+                    )
+
+                elif porcentaje < 90:
+
+                    mensaje_resultado = (
+                        "Lo hiciste bien, aunque puedes "
+                        "mejorar. Continúa fortaleciendo "
+                        "tu conocimiento y aplícalo en "
+                        "tu proceso de venta."
+                    )
+
+                else:
+
+                    mensaje_resultado = (
+                        "¡Excelente resultado! Demuestras "
+                        "un buen dominio de los conocimientos "
+                        "evaluados. Continúa aplicándolos "
+                        "en tu proceso de venta."
+                    )
+
+                # =================================================
+                # 9. GUARDAR RESULTADO TEMPORAL
+                # =================================================
+
+                st.session_state[
+                    clave_resultado
+                ] = {
+
+                    "Evaluacion_ID":
+                        evaluacion_id,
+
+                    "Total_Preguntas":
+                        total_preguntas,
+
+                    "Respuestas_Correctas":
+                        respuestas_correctas,
+
+                    "Porcentaje":
+                        porcentaje,
+
+                    "Mensaje_Resultado":
+                        mensaje_resultado,
+
+                    "Retroalimentacion":
+                        retroalimentacion
+                }
+
+            # =================================================
+            # 10. MOSTRAR RESULTADO
+            # =================================================
+
+            resultado = st.session_state[
+                clave_resultado
+            ]
+
+            st.divider()
+
+            st.subheader(
+                "Resultado de la evaluación"
+            )
+
+            st.write(
+                f"**Respuestas correctas:** "
+                f"{resultado['Respuestas_Correctas']} "
+                f"de "
+                f"{resultado['Total_Preguntas']}"
+            )
+
+            st.metric(
+                "Porcentaje",
+                f"{resultado['Porcentaje']:.2f}%"
+            )
+
+            st.info(
+                resultado[
+                    "Mensaje_Resultado"
+                ]
+            )
+
+            # =================================================
+            # 11. RETROALIMENTACIÓN
+            # =================================================
+
+            st.subheader(
+                "Retroalimentación de la evaluación"
+            )
+
+            for indice, item in enumerate(
+                resultado[
+                    "Retroalimentacion"
+                ],
+                start=1
+            ):
+
+                st.markdown(
+                    f"### Pregunta {indice}"
+                )
+
+                st.write(
+                    item[
+                        "Pregunta"
+                    ]
+                )
+
+                if item[
+                    "Es_Correcta"
+                ]:
+
+                    st.success(
+                        "✓ Respuesta correcta"
+                    )
+
+                    st.write(
+                        "**Tu respuesta:** "
+                        + str(
+                            item[
+                                "Respuesta_Usuario"
+                            ]
+                        )
+                    )
+
+                else:
+
+                    st.error(
+                        "✗ Respuesta incorrecta"
+                    )
+
+                    st.write(
+                        "**Tu respuesta:** "
+                        + str(
+                            item[
+                                "Respuesta_Usuario"
+                            ]
+                        )
+                    )
+
+                    st.info(
+                        "**Respuesta correcta:** "
+                        + str(
+                            item[
+                                "Respuesta_Correcta"
+                            ]
+                        )
+                    )
+
+                st.divider()
+
