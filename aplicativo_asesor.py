@@ -13364,6 +13364,7 @@ if (
 
 
 # ============================================================
+# ============================================================
 # EVALUACIÓN GENERAL
 # PARTE 2 — CARGAR Y RESPONDER LA EVALUACIÓN
 # ============================================================
@@ -13409,7 +13410,7 @@ if (
         else:
 
             # =================================================
-            # 3. BUSCAR EL ARCHIVO INDIVIDUAL
+            # 3. BUSCAR ARCHIVO INDIVIDUAL
             # =================================================
 
             archivo_evaluacion = None
@@ -13430,10 +13431,7 @@ if (
                     in nombres_archivo_validos
                 ):
 
-                    archivo_evaluacion = (
-                        ruta_archivo
-                    )
-
+                    archivo_evaluacion = ruta_archivo
                     break
 
             # =================================================
@@ -13454,7 +13452,7 @@ if (
             else:
 
                 # =================================================
-                # 5. CARGAR ARCHIVO
+                # 5. CARGAR ARCHIVO INDIVIDUAL
                 # =================================================
 
                 try:
@@ -13491,7 +13489,7 @@ if (
                     )
 
                     # =================================================
-                    # 7. VERIFICAR COLUMNAS
+                    # 7. COLUMNAS NECESARIAS
                     # =================================================
 
                     columnas_necesarias = [
@@ -13544,7 +13542,7 @@ if (
                         )
 
                         # =================================================
-                        # 9. FILTRAR EVALUACIÓN
+                        # 9. FILTRAR SOLO ESTA EVALUACIÓN
                         # =================================================
 
                         df_preguntas = (
@@ -13558,7 +13556,7 @@ if (
                         )
 
                         # =================================================
-                        # 10. LIMPIAR FILAS VACÍAS
+                        # 10. ELIMINAR FILAS VACÍAS
                         # =================================================
 
                         df_preguntas = (
@@ -13585,7 +13583,7 @@ if (
                         else:
 
                             # =================================================
-                            # 12. GUARDAR PREGUNTAS
+                            # 12. GUARDAR PREGUNTAS EN MEMORIA
                             # =================================================
 
                             st.session_state[
@@ -13614,22 +13612,16 @@ if (
 
                                 nivel = niveles[0]
 
-                            elif (
-                                "Nivel 2"
-                                in niveles
-                            ):
+                            elif "Nivel 2" in niveles:
 
                                 nivel = "Nivel 2"
 
-                            elif (
-                                "Nivel 1"
-                                in niveles
-                            ):
+                            elif "Nivel 1" in niveles:
 
                                 nivel = "Nivel 1"
 
                             # =================================================
-                            # 14. MENSAJE SEGÚN NIVEL
+                            # 14. MENSAJE INICIAL
                             # =================================================
 
                             st.divider()
@@ -13657,14 +13649,13 @@ if (
 
                             else:
 
-                                st.info(
-                                    "Seleccione las respuestas "
-                                    "que considere correctas de "
-                                    "acuerdo con cada enunciado."
+                                st.warning(
+                                    "No fue posible determinar "
+                                    "el nivel de la evaluación."
                                 )
 
                             # =================================================
-                            # 15. INICIALIZAR RESPUESTAS
+                            # 15. CLAVE PARA RESPUESTAS TEMPORALES
                             # =================================================
 
                             clave_respuestas = (
@@ -13688,76 +13679,7 @@ if (
                             )
 
                             # =================================================
-                            # 16. CONTADOR DE PREGUNTAS RESPONDIDAS
-                            # =================================================
-
-                            preguntas_respondidas = 0
-
-                            for indice, fila in (
-                                df_preguntas
-                                .reset_index(
-                                    drop=True
-                                )
-                                .iterrows()
-                            ):
-
-                                pregunta_id = str(
-                                    fila[
-                                        "Pregunta_ID"
-                                    ]
-                                ).strip()
-
-                                if (
-                                    nivel == "Nivel 2"
-                                ):
-
-                                    respuesta_guardada = (
-                                        respuestas_usuario.get(
-                                            pregunta_id,
-                                            []
-                                        )
-                                    )
-
-                                    if (
-                                        isinstance(
-                                            respuesta_guardada,
-                                            list
-                                        )
-                                        and len(
-                                            respuesta_guardada
-                                        ) == 2
-                                    ):
-
-                                        preguntas_respondidas += 1
-
-                                else:
-
-                                    respuesta_guardada = (
-                                        respuestas_usuario.get(
-                                            pregunta_id,
-                                            ""
-                                        )
-                                    )
-
-                                    if respuesta_guardada:
-
-                                        preguntas_respondidas += 1
-
-                            # =================================================
-                            # 17. MOSTRAR CONTADOR
-                            # =================================================
-
-                            st.metric(
-                                "Preguntas respondidas",
-                                f"{preguntas_respondidas} "
-                                f"de "
-                                f"{len(df_preguntas)}"
-                            )
-
-                            st.divider()
-
-                            # =================================================
-                            # 18. MOSTRAR PREGUNTAS
+                            # 16. MOSTRAR PREGUNTAS
                             # =================================================
 
                             for indice, fila in (
@@ -13796,7 +13718,7 @@ if (
                                 )
 
                                 # -----------------------------------------
-                                # RESPUESTAS DISPONIBLES
+                                # OBTENER RESPUESTAS
                                 # -----------------------------------------
 
                                 opciones_respuesta = []
@@ -13806,32 +13728,32 @@ if (
                                     5
                                 ):
 
-                                    columna_respuesta = (
+                                    columna = (
                                         "Respuesta_"
                                         + str(
                                             numero_respuesta
                                         )
                                     )
 
-                                    texto_respuesta = str(
+                                    texto = str(
                                         fila.get(
-                                            columna_respuesta,
+                                            columna,
                                             ""
                                         )
                                     ).strip()
 
-                                    if texto_respuesta:
+                                    if texto:
 
                                         opciones_respuesta.append(
                                             (
                                                 numero_respuesta,
-                                                texto_respuesta
+                                                texto
                                             )
                                         )
 
-                                # =========================================
-                                # NIVEL 2
-                                # =========================================
+                                # =================================================
+                                # NIVEL 2 — DOS RESPUESTAS
+                                # =================================================
 
                                 if nivel == "Nivel 2":
 
@@ -13849,6 +13771,8 @@ if (
 
                                         seleccionadas = []
 
+                                    nuevas_selecciones = []
+
                                     for (
                                         numero_respuesta,
                                         texto_respuesta
@@ -13859,66 +13783,54 @@ if (
                                             in seleccionadas
                                         )
 
-                                        nueva_marcacion = (
-                                            st.checkbox(
-                                                texto_respuesta,
-                                                value=marcada,
-                                                key=(
-                                                    "eval_general_"
-                                                    + evaluacion_id
-                                                    + "_"
-                                                    + pregunta_id
-                                                    + "_respuesta_"
-                                                    + str(
-                                                        numero_respuesta
-                                                    )
+                                        seleccion = st.checkbox(
+                                            texto_respuesta,
+                                            value=marcada,
+                                            key=(
+                                                "eval_general_"
+                                                + evaluacion_id
+                                                + "_"
+                                                + pregunta_id
+                                                + "_"
+                                                + str(
+                                                    numero_respuesta
                                                 )
                                             )
                                         )
 
-                                        if nueva_marcacion:
+                                        if seleccion:
 
-                                            if (
+                                            nuevas_selecciones.append(
                                                 numero_respuesta
-                                                not in seleccionadas
-                                            ):
+                                            )
 
-                                                seleccionadas.append(
-                                                    numero_respuesta
-                                                )
-
-                                        else:
-
-                                            if (
-                                                numero_respuesta
-                                                in seleccionadas
-                                            ):
-
-                                                seleccionadas.remove(
-                                                    numero_respuesta
-                                                )
-
-                                    # -------------------------------------
-                                    # MÁXIMO DOS RESPUESTAS
-                                    # -------------------------------------
-
-                                    if len(
-                                        seleccionadas
-                                    ) > 2:
-
-                                        st.warning(
-                                            "Debe seleccionar "
-                                            "solamente dos respuestas "
-                                            "para esta pregunta."
-                                        )
+                                    # -----------------------------------------
+                                    # GUARDAR SELECCIONES
+                                    # -----------------------------------------
 
                                     respuestas_usuario[
                                         pregunta_id
-                                    ] = seleccionadas
+                                    ] = (
+                                        nuevas_selecciones
+                                    )
 
-                                # =========================================
-                                # NIVEL 1
-                                # =========================================
+                                    # -----------------------------------------
+                                    # AVISO SI SELECCIONA MÁS DE DOS
+                                    # -----------------------------------------
+
+                                    if len(
+                                        nuevas_selecciones
+                                    ) > 2:
+
+                                        st.warning(
+                                            "Para esta pregunta "
+                                            "debe seleccionar solamente "
+                                            "dos respuestas."
+                                        )
+
+                                # =================================================
+                                # NIVEL 1 — UNA RESPUESTA
+                                # =================================================
 
                                 else:
 
@@ -13931,57 +13843,39 @@ if (
                                         in opciones_respuesta
                                     ]
 
-                                    valores_opciones = [
-                                        str(numero)
-                                        for (
-                                            numero,
-                                            texto
-                                        )
-                                        in opciones_respuesta
-                                    ]
-
-                                    respuesta_actual = (
+                                    respuesta_guardada = (
                                         respuestas_usuario.get(
                                             pregunta_id,
                                             ""
                                         )
                                     )
 
+                                    indice_seleccionado = None
+
+                                    for indice_opcion, (
+                                        numero,
+                                        texto
+                                    ) in enumerate(
+                                        opciones_respuesta
+                                    ):
+
+                                        if str(
+                                            numero
+                                        ) == str(
+                                            respuesta_guardada
+                                        ):
+
+                                            indice_seleccionado = (
+                                                indice_opcion
+                                            )
+
+                                            break
+
                                     seleccion = st.radio(
                                         "Seleccione una respuesta:",
                                         opciones_texto,
                                         index=(
-                                            opciones_texto.index(
-                                                next(
-                                                    (
-                                                        texto
-                                                        for (
-                                                            numero,
-                                                            texto
-                                                        )
-                                                        in opciones_respuesta
-                                                        if str(
-                                                            numero
-                                                        )
-                                                        == str(
-                                                            respuesta_actual
-                                                        )
-                                                    ),
-                                                    ""
-                                                )
-                                            )
-                                            if any(
-                                                str(numero)
-                                                == str(
-                                                    respuesta_actual
-                                                )
-                                                for (
-                                                    numero,
-                                                    texto
-                                                )
-                                                in opciones_respuesta
-                                            )
-                                            else None
+                                            indice_seleccionado
                                         ),
                                         key=(
                                             "eval_general_"
@@ -13991,37 +13885,46 @@ if (
                                         )
                                     )
 
-                                    if seleccion:
+                                    # -----------------------------------------
+                                    # CONVERTIR TEXTO SELECCIONADO A NÚMERO
+                                    # -----------------------------------------
 
-                                        numero_seleccionado = (
-                                            next(
-                                                (
-                                                    numero
-                                                    for (
-                                                        numero,
-                                                        texto
-                                                    )
-                                                    in opciones_respuesta
-                                                    if texto
-                                                    == seleccion
-                                                ),
-                                                ""
+                                    numero_seleccionado = ""
+
+                                    for (
+                                        numero,
+                                        texto
+                                    ) in opciones_respuesta:
+
+                                        if texto == seleccion:
+
+                                            numero_seleccionado = (
+                                                numero
                                             )
-                                        )
 
-                                        respuestas_usuario[
-                                            pregunta_id
-                                        ] = (
-                                            numero_seleccionado
-                                        )
+                                            break
+
+                                    respuestas_usuario[
+                                        pregunta_id
+                                    ] = (
+                                        numero_seleccionado
+                                    )
 
                                 st.divider()
 
                             # =================================================
-                            # 19. ACTUALIZAR CONTADOR
+                            # 17. GUARDAR RESPUESTAS EN SESSION STATE
                             # =================================================
 
-                            preguntas_respondidas_final = 0
+                            st.session_state[
+                                clave_respuestas
+                            ] = respuestas_usuario
+
+                            # =================================================
+                            # 18. CONTAR PREGUNTAS RESPONDIDAS
+                            # =================================================
+
+                            preguntas_respondidas = 0
 
                             for (
                                 pregunta_id,
@@ -14040,25 +13943,65 @@ if (
                                         ) == 2
                                     ):
 
-                                        preguntas_respondidas_final += 1
+                                        preguntas_respondidas += 1
 
                                 else:
 
                                     if respuesta:
 
-                                        preguntas_respondidas_final += 1
+                                        preguntas_respondidas += 1
+
+                            # =================================================
+                            # 19. MOSTRAR CONTADOR
+                            # =================================================
+
+                            st.divider()
 
                             st.metric(
                                 "Preguntas respondidas",
-                                f"{preguntas_respondidas_final} "
+                                f"{preguntas_respondidas} "
                                 f"de "
                                 f"{len(df_preguntas)}"
                             )
 
                             # =================================================
-                            # 20. GUARDAR RESPUESTAS TEMPORALES
+                            # 20. BOTÓN FINALIZAR
                             # =================================================
 
-                            st.session_state[
-                                clave_respuestas
-                            ] = respuestas_usuario
+                            if st.button(
+                                "Finalizar y enviar",
+                                key=(
+                                    "finalizar_evaluacion_general_"
+                                    + evaluacion_id
+                                )
+                            ):
+
+                                if (
+                                    preguntas_respondidas
+                                    < len(df_preguntas)
+                                ):
+
+                                    st.warning(
+                                        "Debe responder todas "
+                                        "las preguntas antes "
+                                        "de finalizar la evaluación."
+                                    )
+
+                                else:
+
+                                    st.success(
+                                        "Todas las preguntas "
+                                        "han sido respondidas. "
+                                        "La evaluación está lista "
+                                        "para ser calificada."
+                                    )
+
+                except Exception as error:
+
+                    st.error(
+                        "No fue posible cargar la evaluación."
+                    )
+
+                    st.code(
+                        str(error)
+                    )
