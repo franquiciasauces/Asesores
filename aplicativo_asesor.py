@@ -15293,3 +15293,1150 @@ if (
                         str(error_historial)
                     )
 
+# ============================================================
+# EVALUACIÓN
+# HISTORIAL DE EVALUACIONES
+# ============================================================
+
+elif (
+    opcion_principal == "EVALUACIÓN"
+    and opcion_evaluacion == "Historial de evaluaciones"
+):
+
+    import pandas as pd
+    import requests
+    import base64
+    from io import StringIO
+
+    # ========================================================
+    # 1. IDENTIFICAR USUARIO ACTUAL
+    # ========================================================
+
+    usuario_actual_historial = str(
+        st.session_state.get(
+            "usuario_actual",
+            ""
+        )
+    ).strip().upper()
+
+
+    # ========================================================
+    # 2. VALIDAR USUARIO
+    # ========================================================
+
+    if not usuario_actual_historial:
+
+        st.error(
+            "No fue posible identificar el usuario "
+            "para consultar el historial de evaluaciones."
+        )
+
+    else:
+
+        # ====================================================
+        # 3. RUTAS DE LOS TRES REPOSITORIOS
+        # ====================================================
+
+        ruta_historial = (
+            "evaluacion/"
+            "Historialdesarrolloevaluaciones.csv"
+        )
+
+        ruta_controladas = (
+            "evaluacion/"
+            "Respositorioevaluacionescontroladas.csv"
+        )
+
+        ruta_generales = (
+            "page/"
+            "EVALUACIONES.csv"
+        )
+
+
+        # ====================================================
+        # 4. CONFIGURAR URL BASE DE GITHUB
+        # ====================================================
+
+        url_base_github = (
+            f"https://api.github.com/repos/"
+            f"{GITHUB_USUARIO}/"
+            f"{GITHUB_REPOSITORIO}/"
+            f"contents/"
+        )
+
+
+        headers_github = {
+
+            "Authorization":
+                f"Bearer {GITHUB_TOKEN}",
+
+            "Accept":
+                "application/vnd.github+json",
+
+            "X-GitHub-Api-Version":
+                "2022-11-28"
+        }
+
+
+        # ====================================================
+        # 5. FUNCIÓN INTERNA PARA CARGAR CSV DESDE GITHUB
+        # ====================================================
+
+        def cargar_csv_github(ruta_archivo):
+
+            url_archivo = (
+                url_base_github
+                + ruta_archivo
+            )
+
+            respuesta = requests.get(
+                url_archivo,
+                headers=headers_github,
+                timeout=20
+            )
+
+            if respuesta.status_code != 200:
+
+                raise Exception(
+                    "No fue posible cargar el repositorio."
+                )
+
+            datos_archivo = respuesta.json()
+
+            contenido_base64 = (
+                datos_archivo.get(
+                    "content",
+                    ""
+                )
+                .replace(
+                    "\n",
+                    ""
+                )
+            )
+
+            if not contenido_base64:
+
+                return pd.DataFrame()
+
+            contenido = (
+                base64.b64decode(
+                    contenido_base64
+                )
+                .decode(
+                    "utf-8-sig"
+                )
+            )
+
+            if not contenido.strip():
+
+                return pd.DataFrame()
+
+            # ------------------------------------------------
+            # Los archivos del aplicativo utilizan ;
+            # ------------------------------------------------
+
+            try:
+
+                df = pd.read_csv(
+                    StringIO(contenido),
+                    dtype=str,
+                    keep_default_na=False,
+                    sep=";"
+                )
+
+            except Exception:
+
+                df = pd.read_csv(
+                    StringIO(contenido),
+                    dtype=str,
+                    keep_default_na=False
+                )
+
+            return df.fillna("")
+
+
+        # ====================================================
+        # 6. CARGAR LOS TRES REPOSITORIOS
+        # ====================================================
+
+        try:
+
+            df_historial = cargar_csv_github(
+                ruta_historial
+            )
+
+            df_controladas = cargar_csv_github(
+                ruta_controladas
+            )
+
+            df_generales = cargar_csv_github(
+                ruta_generales
+            )
+
+
+        except Exception as error_historial:
+
+            st.error(
+                "No fue posible cargar la información "
+                "del historial de evaluaciones."
+            )
+
+            st.code(
+                str(error_historial)
+            )
+
+        else:
+
+            # =================================================
+            # 7. MENSAJE DISCRETO DE CARGA
+            # =================================================
+
+            st.markdown(
+                "<div style='font-size:12px; color:#777;'>"
+                "Respositorios Cargados"
+                "</div>",
+                unsafe_allow_html=True
+            )
+
+
+            st.divider()
+
+
+            # =================================================
+            # 8. VALIDAR ESTRUCTURA DEL HISTORIAL
+            # =================================================
+
+            columnas_historial_requeridas = [
+
+                "Registro_Evaluacion_ID",
+                "Evaluacion_ID",
+                "Tipo_Evaluación",
+                "Modulo",
+                "Tipo_Relacion",
+                "Usuario",
+                "Fecha_Diligenciamiento",
+                "Total_Preguntas",
+                "Respuestas_Correctas",
+                "Porcentaje"
+            ]
+
+
+            for columna in columnas_historial_requeridas:
+
+                if columna not in df_historial.columns:
+
+                    df_historial[columna] = ""
+
+
+            # =================================================
+            # 9. NORMALIZAR HISTORIAL
+            # =================================================
+
+            df_historial[
+                "Usuario"
+            ] = (
+                df_historial[
+                    "Usuario"
+                ]
+                .astype(str)
+                .str.strip()
+                .str.upper()
+            )
+
+
+            df_historial[
+                "Evaluacion_ID"
+            ] = (
+                df_historial[
+                    "Evaluacion_ID"
+                ]
+                .astype(str)
+                .str.strip()
+            )
+
+
+            df_historial[
+                "Tipo_Evaluación"
+            ] = (
+                df_historial[
+                    "Tipo_Evaluación"
+                ]
+                .astype(str)
+                .str.strip()
+            )
+
+
+            df_historial[
+                "Modulo"
+            ] = (
+                df_historial[
+                    "Modulo"
+                ]
+                .astype(str)
+                .str.strip()
+            )
+
+
+            # =================================================
+            # 10. FILTRAR EXCLUSIVAMENTE EL USUARIO ACTUAL
+            # =================================================
+
+            df_mis_evaluaciones = (
+                df_historial[
+                    df_historial[
+                        "Usuario"
+                    ]
+                    ==
+                    usuario_actual_historial
+                ]
+                .copy()
+            )
+
+
+            # =================================================
+            # 11. LIMPIAR DUPLICADOS
+            #
+            # Una evaluación realizada por el mismo usuario
+            # cuenta una sola vez.
+            # =================================================
+
+            df_mis_evaluaciones = (
+                df_mis_evaluaciones
+                .drop_duplicates(
+                    subset=[
+                        "Evaluacion_ID",
+                        "Usuario"
+                    ],
+                    keep="last"
+                )
+                .copy()
+            )
+
+
+            # =================================================
+            # 12. CONVERTIR PORCENTAJES
+            # =================================================
+
+            df_mis_evaluaciones[
+                "_Porcentaje_Num"
+            ] = pd.to_numeric(
+                df_mis_evaluaciones[
+                    "Porcentaje"
+                ],
+                errors="coerce"
+            ).fillna(0)
+
+
+            # =================================================
+            # 13. PROMEDIO GENERAL DEL ASESOR
+            # =================================================
+
+            if df_mis_evaluaciones.empty:
+
+                promedio_general = 0
+
+            else:
+
+                promedio_general = (
+                    df_mis_evaluaciones[
+                        "_Porcentaje_Num"
+                    ]
+                    .mean()
+                )
+
+
+            # =================================================
+            # 14. TÍTULO
+            # =================================================
+
+            st.subheader(
+                "Mi historial de evaluaciones"
+            )
+
+
+            # =================================================
+            # 15. INDICADORES PRINCIPALES
+            # =================================================
+
+            col1, col2, col3 = st.columns(3)
+
+
+            with col1:
+
+                st.metric(
+                    "Promedio de mis notas",
+                    f"{promedio_general:.2f}%"
+                )
+
+
+            with col2:
+
+                st.metric(
+                    "Evaluaciones realizadas",
+                    len(df_mis_evaluaciones)
+                )
+
+
+            with col3:
+
+                if df_historial.empty:
+
+                    total_registros_historial = 0
+
+                else:
+
+                    total_registros_historial = (
+                        df_historial[
+                            "Usuario"
+                        ]
+                        .eq(
+                            usuario_actual_historial
+                        )
+                        .sum()
+                    )
+
+                st.metric(
+                    "Resultados registrados",
+                    total_registros_historial
+                )
+
+
+            st.divider()
+
+
+            # =================================================
+            # 16. PREPARAR REPOSITORIO DE CONTROLADAS
+            # =================================================
+
+            for columna in [
+                "Evaluacion_ID",
+                "Modulo",
+                "Nivel",
+                "Estado"
+            ]:
+
+                if columna not in df_controladas.columns:
+
+                    df_controladas[columna] = ""
+
+
+            df_controladas[
+                "Evaluacion_ID"
+            ] = (
+                df_controladas[
+                    "Evaluacion_ID"
+                ]
+                .astype(str)
+                .str.strip()
+            )
+
+
+            df_controladas[
+                "Modulo"
+            ] = (
+                df_controladas[
+                    "Modulo"
+                ]
+                .astype(str)
+                .str.strip()
+            )
+
+
+            # =================================================
+            # 17. IDENTIFICAR NIVEL DE CONTROLADAS
+            #
+            # El nivel aparece dentro del campo Pregunta:
+            #
+            # EVAL..._P001 | Nivel 1 | pregunta
+            #
+            # Se obtiene el nivel de cada evaluación.
+            # =================================================
+
+            if "Pregunta" in df_controladas.columns:
+
+                def obtener_nivel_controlada(valor):
+
+                    texto = str(valor)
+
+                    if "Nivel 2" in texto:
+
+                        return "Nivel 2"
+
+                    elif "Nivel 1" in texto:
+
+                        return "Nivel 1"
+
+                    return ""
+
+
+                df_controladas[
+                    "_Nivel"
+                ] = (
+                    df_controladas[
+                        "Pregunta"
+                    ]
+                    .apply(
+                        obtener_nivel_controlada
+                    )
+                )
+
+            else:
+
+                df_controladas[
+                    "_Nivel"
+                ] = ""
+
+
+            # =================================================
+            # 18. CONSOLIDAR UNA FILA POR EVALUACIÓN CONTROLADA
+            # =================================================
+
+            columnas_controladas = [
+                "Evaluacion_ID",
+                "Modulo",
+                "_Nivel"
+            ]
+
+
+            df_controladas_evaluaciones = (
+                df_controladas[
+                    columnas_controladas
+                ]
+                .drop_duplicates()
+                .copy()
+            )
+
+
+            # =================================================
+            # 19. SOLO EVALUACIONES CONTROLADAS ACTIVAS
+            # =================================================
+
+            if "Estado" in df_controladas.columns:
+
+                estados_controladas = (
+                    df_controladas[
+                        "Estado"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .str.upper()
+                )
+
+                df_controladas_activas = (
+                    df_controladas[
+                        estados_controladas
+                        ==
+                        "ACTIVA"
+                    ]
+                    .copy()
+                )
+
+            else:
+
+                df_controladas_activas = (
+                    df_controladas.copy()
+                )
+
+
+            # =================================================
+            # 20. CONSOLIDAR ACTIVAS
+            # =================================================
+
+            if "Pregunta" in df_controladas_activas.columns:
+
+                df_controladas_activas[
+                    "_Nivel"
+                ] = (
+                    df_controladas_activas[
+                        "Pregunta"
+                    ]
+                    .apply(
+                        obtener_nivel_controlada
+                    )
+                )
+
+            else:
+
+                df_controladas_activas[
+                    "_Nivel"
+                ] = ""
+
+
+            df_controladas_activas = (
+                df_controladas_activas[
+                    [
+                        "Evaluacion_ID",
+                        "Modulo",
+                        "_Nivel"
+                    ]
+                ]
+                .drop_duplicates()
+                .copy()
+            )
+
+
+            # =================================================
+            # 21. PREPARAR REPOSITORIO DE EVALUACIONES GENERALES
+            # =================================================
+
+            for columna in [
+                "Evaluacion_ID",
+                "Modulo",
+                "Tipo_Relacion",
+                "Nivel",
+                "Estado_Evaluacion"
+            ]:
+
+                if columna not in df_generales.columns:
+
+                    df_generales[columna] = ""
+
+
+            for columna in [
+                "Evaluacion_ID",
+                "Modulo",
+                "Tipo_Relacion",
+                "Nivel",
+                "Estado_Evaluacion"
+            ]:
+
+                df_generales[
+                    columna
+                ] = (
+                    df_generales[
+                        columna
+                    ]
+                    .astype(str)
+                    .str.strip()
+                )
+
+
+            # =================================================
+            # 22. FILTRAR EVALUACIONES GENERALES DISPONIBLES
+            #
+            # Se consideran las que están persistidas.
+            # =================================================
+
+            estados_generales = (
+                df_generales[
+                    "Estado_Evaluacion"
+                ]
+                .astype(str)
+                .str.strip()
+                .str.upper()
+            )
+
+
+            df_generales_disponibles = (
+                df_generales[
+                    estados_generales
+                    ==
+                    "PERSISTIDA"
+                ]
+                .copy()
+            )
+
+
+            # =================================================
+            # 23. CONSOLIDAR EVALUACIONES GENERALES
+            #
+            # Se conserva el Nivel porque es parte del filtro.
+            # =================================================
+
+            df_generales_disponibles = (
+                df_generales_disponibles[
+                    [
+                        "Evaluacion_ID",
+                        "Modulo",
+                        "Tipo_Relacion",
+                        "Nivel"
+                    ]
+                ]
+                .drop_duplicates()
+                .copy()
+            )
+
+
+            # =================================================
+            # 24. PREPARAR IDS REALIZADOS POR EL ASESOR
+            # =================================================
+
+            ids_realizados = set(
+                df_mis_evaluaciones[
+                    "Evaluacion_ID"
+                ]
+                .astype(str)
+                .str.strip()
+            )
+
+
+            # =================================================
+            # 25. MARCAR CONTROLADAS REALIZADAS
+            # =================================================
+
+            if (
+                not df_controladas_activas.empty
+            ):
+
+                df_controladas_activas[
+                    "_Realizada"
+                ] = (
+                    df_controladas_activas[
+                        "Evaluacion_ID"
+                    ]
+                    .isin(
+                        ids_realizados
+                    )
+                )
+
+            else:
+
+                df_controladas_activas[
+                    "_Realizada"
+                ] = False
+
+
+            # =================================================
+            # 26. MARCAR GENERALES REALIZADAS
+            # =================================================
+
+            if (
+                not df_generales_disponibles.empty
+            ):
+
+                df_generales_disponibles[
+                    "_Realizada"
+                ] = (
+                    df_generales_disponibles[
+                        "Evaluacion_ID"
+                    ]
+                    .isin(
+                        ids_realizados
+                    )
+                )
+
+            else:
+
+                df_generales_disponibles[
+                    "_Realizada"
+                ] = False
+
+
+            # =================================================
+            # 27. CALCULAR AVANCE DE CONTROLADAS
+            # =================================================
+
+            total_controladas = len(
+                df_controladas_activas
+            )
+
+
+            realizadas_controladas = int(
+                df_controladas_activas[
+                    "_Realizada"
+                ]
+                .sum()
+            )
+
+
+            if total_controladas > 0:
+
+                avance_controladas = (
+                    realizadas_controladas
+                    /
+                    total_controladas
+                ) * 100
+
+            else:
+
+                avance_controladas = 0
+
+
+            # =================================================
+            # 28. CALCULAR AVANCE DE GENERALES
+            # =================================================
+
+            total_generales = len(
+                df_generales_disponibles
+            )
+
+
+            realizadas_generales = int(
+                df_generales_disponibles[
+                    "_Realizada"
+                ]
+                .sum()
+            )
+
+
+            if total_generales > 0:
+
+                avance_generales = (
+                    realizadas_generales
+                    /
+                    total_generales
+                ) * 100
+
+            else:
+
+                avance_generales = 0
+
+
+            # =================================================
+            # 29. MOSTRAR AVANCE POR TIPO
+            # =================================================
+
+            st.subheader(
+                "Avance de mis evaluaciones"
+            )
+
+
+            col1, col2 = st.columns(2)
+
+
+            with col1:
+
+                st.write(
+                    "Evaluaciones controladas"
+                )
+
+                st.metric(
+                    "Nivel de avance",
+                    f"{avance_controladas:.0f}%"
+                )
+
+                st.progress(
+                    int(
+                        min(
+                            max(
+                                avance_controladas,
+                                0
+                            ),
+                            100
+                        )
+                    )
+                    / 100
+                )
+
+                st.caption(
+                    f"{realizadas_controladas} de "
+                    f"{total_controladas} evaluaciones realizadas"
+                )
+
+
+            with col2:
+
+                st.write(
+                    "Evaluaciones generales"
+                )
+
+                st.metric(
+                    "Nivel de avance",
+                    f"{avance_generales:.0f}%"
+                )
+
+                st.progress(
+                    int(
+                        min(
+                            max(
+                                avance_generales,
+                                0
+                            ),
+                            100
+                        )
+                    )
+                    / 100
+                )
+
+                st.caption(
+                    f"{realizadas_generales} de "
+                    f"{total_generales} evaluaciones realizadas"
+                )
+
+
+            st.divider()
+
+
+            # =================================================
+            # 30. AVANCE POR NIVEL
+            # =================================================
+
+            st.subheader(
+                "Avance por nivel"
+            )
+
+
+            niveles_disponibles = [
+                "Nivel 1",
+                "Nivel 2"
+            ]
+
+
+            for nivel_actual in niveles_disponibles:
+
+                controladas_nivel = (
+                    df_controladas_activas[
+                        df_controladas_activas[
+                            "_Nivel"
+                        ]
+                        ==
+                        nivel_actual
+                    ]
+                )
+
+
+                generales_nivel = (
+                    df_generales_disponibles[
+                        df_generales_disponibles[
+                            "Nivel"
+                        ]
+                        ==
+                        nivel_actual
+                    ]
+                )
+
+
+                total_nivel = (
+                    len(controladas_nivel)
+                    +
+                    len(generales_nivel)
+                )
+
+
+                realizadas_nivel = (
+                    int(
+                        controladas_nivel[
+                            "_Realizada"
+                        ].sum()
+                    )
+                    +
+                    int(
+                        generales_nivel[
+                            "_Realizada"
+                        ].sum()
+                    )
+                )
+
+
+                if total_nivel > 0:
+
+                    avance_nivel = (
+                        realizadas_nivel
+                        /
+                        total_nivel
+                    ) * 100
+
+                else:
+
+                    avance_nivel = 0
+
+
+                st.write(
+                    f"**{nivel_actual}**"
+                )
+
+                st.progress(
+                    int(
+                        min(
+                            max(
+                                avance_nivel,
+                                0
+                            ),
+                            100
+                        )
+                    )
+                    / 100
+                )
+
+                st.caption(
+                    f"{realizadas_nivel} de "
+                    f"{total_nivel} evaluaciones realizadas "
+                    f"({avance_nivel:.0f}%)"
+                )
+
+
+            st.divider()
+
+
+            # =================================================
+            # 31. EVALUACIONES QUE FALTAN POR MÓDULO
+            # =================================================
+
+            st.subheader(
+                "Evaluaciones pendientes por módulo"
+            )
+
+
+            # =================================================
+            # 32. CREAR TABLA DE CONTROLADAS PENDIENTES
+            # =================================================
+
+            pendientes_controladas = (
+                df_controladas_activas[
+                    ~df_controladas_activas[
+                        "_Realizada"
+                    ]
+                ]
+                .copy()
+            )
+
+
+            pendientes_controladas[
+                "Tipo"
+            ] = "Evaluación controlada"
+
+
+            pendientes_controladas[
+                "Nivel"
+            ] = (
+                pendientes_controladas[
+                    "_Nivel"
+                ]
+            )
+
+
+            # =================================================
+            # 33. CREAR TABLA DE GENERALES PENDIENTES
+            # =================================================
+
+            pendientes_generales = (
+                df_generales_disponibles[
+                    ~df_generales_disponibles[
+                        "_Realizada"
+                    ]
+                ]
+                .copy()
+            )
+
+
+            pendientes_generales[
+                "Tipo"
+            ] = "Evaluación general"
+
+
+            # =================================================
+            # 34. UNIFICAR PENDIENTES
+            # =================================================
+
+            columnas_pendientes = [
+                "Evaluacion_ID",
+                "Modulo",
+                "Nivel",
+                "Tipo"
+            ]
+
+
+            pendientes_controladas = (
+                pendientes_controladas[
+                    columnas_pendientes
+                ]
+            )
+
+
+            pendientes_generales = (
+                pendientes_generales[
+                    columnas_pendientes
+                ]
+            )
+
+
+            df_pendientes = pd.concat(
+                [
+                    pendientes_controladas,
+                    pendientes_generales
+                ],
+                ignore_index=True
+            )
+
+
+            # =================================================
+            # 35. MOSTRAR PENDIENTES
+            # =================================================
+
+            if df_pendientes.empty:
+
+                st.success(
+                    "No tienes evaluaciones pendientes. "
+                    "Has completado todas las evaluaciones "
+                    "disponibles."
+                )
+
+            else:
+
+                modulos_pendientes = sorted(
+                    [
+                        modulo
+                        for modulo in
+                        df_pendientes[
+                            "Modulo"
+                        ]
+                        .astype(str)
+                        .str.strip()
+                        .unique()
+                        if modulo
+                    ]
+                )
+
+
+                for modulo_actual in modulos_pendientes:
+
+                    df_modulo = (
+                        df_pendientes[
+                            df_pendientes[
+                                "Modulo"
+                            ]
+                            ==
+                            modulo_actual
+                        ]
+                        .copy()
+                    )
+
+
+                    st.write(
+                        f"**{modulo_actual}**"
+                    )
+
+
+                    for nivel_actual in [
+                        "Nivel 1",
+                        "Nivel 2"
+                    ]:
+
+                        df_nivel = (
+                            df_modulo[
+                                df_modulo[
+                                    "Nivel"
+                                ]
+                                ==
+                                nivel_actual
+                            ]
+                        )
+
+
+                        if not df_nivel.empty:
+
+                            st.caption(
+                                nivel_actual
+                            )
+
+
+                            for _, fila in (
+                                df_nivel
+                                .iterrows()
+                            ):
+
+                                st.write(
+                                    "• "
+                                    + str(
+                                        fila[
+                                            "Tipo"
+                                        ]
+                                    )
+                                    + " — "
+                                    + str(
+                                        fila[
+                                            "Evaluacion_ID"
+                                        ]
+                                    )
+                                )
+
