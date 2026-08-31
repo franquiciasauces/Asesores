@@ -11947,18 +11947,24 @@ if (
             ]
         )
 # ============================================================
-
+### PARTE 4 — PERSISTENCIA AUTOMÁTICA DEL RESULTADO
 
 
 # ============================================================
 # GESTIONEJECUCIONEVALUACION
-# PARTE 4 — PERSISTENCIA AUTOMÁTICA DEL PRIMER RESULTADO
+# PARTE 4 — PERSISTENCIA AUTOMÁTICA DEL RESULTADO
 # ============================================================
 
 from datetime import datetime
+from io import StringIO
 import base64
+import re
 import requests
 
+
+# ============================================================
+# 1. IDENTIFICAR LA EVALUACIÓN SELECCIONADA
+# ============================================================
 
 if (
     opcion_principal == "EVALUACIÓN"
@@ -11968,10 +11974,6 @@ if (
     )
 ):
 
-    # ========================================================
-    # IDENTIFICAR EVALUACIÓN
-    # ========================================================
-
     evaluacion_id_seleccionada = str(
         st.session_state[
             "evaluacion_controlada_ejecucion_id"
@@ -11980,7 +11982,23 @@ if (
 
 
     # ========================================================
-    # RESULTADO TEMPORAL GENERADO POR LA PARTE 3
+    # 2. IDENTIFICAR EL USUARIO
+    # ========================================================
+
+    usuario = str(
+        st.session_state.get(
+            "usuario_actual",
+            ""
+        )
+    ).strip().upper()
+
+
+    # ========================================================
+    # 3. IDENTIFICAR EL RESULTADO TEMPORAL
+    #
+    # LA PARTE 3 LO GUARDA COMO:
+    #
+    # resultado_temporal_Evaluacion_ID
     # ========================================================
 
     clave_resultado = (
@@ -11988,729 +12006,717 @@ if (
         + evaluacion_id_seleccionada
     )
 
-    resultado_temporal = st.session_state.get(
-        clave_resultado
+
+    resultado_temporal = (
+        st.session_state.get(
+            clave_resultado
+        )
     )
 
 
     # ========================================================
-    # SOLO CONTINUAR SI EXISTE UNA EVALUACIÓN CALIFICADA
+    # 4. IDENTIFICAR SI ESTA EJECUCIÓN YA FUE PROCESADA
+    #
+    # IMPORTANTE:
+    # ESTA CLAVE INCLUYE USUARIO + EVALUACIÓN.
+    #
+    # Así Pepe no bloquea a María.
     # ========================================================
 
-    if resultado_temporal is not None:
+    clave_persistencia = (
+        "persistencia_realizada_"
+        + usuario
+        + "_"
+        + evaluacion_id_seleccionada
+    )
 
-        # ====================================================
-        # EVITAR REPETIR LA PERSISTENCIA DURANTE LOS RECARGOS
-        # ====================================================
 
-        clave_persistencia = (
-            "persistencia_realizada_"
-            + evaluacion_id_seleccionada
-        )
+    # ========================================================
+    # 5. SOLO PERSISTIR SI:
+    #
+    # - existe resultado temporal
+    # - existe usuario
+    # - todavía no se procesó esta combinación
+    # ========================================================
 
-        if not st.session_state.get(
+    if (
+        resultado_temporal is not None
+        and usuario
+        and not st.session_state.get(
             clave_persistencia,
             False
+        )
+    ):
+
+        # ====================================================
+        # 6. OBTENER INFORMACIÓN DE LA EVALUACIÓN
+        #
+        # df_evaluacion YA FUE GENERADO EN LA PARTE 2.
+        #
+        # Para esta evaluación controlada:
+        # Nombre_Evaluacion y Descripcion sí existen.
+        #
+        # Tipo_Relacion puede existir o no.
+        # ====================================================
+
+        fila_evaluacion_persistencia = None
+
+
+        if (
+            "df_evaluacion"
+            in locals()
+            and
+            isinstance(
+                df_evaluacion,
+                pd.DataFrame
+            )
+            and
+            not df_evaluacion.empty
         ):
 
-            # =================================================
-            # IDENTIFICAR USUARIO AUTENTICADO
-            # =================================================
-
-            usuario = str(
-                st.session_state.get(
-                    "usuario_actual",
-                    ""
-                )
-            ).strip().upper()
+            fila_evaluacion_persistencia = (
+                df_evaluacion.iloc[0]
+            )
 
 
+        # ====================================================
+        # 7. CAMPOS GENERALES
+        # ====================================================
+
+        modulo = ""
+
+        nombre_evaluacion = ""
+
+        descripcion = ""
+
+        tipo_relacion = ""
+
+        tipo_evaluacion = ""
+
+
+        if fila_evaluacion_persistencia is not None:
+
+            if (
+                "Modulo"
+                in fila_evaluacion_persistencia.index
+            ):
+
+                modulo = str(
+                    fila_evaluacion_persistencia[
+                        "Modulo"
+                    ]
+                ).strip()
+
+
+            if (
+                "Nombre_Evaluacion"
+                in fila_evaluacion_persistencia.index
+            ):
+
+                nombre_evaluacion = str(
+                    fila_evaluacion_persistencia[
+                        "Nombre_Evaluacion"
+                    ]
+                ).strip()
+
+
+            if (
+                "Descripcion"
+                in fila_evaluacion_persistencia.index
+            ):
+
+                descripcion = str(
+                    fila_evaluacion_persistencia[
+                        "Descripcion"
+                    ]
+                ).strip()
+
+
+            if (
+                "Tipo_Relacion"
+                in fila_evaluacion_persistencia.index
+            ):
+
+                tipo_relacion = str(
+                    fila_evaluacion_persistencia[
+                        "Tipo_Relacion"
+                    ]
+                ).strip()
+
+
+            if (
+                "Tipo_Evaluación"
+                in fila_evaluacion_persistencia.index
+            ):
+
+                tipo_evaluacion = str(
+                    fila_evaluacion_persistencia[
+                        "Tipo_Evaluación"
+                    ]
+                ).strip()
+
+
+        # ====================================================
+        # 8. RESULTADOS GENERADOS POR LA PARTE 3
+        # ====================================================
+
+        total_preguntas = int(
+            resultado_temporal.get(
+                "Total_Preguntas",
+                0
+            )
+        )
+
+
+        respuestas_correctas = int(
+            resultado_temporal.get(
+                "Respuestas_Correctas",
+                0
+            )
+        )
+
+
+        porcentaje = float(
+            resultado_temporal.get(
+                "Porcentaje",
+                0
+            )
+        )
+
+
+        mensaje_resultado = str(
+            resultado_temporal.get(
+                "Mensaje_Resultado",
+                ""
+            )
+        ).strip()
+
+
+        # ====================================================
+        # 9. FECHA Y HORA
+        # ====================================================
+
+        ahora = datetime.now()
+
+
+        fecha_diligenciamiento = (
+            ahora.strftime(
+                "%Y-%m-%d"
+            )
+        )
+
+
+        hora_diligenciamiento = (
+            ahora.strftime(
+                "%H:%M:%S"
+            )
+        )
+
+
+        # ====================================================
+        # 10. GENERAR IDENTIFICADOR DEL REGISTRO
+        #
+        # USUARIO + EVALUACIÓN + FECHA + HORA
+        #
+        # Se agregan microsegundos para evitar colisiones.
+        # ====================================================
+
+        usuario_id = re.sub(
+            r"[^A-Za-z0-9_-]",
+            "_",
+            usuario
+        )
+
+
+        evaluacion_id_registro = re.sub(
+            r"[^A-Za-z0-9_-]",
+            "_",
+            evaluacion_id_seleccionada
+        )
+
+
+        registro_evaluacion_id = (
+            "REG_EVAL_"
+            + usuario_id
+            + "_"
+            + evaluacion_id_registro
+            + "_"
+            + ahora.strftime(
+                "%Y%m%d_%H%M%S_%f"
+            )
+        )
+
+
+        # ====================================================
+        # 11. COLUMNAS EXACTAS DEL HISTORIAL
+        # ====================================================
+
+        columnas_historial = [
+
+            "Registro_Evaluacion_ID",
+            "Evaluacion_ID",
+            "Tipo_Evaluación",
+            "Modulo",
+            "Nombre_Evaluacion",
+            "Descripcion",
+            "Tipo_Relacion",
+            "Usuario",
+            "Fecha_Diligenciamiento",
+            "Hoa_Diligenciamiento",
+            "Total_Preguntas",
+            "Respuestas_Correctas",
+            "Porcentaje",
+            "Mensaje_Resultado"
+        ]
+
+
+        # ====================================================
+        # 12. RUTA DEL ARCHIVO EN GITHUB
+        # ====================================================
+
+        ruta_github = (
+            "evaluacion/"
+            "Historialdesarrolloevaluaciones.csv"
+        )
+
+
+        url_github = (
+            f"https://api.github.com/repos/"
+            f"{GITHUB_USUARIO}/"
+            f"{GITHUB_REPOSITORIO}/"
+            f"contents/{ruta_github}"
+        )
+
+
+        # ====================================================
+        # 13. ENCABEZADOS DE GITHUB
+        #
+        # SE UTILIZA LA CONFIGURACIÓN GENERAL
+        # YA EXISTENTE EN EL APLICATIVO.
+        # ====================================================
+
+        headers_github = {
+
+            "Authorization":
+                f"Bearer {GITHUB_TOKEN}",
+
+            "Accept":
+                "application/vnd.github+json",
+
+            "X-GitHub-Api-Version":
+                "2022-11-28"
+        }
+
+
+        try:
+
             # =================================================
-            # VALIDAR USUARIO
+            # 14. LEER EL ARCHIVO ACTUAL DESDE GITHUB
             # =================================================
 
-            if not usuario:
+            respuesta_get = requests.get(
+                url_github,
+                headers=headers_github,
+                timeout=20
+            )
+
+
+            # =================================================
+            # 15. VERIFICAR QUE EL ARCHIVO EXISTA
+            # =================================================
+
+            if respuesta_get.status_code != 200:
 
                 st.error(
-                    "No fue posible identificar el usuario "
-                    "que realizó la evaluación. "
-                    "La nota no fue guardada."
+                    "La evaluación fue calificada, "
+                    "pero no fue posible consultar "
+                    "el archivo de historial."
+                )
+
+                st.code(
+                    (
+                        "Código GitHub: "
+                        + str(
+                            respuesta_get.status_code
+                        )
+                    )
+                )
+
+                st.code(
+                    respuesta_get.text
                 )
 
             else:
 
-                # =============================================
-                # ARCHIVO PERMANENTE
-                # =============================================
-
-                ARCHIVO_HISTORIAL_EVALUACIONES = (
-                    BASE_DIR
-                    / "evaluacion"
-                    / "Historialdesarrolloevaluaciones.csv"
+                datos_archivo = (
+                    respuesta_get.json()
                 )
 
 
                 # =============================================
-                # COLUMNAS DEL HISTORIAL
+                # SHA DEL ARCHIVO ACTUAL
                 # =============================================
 
-                columnas_historial = [
-                    "Registro_Evaluacion_ID",
-                    "Evaluacion_ID",
-                    "Tipo_Evaluación",
-                    "Modulo",
-                    "Nombre_Evaluacion",
-                    "Descripcion",
-                    "Tipo_Relacion",
-                    "Usuario",
-                    "Fecha_Diligenciamiento",
-                    "Hoa_Diligenciamiento",
-                    "Total_Preguntas",
-                    "Respuestas_Correctas",
-                    "Porcentaje",
-                    "Mensaje_Resultado"
-                ]
+                sha_actual = (
+                    datos_archivo.get(
+                        "sha"
+                    )
+                )
 
 
-                try:
+                # =============================================
+                # CONTENIDO DEL ARCHIVO
+                # =============================================
 
-                    # =========================================
-                    # CREAR CARPETA LOCAL SI NO EXISTE
-                    # =========================================
+                contenido_base64 = (
+                    datos_archivo.get(
+                        "content",
+                        ""
+                    )
+                    .replace(
+                        "\n",
+                        ""
+                    )
+                )
 
-                    ARCHIVO_HISTORIAL_EVALUACIONES.parent.mkdir(
-                        parents=True,
-                        exist_ok=True
+
+                if contenido_base64:
+
+                    contenido_actual = (
+                        base64.b64decode(
+                            contenido_base64
+                        )
+                        .decode(
+                            "utf-8-sig"
+                        )
+                    )
+
+                else:
+
+                    contenido_actual = ""
+
+
+                # =============================================
+                # LEER HISTORIAL
+                # =============================================
+
+                if contenido_actual.strip():
+
+                    df_historial = pd.read_csv(
+                        StringIO(
+                            contenido_actual
+                        ),
+                        dtype=str,
+                        keep_default_na=False,
+                        sep=";"
+                    )
+
+                    df_historial = (
+                        df_historial.fillna("")
+                    )
+
+                else:
+
+                    df_historial = pd.DataFrame(
+                        columns=columnas_historial
                     )
 
 
-                    # =========================================
-                    # CARGAR HISTORIAL LOCAL
-                    #
-                    # IMPORTANTE:
-                    # El archivo utiliza ";" como separador.
-                    # =========================================
+                # =============================================
+                # ASEGURAR COLUMNAS
+                # =============================================
+
+                for columna in columnas_historial:
 
                     if (
-                        ARCHIVO_HISTORIAL_EVALUACIONES.exists()
-                        and
-                        ARCHIVO_HISTORIAL_EVALUACIONES.stat().st_size > 0
+                        columna
+                        not in df_historial.columns
                     ):
 
-                        df_historial = pd.read_csv(
-                            ARCHIVO_HISTORIAL_EVALUACIONES,
-                            dtype=str,
-                            keep_default_na=False,
-                            sep=";"
-                        )
-
-                        df_historial = (
-                            df_historial.fillna("")
-                        )
-
-                    else:
-
-                        df_historial = pd.DataFrame(
-                            columns=columnas_historial
-                        )
-
-
-                    # =========================================
-                    # ASEGURAR QUE EXISTAN TODAS LAS COLUMNAS
-                    # =========================================
-
-                    for columna in columnas_historial:
-
-                        if (
+                        df_historial[
                             columna
-                            not in df_historial.columns
-                        ):
-
-                            df_historial[
-                                columna
-                            ] = ""
+                        ] = ""
 
 
-                    # =========================================
-                    # CONSERVAR EXACTAMENTE EL ORDEN DEFINIDO
-                    # =========================================
-
-                    df_historial = df_historial[
+                df_historial = (
+                    df_historial[
                         columnas_historial
-                    ].copy()
+                    ]
+                    .copy()
+                )
 
 
-                    # =========================================
-                    # NORMALIZAR CAMPOS DE CONTROL
-                    # =========================================
+                # =============================================
+                # NORMALIZAR USUARIO Y EVALUACIÓN
+                # =============================================
 
+                df_historial[
+                    "Evaluacion_ID"
+                ] = (
                     df_historial[
                         "Evaluacion_ID"
-                    ] = (
+                    ]
+                    .astype(str)
+                    .str.strip()
+                )
+
+
+                df_historial[
+                    "Usuario"
+                ] = (
+                    df_historial[
+                        "Usuario"
+                    ]
+                    .astype(str)
+                    .str.strip()
+                    .str.upper()
+                )
+
+
+                # =============================================
+                # 16. VERIFICAR SI EL ASESOR YA TIENE NOTA
+                #
+                # REGLA:
+                #
+                # MISMA EVALUACIÓN + MISMO USUARIO
+                # = NO MODIFICAR NOTA.
+                #
+                # MISMA EVALUACIÓN + OTRO USUARIO
+                # = SÍ PUEDE GUARDARSE.
+                # =============================================
+
+                ya_tiene_nota = (
+
+                    (
                         df_historial[
                             "Evaluacion_ID"
                         ]
-                        .astype(str)
-                        .str.strip()
+                        == evaluacion_id_seleccionada
                     )
 
-                    df_historial[
-                        "Usuario"
-                    ] = (
+                    &
+
+                    (
                         df_historial[
                             "Usuario"
                         ]
-                        .astype(str)
-                        .str.strip()
-                        .str.upper()
+                        == usuario
+                    )
+
+                ).any()
+
+
+                if ya_tiene_nota:
+
+                    # =========================================
+                    # NO MODIFICAR EL HISTORIAL
+                    # =========================================
+
+                    st.session_state[
+                        clave_persistencia
+                    ] = True
+
+
+                else:
+
+                    # =========================================
+                    # 17. CREAR NUEVO REGISTRO
+                    # =========================================
+
+                    nuevo_registro = {
+
+                        "Registro_Evaluacion_ID":
+                            registro_evaluacion_id,
+
+                        "Evaluacion_ID":
+                            evaluacion_id_seleccionada,
+
+                        "Tipo_Evaluación":
+                            tipo_evaluacion,
+
+                        "Modulo":
+                            modulo,
+
+                        "Nombre_Evaluacion":
+                            nombre_evaluacion,
+
+                        "Descripcion":
+                            descripcion,
+
+                        "Tipo_Relacion":
+                            tipo_relacion,
+
+                        "Usuario":
+                            usuario,
+
+                        "Fecha_Diligenciamiento":
+                            fecha_diligenciamiento,
+
+                        "Hoa_Diligenciamiento":
+                            hora_diligenciamiento,
+
+                        "Total_Preguntas":
+                            total_preguntas,
+
+                        "Respuestas_Correctas":
+                            respuestas_correctas,
+
+                        "Porcentaje":
+                            porcentaje,
+
+                        "Mensaje_Resultado":
+                            mensaje_resultado
+                    }
+
+
+                    # =========================================
+                    # 18. CONVERTIR A DATAFRAME
+                    # =========================================
+
+                    df_nuevo_registro = pd.DataFrame(
+                        [nuevo_registro],
+                        columns=columnas_historial
                     )
 
 
                     # =========================================
-                    # VERIFICAR SI YA EXISTE RESULTADO
-                    #
-                    # La protección se realiza por:
-                    #
-                    # Evaluacion_ID + Usuario
-                    #
-                    # Si ya existe, NO se modifica la nota.
+                    # 19. AGREGAR AL HISTORIAL EXISTENTE
                     # =========================================
 
-                    ya_tiene_nota = (
-                        (
-                            df_historial[
-                                "Evaluacion_ID"
-                            ]
-                            == evaluacion_id_seleccionada
+                    df_historial_actualizado = pd.concat(
+                        [
+                            df_historial,
+                            df_nuevo_registro
+                        ],
+                        ignore_index=True
+                    )
+
+
+                    # =========================================
+                    # 20. GENERAR CSV
+                    #
+                    # SEPARADOR ;
+                    # UTF-8
+                    # =========================================
+
+                    contenido_csv = (
+                        df_historial_actualizado.to_csv(
+                            index=False,
+                            sep=";",
+                            lineterminator="\n"
                         )
-                        &
-                        (
-                            df_historial[
-                                "Usuario"
-                            ]
-                            == usuario
+                    )
+
+
+                    # =========================================
+                    # 21. CODIFICAR PARA GITHUB
+                    # =========================================
+
+                    contenido_base64_nuevo = (
+                        base64.b64encode(
+                            contenido_csv.encode(
+                                "utf-8"
+                            )
                         )
-                    ).any()
+                        .decode(
+                            "utf-8"
+                        )
+                    )
 
 
                     # =========================================
-                    # SI YA EXISTE:
-                    # NO GUARDAR NUEVAMENTE
+                    # 22. ACTUALIZAR ARCHIVO EN GITHUB
                     # =========================================
 
-                    if ya_tiene_nota:
+                    datos_put = {
+
+                        "message":
+                            (
+                                "Registrar resultado de "
+                                "evaluación controlada"
+                            ),
+
+                        "content":
+                            contenido_base64_nuevo,
+
+                        "sha":
+                            sha_actual
+                    }
+
+
+                    respuesta_put = requests.put(
+                        url_github,
+                        headers=headers_github,
+                        json=datos_put,
+                        timeout=20
+                    )
+
+
+                    # =========================================
+                    # 23. CONFIRMAR GUARDADO
+                    # =========================================
+
+                    if (
+                        respuesta_put.status_code
+                        in [200, 201]
+                    ):
 
                         st.session_state[
                             clave_persistencia
                         ] = True
 
 
-                    # =========================================
-                    # SI NO EXISTE:
-                    # GENERAR Y GUARDAR EL PRIMER RESULTADO
-                    # =========================================
+                        st.success(
+                            "Tu nota ha sido guardada"
+                        )
+
+
+                    elif (
+                        respuesta_put.status_code
+                        == 409
+                    ):
+
+                        st.warning(
+                            "La evaluación fue calificada, "
+                            "pero hubo un conflicto al "
+                            "actualizar el historial. "
+                            "Intente nuevamente."
+                        )
+
 
                     else:
 
-                        # =====================================
-                        # CAMPOS GENERALES
-                        #
-                        # Los campos:
-                        #
-                        # Nombre_Evaluacion
-                        # Descripcion
-                        # Tipo_Relacion
-                        #
-                        # son OPCIONALES.
-                        #
-                        # Si no existen en el formato de
-                        # evaluación, permanecen vacíos.
-                        # =====================================
-
-                        modulo = ""
-                        nombre_evaluacion = ""
-                        descripcion = ""
-                        tipo_relacion = ""
-                        tipo_evaluacion = ""
-
-
-                        # =====================================
-                        # OBTENER INFORMACIÓN DE LA EVALUACIÓN
-                        # =====================================
-
-                        if (
-                            "df_evaluacion"
-                            in locals()
-                            and
-                            isinstance(
-                                df_evaluacion,
-                                pd.DataFrame
-                            )
-                            and
-                            not df_evaluacion.empty
-                        ):
-
-                            fila_evaluacion = (
-                                df_evaluacion.iloc[0]
-                            )
-
-
-                            # ---------------------------------
-                            # MODULO
-                            # ---------------------------------
-
-                            if (
-                                "Modulo"
-                                in fila_evaluacion.index
-                            ):
-
-                                modulo = str(
-                                    fila_evaluacion[
-                                        "Modulo"
-                                    ]
-                                ).strip()
-
-
-                            # ---------------------------------
-                            # NOMBRE EVALUACIÓN
-                            # OPCIONAL
-                            # ---------------------------------
-
-                            if (
-                                "Nombre_Evaluacion"
-                                in fila_evaluacion.index
-                            ):
-
-                                nombre_evaluacion = str(
-                                    fila_evaluacion[
-                                        "Nombre_Evaluacion"
-                                    ]
-                                ).strip()
-
-
-                            # ---------------------------------
-                            # DESCRIPCIÓN
-                            # OPCIONAL
-                            # ---------------------------------
-
-                            if (
-                                "Descripcion"
-                                in fila_evaluacion.index
-                            ):
-
-                                descripcion = str(
-                                    fila_evaluacion[
-                                        "Descripcion"
-                                    ]
-                                ).strip()
-
-
-                            # ---------------------------------
-                            # TIPO RELACIÓN
-                            # OPCIONAL
-                            # ---------------------------------
-
-                            if (
-                                "Tipo_Relacion"
-                                in fila_evaluacion.index
-                            ):
-
-                                tipo_relacion = str(
-                                    fila_evaluacion[
-                                        "Tipo_Relacion"
-                                    ]
-                                ).strip()
-
-
-                            # ---------------------------------
-                            # TIPO EVALUACIÓN
-                            # OPCIONAL
-                            # ---------------------------------
-
-                            if (
-                                "Tipo_Evaluación"
-                                in fila_evaluacion.index
-                            ):
-
-                                tipo_evaluacion = str(
-                                    fila_evaluacion[
-                                        "Tipo_Evaluación"
-                                    ]
-                                ).strip()
-
-
-                        # =====================================
-                        # FECHA Y HORA
-                        # =====================================
-
-                        ahora = datetime.now()
-
-                        fecha_diligenciamiento = (
-                            ahora.strftime(
-                                "%Y-%m-%d"
-                            )
+                        st.error(
+                            "La evaluación fue calificada, "
+                            "pero no fue posible guardar "
+                            "la nota en el historial."
                         )
 
-                        hora_diligenciamiento = (
-                            ahora.strftime(
-                                "%H:%M:%S"
-                            )
-                        )
-
-
-                        # =====================================
-                        # RESULTADOS CALCULADOS EN PARTE 3
-                        # =====================================
-
-                        total_preguntas = int(
-                            resultado_temporal.get(
-                                "Total_Preguntas",
-                                0
-                            )
-                        )
-
-                        respuestas_correctas = int(
-                            resultado_temporal.get(
-                                "Respuestas_Correctas",
-                                0
-                            )
-                        )
-
-                        porcentaje = float(
-                            resultado_temporal.get(
-                                "Porcentaje",
-                                0
-                            )
-                        )
-
-                        mensaje_resultado = str(
-                            resultado_temporal.get(
-                                "Mensaje_Resultado",
-                                ""
-                            )
-                        ).strip()
-
-
-                        # =====================================
-                        # GENERAR REGISTRO_EVALUACION_ID
-                        # =====================================
-
-                        siguiente_numero = 1
-
-
-                        if not df_historial.empty:
-
-                            numeros = (
-                                df_historial[
-                                    "Registro_Evaluacion_ID"
-                                ]
-                                .astype(str)
-                                .str.extract(
-                                    r"(\d+)"
-                                )[0]
-                            )
-
-                            numeros = pd.to_numeric(
-                                numeros,
-                                errors="coerce"
-                            )
-
-
-                            if numeros.notna().any():
-
-                                siguiente_numero = (
-                                    int(
-                                        numeros.max()
-                                    )
-                                    + 1
-                                )
-
-
-                        registro_evaluacion_id = (
-                            "REG_EVAL_"
-                            + str(
-                                siguiente_numero
-                            ).zfill(6)
-                        )
-
-
-                        # =====================================
-                        # CREAR REGISTRO
-                        # =====================================
-
-                        nuevo_registro = {
-
-                            "Registro_Evaluacion_ID":
-                                registro_evaluacion_id,
-
-                            "Evaluacion_ID":
-                                evaluacion_id_seleccionada,
-
-                            "Tipo_Evaluación":
-                                tipo_evaluacion,
-
-                            "Modulo":
-                                modulo,
-
-                            "Nombre_Evaluacion":
-                                nombre_evaluacion,
-
-                            "Descripcion":
-                                descripcion,
-
-                            "Tipo_Relacion":
-                                tipo_relacion,
-
-                            "Usuario":
-                                usuario,
-
-                            "Fecha_Diligenciamiento":
-                                fecha_diligenciamiento,
-
-                            "Hoa_Diligenciamiento":
-                                hora_diligenciamiento,
-
-                            "Total_Preguntas":
-                                total_preguntas,
-
-                            "Respuestas_Correctas":
-                                respuestas_correctas,
-
-                            "Porcentaje":
-                                porcentaje,
-
-                            "Mensaje_Resultado":
-                                mensaje_resultado
-                        }
-
-
-                        # =====================================
-                        # DATAFRAME DEL NUEVO REGISTRO
-                        # =====================================
-
-                        df_nuevo_registro = pd.DataFrame(
-                            [nuevo_registro],
-                            columns=columnas_historial
-                        )
-
-
-                        # =====================================
-                        # AGREGAR AL HISTORIAL
-                        # =====================================
-
-                        df_historial_actualizado = pd.concat(
-                            [
-                                df_historial,
-                                df_nuevo_registro
-                            ],
-                            ignore_index=True
-                        )
-
-
-                        # =====================================
-                        # CONVERTIR A CSV
-                        #
-                        # IMPORTANTE:
-                        # Separador ";" para conservar el
-                        # formato definido del historial.
-                        # =====================================
-
-                        contenido_csv = (
-                            df_historial_actualizado.to_csv(
-                                index=False,
-                                sep=";"
-                            )
-                        )
-
-
-                        # =====================================
-                        # DATOS DEL REPOSITORIO GITHUB
-                        # =====================================
-
-                        github_token = GITHUB_TOKEN
-
-                        github_usuario = (
-                            GITHUB_USUARIO
-                        )
-
-                        github_repositorio = (
-                            GITHUB_REPOSITORIO
-                        )
-
-
-                        # =====================================
-                        # RUTA CORRECTA EN GITHUB
-                        # =====================================
-
-                        ruta_github = (
-                            "evaluacion/"
-                            "Historialdesarrolloevaluaciones.csv"
-                        )
-
-
-                        url_github = (
-                            "https://api.github.com/repos/"
-                            + github_usuario
-                            + "/"
-                            + github_repositorio
-                            + "/contents/"
-                            + ruta_github
-                        )
-
-
-                        headers_github = {
-
-                            "Authorization":
-                                "Bearer "
-                                + github_token,
-
-                            "Accept":
-                                "application/vnd.github+json",
-
-                            "X-GitHub-Api-Version":
-                                "2022-11-28"
-                        }
-
-
-                        # =====================================
-                        # CONSULTAR ARCHIVO ACTUAL EN GITHUB
-                        # =====================================
-
-                        respuesta_get = requests.get(
-                            url_github,
-                            headers=headers_github,
-                            timeout=20
-                        )
-
-
-                        if respuesta_get.status_code == 200:
-
-                            datos_archivo = (
-                                respuesta_get.json()
-                            )
-
-                            sha_actual = (
-                                datos_archivo.get(
-                                    "sha"
+                        st.code(
+                            (
+                                "Código GitHub: "
+                                + str(
+                                    respuesta_put.status_code
                                 )
                             )
+                        )
 
-                        elif respuesta_get.status_code == 404:
-
-                            sha_actual = None
-
-                        else:
-
-                            st.error(
-                                "No fue posible consultar "
-                                "el historial de evaluaciones."
-                            )
-
-                            st.code(
-                                respuesta_get.text
-                            )
-
-                            raise Exception(
-                                "Error al consultar el archivo "
-                                "en GitHub."
-                            )
-
-
-                        # =====================================
-                        # CODIFICAR CSV EN BASE64
-                        # =====================================
-
-                        contenido_base64 = (
-                            base64.b64encode(
-                                contenido_csv.encode(
-                                    "utf-8-sig"
-                                )
-                            ).decode(
-                                "utf-8"
-                            )
+                        st.code(
+                            respuesta_put.text
                         )
 
 
-                        # =====================================
-                        # PREPARAR ACTUALIZACIÓN
-                        # =====================================
+        except Exception as error_historial:
 
-                        datos_put = {
+            st.error(
+                "La evaluación fue calificada, "
+                "pero ocurrió un error al guardar "
+                "el historial."
+            )
 
-                            "message":
-                                (
-                                    "Registrar resultado de "
-                                    "evaluación controlada"
-                                ),
-
-                            "content":
-                                contenido_base64
-                        }
+            st.code(
+                str(error_historial)
+            )
 
 
-                        # =====================================
-                        # SI EL ARCHIVO YA EXISTE,
-                        # ENVIAR SHA PARA ACTUALIZARLO
-                        # =====================================
-
-                        if sha_actual:
-
-                            datos_put[
-                                "sha"
-                            ] = sha_actual
-
-
-                        # =====================================
-                        # ACTUALIZAR GITHUB
-                        # =====================================
-
-                        respuesta_put = requests.put(
-                            url_github,
-                            headers=headers_github,
-                            json=datos_put,
-                            timeout=20
-                        )
-
-
-                        # =====================================
-                        # CONFIRMAR PERSISTENCIA
-                        # =====================================
-
-                        if respuesta_put.status_code in [
-                            200,
-                            201
-                        ]:
-
-                            st.session_state[
-                                clave_persistencia
-                            ] = True
-
-                            st.success(
-                                "Tu nota ha sido guardada "
-                                "en tu historial"
-                            )
-
-                        else:
-
-                            st.error(
-                                "La nota fue calculada, "
-                                "pero no fue posible guardar "
-                                "el resultado en el historial."
-                            )
-
-                            st.code(
-                                respuesta_put.text
-                            )
-
-
-                except Exception as error_historial:
-
-                    st.error(
-                        "No fue posible procesar el "
-                        "historial permanente de evaluaciones."
-                    )
-
-                    st.code(
-                        str(error_historial)
-                    )
 
