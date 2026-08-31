@@ -13364,11 +13364,9 @@ if (
 
 
 # ============================================================
-
 # ============================================================
 # EVALUACIÓN GENERAL
 # PARTE 2 — CARGAR PREGUNTAS DE LA EVALUACIÓN SELECCIONADA
-# PRUEBA PROVISIONAL
 # ============================================================
 
 if (
@@ -13412,143 +13410,53 @@ if (
         else:
 
             # =================================================
-            # 3. BUSCAR ARCHIVOS
-            #    EN PAGE Y TODAS SUS SUBCARPETAS
+            # 3. BUSCAR EL ARCHIVO INDIVIDUAL
+            #
+            # El nombre del archivo debe corresponder
+            # exactamente al Evaluacion_ID seleccionado.
+            #
+            # Ejemplo:
+            #
+            # Evaluacion_ID:
+            # PATOLOGIAS_DESCRIPCION_PATOLOGIA_NIVEL_1_0001
+            #
+            # Archivo:
+            # PATOLOGIAS_DESCRIPCION_PATOLOGIA_NIVEL_1_0001.csv
             # =================================================
 
-            archivos_evaluaciones = []
+            archivo_evaluacion = None
+
+            nombres_archivo_validos = [
+                evaluacion_id + ".csv",
+                evaluacion_id + ".xlsx",
+                evaluacion_id + ".xls"
+            ]
 
             for ruta_archivo in carpeta_page.rglob("*"):
 
                 if not ruta_archivo.is_file():
                     continue
 
-                if ruta_archivo.suffix.lower() in [
-                    ".csv",
-                    ".xlsx",
-                    ".xls"
-                ]:
+                if (
+                    ruta_archivo.name
+                    in nombres_archivo_validos
+                ):
 
-                    archivos_evaluaciones.append(
+                    archivo_evaluacion = (
                         ruta_archivo
                     )
 
-            # =================================================
-            # 4. BUSCAR LA EVALUACIÓN POR Evaluacion_ID
-            # =================================================
-
-            coincidencias = []
-
-            for ruta_archivo in archivos_evaluaciones:
-
-                try:
-
-                    # -----------------------------------------
-                    # LEER CSV
-                    # -----------------------------------------
-
-                    if (
-                        ruta_archivo.suffix.lower()
-                        == ".csv"
-                    ):
-
-                        df_temp = pd.read_csv(
-                            ruta_archivo,
-                            dtype=str,
-                            keep_default_na=False,
-                            encoding="utf-8-sig"
-                        )
-
-                    # -----------------------------------------
-                    # LEER EXCEL
-                    # -----------------------------------------
-
-                    else:
-
-                        df_temp = pd.read_excel(
-                            ruta_archivo,
-                            dtype=str
-                        )
-
-                    # -----------------------------------------
-                    # NORMALIZAR NOMBRES DE COLUMNAS
-                    # -----------------------------------------
-
-                    df_temp.columns = (
-                        df_temp.columns
-                        .astype(str)
-                        .str.strip()
-                    )
-
-                    # -----------------------------------------
-                    # VERIFICAR COLUMNA Evaluacion_ID
-                    # -----------------------------------------
-
-                    if (
-                        "Evaluacion_ID"
-                        not in df_temp.columns
-                    ):
-
-                        continue
-
-                    # -----------------------------------------
-                    # NORMALIZAR Evaluacion_ID
-                    # -----------------------------------------
-
-                    df_temp[
-                        "Evaluacion_ID"
-                    ] = (
-                        df_temp[
-                            "Evaluacion_ID"
-                        ]
-                        .astype(str)
-                        .str.strip()
-                    )
-
-                    # -----------------------------------------
-                    # BUSCAR COINCIDENCIAS
-                    # -----------------------------------------
-
-                    df_coincidencias = (
-                        df_temp[
-                            df_temp[
-                                "Evaluacion_ID"
-                            ]
-                            == evaluacion_id
-                        ]
-                        .copy()
-                    )
-
-                    if df_coincidencias.empty:
-
-                        continue
-
-                    # -----------------------------------------
-                    # GUARDAR RESULTADO
-                    # -----------------------------------------
-
-                    coincidencias.append(
-                        (
-                            ruta_archivo,
-                            df_coincidencias
-                        )
-                    )
-
-                except Exception:
-
-                    # Si un archivo no puede ser leído,
-                    # simplemente se continúa con el siguiente.
-                    continue
+                    break
 
             # =================================================
-            # 5. VERIFICAR SI SE ENCONTRÓ LA EVALUACIÓN
+            # 4. VERIFICAR SI SE ENCONTRÓ
             # =================================================
 
-            if not coincidencias:
+            if archivo_evaluacion is None:
 
                 st.error(
-                    "No se encontraron preguntas para la "
-                    "evaluación seleccionada."
+                    "No se encontró el archivo individual "
+                    "correspondiente a la evaluación seleccionada."
                 )
 
                 st.write(
@@ -13562,225 +13470,301 @@ if (
             else:
 
                 # =================================================
-                # 6. UNIR TODAS LAS PREGUNTAS ENCONTRADAS
+                # 5. CARGAR ÚNICAMENTE EL ARCHIVO ENCONTRADO
                 # =================================================
 
-                bloques_preguntas = []
+                try:
 
-                for (
-                    ruta_archivo,
-                    df_coincidencias
-                ) in coincidencias:
+                    if (
+                        archivo_evaluacion
+                        .suffix
+                        .lower()
+                        == ".csv"
+                    ):
 
-                    bloques_preguntas.append(
-                        df_coincidencias
+                        df_preguntas = pd.read_csv(
+                            archivo_evaluacion,
+                            dtype=str,
+                            keep_default_na=False,
+                            encoding="utf-8-sig"
+                        )
+
+                    else:
+
+                        df_preguntas = pd.read_excel(
+                            archivo_evaluacion,
+                            dtype=str
+                        )
+
+                    # =================================================
+                    # 6. NORMALIZAR COLUMNAS
+                    # =================================================
+
+                    df_preguntas.columns = (
+                        df_preguntas.columns
+                        .astype(str)
+                        .str.strip()
                     )
 
-                df_preguntas = pd.concat(
-                    bloques_preguntas,
-                    ignore_index=True
-                )
+                    # =================================================
+                    # 7. VERIFICAR ESTRUCTURA
+                    # =================================================
 
-                # =================================================
-                # 7. ELIMINAR FILAS COMPLETAMENTE VACÍAS
-                # =================================================
+                    columnas_necesarias = [
+                        "Evaluacion_ID",
+                        "Pregunta_ID",
+                        "Modulo",
+                        "Tipo_Relacion",
+                        "Nivel",
+                        "Pregunta",
+                        "Respuesta_1",
+                        "Respuesta_2",
+                        "Respuesta_3",
+                        "Respuesta_4",
+                        "Respuesta_Correcta"
+                    ]
 
-                df_preguntas = (
-                    df_preguntas
-                    .replace("", pd.NA)
-                    .dropna(
-                        how="all"
-                    )
-                    .fillna("")
-                )
+                    columnas_faltantes = [
+                        columna
+                        for columna in columnas_necesarias
+                        if columna
+                        not in df_preguntas.columns
+                    ]
 
-                # =================================================
-                # 8. GUARDAR PREGUNTAS EN SESSION STATE
-                # =================================================
+                    if columnas_faltantes:
 
-                st.session_state[
-                    "evaluacion_general_preguntas"
-                ] = df_preguntas.copy()
+                        st.error(
+                            "El archivo de la evaluación "
+                            "no tiene todas las columnas necesarias."
+                        )
 
-                # =================================================
-                # 9. MOSTRAR CONFIRMACIÓN
-                # =================================================
+                        st.write(
+                            "Columnas faltantes:",
+                            columnas_faltantes
+                        )
 
-                st.success(
-                    "Evaluación encontrada correctamente."
-                )
+                    else:
 
-                st.write(
-                    "Evaluación seleccionada:",
-                    evaluacion_id
-                )
+                        # =================================================
+                        # 8. NORMALIZAR Evaluacion_ID
+                        # =================================================
 
-                st.write(
-                    "Cantidad de preguntas:",
-                    len(df_preguntas)
-                )
+                        df_preguntas[
+                            "Evaluacion_ID"
+                        ] = (
+                            df_preguntas[
+                                "Evaluacion_ID"
+                            ]
+                            .astype(str)
+                            .str.strip()
+                        )
 
-                # =================================================
-                # 10. MOSTRAR ARCHIVO(S) DE ORIGEN
-                # =================================================
+                        # =================================================
+                        # 9. TOMAR ÚNICAMENTE LAS PREGUNTAS
+                        #    DE ESTA EVALUACIÓN
+                        # =================================================
 
-                for (
-                    ruta_archivo,
-                    df_coincidencias
-                ) in coincidencias:
+                        df_preguntas = (
+                            df_preguntas[
+                                df_preguntas[
+                                    "Evaluacion_ID"
+                                ]
+                                == evaluacion_id
+                            ]
+                            .copy()
+                        )
 
-                    st.caption(
-                        "Archivo encontrado: "
-                        + str(ruta_archivo.relative_to(BASE_DIR))
-                    )
+                        # =================================================
+                        # 10. LIMPIAR FILAS VACÍAS
+                        # =================================================
 
-                # =================================================
-                # 11. MOSTRAR PREGUNTAS
-                # =================================================
-
-                st.divider()
-
-                st.subheader(
-                    "Preguntas de la evaluación"
-                )
-
-                # =================================================
-                # 12. RECORRER TODAS LAS PREGUNTAS
-                # =================================================
-
-                for indice, fila in (
-                    df_preguntas
-                    .reset_index(drop=True)
-                    .iterrows()
-                ):
-
-                    numero_pregunta = (
-                        indice + 1
-                    )
-
-                    st.markdown(
-                        f"### Pregunta {numero_pregunta}"
-                    )
-
-                    # -----------------------------------------
-                    # ENUNCIADO
-                    # -----------------------------------------
-
-                    st.write(
-                        str(
-                            fila.get(
-                                "Pregunta",
-                                ""
+                        df_preguntas = (
+                            df_preguntas
+                            .replace("", pd.NA)
+                            .dropna(
+                                how="all"
                             )
+                            .fillna("")
                         )
+
+                        # =================================================
+                        # 11. VERIFICAR QUE HAYA PREGUNTAS
+                        # =================================================
+
+                        if df_preguntas.empty:
+
+                            st.error(
+                                "El archivo de la evaluación fue "
+                                "encontrado, pero no contiene "
+                                "preguntas asociadas al "
+                                "Evaluacion_ID seleccionado."
+                            )
+
+                        else:
+
+                            # =================================================
+                            # 12. GUARDAR EN SESSION STATE
+                            # =================================================
+
+                            st.session_state[
+                                "evaluacion_general_preguntas"
+                            ] = (
+                                df_preguntas.copy()
+                            )
+
+                            # =================================================
+                            # 13. INFORMACIÓN DE CONTROL
+                            # =================================================
+
+                            st.success(
+                                "Evaluación cargada correctamente."
+                            )
+
+                            st.write(
+                                "Evaluación seleccionada:",
+                                evaluacion_id
+                            )
+
+                            st.write(
+                                "Archivo cargado:",
+                                str(
+                                    archivo_evaluacion.relative_to(
+                                        BASE_DIR
+                                    )
+                                )
+                            )
+
+                            st.write(
+                                "Cantidad de preguntas:",
+                                len(df_preguntas)
+                            )
+
+                            # =================================================
+                            # 14. MOSTRAR PREGUNTAS
+                            # =================================================
+
+                            st.divider()
+
+                            st.subheader(
+                                "Preguntas de la evaluación"
+                            )
+
+                            # =================================================
+                            # 15. RECORRER TODAS LAS PREGUNTAS
+                            # =================================================
+
+                            for indice, fila in (
+                                df_preguntas
+                                .reset_index(
+                                    drop=True
+                                )
+                                .iterrows()
+                            ):
+
+                                numero_pregunta = (
+                                    indice + 1
+                                )
+
+                                st.markdown(
+                                    f"### Pregunta "
+                                    f"{numero_pregunta}"
+                                )
+
+                                # -----------------------------------------
+                                # ENUNCIADO
+                                # -----------------------------------------
+
+                                st.write(
+                                    str(
+                                        fila[
+                                            "Pregunta"
+                                        ]
+                                    )
+                                )
+
+                                # -----------------------------------------
+                                # INFORMACIÓN DE CONTROL
+                                # -----------------------------------------
+
+                                st.caption(
+                                    "Pregunta_ID: "
+                                    + str(
+                                        fila[
+                                            "Pregunta_ID"
+                                        ]
+                                    )
+                                )
+
+                                st.caption(
+                                    "Nivel: "
+                                    + str(
+                                        fila[
+                                            "Nivel"
+                                        ]
+                                    )
+                                )
+
+                                # -----------------------------------------
+                                # RESPUESTA 1
+                                # -----------------------------------------
+
+                                st.write(
+                                    "Respuesta 1:",
+                                    str(
+                                        fila[
+                                            "Respuesta_1"
+                                        ]
+                                    )
+                                )
+
+                                # -----------------------------------------
+                                # RESPUESTA 2
+                                # -----------------------------------------
+
+                                st.write(
+                                    "Respuesta 2:",
+                                    str(
+                                        fila[
+                                            "Respuesta_2"
+                                        ]
+                                    )
+                                )
+
+                                # -----------------------------------------
+                                # RESPUESTA 3
+                                # -----------------------------------------
+
+                                st.write(
+                                    "Respuesta 3:",
+                                    str(
+                                        fila[
+                                            "Respuesta_3"
+                                        ]
+                                    )
+                                )
+
+                                # -----------------------------------------
+                                # RESPUESTA 4
+                                # -----------------------------------------
+
+                                st.write(
+                                    "Respuesta 4:",
+                                    str(
+                                        fila[
+                                            "Respuesta_4"
+                                        ]
+                                    )
+                                )
+
+                                st.divider()
+
+                except Exception as error:
+
+                    st.error(
+                        "No fue posible cargar el archivo "
+                        "de la evaluación."
                     )
 
-                    # -----------------------------------------
-                    # PREGUNTA ID
-                    # -----------------------------------------
-
-                    pregunta_id = str(
-                        fila.get(
-                            "Pregunta_ID",
-                            ""
-                        )
-                    ).strip()
-
-                    if pregunta_id:
-
-                        st.caption(
-                            "Pregunta_ID: "
-                            + pregunta_id
-                        )
-
-                    # -----------------------------------------
-                    # NIVEL
-                    # -----------------------------------------
-
-                    nivel = str(
-                        fila.get(
-                            "Nivel",
-                            ""
-                        )
-                    ).strip()
-
-                    if nivel:
-
-                        st.caption(
-                            "Nivel: "
-                            + nivel
-                        )
-
-                    # -----------------------------------------
-                    # RESPUESTA 1
-                    # -----------------------------------------
-
-                    respuesta_1 = str(
-                        fila.get(
-                            "Respuesta_1",
-                            ""
-                        )
-                    ).strip()
-
-                    if respuesta_1:
-
-                        st.write(
-                            "Respuesta 1:",
-                            respuesta_1
-                        )
-
-                    # -----------------------------------------
-                    # RESPUESTA 2
-                    # -----------------------------------------
-
-                    respuesta_2 = str(
-                        fila.get(
-                            "Respuesta_2",
-                            ""
-                        )
-                    ).strip()
-
-                    if respuesta_2:
-
-                        st.write(
-                            "Respuesta 2:",
-                            respuesta_2
-                        )
-
-                    # -----------------------------------------
-                    # RESPUESTA 3
-                    # -----------------------------------------
-
-                    respuesta_3 = str(
-                        fila.get(
-                            "Respuesta_3",
-                            ""
-                        )
-                    ).strip()
-
-                    if respuesta_3:
-
-                        st.write(
-                            "Respuesta 3:",
-                            respuesta_3
-                        )
-
-                    # -----------------------------------------
-                    # RESPUESTA 4
-                    # -----------------------------------------
-
-                    respuesta_4 = str(
-                        fila.get(
-                            "Respuesta_4",
-                            ""
-                        )
-                    ).strip()
-
-                    if respuesta_4:
-
-                        st.write(
-                            "Respuesta 4:",
-                            respuesta_4
-                        )
-
-                    st.divider()
+                    st.code(
+                        str(error)
+                    )
