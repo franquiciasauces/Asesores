@@ -14054,6 +14054,8 @@ if (
 
 
 # ============================================================
+
+# ============================================================
 # ============================================================
 # EVALUACIÓN GENERAL
 # PARTE 3 — CALIFICACIÓN Y RETROALIMENTACIÓN
@@ -14167,7 +14169,7 @@ if (
                 preguntas_incorrectas = []
 
                 # =============================================
-                # 6. RECORRER LAS PREGUNTAS
+                # 6. RECORRER TODAS LAS PREGUNTAS
                 # =============================================
 
                 for indice, fila in (
@@ -14217,7 +14219,7 @@ if (
                     ):
 
                         # -------------------------------------
-                        # RESPUESTAS CORRECTAS
+                        # RESPUESTAS CORRECTAS CONFIGURADAS
                         # -------------------------------------
 
                         correctas = [
@@ -14228,7 +14230,7 @@ if (
                         ]
 
                         # -------------------------------------
-                        # RESPUESTAS DEL USUARIO
+                        # RESPUESTAS SELECCIONADAS
                         # -------------------------------------
 
                         if isinstance(
@@ -14322,7 +14324,7 @@ if (
                         )
 
                     # =========================================
-                    # CONTABILIZAR ACIERTOS
+                    # CONTABILIZAR RESULTADO
                     # =========================================
 
                     if es_correcta:
@@ -14330,10 +14332,6 @@ if (
                         respuestas_correctas += 1
 
                     else:
-
-                        # =====================================
-                        # GUARDAR SOLO PREGUNTAS INCORRECTAS
-                        # =====================================
 
                         preguntas_incorrectas.append(
                             {
@@ -14406,7 +14404,7 @@ if (
                     )
 
                 # =================================================
-                # 9. GUARDAR RESULTADO TEMPORAL
+                # 9. GUARDAR RESULTADO EN SESSION STATE
                 # =================================================
 
                 st.session_state[
@@ -14434,11 +14432,6 @@ if (
 
                 # =================================================
                 # 10. ACTIVAR PERSISTENCIA
-                #
-                # ESTA ES LA PARTE QUE FALTABA.
-                #
-                # La Parte 4 detectará esta bandera y procederá
-                # a guardar el resultado en GitHub.
                 # =================================================
 
                 st.session_state[
@@ -14454,7 +14447,7 @@ if (
             ]
 
             # =================================================
-            # 12. RESULTADO FINAL
+            # 12. MOSTRAR RESULTADO
             # =================================================
 
             st.divider()
@@ -14495,50 +14488,6 @@ if (
                 []
             )
 
-            # -------------------------------------------------
-            # COMPATIBILIDAD CON RESULTADOS ANTERIORES
-            # -------------------------------------------------
-
-            if preguntas_incorrectas is None:
-
-                preguntas_incorrectas = []
-
-                retroalimentacion_anterior = (
-                    resultado.get(
-                        "Retroalimentacion",
-                        []
-                    )
-                )
-
-                for indice, item in enumerate(
-                    retroalimentacion_anterior,
-                    start=1
-                ):
-
-                    if not item.get(
-                        "Es_Correcta",
-                        False
-                    ):
-
-                        preguntas_incorrectas.append(
-                            {
-                                "Numero":
-                                    indice,
-
-                                "Pregunta":
-                                    str(
-                                        item.get(
-                                            "Pregunta",
-                                            ""
-                                        )
-                                    )
-                            }
-                        )
-
-            # -------------------------------------------------
-            # MOSTRAR SOLO PREGUNTAS INCORRECTAS
-            # -------------------------------------------------
-
             if not preguntas_incorrectas:
 
                 st.success(
@@ -14561,7 +14510,7 @@ if (
                     )
 
             # =================================================
-            # 14. BLOQUEO DE LA EVALUACIÓN
+            # 14. BLOQUEO
             # =================================================
 
             st.info(
@@ -14584,7 +14533,7 @@ from io import StringIO
 
 
 # ============================================================
-# 1. VERIFICAR SI LA PARTE 3 GENERÓ UN RESULTADO PARA GUARDAR
+# 1. VERIFICAR SI DEBE GUARDARSE EL RESULTADO
 # ============================================================
 
 if (
@@ -14658,7 +14607,7 @@ if (
 
 
         # ====================================================
-        # 6. VERIFICAR QUE EXISTA
+        # 6. VERIFICAR RESULTADO
         # ====================================================
 
         if resultado_temporal is None:
@@ -14672,7 +14621,7 @@ if (
         else:
 
             # =================================================
-            # 7. CLAVE PARA EVITAR DUPLICADOS
+            # 7. CLAVE DE PERSISTENCIA
             # =================================================
 
             clave_persistencia = (
@@ -14684,7 +14633,7 @@ if (
 
 
             # =================================================
-            # 8. SOLO PROCESAR SI NO SE HA GUARDADO
+            # 8. EVITAR DUPLICAR EL REGISTRO
             # =================================================
 
             if not st.session_state.get(
@@ -14693,7 +14642,7 @@ if (
             ):
 
                 # =============================================
-                # 9. OBTENER DATOS DE LA EVALUACIÓN
+                # 9. DATOS DE LA EVALUACIÓN
                 # =============================================
 
                 modulo = ""
@@ -14704,13 +14653,14 @@ if (
                     "Evaluación general"
                 )
 
+                # Estos campos NO aplican para evaluación general
                 nombre_evaluacion = ""
 
                 descripcion = ""
 
 
                 # =============================================
-                # 10. OBTENER PREGUNTAS
+                # 10. OBTENER DATAFRAME DE PREGUNTAS
                 # =============================================
 
                 df_preguntas = (
@@ -14849,6 +14799,9 @@ if (
 
                 # =============================================
                 # 14. COLUMNAS EXACTAS DEL HISTORIAL
+                #
+                # Se mantiene "Hoa_Diligenciamiento"
+                # porque así está actualmente el archivo.
                 # =============================================
 
                 columnas_historial = [
@@ -14871,7 +14824,7 @@ if (
 
 
                 # =============================================
-                # 15. RUTA DEL ARCHIVO
+                # 15. RUTA EXACTA EN GITHUB
                 # =============================================
 
                 ruta_github = (
@@ -14889,7 +14842,7 @@ if (
 
 
                 # =============================================
-                # 16. ENCABEZADOS
+                # 16. ENCABEZADOS DE GITHUB
                 # =============================================
 
                 headers_github = {
@@ -15033,7 +14986,7 @@ if (
 
 
                         # =====================================
-                        # 22. CONSERVAR ORDEN
+                        # 22. CONSERVAR ORDEN DE COLUMNAS
                         # =====================================
 
                         df_historial = (
@@ -15077,8 +15030,6 @@ if (
 
                         # =====================================
                         # 25. COMPROBAR SI YA TIENE NOTA
-                        #
-                        # Evaluacion_ID + Usuario
                         # =====================================
 
                         ya_tiene_nota = (
@@ -15134,7 +15085,7 @@ if (
                         else:
 
                             # =================================
-                            # CREAR NUEVO REGISTRO
+                            # CREAR REGISTRO
                             # =================================
 
                             nuevo_registro = {
@@ -15184,7 +15135,7 @@ if (
 
 
                             # =================================
-                            # 28. DATAFRAME DEL REGISTRO
+                            # DATAFRAME DEL NUEVO REGISTRO
                             # =================================
 
                             df_nuevo_registro = pd.DataFrame(
@@ -15196,7 +15147,7 @@ if (
 
 
                             # =================================
-                            # 29. AGREGAR AL HISTORIAL
+                            # AGREGAR AL HISTORIAL
                             # =================================
 
                             df_historial_actualizado = pd.concat(
@@ -15209,7 +15160,7 @@ if (
 
 
                             # =================================
-                            # 30. GENERAR CSV
+                            # GENERAR CSV
                             # =================================
 
                             contenido_csv = (
@@ -15222,7 +15173,7 @@ if (
 
 
                             # =================================
-                            # 31. CODIFICAR CSV
+                            # CODIFICAR CSV
                             # =================================
 
                             contenido_base64_nuevo = (
@@ -15238,7 +15189,7 @@ if (
 
 
                             # =================================
-                            # 32. DATOS PARA GITHUB
+                            # PREPARAR ACTUALIZACIÓN
                             # =================================
 
                             datos_put = {
@@ -15258,7 +15209,7 @@ if (
 
 
                             # =================================
-                            # 33. ACTUALIZAR GITHUB
+                            # ACTUALIZAR GITHUB
                             # =================================
 
                             respuesta_put = requests.put(
@@ -15270,7 +15221,7 @@ if (
 
 
                             # =================================
-                            # 34. CONFIRMAR PERSISTENCIA
+                            # CONFIRMAR PERSISTENCIA
                             # =================================
 
                             if (
@@ -15341,5 +15292,4 @@ if (
                     st.code(
                         str(error_historial)
                     )
-
 
