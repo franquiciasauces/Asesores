@@ -12883,9 +12883,6 @@ if (
 
             # =================================================
             # 5. NORMALIZAR NOMBRES DE COLUMNAS
-            #
-            # No se modifican los nombres.
-            # Solo se eliminan espacios accidentales.
             # =================================================
 
             df_evaluaciones_generales.columns = (
@@ -12955,7 +12952,7 @@ if (
 
 
                 # =================================================
-                # 8. GUARDAR ARCHIVO MADRE EN SESSION STATE
+                # 8. GUARDAR ARCHIVO MADRE EN MEMORIA
                 # =================================================
 
                 st.session_state[
@@ -12966,12 +12963,7 @@ if (
 
 
                 # =================================================
-                # 9. FILTRAR EVALUACIONES DISPONIBLES
-                #
-                # El archivo madre contiene el estado de cada
-                # evaluación.
-                #
-                # Solo se muestran las que ya están persistidas.
+                # 9. FILTRAR SOLO EVALUACIONES PERSISTIDAS
                 # =================================================
 
                 df_evaluaciones_disponibles = (
@@ -13008,18 +13000,6 @@ if (
 
                     # =================================================
                     # 11. OBTENER MÓDULOS DIRECTAMENTE DEL ARCHIVO
-                    #
-                    # IMPORTANTE:
-                    # No se utiliza una lista fija.
-                    #
-                    # Si actualmente existe solamente:
-                    #
-                    # Patologias
-                    #
-                    # solamente se mostrará Patologias.
-                    #
-                    # Cuando aparezcan otros módulos en EVALUACIONES.csv,
-                    # aparecerán automáticamente.
                     # =================================================
 
                     modulos_disponibles = (
@@ -13081,17 +13061,13 @@ if (
 
 
                         # =================================================
-                        # 14. CONTINUAR SI SE SELECCIONÓ MÓDULO
+                        # 14. FILTRAR POR MÓDULO
                         # =================================================
 
                         if (
                             modulo_seleccionado
                             != "Seleccione un módulo"
                         ):
-
-                            # =============================================
-                            # 15. FILTRAR POR MÓDULO
-                            # =============================================
 
                             df_modulo_general = (
                                 df_evaluaciones_disponibles[
@@ -13106,13 +13082,9 @@ if (
                             )
 
 
-                            # =============================================
-                            # 16. OBTENER NIVELES DEL MÓDULO
-                            #
-                            # Se leen directamente de la columna Nivel.
-                            #
-                            # No se supone que existan Nivel 1 y Nivel 2.
-                            # =============================================
+                            # =================================================
+                            # 15. OBTENER NIVELES DISPONIBLES
+                            # =================================================
 
                             niveles_disponibles = (
                                 df_modulo_general[
@@ -13132,12 +13104,9 @@ if (
                             )
 
 
-                            # =============================================
-                            # ORDENAR NIVELES
-                            #
-                            # Nivel 1 primero, Nivel 2 después.
-                            # Si aparece otro nivel, también se conserva.
-                            # =============================================
+                            # =================================================
+                            # 16. ORDENAR NIVELES
+                            # =================================================
 
                             niveles_disponibles = sorted(
                                 niveles_disponibles,
@@ -13156,9 +13125,9 @@ if (
                             )
 
 
-                            # =============================================
+                            # =================================================
                             # 17. VERIFICAR NIVELES
-                            # =============================================
+                            # =================================================
 
                             if not niveles_disponibles:
 
@@ -13174,9 +13143,9 @@ if (
 
                             else:
 
-                                # =========================================
+                                # =================================================
                                 # 18. SELECCIONAR NIVEL
-                                # =========================================
+                                # =================================================
 
                                 st.markdown(
                                     "### 2. Seleccione el nivel"
@@ -13197,18 +13166,14 @@ if (
                                 )
 
 
-                                # =========================================
-                                # 19. CONTINUAR SI SE SELECCIONÓ NIVEL
-                                # =========================================
+                                # =================================================
+                                # 19. FILTRAR POR MÓDULO Y NIVEL
+                                # =================================================
 
                                 if (
                                     nivel_seleccionado
                                     != "Seleccione un nivel"
                                 ):
-
-                                    # =====================================
-                                    # 20. FILTRAR POR MÓDULO Y NIVEL
-                                    # =====================================
 
                                     df_modulo_nivel = (
                                         df_modulo_general[
@@ -13223,17 +13188,11 @@ if (
                                     )
 
 
-                                    # =====================================
-                                    # 21. OBTENER TIPOS DE RELACIÓN
+                                    # =================================================
+                                    # 20. OBTENER TIPOS DE RELACIÓN
                                     #
-                                    # Tipo_Relacion NO es obligatorio.
-                                    #
-                                    # Si existen relaciones, se ofrece
-                                    # "Todas".
-                                    #
-                                    # Si no existen, simplemente se
-                                    # continúa sin este filtro.
-                                    # =====================================
+                                    # Tipo_Relacion es opcional.
+                                    # =================================================
 
                                     tipos_relacion = (
                                         df_modulo_nivel[
@@ -13254,9 +13213,9 @@ if (
                                     )
 
 
-                                    # =====================================
-                                    # 22. SELECCIONAR TIPO DE RELACIÓN
-                                    # =====================================
+                                    # =================================================
+                                    # 21. SELECCIÓN OPCIONAL DE TIPO DE RELACIÓN
+                                    # =================================================
 
                                     if tipos_relacion:
 
@@ -13286,9 +13245,9 @@ if (
                                         )
 
 
-                                    # =====================================
-                                    # 23. APLICAR FILTRO DE RELACIÓN
-                                    # =====================================
+                                    # =================================================
+                                    # 22. FILTRAR POR TIPO DE RELACIÓN
+                                    # =================================================
 
                                     if (
                                         tipo_relacion_seleccionado
@@ -13314,9 +13273,9 @@ if (
                                         )
 
 
-                                    # =====================================
-                                    # 24. VERIFICAR EVALUACIONES FINALES
-                                    # =====================================
+                                    # =================================================
+                                    # 23. VERIFICAR EVALUACIONES
+                                    # =================================================
 
                                     if (
                                         df_evaluaciones_finales.empty
@@ -13335,44 +13294,12 @@ if (
 
                                     else:
 
-                                        # =================================
-                                        # 25. MOSTRAR EVALUACIONES
-                                        # =================================
-
-                                        st.markdown(
-                                            "### 4. Evaluaciones disponibles"
-                                        )
-
-
-                                        columnas_mostrar = [
-                                            "Evaluacion_ID",
-                                            "Modulo",
-                                            "Tipo_Relacion",
-                                            "Nivel",
-                                            "Cantidad_Preguntas",
-                                            "Preguntas_Aprobadas",
-                                            "Estado_Evaluacion"
-                                        ]
-
-
-                                        st.dataframe(
-                                            df_evaluaciones_finales[
-                                                columnas_mostrar
-                                            ],
-                                            use_container_width=True,
-                                            hide_index=True
-                                        )
-
-
-                                        # =================================
-                                        # 26. SELECCIONAR EVALUACIÓN
-                                        # =================================
-
-                                        st.markdown(
-                                            "### 5. Seleccione la evaluación "
-                                            "que realizará"
-                                        )
-
+                                        # =================================================
+                                        # 24. OBTENER SOLO LOS Evaluacion_ID
+                                        #
+                                        # El asesor no necesita ver las demás
+                                        # columnas técnicas del repositorio.
+                                        # =================================================
 
                                         opciones_evaluaciones = (
                                             df_evaluaciones_finales[
@@ -13380,7 +13307,17 @@ if (
                                             ]
                                             .astype(str)
                                             .str.strip()
+                                            .drop_duplicates()
                                             .tolist()
+                                        )
+
+
+                                        # =================================================
+                                        # 25. SELECCIONAR EVALUACIÓN
+                                        # =================================================
+
+                                        st.markdown(
+                                            "### 4. Seleccione la evaluación"
                                         )
 
 
@@ -13398,9 +13335,9 @@ if (
                                         )
 
 
-                                        # =================================
-                                        # 27. GUARDAR SELECCIÓN TEMPORAL
-                                        # =================================
+                                        # =================================================
+                                        # 26. GUARDAR EVALUACIÓN SELECCIONADA
+                                        # =================================================
 
                                         if (
                                             evaluacion_seleccionada
@@ -13413,7 +13350,6 @@ if (
                                                 evaluacion_seleccionada
                                             )
 
-
                                             st.success(
                                                 "Evaluación seleccionada: "
                                                 + evaluacion_seleccionada
@@ -13425,3 +13361,5 @@ if (
                                                 "evaluacion_general_ejecucion_id",
                                                 None
                                             )
+
+
