@@ -13364,9 +13364,8 @@ if (
 
 
 # ============================================================
-# ============================================================
 # EVALUACIÓN GENERAL
-# PARTE 2 — CARGAR PREGUNTAS DE LA EVALUACIÓN SELECCIONADA
+# PARTE 2 — CARGAR Y RESPONDER LA EVALUACIÓN
 # ============================================================
 
 if (
@@ -13411,17 +13410,6 @@ if (
 
             # =================================================
             # 3. BUSCAR EL ARCHIVO INDIVIDUAL
-            #
-            # El nombre del archivo debe corresponder
-            # exactamente al Evaluacion_ID seleccionado.
-            #
-            # Ejemplo:
-            #
-            # Evaluacion_ID:
-            # PATOLOGIAS_DESCRIPCION_PATOLOGIA_NIVEL_1_0001
-            #
-            # Archivo:
-            # PATOLOGIAS_DESCRIPCION_PATOLOGIA_NIVEL_1_0001.csv
             # =================================================
 
             archivo_evaluacion = None
@@ -13449,7 +13437,7 @@ if (
                     break
 
             # =================================================
-            # 4. VERIFICAR SI SE ENCONTRÓ
+            # 4. VERIFICAR ARCHIVO
             # =================================================
 
             if archivo_evaluacion is None:
@@ -13459,10 +13447,6 @@ if (
                     "correspondiente a la evaluación seleccionada."
                 )
 
-                st.write(
-                    "Evaluacion_ID buscado:"
-                )
-
                 st.code(
                     evaluacion_id
                 )
@@ -13470,7 +13454,7 @@ if (
             else:
 
                 # =================================================
-                # 5. CARGAR ÚNICAMENTE EL ARCHIVO ENCONTRADO
+                # 5. CARGAR ARCHIVO
                 # =================================================
 
                 try:
@@ -13507,7 +13491,7 @@ if (
                     )
 
                     # =================================================
-                    # 7. VERIFICAR ESTRUCTURA
+                    # 7. VERIFICAR COLUMNAS
                     # =================================================
 
                     columnas_necesarias = [
@@ -13560,8 +13544,7 @@ if (
                         )
 
                         # =================================================
-                        # 9. TOMAR ÚNICAMENTE LAS PREGUNTAS
-                        #    DE ESTA EVALUACIÓN
+                        # 9. FILTRAR EVALUACIÓN
                         # =================================================
 
                         df_preguntas = (
@@ -13588,22 +13571,21 @@ if (
                         )
 
                         # =================================================
-                        # 11. VERIFICAR QUE HAYA PREGUNTAS
+                        # 11. VERIFICAR PREGUNTAS
                         # =================================================
 
                         if df_preguntas.empty:
 
                             st.error(
-                                "El archivo de la evaluación fue "
-                                "encontrado, pero no contiene "
-                                "preguntas asociadas al "
-                                "Evaluacion_ID seleccionado."
+                                "El archivo fue encontrado, "
+                                "pero no contiene preguntas "
+                                "para esta evaluación."
                             )
 
                         else:
 
                             # =================================================
-                            # 12. GUARDAR EN SESSION STATE
+                            # 12. GUARDAR PREGUNTAS
                             # =================================================
 
                             st.session_state[
@@ -13613,44 +13595,169 @@ if (
                             )
 
                             # =================================================
-                            # 13. INFORMACIÓN DE CONTROL
+                            # 13. IDENTIFICAR NIVEL
                             # =================================================
 
-                            st.success(
-                                "Evaluación cargada correctamente."
+                            niveles = (
+                                df_preguntas[
+                                    "Nivel"
+                                ]
+                                .astype(str)
+                                .str.strip()
+                                .unique()
+                                .tolist()
                             )
 
-                            st.write(
-                                "Evaluación seleccionada:",
-                                evaluacion_id
-                            )
+                            nivel = ""
 
-                            st.write(
-                                "Archivo cargado:",
-                                str(
-                                    archivo_evaluacion.relative_to(
-                                        BASE_DIR
-                                    )
-                                )
-                            )
+                            if len(niveles) == 1:
 
-                            st.write(
-                                "Cantidad de preguntas:",
-                                len(df_preguntas)
-                            )
+                                nivel = niveles[0]
+
+                            elif (
+                                "Nivel 2"
+                                in niveles
+                            ):
+
+                                nivel = "Nivel 2"
+
+                            elif (
+                                "Nivel 1"
+                                in niveles
+                            ):
+
+                                nivel = "Nivel 1"
 
                             # =================================================
-                            # 14. MOSTRAR PREGUNTAS
+                            # 14. MENSAJE SEGÚN NIVEL
                             # =================================================
 
                             st.divider()
 
-                            st.subheader(
-                                "Preguntas de la evaluación"
+                            if nivel == "Nivel 2":
+
+                                st.info(
+                                    "Vas a responder una evaluación "
+                                    "nivel 2. En razón de ello debes "
+                                    "seleccionar las dos respuestas "
+                                    "que consideres correctas de "
+                                    "acuerdo con el enunciado de "
+                                    "cada pregunta."
+                                )
+
+                            elif nivel == "Nivel 1":
+
+                                st.info(
+                                    "Vas a responder una evaluación "
+                                    "nivel 1. En razón de ello debes "
+                                    "seleccionar la respuesta que "
+                                    "consideres correcta de acuerdo "
+                                    "con el enunciado de cada pregunta."
+                                )
+
+                            else:
+
+                                st.info(
+                                    "Seleccione las respuestas "
+                                    "que considere correctas de "
+                                    "acuerdo con cada enunciado."
+                                )
+
+                            # =================================================
+                            # 15. INICIALIZAR RESPUESTAS
+                            # =================================================
+
+                            clave_respuestas = (
+                                "respuestas_evaluacion_general_"
+                                + evaluacion_id
+                            )
+
+                            if (
+                                clave_respuestas
+                                not in st.session_state
+                            ):
+
+                                st.session_state[
+                                    clave_respuestas
+                                ] = {}
+
+                            respuestas_usuario = (
+                                st.session_state[
+                                    clave_respuestas
+                                ]
                             )
 
                             # =================================================
-                            # 15. RECORRER TODAS LAS PREGUNTAS
+                            # 16. CONTADOR DE PREGUNTAS RESPONDIDAS
+                            # =================================================
+
+                            preguntas_respondidas = 0
+
+                            for indice, fila in (
+                                df_preguntas
+                                .reset_index(
+                                    drop=True
+                                )
+                                .iterrows()
+                            ):
+
+                                pregunta_id = str(
+                                    fila[
+                                        "Pregunta_ID"
+                                    ]
+                                ).strip()
+
+                                if (
+                                    nivel == "Nivel 2"
+                                ):
+
+                                    respuesta_guardada = (
+                                        respuestas_usuario.get(
+                                            pregunta_id,
+                                            []
+                                        )
+                                    )
+
+                                    if (
+                                        isinstance(
+                                            respuesta_guardada,
+                                            list
+                                        )
+                                        and len(
+                                            respuesta_guardada
+                                        ) == 2
+                                    ):
+
+                                        preguntas_respondidas += 1
+
+                                else:
+
+                                    respuesta_guardada = (
+                                        respuestas_usuario.get(
+                                            pregunta_id,
+                                            ""
+                                        )
+                                    )
+
+                                    if respuesta_guardada:
+
+                                        preguntas_respondidas += 1
+
+                            # =================================================
+                            # 17. MOSTRAR CONTADOR
+                            # =================================================
+
+                            st.metric(
+                                "Preguntas respondidas",
+                                f"{preguntas_respondidas} "
+                                f"de "
+                                f"{len(df_preguntas)}"
+                            )
+
+                            st.divider()
+
+                            # =================================================
+                            # 18. MOSTRAR PREGUNTAS
                             # =================================================
 
                             for indice, fila in (
@@ -13664,6 +13771,12 @@ if (
                                 numero_pregunta = (
                                     indice + 1
                                 )
+
+                                pregunta_id = str(
+                                    fila[
+                                        "Pregunta_ID"
+                                    ]
+                                ).strip()
 
                                 st.markdown(
                                     f"### Pregunta "
@@ -13683,88 +13796,269 @@ if (
                                 )
 
                                 # -----------------------------------------
-                                # INFORMACIÓN DE CONTROL
+                                # RESPUESTAS DISPONIBLES
                                 # -----------------------------------------
 
-                                st.caption(
-                                    "Pregunta_ID: "
-                                    + str(
-                                        fila[
-                                            "Pregunta_ID"
-                                        ]
+                                opciones_respuesta = []
+
+                                for numero_respuesta in range(
+                                    1,
+                                    5
+                                ):
+
+                                    columna_respuesta = (
+                                        "Respuesta_"
+                                        + str(
+                                            numero_respuesta
+                                        )
                                     )
-                                )
 
-                                st.caption(
-                                    "Nivel: "
-                                    + str(
-                                        fila[
-                                            "Nivel"
-                                        ]
+                                    texto_respuesta = str(
+                                        fila.get(
+                                            columna_respuesta,
+                                            ""
+                                        )
+                                    ).strip()
+
+                                    if texto_respuesta:
+
+                                        opciones_respuesta.append(
+                                            (
+                                                numero_respuesta,
+                                                texto_respuesta
+                                            )
+                                        )
+
+                                # =========================================
+                                # NIVEL 2
+                                # =========================================
+
+                                if nivel == "Nivel 2":
+
+                                    seleccionadas = (
+                                        respuestas_usuario.get(
+                                            pregunta_id,
+                                            []
+                                        )
                                     )
-                                )
 
-                                # -----------------------------------------
-                                # RESPUESTA 1
-                                # -----------------------------------------
+                                    if not isinstance(
+                                        seleccionadas,
+                                        list
+                                    ):
 
-                                st.write(
-                                    "Respuesta 1:",
-                                    str(
-                                        fila[
-                                            "Respuesta_1"
-                                        ]
+                                        seleccionadas = []
+
+                                    for (
+                                        numero_respuesta,
+                                        texto_respuesta
+                                    ) in opciones_respuesta:
+
+                                        marcada = (
+                                            numero_respuesta
+                                            in seleccionadas
+                                        )
+
+                                        nueva_marcacion = (
+                                            st.checkbox(
+                                                texto_respuesta,
+                                                value=marcada,
+                                                key=(
+                                                    "eval_general_"
+                                                    + evaluacion_id
+                                                    + "_"
+                                                    + pregunta_id
+                                                    + "_respuesta_"
+                                                    + str(
+                                                        numero_respuesta
+                                                    )
+                                                )
+                                            )
+                                        )
+
+                                        if nueva_marcacion:
+
+                                            if (
+                                                numero_respuesta
+                                                not in seleccionadas
+                                            ):
+
+                                                seleccionadas.append(
+                                                    numero_respuesta
+                                                )
+
+                                        else:
+
+                                            if (
+                                                numero_respuesta
+                                                in seleccionadas
+                                            ):
+
+                                                seleccionadas.remove(
+                                                    numero_respuesta
+                                                )
+
+                                    # -------------------------------------
+                                    # MÁXIMO DOS RESPUESTAS
+                                    # -------------------------------------
+
+                                    if len(
+                                        seleccionadas
+                                    ) > 2:
+
+                                        st.warning(
+                                            "Debe seleccionar "
+                                            "solamente dos respuestas "
+                                            "para esta pregunta."
+                                        )
+
+                                    respuestas_usuario[
+                                        pregunta_id
+                                    ] = seleccionadas
+
+                                # =========================================
+                                # NIVEL 1
+                                # =========================================
+
+                                else:
+
+                                    opciones_texto = [
+                                        texto
+                                        for (
+                                            numero,
+                                            texto
+                                        )
+                                        in opciones_respuesta
+                                    ]
+
+                                    valores_opciones = [
+                                        str(numero)
+                                        for (
+                                            numero,
+                                            texto
+                                        )
+                                        in opciones_respuesta
+                                    ]
+
+                                    respuesta_actual = (
+                                        respuestas_usuario.get(
+                                            pregunta_id,
+                                            ""
+                                        )
                                     )
-                                )
 
-                                # -----------------------------------------
-                                # RESPUESTA 2
-                                # -----------------------------------------
-
-                                st.write(
-                                    "Respuesta 2:",
-                                    str(
-                                        fila[
-                                            "Respuesta_2"
-                                        ]
+                                    seleccion = st.radio(
+                                        "Seleccione una respuesta:",
+                                        opciones_texto,
+                                        index=(
+                                            opciones_texto.index(
+                                                next(
+                                                    (
+                                                        texto
+                                                        for (
+                                                            numero,
+                                                            texto
+                                                        )
+                                                        in opciones_respuesta
+                                                        if str(
+                                                            numero
+                                                        )
+                                                        == str(
+                                                            respuesta_actual
+                                                        )
+                                                    ),
+                                                    ""
+                                                )
+                                            )
+                                            if any(
+                                                str(numero)
+                                                == str(
+                                                    respuesta_actual
+                                                )
+                                                for (
+                                                    numero,
+                                                    texto
+                                                )
+                                                in opciones_respuesta
+                                            )
+                                            else None
+                                        ),
+                                        key=(
+                                            "eval_general_"
+                                            + evaluacion_id
+                                            + "_"
+                                            + pregunta_id
+                                        )
                                     )
-                                )
 
-                                # -----------------------------------------
-                                # RESPUESTA 3
-                                # -----------------------------------------
+                                    if seleccion:
 
-                                st.write(
-                                    "Respuesta 3:",
-                                    str(
-                                        fila[
-                                            "Respuesta_3"
-                                        ]
-                                    )
-                                )
+                                        numero_seleccionado = (
+                                            next(
+                                                (
+                                                    numero
+                                                    for (
+                                                        numero,
+                                                        texto
+                                                    )
+                                                    in opciones_respuesta
+                                                    if texto
+                                                    == seleccion
+                                                ),
+                                                ""
+                                            )
+                                        )
 
-                                # -----------------------------------------
-                                # RESPUESTA 4
-                                # -----------------------------------------
-
-                                st.write(
-                                    "Respuesta 4:",
-                                    str(
-                                        fila[
-                                            "Respuesta_4"
-                                        ]
-                                    )
-                                )
+                                        respuestas_usuario[
+                                            pregunta_id
+                                        ] = (
+                                            numero_seleccionado
+                                        )
 
                                 st.divider()
 
-                except Exception as error:
+                            # =================================================
+                            # 19. ACTUALIZAR CONTADOR
+                            # =================================================
 
-                    st.error(
-                        "No fue posible cargar el archivo "
-                        "de la evaluación."
-                    )
+                            preguntas_respondidas_final = 0
 
-                    st.code(
-                        str(error)
-                    )
+                            for (
+                                pregunta_id,
+                                respuesta
+                            ) in respuestas_usuario.items():
+
+                                if nivel == "Nivel 2":
+
+                                    if (
+                                        isinstance(
+                                            respuesta,
+                                            list
+                                        )
+                                        and len(
+                                            respuesta
+                                        ) == 2
+                                    ):
+
+                                        preguntas_respondidas_final += 1
+
+                                else:
+
+                                    if respuesta:
+
+                                        preguntas_respondidas_final += 1
+
+                            st.metric(
+                                "Preguntas respondidas",
+                                f"{preguntas_respondidas_final} "
+                                f"de "
+                                f"{len(df_preguntas)}"
+                            )
+
+                            # =================================================
+                            # 20. GUARDAR RESPUESTAS TEMPORALES
+                            # =================================================
+
+                            st.session_state[
+                                clave_respuestas
+                            ] = respuestas_usuario
