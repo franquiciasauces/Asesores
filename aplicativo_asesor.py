@@ -3924,6 +3924,7 @@ if (
                     key="resultado_busqueda_patologia"
                 )
 
+                
                 if (
                     seleccion
                     != "Seleccione una patologia"
@@ -3935,10 +3936,51 @@ if (
                         .strip()
                     )
 
-                    mostrar_ficha_patologia(
+                    patologia_ficha = Patologias[
+                        Patologias.iloc[:, 0]
+                        .astype(str)
+                        .str.strip()
+                        ==
                         codigo_seleccionado
+                    ]
+
+                if not patologia_ficha.empty:
+
+                    datos = patologia_ficha.iloc[0]
+
+                    st.divider()
+
+                    st.subheader(
+                        "Ficha completa de la patologia"
                     )
 
+                    st.write(
+                        f"**Código:** {datos.iloc[0]}"
+                    )
+
+                    st.write(
+                        f"**Patología:** {datos.iloc[1]}"
+                    )
+
+                    st.write(
+                        f"**Descripción breve:** {datos.iloc[2]}"
+                    )
+
+                    st.write(
+                        f"**Causas frecuentes:** {datos.iloc[3]}"
+                    )
+
+                    st.write(
+                        f"**Síntomas / Señales clave:** {datos.iloc[4]}"
+                    )
+
+                    st.write(
+                        f"**Objetivo del paquete:** {datos.iloc[5]}"
+                    )
+
+                    st.write(
+                        f"**Notas para el asesor:** {datos.iloc[6]}"
+                    )                
 # ============================================================
 # ============================================================
 # 3. PATOLOGÍA → CAUSA Y SÍNTOMA
