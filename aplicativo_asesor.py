@@ -9364,7 +9364,7 @@ elif opcion_principal == "ASESORÍA":
         # EVALUAR REGLAS
         # ====================================================
 
-        else:
+        
 
             reglas_activadas = []
 
