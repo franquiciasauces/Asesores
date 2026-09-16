@@ -6384,45 +6384,6 @@ if (
             ] = True
 
             st.rerun()
-
-# =============================================
-# NAVEGACIÓN
-# =============================================
-
-        st.divider()
-
-        siguiente_accion_sintoma = st.selectbox(
-            "¿Qué desea hacer ahora?",
-            [
-                "Seleccione una opción",
-                "Realizar otra búsqueda",
-                "Ir al menú principal"
-            ],
-            key=(
-                "navegacion_sintoma_patologia"
-            )
-        )
-
-        if (
-            siguiente_accion_sintoma
-            == "Realizar otra búsqueda"
-        ):
-
-            st.info(
-                "Ingrese nuevamente uno o varios síntomas "
-                "separados por coma."
-            )
-
-        elif (
-            siguiente_accion_sintoma
-            == "Ir al menú principal"
-        ):
-
-            st.session_state[
-                "volver_menu_principal"
-            ] = True
-
-            st.rerun()
 # ============================================================
 # BLOQUE — RESTRICCIONES
 # ============================================================
