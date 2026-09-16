@@ -8283,26 +8283,6 @@ elif opcion_principal == "ASESORÍA":
 
                 return ""
 
-            # ------------------------------------------------
-            # BOOLEANOS
-            # ------------------------------------------------
-
-            if isinstance(
-                valor,
-                bool
-            ):
-
-                return (
-                    "si"
-                    if valor
-                    else
-                    "no"
-                )
-
-            # ------------------------------------------------
-            # CONVERTIR A TEXTO
-            # ------------------------------------------------
-
             texto = (
                 unidecode(
                     str(valor)
@@ -8311,9 +8291,9 @@ elif opcion_principal == "ASESORÍA":
                 .lower()
             )
 
-            # ------------------------------------------------
+            # -----------------------------------------------
             # QUITAR COMILLAS EXTERNAS
-            # ------------------------------------------------
+            # -----------------------------------------------
 
             if (
                 len(texto) >= 2
@@ -8323,10 +8303,7 @@ elif opcion_principal == "ASESORÍA":
                 texto[-1] == '"'
             ):
 
-                texto = (
-                    texto[1:-1]
-                    .strip()
-                )
+                texto = texto[1:-1].strip()
 
             elif (
                 len(texto) >= 2
@@ -8336,20 +8313,7 @@ elif opcion_principal == "ASESORÍA":
                 texto[-1] == "'"
             ):
 
-                texto = (
-                    texto[1:-1]
-                    .strip()
-                )
-
-            # ------------------------------------------------
-            # TOLERAR COMILLAS SUELTAS
-            # ------------------------------------------------
-
-            texto = texto.strip(
-                '"'
-                "'"
-                " "
-            )
+                texto = texto[1:-1].strip()
 
             return texto
 
@@ -8366,46 +8330,36 @@ elif opcion_principal == "ASESORÍA":
                 .upper()
             )
 
-            if not condicion_id:
-
-                return None
-
-            # ------------------------------------------------
+            # -----------------------------------------------
             # BÚSQUEDA DIRECTA
-            # ------------------------------------------------
+            # -----------------------------------------------
 
             if condicion_id in (
                 respuestas_por_condicion
             ):
 
-                return (
-                    respuestas_por_condicion[
-                        condicion_id
-                    ]
-                )
+                return respuestas_por_condicion[
+                    condicion_id
+                ]
 
-            # ------------------------------------------------
+            # -----------------------------------------------
             # BÚSQUEDA INSENSIBLE A MAYÚSCULAS
-            # ------------------------------------------------
+            # -----------------------------------------------
 
-            for clave, respuesta in (
+            for clave, valor in (
                 respuestas_por_condicion.items()
             ):
 
-                clave_normalizada = (
+                if (
                     str(
                         clave
                     )
                     .strip()
                     .upper()
-                )
-
-                if (
-                    clave_normalizada
                     == condicion_id
                 ):
 
-                    return respuesta
+                    return valor
 
             return None
 
@@ -8436,9 +8390,9 @@ elif opcion_principal == "ASESORÍA":
                     enumerate(expresion)
                 ):
 
-                    # ----------------------------------------
-                    # COMILLAS
-                    # ----------------------------------------
+                    # ---------------------------------------
+                    # CONTROL DE COMILLAS
+                    # ---------------------------------------
 
                     if caracter in (
                         '"',
@@ -8448,9 +8402,7 @@ elif opcion_principal == "ASESORÍA":
                         if not dentro_comillas:
 
                             dentro_comillas = True
-                            comilla_actual = (
-                                caracter
-                            )
+                            comilla_actual = caracter
 
                         elif (
                             caracter
@@ -8466,9 +8418,9 @@ elif opcion_principal == "ASESORÍA":
 
                         continue
 
-                    # ----------------------------------------
-                    # PARÉNTESIS
-                    # ----------------------------------------
+                    # ---------------------------------------
+                    # CONTROL DE PARÉNTESIS
+                    # ---------------------------------------
 
                     if caracter == "(":
 
@@ -8507,6 +8459,8 @@ elif opcion_principal == "ASESORÍA":
             operador
         ):
 
+            partes = []
+
             texto = str(
                 expresion
             )
@@ -8519,11 +8473,9 @@ elif opcion_principal == "ASESORÍA":
                 .upper()
             )
 
-            if not texto or not operador:
+            if not operador:
 
-                return []
-
-            partes = []
+                return partes
 
             nivel = 0
             inicio = 0
@@ -8532,8 +8484,8 @@ elif opcion_principal == "ASESORÍA":
             dentro_comillas = False
             comilla_actual = None
 
-            longitud_operador = len(
-                operador
+            longitud_operador = (
+                len(operador)
             )
 
             while posicion < len(texto):
@@ -8584,10 +8536,7 @@ elif opcion_principal == "ASESORÍA":
 
                 if caracter == ")":
 
-                    if nivel > 0:
-
-                        nivel -= 1
-
+                    nivel -= 1
                     posicion += 1
                     continue
 
@@ -8597,33 +8546,16 @@ elif opcion_principal == "ASESORÍA":
 
                 if nivel == 0:
 
-                    fragmento = (
-                        texto[
-                            posicion:
-                            posicion
-                            + longitud_operador
-                        ]
-                    )
+                    fragmento = texto[
+                        posicion:
+                        posicion
+                        + longitud_operador
+                    ]
 
                     if (
                         fragmento.upper()
                         == operador
                     ):
-
-                        # -----------------------------------
-                        # VERIFICAR LÍMITES DEL OPERADOR
-                        #
-                        # Esto permite:
-                        #
-                        # ... "OR C017
-                        #
-                        # y también:
-                        #
-                        # ... OR C017
-                        #
-                        # pero evita detectar OR dentro
-                        # de una palabra.
-                        # -----------------------------------
 
                         antes = (
                             texto[
@@ -8647,22 +8579,40 @@ elif opcion_principal == "ASESORÍA":
                             else ""
                         )
 
-                        antes_bloquea = (
-                            antes.isalnum()
+                        # -----------------------------------
+                        # OPERADORES LÓGICOS
+                        #
+                        # Deben estar delimitados como
+                        # palabras, pero NO se exige que
+                        # el operador recibido tenga espacios
+                        # alrededor.
+                        # -----------------------------------
+
+                        antes_valido = (
+                            posicion == 0
                             or
-                            antes == "_"
+                            not (
+                                antes.isalnum()
+                                or
+                                antes == "_"
+                            )
                         )
 
-                        despues_bloquea = (
-                            despues.isalnum()
+                        despues_valido = (
+                            despues_posicion
+                            >= len(texto)
                             or
-                            despues == "_"
+                            not (
+                                despues.isalnum()
+                                or
+                                despues == "_"
+                            )
                         )
 
                         if (
-                            not antes_bloquea
+                            antes_valido
                             and
-                            not despues_bloquea
+                            despues_valido
                         ):
 
                             partes.append(
@@ -8684,11 +8634,13 @@ elif opcion_principal == "ASESORÍA":
 
                 posicion += 1
 
-            # ------------------------------------------------
-            # AGREGAR ÚLTIMA PARTE
-            # ------------------------------------------------
+            # -----------------------------------------------
+            # SI ENCONTRÓ AL MENOS UN OPERADOR
+            # -----------------------------------------------
 
-            if partes:
+            if (
+                partes
+            ):
 
                 partes.append(
                     texto[
@@ -8714,10 +8666,6 @@ elif opcion_principal == "ASESORÍA":
                 .strip()
             )
 
-            # ------------------------------------------------
-            # QUITAR CORCHETES
-            # ------------------------------------------------
-
             if (
                 contenido.startswith("[")
                 and
@@ -8729,25 +8677,6 @@ elif opcion_principal == "ASESORÍA":
                     .strip()
                 )
 
-            # ------------------------------------------------
-            # QUITAR PARÉNTESIS
-            # ------------------------------------------------
-
-            elif (
-                contenido.startswith("(")
-                and
-                contenido.endswith(")")
-            ):
-
-                contenido = (
-                    contenido[1:-1]
-                    .strip()
-                )
-
-            if not contenido:
-
-                return []
-
             valores = []
 
             inicio = 0
@@ -8758,10 +8687,6 @@ elif opcion_principal == "ASESORÍA":
                 enumerate(contenido)
             ):
 
-                # --------------------------------------------
-                # COMILLAS
-                # --------------------------------------------
-
                 if caracter in (
                     '"',
                     "'"
@@ -8780,296 +8705,37 @@ elif opcion_principal == "ASESORÍA":
                         dentro_comillas = False
                         comilla_actual = None
 
-                    continue
-
-                # --------------------------------------------
-                # SEPARADORES
-                # --------------------------------------------
-
-                if (
-                    not dentro_comillas
+                elif (
+                    caracter == ","
                     and
-                    caracter in (
-                        ",",
-                        ";"
-                    )
+                    not dentro_comillas
                 ):
 
-                    valor = (
+                    valores.append(
                         contenido[
                             inicio:
                             posicion
                         ].strip()
                     )
 
-                    if valor:
-
-                        valores.append(
-                            normalizar_valor_regla(
-                                valor
-                            )
-                        )
-
                     inicio = (
                         posicion + 1
                     )
 
-            # ------------------------------------------------
-            # ÚLTIMO VALOR
-            # ------------------------------------------------
-
-            valor_final = (
+            valores.append(
                 contenido[
                     inicio:
                 ].strip()
             )
 
-            if valor_final:
-
-                valores.append(
-                    normalizar_valor_regla(
-                        valor_final
-                    )
-                )
-
             return [
-                valor
-                for valor in valores
-                if valor != ""
-            ]
-
-
-        def encontrar_operador_condicion(
-            expresion
-        ):
-
-            texto = str(
-                expresion
-            ).strip()
-
-            if not texto:
-
-                return (
-                    None,
-                    None,
-                    None
+                normalizar_valor_regla(
+                    valor
                 )
-
-            # ------------------------------------------------
-            # OPERADORES SIMBÓLICOS
-            #
-            # LOS MÁS LARGOS VAN PRIMERO
-            # ------------------------------------------------
-
-            operadores_simbolicos = [
-                ">=",
-                "<=",
-                "!=",
-                "==",
-                "=",
-                ">",
-                "<"
+                for valor
+                in valores
+                if valor.strip() != ""
             ]
-
-            dentro_comillas = False
-            comilla_actual = None
-
-            posicion = 0
-
-            while posicion < len(texto):
-
-                caracter = texto[
-                    posicion
-                ]
-
-                if caracter in (
-                    '"',
-                    "'"
-                ):
-
-                    if not dentro_comillas:
-
-                        dentro_comillas = True
-                        comilla_actual = caracter
-
-                    elif (
-                        caracter
-                        == comilla_actual
-                    ):
-
-                        dentro_comillas = False
-                        comilla_actual = None
-
-                    posicion += 1
-                    continue
-
-                if dentro_comillas:
-
-                    posicion += 1
-                    continue
-
-                for operador in (
-                    operadores_simbolicos
-                ):
-
-                    if texto[
-                        posicion:
-                        posicion
-                        + len(operador)
-                    ] == operador:
-
-                        return (
-                            texto[
-                                :posicion
-                            ].strip(),
-                            operador,
-                            texto[
-                                posicion
-                                + len(operador):
-                            ].strip()
-                        )
-
-                posicion += 1
-
-            # ------------------------------------------------
-            # OPERADORES DE TEXTO
-            # ------------------------------------------------
-
-            operadores_texto = [
-                "INCLUYE",
-                "CONTIENE",
-                "CONTAINS",
-                "IN"
-            ]
-
-            posicion = 0
-            dentro_comillas = False
-            comilla_actual = None
-
-            while posicion < len(texto):
-
-                caracter = texto[
-                    posicion
-                ]
-
-                if caracter in (
-                    '"',
-                    "'"
-                ):
-
-                    if not dentro_comillas:
-
-                        dentro_comillas = True
-                        comilla_actual = caracter
-
-                    elif (
-                        caracter
-                        == comilla_actual
-                    ):
-
-                        dentro_comillas = False
-                        comilla_actual = None
-
-                    posicion += 1
-                    continue
-
-                if dentro_comillas:
-
-                    posicion += 1
-                    continue
-
-                for operador in (
-                    operadores_texto
-                ):
-
-                    longitud = len(
-                        operador
-                    )
-
-                    fragmento = (
-                        texto[
-                            posicion:
-                            posicion
-                            + longitud
-                        ]
-                    )
-
-                    if (
-                        fragmento.upper()
-                        != operador
-                    ):
-
-                        continue
-
-                    antes = (
-                        texto[
-                            posicion - 1
-                        ]
-                        if posicion > 0
-                        else ""
-                    )
-
-                    despues_posicion = (
-                        posicion
-                        + longitud
-                    )
-
-                    despues = (
-                        texto[
-                            despues_posicion
-                        ]
-                        if despues_posicion
-                        < len(texto)
-                        else ""
-                    )
-
-                    antes_bloquea = (
-                        antes.isalnum()
-                        or
-                        antes == "_"
-                    )
-
-                    despues_bloquea = (
-                        despues.isalnum()
-                        or
-                        despues == "_"
-                    )
-
-                    if (
-                        antes_bloquea
-                        or
-                        despues_bloquea
-                    ):
-
-                        continue
-
-                    izquierda = (
-                        texto[
-                            :posicion
-                        ].strip()
-                    )
-
-                    derecha = (
-                        texto[
-                            despues_posicion:
-                        ].strip()
-                    )
-
-                    if izquierda:
-
-                        return (
-                            izquierda,
-                            operador,
-                            derecha
-                        )
-
-                posicion += 1
-
-            return (
-                None,
-                None,
-                None
-            )
 
 
         def evaluar_condicion_simple(
@@ -9086,86 +8752,289 @@ elif opcion_principal == "ASESORÍA":
 
                 return False
 
-            # ------------------------------------------------
+            # -----------------------------------------------
             # IDENTIFICAR OPERADOR
-            # ------------------------------------------------
+            # -----------------------------------------------
 
-            (
-                condicion_id,
-                operador_encontrado,
-                valor_esperado
-            ) = (
-                encontrar_operador_condicion(
-                    expresion
+            operadores_texto = [
+                "CONTAINS",
+                "INCLUYE",
+                "CONTIENE",
+                "IN"
+            ]
+
+            operador_encontrado = None
+            posicion_operador = None
+
+            dentro_comillas = False
+            comilla_actual = None
+
+            posicion = 0
+
+            while posicion < len(
+                expresion
+            ):
+
+                caracter = expresion[
+                    posicion
+                ]
+
+                # -------------------------------------------
+                # CONTROL DE COMILLAS
+                # -------------------------------------------
+
+                if caracter in (
+                    '"',
+                    "'"
+                ):
+
+                    if not dentro_comillas:
+
+                        dentro_comillas = True
+                        comilla_actual = caracter
+
+                    elif (
+                        caracter
+                        == comilla_actual
+                    ):
+
+                        dentro_comillas = False
+                        comilla_actual = None
+
+                    posicion += 1
+                    continue
+
+                if dentro_comillas:
+
+                    posicion += 1
+                    continue
+
+                texto_restante = (
+                    expresion[
+                        posicion:
+                    ]
                 )
-            )
 
-            # ------------------------------------------------
-            # SOPORTE PARA CONDICIONES ESCRITAS COMO:
-            #
-            # C010 "antecedentes"
-            #
-            # Es decir, sin operador explícito.
-            # Se interpreta como CONTIENE.
-            # ------------------------------------------------
+                texto_mayuscula = (
+                    texto_restante.upper()
+                )
+
+                # -------------------------------------------
+                # OPERADORES DE TEXTO
+                # -------------------------------------------
+
+                encontrado_texto = False
+
+                for operador in (
+                    operadores_texto
+                ):
+
+                    if texto_mayuscula.startswith(
+                        operador
+                    ):
+
+                        antes = (
+                            expresion[
+                                posicion - 1
+                            ]
+                            if posicion > 0
+                            else ""
+                        )
+
+                        despues_posicion = (
+                            posicion
+                            + len(operador)
+                        )
+
+                        despues = (
+                            expresion[
+                                despues_posicion
+                            ]
+                            if despues_posicion
+                            < len(expresion)
+                            else ""
+                        )
+
+                        antes_valido = (
+                            posicion == 0
+                            or
+                            not (
+                                antes.isalnum()
+                                or
+                                antes == "_"
+                            )
+                        )
+
+                        despues_valido = (
+                            despues_posicion
+                            >= len(expresion)
+                            or
+                            not (
+                                despues.isalnum()
+                                or
+                                despues == "_"
+                            )
+                        )
+
+                        if (
+                            antes_valido
+                            and
+                            despues_valido
+                        ):
+
+                            operador_encontrado = (
+                                operador
+                            )
+
+                            posicion_operador = (
+                                posicion
+                            )
+
+                            encontrado_texto = True
+
+                            break
+
+                if encontrado_texto:
+
+                    break
+
+                # -------------------------------------------
+                # OPERADORES NUMÉRICOS / IGUALDAD
+                # -------------------------------------------
+
+                if (
+                    caracter == "!"
+                    and
+                    posicion + 1
+                    < len(expresion)
+                    and
+                    expresion[
+                        posicion + 1
+                    ] == "="
+                ):
+
+                    operador_encontrado = (
+                        "!="
+                    )
+
+                    posicion_operador = (
+                        posicion
+                    )
+
+                    break
+
+                if (
+                    caracter == "<"
+                    and
+                    posicion + 1
+                    < len(expresion)
+                    and
+                    expresion[
+                        posicion + 1
+                    ] == "="
+                ):
+
+                    operador_encontrado = (
+                        "<="
+                    )
+
+                    posicion_operador = (
+                        posicion
+                    )
+
+                    break
+
+                if (
+                    caracter == ">"
+                    and
+                    posicion + 1
+                    < len(expresion)
+                    and
+                    expresion[
+                        posicion + 1
+                    ] == "="
+                ):
+
+                    operador_encontrado = (
+                        ">="
+                    )
+
+                    posicion_operador = (
+                        posicion
+                    )
+
+                    break
+
+                if caracter in (
+                    "=",
+                    ">",
+                    "<"
+                ):
+
+                    operador_encontrado = (
+                        caracter
+                    )
+
+                    posicion_operador = (
+                        posicion
+                    )
+
+                    break
+
+                posicion += 1
+
+            # -----------------------------------------------
+            # NO SE ENCONTRÓ OPERADOR
+            # -----------------------------------------------
 
             if (
                 operador_encontrado is None
+                or
+                posicion_operador is None
             ):
 
-                partes = (
-                    expresion.split(
-                        None,
-                        1
-                    )
-                )
-
-                if len(partes) == 2:
-
-                    condicion_id = (
-                        partes[0]
-                        .strip()
-                        .upper()
-                    )
-
-                    operador_encontrado = (
-                        "CONTIENE"
-                    )
-
-                    valor_esperado = (
-                        partes[1]
-                        .strip()
-                    )
-
-                else:
-
-                    return False
-
-            # ------------------------------------------------
-            # LIMPIAR ID
-            # ------------------------------------------------
+                return False
 
             condicion_id = (
-                str(
-                    condicion_id
-                )
+                expresion[
+                    :posicion_operador
+                ]
                 .strip()
                 .upper()
+            )
+
+            valor_esperado = (
+                expresion[
+                    posicion_operador
+                    + len(
+                        operador_encontrado
+                    ):
+                ]
+                .strip()
+            )
+
+            # -----------------------------------------------
+            # LIMPIAR CONDICION_ID
+            # -----------------------------------------------
+
+            condicion_id = (
+                condicion_id
+                .strip()
             )
 
             if not condicion_id:
 
                 return False
 
-            # ------------------------------------------------
-            # OBTENER RESPUESTA
-            # ------------------------------------------------
-
             respuesta = (
                 obtener_respuesta_condicion(
                     condicion_id
                 )
             )
+
+            # -----------------------------------------------
+            # SIN RESPUESTA
+            # -----------------------------------------------
 
             if (
                 respuesta is None
@@ -9177,9 +9046,9 @@ elif opcion_principal == "ASESORÍA":
 
                 return False
 
-            # ------------------------------------------------
+            # -----------------------------------------------
             # NORMALIZAR RESPUESTAS
-            # ------------------------------------------------
+            # -----------------------------------------------
 
             if isinstance(
                 respuesta,
@@ -9192,7 +9061,11 @@ elif opcion_principal == "ASESORÍA":
                     )
                     for valor
                     in respuesta
-                    if valor is not None
+                    if (
+                        valor is not None
+                        and
+                        str(valor).strip() != ""
+                    )
                 ]
 
             else:
@@ -9204,31 +9077,24 @@ elif opcion_principal == "ASESORÍA":
                 ]
 
             respuestas = [
-                valor
-                for valor in respuestas
-                if valor != ""
+                respuesta_actual
+                for respuesta_actual
+                in respuestas
+                if respuesta_actual != ""
             ]
 
             if not respuestas:
 
                 return False
 
-            operador = (
-                str(
-                    operador_encontrado
-                )
-                .strip()
-                .upper()
-            )
+            # -----------------------------------------------
+            # OPERADORES DE TEXTO
+            # -----------------------------------------------
 
-            # =================================================
-            # INCLUYE / CONTIENE / CONTAINS
-            # =================================================
-
-            if operador in (
+            if operador_encontrado in (
                 "INCLUYE",
-                "CONTIENE",
-                "CONTAINS"
+                "CONTAINS",
+                "CONTIENE"
             ):
 
                 valor_buscado = (
@@ -9242,17 +9108,19 @@ elif opcion_principal == "ASESORÍA":
                     return False
 
                 return any(
-                    valor_buscado
-                    in respuesta_actual
+                    (
+                        valor_buscado
+                        in respuesta_actual
+                    )
                     for respuesta_actual
                     in respuestas
                 )
 
-            # =================================================
-            # IN
-            # =================================================
+            # -----------------------------------------------
+            # OPERADOR IN
+            # -----------------------------------------------
 
-            if operador == "IN":
+            if operador_encontrado == "IN":
 
                 valores_permitidos = (
                     dividir_lista_in(
@@ -9271,27 +9139,26 @@ elif opcion_principal == "ASESORÍA":
                     in respuestas
                 )
 
-            # =================================================
-            # OPERADORES NUMÉRICOS
-            # =================================================
+            # -----------------------------------------------
+            # OPERADOR MAYOR QUE
+            # -----------------------------------------------
 
-            if operador in (
-                ">",
-                "<",
-                ">=",
-                "<=",
-                "!="
-            ):
+            if operador_encontrado == ">":
 
                 try:
 
                     limite = float(
                         normalizar_valor_regla(
                             valor_esperado
-                        ).replace(
-                            ",",
-                            "."
                         )
+                    )
+
+                    return any(
+                        float(
+                            respuesta_actual
+                        ) > limite
+                        for respuesta_actual
+                        in respuestas
                     )
 
                 except (
@@ -9301,78 +9168,118 @@ elif opcion_principal == "ASESORÍA":
 
                     return False
 
-                valores_numericos = []
+            # -----------------------------------------------
+            # OPERADOR MAYOR O IGUAL
+            # -----------------------------------------------
 
-                for respuesta_actual in (
-                    respuestas
-                ):
+            if operador_encontrado == ">=":
 
-                    try:
+                try:
 
-                        valores_numericos.append(
-                            float(
-                                respuesta_actual
-                                .replace(
-                                    ",",
-                                    "."
-                                )
-                            )
+                    limite = float(
+                        normalizar_valor_regla(
+                            valor_esperado
                         )
+                    )
 
-                    except (
-                        ValueError,
-                        TypeError
-                    ):
+                    return any(
+                        float(
+                            respuesta_actual
+                        ) >= limite
+                        for respuesta_actual
+                        in respuestas
+                    )
 
-                        continue
-
-                if not valores_numericos:
+                except (
+                    ValueError,
+                    TypeError
+                ):
 
                     return False
 
-                if operador == ">":
+            # -----------------------------------------------
+            # OPERADOR MENOR QUE
+            # -----------------------------------------------
 
-                    return any(
-                        valor > limite
-                        for valor
-                        in valores_numericos
+            if operador_encontrado == "<":
+
+                try:
+
+                    limite = float(
+                        normalizar_valor_regla(
+                            valor_esperado
+                        )
                     )
 
-                if operador == "<":
-
                     return any(
-                        valor < limite
-                        for valor
-                        in valores_numericos
+                        float(
+                            respuesta_actual
+                        ) < limite
+                        for respuesta_actual
+                        in respuestas
                     )
 
-                if operador == ">=":
+                except (
+                    ValueError,
+                    TypeError
+                ):
 
-                    return any(
-                        valor >= limite
-                        for valor
-                        in valores_numericos
+                    return False
+
+            # -----------------------------------------------
+            # OPERADOR MENOR O IGUAL
+            # -----------------------------------------------
+
+            if operador_encontrado == "<=":
+
+                try:
+
+                    limite = float(
+                        normalizar_valor_regla(
+                            valor_esperado
+                        )
                     )
 
-                if operador == "<=":
-
                     return any(
-                        valor <= limite
-                        for valor
-                        in valores_numericos
+                        float(
+                            respuesta_actual
+                        ) <= limite
+                        for respuesta_actual
+                        in respuestas
                     )
 
-                if operador == "!=":
+                except (
+                    ValueError,
+                    TypeError
+                ):
 
-                    return any(
-                        valor != limite
-                        for valor
-                        in valores_numericos
+                    return False
+
+            # -----------------------------------------------
+            # DIFERENTE
+            # -----------------------------------------------
+
+            if operador_encontrado in (
+                "!=",
+                "<>"
+            ):
+
+                esperado = (
+                    normalizar_valor_regla(
+                        valor_esperado
                     )
+                )
 
-            # =================================================
+                return any(
+                    respuesta_actual
+                    != esperado
+                    for respuesta_actual
+                    in respuestas
+                )
+
+            # -----------------------------------------------
             # IGUALDAD
-            # =================================================
+            # -----------------------------------------------
 
             esperado = (
                 normalizar_valor_regla(
@@ -9380,19 +9287,12 @@ elif opcion_principal == "ASESORÍA":
                 )
             )
 
-            if operador in (
-                "=",
-                "=="
-            ):
-
-                return any(
-                    respuesta_actual
-                    == esperado
-                    for respuesta_actual
-                    in respuestas
-                )
-
-            return False
+            return any(
+                respuesta_actual
+                == esperado
+                for respuesta_actual
+                in respuestas
+            )
 
 
         def evaluar_expresion(
@@ -9458,6 +9358,120 @@ elif opcion_principal == "ASESORÍA":
             return evaluar_condicion_simple(
                 expresion
             )
+
+
+        # ====================================================
+        # EVALUAR REGLAS
+        # ====================================================
+
+        else:
+
+            reglas_activadas = []
+
+            for _, regla in (
+                reglas_actuales.iterrows()
+            ):
+
+                condiciones_regla = str(
+                    regla[
+                        "Condiciones (lógica)"
+                    ]
+                ).strip()
+
+                if (
+                    not condiciones_regla
+                    or
+                    condiciones_regla.lower()
+                    == "nan"
+                ):
+
+                    continue
+
+                regla_cumplida = (
+                    evaluar_expresion(
+                        condiciones_regla
+                    )
+                )
+
+                if regla_cumplida:
+
+                    reglas_activadas.append(
+                        regla
+                    )
+
+            # =================================================
+            # ORDENAR POR PRIORIDAD
+            # =================================================
+
+            if reglas_activadas:
+
+                reglas_activadas_df = (
+                    pd.DataFrame(
+                        reglas_activadas
+                    )
+                    .sort_values(
+                        by="Prioridad (1=alta)",
+                        ascending=True
+                    )
+                    .reset_index(
+                        drop=True
+                    )
+                )
+
+            else:
+
+                reglas_activadas_df = (
+                    pd.DataFrame(
+                        columns=
+                        reglas_actuales.columns
+                    )
+                )
+
+            # =================================================
+            # GUARDAR RESULTADO
+            # =================================================
+
+            st.session_state[
+                "reglas_activadas"
+            ] = reglas_activadas_df
+
+            # =================================================
+            # RESULTADO
+            # =================================================
+
+            st.success(
+                f"Se evaluaron "
+                f"{len(reglas_actuales)} "
+                f"reglas."
+            )
+
+            if not reglas_activadas_df.empty:
+
+                st.success(
+                    f"Se activaron "
+                    f"{len(reglas_activadas_df)} "
+                    f"reglas."
+                )
+
+                st.write(
+                    "**Reglas activadas:**"
+                )
+
+                for _, regla in (
+                    reglas_activadas_df.iterrows()
+                ):
+
+                    st.write(
+                        f"- **{regla['Regla_ID']}** — "
+                        f"{regla['Segmento/Perfil']}"
+                    )
+
+            else:
+
+                st.info(
+                    "No se activaron reglas "
+                    "con las respuestas registradas."
+                )
 # ============================================================
 # 6.4 — DEPURACIÓN DE REGLAS, RESTRICCIONES Y PRODUCTOS
 # ============================================================
