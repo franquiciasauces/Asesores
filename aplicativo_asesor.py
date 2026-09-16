@@ -15298,7 +15298,10 @@ if (
 # CONSULTA INDIVIDUAL DEL ASESOR
 # ============================================================
 
-elif opcion_evaluacion == "Historial de evaluaciones":
+if (
+    opcion_principal == "EVALUACIÓN"
+    and opcion_evaluacion == "Historial de evaluaciones"
+):
 
     import base64
     import requests
