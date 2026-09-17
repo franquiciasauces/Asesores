@@ -8037,145 +8037,143 @@ if (
         st.success(
             "Entrevista finalizada correctamente."
         )
-    # ========================================================
-    # 6.1.4 — RESUMEN DE LA ENTREVISTA
-    # ========================================================
+ # ========================================================
+# 6.1.4 — RESUMEN DE LA ENTREVISTA
+# ========================================================
 
-    if (
-        st.session_state.get(
-            "entrevista_finalizada",
-            False
-        )
-        and
-        "respuestas_entrevista"
-        in st.session_state
+if (
+    st.session_state.get(
+        "entrevista_finalizada",
+        False
+    )
+    and
+    "respuestas_entrevista"
+    in st.session_state
+):
+
+    respuestas_entrevista = (
+        st.session_state[
+            "respuestas_entrevista"
+        ]
+    )
+
+    st.divider()
+
+    st.subheader(
+        "RESUMEN DE LA ENTREVISTA"
+    )
+
+    total_preguntas = len(
+        respuestas_entrevista
+    )
+
+    preguntas_respondidas = 0
+    preguntas_sin_respuesta = 0
+
+    # ====================================================
+    # MOSTRAR RESUMEN
+    # ====================================================
+
+    for clave_pregunta, datos_respuesta in (
+        respuestas_entrevista.items()
     ):
 
-        respuestas_entrevista = (
-            st.session_state[
-                "respuestas_entrevista"
-            ]
+        pregunta = datos_respuesta[
+            "Pregunta"
+        ]
+
+        respuesta = datos_respuesta[
+            "Respuesta"
+        ]
+
+        st.write(
+            f"**Pregunta:** {pregunta}"
         )
 
-        st.divider()
+        # ------------------------------------------------
+        # RESPUESTA VACÍA
+        # ------------------------------------------------
 
-        st.subheader(
-            "RESUMEN DE LA ENTREVISTA"
-        )
-
-        total_preguntas = len(
-            respuestas_entrevista
-        )
-
-        preguntas_respondidas = 0
-        preguntas_sin_respuesta = 0
-
-        # ====================================================
-        # MOSTRAR RESUMEN
-        # ====================================================
-
-        for flujo_id, datos_respuesta in (
-            respuestas_entrevista.items()
+        if (
+            respuesta is None
+            or respuesta == ""
+            or respuesta == []
         ):
 
-            pregunta = datos_respuesta[
-                "Pregunta"
-            ]
-
-            respuesta = datos_respuesta[
-                "Respuesta"
-            ]
-
-            st.write(
-                f"**Pregunta:** {pregunta}"
+            st.caption(
+                "Sin respuesta"
             )
 
-            # ------------------------------------------------
-            # RESPUESTA VACÍA
-            # ------------------------------------------------
+            preguntas_sin_respuesta += 1
 
-            if (
-                respuesta is None
-                or respuesta == ""
-                or respuesta == []
+        # ------------------------------------------------
+        # RESPUESTA REGISTRADA
+        # ------------------------------------------------
+
+        else:
+
+            preguntas_respondidas += 1
+
+            if isinstance(
+                respuesta,
+                list
             ):
 
-                st.caption(
-                    "Sin respuesta"
+                respuesta_mostrada = (
+                    ", ".join(
+                        str(item)
+                        for item
+                        in respuesta
+                    )
                 )
-
-                preguntas_sin_respuesta += 1
-
-            # ------------------------------------------------
-            # RESPUESTA REGISTRADA
-            # ------------------------------------------------
 
             else:
 
-                preguntas_respondidas += 1
-
-                if isinstance(
-                    respuesta,
-                    list
-                ):
-
-                    respuesta_mostrada = (
-                        ", ".join(
-                            str(item)
-                            for item
-                            in respuesta
-                        )
-                    )
-
-                else:
-
-                    respuesta_mostrada = str(
-                        respuesta
-                    )
-
-                st.write(
-                    f"**Respuesta:** "
-                    f"{respuesta_mostrada}"
+                respuesta_mostrada = str(
+                    respuesta
                 )
 
-            st.divider()
-
-        # ====================================================
-        # CONTADORES
-        # ====================================================
-
-        st.write(
-            f"**Preguntas respondidas:** "
-            f"{preguntas_respondidas} de "
-            f"{total_preguntas}"
-        )
-
-        st.write(
-            f"**Preguntas sin respuesta:** "
-            f"{preguntas_sin_respuesta} de "
-            f"{total_preguntas}"
-        )
-
-        # ====================================================
-        # CONFIRMAR ENTREVISTA
-        # ====================================================
-
-        if st.button(
-            "Confirmar y continuar",
-            key="confirmar_resumen_entrevista"
-        ):
-
-            st.session_state[
-                "resumen_entrevista_confirmado"
-            ] = True
-
-            st.success(
-                "Resumen confirmado. "
-                "La entrevista está lista "
-                "para iniciar la evaluación de reglas."
+            st.write(
+                f"**Respuesta:** "
+                f"{respuesta_mostrada}"
             )
 
+        st.divider()
 
+    # ====================================================
+    # CONTADORES
+    # ====================================================
+
+    st.write(
+        f"**Preguntas respondidas:** "
+        f"{preguntas_respondidas} de "
+        f"{total_preguntas}"
+    )
+
+    st.write(
+        f"**Preguntas sin respuesta:** "
+        f"{preguntas_sin_respuesta} de "
+        f"{total_preguntas}"
+    )
+
+    # ====================================================
+    # CONFIRMAR ENTREVISTA
+    # ====================================================
+
+    if st.button(
+        "Confirmar y continuar",
+        key="confirmar_resumen_entrevista"
+    ):
+
+        st.session_state[
+            "resumen_entrevista_confirmado"
+        ] = True
+
+        st.success(
+            "Resumen confirmado. "
+            "La entrevista está lista "
+            "para iniciar la evaluación de reglas."
+        )
 # ============================================================
 # 6.2 — EVALUACIÓN DE REGLAS
 # ============================================================
@@ -8217,7 +8215,7 @@ if (
 
         respuestas_por_condicion = {}
 
-        for flujo_id, datos_respuesta in (
+        for _, datos_respuesta in (
             respuestas_entrevista.items()
         ):
 
@@ -8236,9 +8234,107 @@ if (
             if not condicion_id:
                 continue
 
-            respuestas_por_condicion[
-                condicion_id
-            ] = respuesta
+            # -----------------------------------------------
+            # IGNORAR RESPUESTAS VACÍAS
+            # -----------------------------------------------
+
+            if (
+                respuesta is None
+                or respuesta == ""
+                or respuesta == []
+            ):
+                continue
+
+            # -----------------------------------------------
+            # RESPUESTAS DE SELECCIÓN MÚLTIPLE
+            # -----------------------------------------------
+
+            if isinstance(
+                respuesta,
+                list
+            ):
+
+                if condicion_id not in (
+                    respuestas_por_condicion
+                ):
+
+                    respuestas_por_condicion[
+                        condicion_id
+                    ] = []
+
+                for valor in respuesta:
+
+                    if (
+                        valor not in
+                        respuestas_por_condicion[
+                            condicion_id
+                        ]
+                    ):
+
+                        respuestas_por_condicion[
+                            condicion_id
+                        ].append(
+                            valor
+                        )
+
+            # -----------------------------------------------
+            # RESPUESTAS INDIVIDUALES
+            # -----------------------------------------------
+
+            else:
+
+                if condicion_id not in (
+                    respuestas_por_condicion
+                ):
+
+                    respuestas_por_condicion[
+                        condicion_id
+                    ] = respuesta
+
+                else:
+
+                    respuesta_existente = (
+                        respuestas_por_condicion[
+                            condicion_id
+                        ]
+                    )
+
+                    if isinstance(
+                        respuesta_existente,
+                        list
+                    ):
+
+                        if (
+                            respuesta
+                            not in
+                            respuesta_existente
+                        ):
+
+                            respuesta_existente.append(
+                                respuesta
+                            )
+
+                    else:
+
+                        if (
+                            respuesta
+                            != respuesta_existente
+                        ):
+
+                            respuestas_por_condicion[
+                                condicion_id
+                            ] = [
+                                respuesta_existente,
+                                respuesta
+                            ]
+
+        # ====================================================
+        # GUARDAR MAPA DE RESPUESTAS
+        # ====================================================
+
+        st.session_state[
+            "respuestas_por_condicion"
+        ] = respuestas_por_condicion
 
         # ====================================================
         # REGLAS DE LA PATOLOGÍA
@@ -8270,14 +8366,7 @@ if (
 
         st.write(
             f"**Respuestas registradas:** "
-            f"{sum(
-                1
-                for valor
-                in respuestas_por_condicion.values()
-                if valor is not None
-                and valor != ""
-                and valor != []
-            )}"
+            f"{len(respuestas_por_condicion)}"
         )
 
         st.write(
@@ -8312,7 +8401,8 @@ if (
 
             regla_cumplida = (
                 evaluar_expresion(
-                    condiciones_regla
+                    condiciones_regla,
+                    respuestas_por_condicion
                 )
             )
 
@@ -8395,6 +8485,8 @@ if (
                 "No se activaron reglas "
                 "con las respuestas registradas."
             )
+
+
 # ============================================================
 # 6.4 — DEPURACIÓN DE REGLAS, RESTRICCIONES Y PRODUCTOS
 # ============================================================
@@ -8585,12 +8677,33 @@ if (
                 # COLUMNA 10 — RESTRICCIÓN
                 # =============================================
 
-                restriccion_texto = str(
-                    regla.get(
-                        "No sugerir si (restricción)",
-                        ""
+                restriccion_valor = regla.get(
+                    "No sugerir si (restricción)",
+                    None
+                )
+
+                if (
+                    restriccion_valor is None
+                    or
+                    (
+                        isinstance(
+                            restriccion_valor,
+                            float
+                        )
+                        and
+                        pd.isna(
+                            restriccion_valor
+                        )
                     )
-                ).strip()
+                ):
+
+                    restriccion_texto = ""
+
+                else:
+
+                    restriccion_texto = str(
+                        restriccion_valor
+                    ).strip()
 
                 if (
                     not restriccion_texto
@@ -8637,7 +8750,13 @@ if (
                             not in Restricciones.columns
                         ):
 
-                            continue
+                            st.warning(
+                                "La hoja "
+                                "Restricciones no contiene "
+                                "la columna Restriccion_ID."
+                            )
+
+                            break
 
                         coincidencia_restriccion = (
                             Restricciones[
@@ -8766,6 +8885,22 @@ if (
                 producto
             ):
 
+                if (
+                    producto is None
+                    or
+                    (
+                        isinstance(
+                            producto,
+                            float
+                        )
+                        and
+                        pd.isna(
+                            producto
+                        )
+                    )
+                ):
+                    return ""
+
                 return (
                     unidecode(
                         str(producto)
@@ -8792,6 +8927,9 @@ if (
                     producto
                 )
 
+                if not clave:
+                    continue
+
                 if clave not in productos_unicos:
 
                     productos_unicos[
@@ -8802,6 +8940,19 @@ if (
                         "Tipo":
                             "Principal"
                     }
+
+                elif (
+                    productos_unicos[
+                        clave
+                    ]["Tipo"]
+                    == "Coadyuvante"
+                ):
+
+                    productos_unicos[
+                        clave
+                    ]["Tipo"] = (
+                        "Principal y Coadyuvante"
+                    )
 
             # -----------------------------------------------
             # COADYUVANTES
@@ -8815,6 +8966,9 @@ if (
                     producto
                 )
 
+                if not clave:
+                    continue
+
                 if clave not in productos_unicos:
 
                     productos_unicos[
@@ -8825,6 +8979,19 @@ if (
                         "Tipo":
                             "Coadyuvante"
                     }
+
+                elif (
+                    productos_unicos[
+                        clave
+                    ]["Tipo"]
+                    == "Principal"
+                ):
+
+                    productos_unicos[
+                        clave
+                    ]["Tipo"] = (
+                        "Principal y Coadyuvante"
+                    )
 
             productos_unicos_df = pd.DataFrame(
                 list(
@@ -8864,7 +9031,6 @@ if (
                     use_container_width=True,
                     hide_index=True
                 )
-
 # ============================================================
 # 6.3.1 — VISUALIZACIÓN DE PRODUCTOS Y MODO DE ACCIÓN
 # ============================================================
