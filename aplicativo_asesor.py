@@ -8215,7 +8215,7 @@ if (
 
         respuestas_por_condicion = {}
 
-        for _, datos_respuesta in (
+        for flujo_id, datos_respuesta in (
             respuestas_entrevista.items()
         ):
 
@@ -8246,6 +8246,188 @@ if (
                 continue
 
             # -----------------------------------------------
+            # ACUMULAR RESPUESTAS CUANDO SE REPITE
+            # EL MISMO CONDICION_ID
+            # -----------------------------------------------
+
+            if condicion_id not in (
+                respuestas_por_condicion
+            ):
+
+                if isinstance(
+                    respuesta,
+                    list
+                ):
+
+                    respuestas_por_condicion[
+                        condicion_id
+                    ] = list(
+                        respuesta
+                    )
+
+                else:
+
+                    respuestas_por_condicion[
+                        condicion_id
+                    ] = respuesta
+
+            else:
+
+                respuesta_existente = (
+                    respuestas_por_condicion[
+                        condicion_id
+                    ]
+                )
+
+                # -------------------------------------------
+                # CONVERTIR TODO A LISTA CUANDO EL MISMO
+                # CONDICION_ID APARECE MÁS DE UNA VEZ
+                # -------------------------------------------
+
+                if isinstance(
+                    respuesta_existente,
+                    list
+                ):
+
+                    valores_existentes = list(
+                        respuesta_existente
+                    )
+
+                else:
+
+                    valores_existentes = [
+                        respuesta_existente
+                    ]
+
+                if isinstance(
+                    respuesta,
+                    list
+                ):
+
+                    nuevos_valores = list(
+                        respuesta
+                    )
+
+                else:
+
+                    nuevos_valores = [
+                        respuesta
+                    ]
+
+                # -------------------------------------------
+                # AGREGAR SIN DUPLICAR
+                # -------------------------------------------
+
+                for valor in nuevos_valores:
+
+                    if valor not in valores_existentes:
+
+                        valores_existentes.append(
+                            valor
+                        )
+
+                respuestas_por_condicion[
+                    condicion_id
+                ] = valores_existentes
+
+        st.session_state[
+            "respuestas_por_condicion"
+        ] = respuestas_por_condicion
+
+        # ====================================================
+        # FUNCIÓN PARA COMPARAR UNA CONDICIÓN
+        # ====================================================
+
+        def evaluar_condicion_atomica(
+            condicion,
+            respuestas
+        ):
+
+            condicion = str(
+                condicion
+            ).strip()
+
+            patron = re.match(
+                r"^([A-Za-z0-9_]+)\s*"
+                r"(>=|<=|!=|=|>|<)\s*"
+                r"(.*)$",
+                condicion
+            )
+
+            if not patron:
+
+                return False
+
+            condicion_id = (
+                patron.group(1)
+                .strip()
+            )
+
+            operador = (
+                patron.group(2)
+                .strip()
+            )
+
+            valor_esperado = (
+                patron.group(3)
+                .strip()
+            )
+
+            # -----------------------------------------------
+            # QUITAR COMILLAS DEL VALOR
+            # -----------------------------------------------
+
+            if (
+                len(valor_esperado) >= 2
+                and
+                (
+                    (
+                        valor_esperado.startswith(
+                            '"'
+                        )
+                        and
+                        valor_esperado.endswith(
+                            '"'
+                        )
+                    )
+                    or
+                    (
+                        valor_esperado.startswith(
+                            "'"
+                        )
+                        and
+                        valor_esperado.endswith(
+                            "'"
+                        )
+                    )
+                )
+            ):
+
+                valor_esperado = (
+                    valor_esperado[1:-1]
+                )
+
+            # -----------------------------------------------
+            # BUSCAR RESPUESTA
+            # -----------------------------------------------
+
+            if condicion_id not in respuestas:
+
+                return False
+
+            respuesta = respuestas[
+                condicion_id
+            ]
+
+            if (
+                respuesta is None
+                or respuesta == ""
+                or respuesta == []
+            ):
+
+                return False
+
+            # -----------------------------------------------
             # RESPUESTAS DE SELECCIÓN MÚLTIPLE
             # -----------------------------------------------
 
@@ -8254,87 +8436,421 @@ if (
                 list
             ):
 
-                if condicion_id not in (
-                    respuestas_por_condicion
-                ):
-
-                    respuestas_por_condicion[
-                        condicion_id
-                    ] = []
-
-                for valor in respuesta:
-
-                    if (
-                        valor not in
-                        respuestas_por_condicion[
-                            condicion_id
-                        ]
-                    ):
-
-                        respuestas_por_condicion[
-                            condicion_id
-                        ].append(
-                            valor
-                        )
-
-            # -----------------------------------------------
-            # RESPUESTAS INDIVIDUALES
-            # -----------------------------------------------
+                valores_respuesta = [
+                    str(valor).strip()
+                    for valor in respuesta
+                ]
 
             else:
 
-                if condicion_id not in (
-                    respuestas_por_condicion
+                valores_respuesta = [
+                    str(respuesta).strip()
+                ]
+
+            # -----------------------------------------------
+            # COMPARACIONES DE TEXTO
+            # -----------------------------------------------
+
+            if operador == "=":
+
+                esperado = (
+                    str(
+                        valor_esperado
+                    )
+                    .strip()
+                    .lower()
+                )
+
+                for valor in valores_respuesta:
+
+                    if (
+                        str(valor)
+                        .strip()
+                        .lower()
+                        ==
+                        esperado
+                    ):
+
+                        return True
+
+                return False
+
+            if operador == "!=":
+
+                esperado = (
+                    str(
+                        valor_esperado
+                    )
+                    .strip()
+                    .lower()
+                )
+
+                for valor in valores_respuesta:
+
+                    if (
+                        str(valor)
+                        .strip()
+                        .lower()
+                        ==
+                        esperado
+                    ):
+
+                        return False
+
+                return True
+
+            # -----------------------------------------------
+            # COMPARACIONES NUMÉRICAS
+            # -----------------------------------------------
+
+            try:
+
+                esperado_numerico = float(
+                    valor_esperado
+                )
+
+                valores_numericos = []
+
+                for valor in valores_respuesta:
+
+                    try:
+
+                        valores_numericos.append(
+                            float(
+                                str(valor)
+                                .replace(
+                                    ",",
+                                    "."
+                                )
+                                .strip()
+                            )
+                        )
+
+                    except (
+                        ValueError,
+                        TypeError
+                    ):
+
+                        continue
+
+                if not valores_numericos:
+
+                    return False
+
+                for valor_numerico in (
+                    valores_numericos
                 ):
 
-                    respuestas_por_condicion[
-                        condicion_id
-                    ] = respuesta
+                    if (
+                        operador == ">"
+                        and
+                        valor_numerico
+                        > esperado_numerico
+                    ):
+
+                        return True
+
+                    if (
+                        operador == ">="
+                        and
+                        valor_numerico
+                        >= esperado_numerico
+                    ):
+
+                        return True
+
+                    if (
+                        operador == "<"
+                        and
+                        valor_numerico
+                        < esperado_numerico
+                    ):
+
+                        return True
+
+                    if (
+                        operador == "<="
+                        and
+                        valor_numerico
+                        <= esperado_numerico
+                    ):
+
+                        return True
+
+                return False
+
+            except (
+                ValueError,
+                TypeError
+            ):
+
+                return False
+
+        # ====================================================
+        # FUNCIÓN PARA QUITAR PARÉNTESIS EXTERNOS
+        # ====================================================
+
+        def quitar_parentesis_externos(
+            expresion
+        ):
+
+            expresion = str(
+                expresion
+            ).strip()
+
+            while (
+                expresion.startswith("(")
+                and
+                expresion.endswith(")")
+            ):
+
+                nivel = 0
+                dentro_comillas = None
+                parentesis_externos = True
+
+                for i, caracter in enumerate(
+                    expresion
+                ):
+
+                    if caracter in (
+                        '"',
+                        "'"
+                    ):
+
+                        if dentro_comillas is None:
+
+                            dentro_comillas = (
+                                caracter
+                            )
+
+                        elif (
+                            dentro_comillas
+                            == caracter
+                        ):
+
+                            dentro_comillas = None
+
+                        continue
+
+                    if dentro_comillas is not None:
+
+                        continue
+
+                    if caracter == "(":
+
+                        nivel += 1
+
+                    elif caracter == ")":
+
+                        nivel -= 1
+
+                        if (
+                            nivel == 0
+                            and
+                            i
+                            !=
+                            len(
+                                expresion
+                            ) - 1
+                        ):
+
+                            parentesis_externos = (
+                                False
+                            )
+
+                            break
+
+                if parentesis_externos:
+
+                    expresion = (
+                        expresion[1:-1]
+                        .strip()
+                    )
 
                 else:
 
-                    respuesta_existente = (
-                        respuestas_por_condicion[
-                            condicion_id
-                        ]
-                    )
+                    break
 
-                    if isinstance(
-                        respuesta_existente,
-                        list
+            return expresion
+
+        # ====================================================
+        # BUSCAR OPERADOR LÓGICO AL MISMO NIVEL
+        # ====================================================
+
+        def dividir_por_operador(
+            expresion,
+            operador
+        ):
+
+            partes = []
+
+            inicio = 0
+            nivel = 0
+            dentro_comillas = None
+            i = 0
+
+            expresion_mayuscula = (
+                expresion.upper()
+            )
+
+            while i < len(
+                expresion
+            ):
+
+                caracter = (
+                    expresion[i]
+                )
+
+                if caracter in (
+                    '"',
+                    "'"
+                ):
+
+                    if dentro_comillas is None:
+
+                        dentro_comillas = (
+                            caracter
+                        )
+
+                    elif (
+                        dentro_comillas
+                        == caracter
                     ):
 
-                        if (
-                            respuesta
-                            not in
-                            respuesta_existente
-                        ):
+                        dentro_comillas = None
 
-                            respuesta_existente.append(
-                                respuesta
-                            )
+                    i += 1
 
-                    else:
+                    continue
 
-                        if (
-                            respuesta
-                            != respuesta_existente
-                        ):
+                if dentro_comillas is not None:
 
-                            respuestas_por_condicion[
-                                condicion_id
-                            ] = [
-                                respuesta_existente,
-                                respuesta
-                            ]
+                    i += 1
+
+                    continue
+
+                if caracter == "(":
+
+                    nivel += 1
+
+                    i += 1
+
+                    continue
+
+                if caracter == ")":
+
+                    nivel -= 1
+
+                    i += 1
+
+                    continue
+
+                if nivel == 0:
+
+                    palabra = (
+                        f" {operador} "
+                    )
+
+                    if expresion_mayuscula[
+                        i:
+                        i + len(palabra)
+                    ] == palabra:
+
+                        partes.append(
+                            expresion[
+                                inicio:i
+                            ].strip()
+                        )
+
+                        i += len(
+                            palabra
+                        )
+
+                        inicio = i
+
+                        continue
+
+                i += 1
+
+            partes.append(
+                expresion[
+                    inicio:
+                ].strip()
+            )
+
+            if len(partes) > 1:
+
+                return partes
+
+            return None
 
         # ====================================================
-        # GUARDAR MAPA DE RESPUESTAS
+        # EVALUAR EXPRESIÓN COMPLETA
         # ====================================================
 
-        st.session_state[
-            "respuestas_por_condicion"
-        ] = respuestas_por_condicion
+        def evaluar_expresion(
+            expresion,
+            respuestas
+        ):
+
+            expresion = (
+                quitar_parentesis_externos(
+                    expresion
+                )
+            )
+
+            # -----------------------------------------------
+            # OR
+            # -----------------------------------------------
+
+            partes_or = (
+                dividir_por_operador(
+                    expresion,
+                    "OR"
+                )
+            )
+
+            if partes_or:
+
+                return any(
+                    evaluar_expresion(
+                        parte,
+                        respuestas
+                    )
+                    for parte
+                    in partes_or
+                )
+
+            # -----------------------------------------------
+            # AND
+            # -----------------------------------------------
+
+            partes_and = (
+                dividir_por_operador(
+                    expresion,
+                    "AND"
+                )
+            )
+
+            if partes_and:
+
+                return all(
+                    evaluar_expresion(
+                        parte,
+                        respuestas
+                    )
+                    for parte
+                    in partes_and
+                )
+
+            # -----------------------------------------------
+            # CONDICIÓN INDIVIDUAL
+            # -----------------------------------------------
+
+            return evaluar_condicion_atomica(
+                expresion,
+                respuestas
+            )
 
         # ====================================================
         # REGLAS DE LA PATOLOGÍA
@@ -8366,7 +8882,14 @@ if (
 
         st.write(
             f"**Respuestas registradas:** "
-            f"{len(respuestas_por_condicion)}"
+            f"{sum(
+                1
+                for valor
+                in respuestas_por_condicion.values()
+                if valor is not None
+                and valor != ""
+                and valor != []
+            )}"
         )
 
         st.write(
@@ -8412,81 +8935,30 @@ if (
                     regla
                 )
 
-        # =================================================
-        # ORDENAR POR PRIORIDAD
-        # =================================================
+        # ====================================================
+        # GUARDAR REGLAS ACTIVADAS
+        # ====================================================
 
         if reglas_activadas:
 
-            reglas_activadas_df = (
-                pd.DataFrame(
-                    reglas_activadas
-                )
-                .sort_values(
-                    by="Prioridad (1=alta)",
-                    ascending=True
-                )
-                .reset_index(
-                    drop=True
-                )
+            reglas_activadas_df = pd.DataFrame(
+                reglas_activadas
             )
 
         else:
 
-            reglas_activadas_df = (
-                pd.DataFrame(
-                    columns=
-                    reglas_actuales.columns
-                )
+            reglas_activadas_df = pd.DataFrame(
+                columns=reglas_actuales.columns
             )
-
-        # =================================================
-        # GUARDAR RESULTADO
-        # =================================================
 
         st.session_state[
             "reglas_activadas"
         ] = reglas_activadas_df
 
-        # =================================================
-        # RESULTADO
-        # =================================================
-
-        st.success(
-            f"Se evaluaron "
-            f"{len(reglas_actuales)} "
-            f"reglas."
+        st.write(
+            f"**Reglas activadas:** "
+            f"{len(reglas_activadas_df)}"
         )
-
-        if not reglas_activadas_df.empty:
-
-            st.success(
-                f"Se activaron "
-                f"{len(reglas_activadas_df)} "
-                f"reglas."
-            )
-
-            st.write(
-                "**Reglas activadas:**"
-            )
-
-            for _, regla in (
-                reglas_activadas_df.iterrows()
-            ):
-
-                st.write(
-                    f"- **{regla['Regla_ID']}** — "
-                    f"{regla['Segmento/Perfil']}"
-                )
-
-        else:
-
-            st.info(
-                "No se activaron reglas "
-                "con las respuestas registradas."
-            )
-
-
 # ============================================================
 # 6.4 — DEPURACIÓN DE REGLAS, RESTRICCIONES Y PRODUCTOS
 # ============================================================
