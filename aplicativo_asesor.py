@@ -7720,309 +7720,323 @@ elif opcion_principal == "ASESORÍA":
                         f"{codigo_seleccionado_asesoria}"
                     )
 
-       # ========================================================
-    # 6.1.2 — CARGA DE PREGUNTAS DE LA ENTREVISTA
-    # ========================================================
+  # ========================================================
+# 6.1.2 — CARGA DE PREGUNTAS DE LA ENTREVISTA
+# ========================================================
 
-    if (
-        "patologia_id_asesoria"
-        in st.session_state
-    ):
+if (
+    "patologia_id_asesoria"
+    in st.session_state
+):
 
-        patologia_id_actual = (
-            st.session_state[
-                "patologia_id_asesoria"
-            ]
+    patologia_id_actual = (
+        st.session_state[
+            "patologia_id_asesoria"
+        ]
+    )
+
+    entrevista_actual = Entrevista[
+        Entrevista["Patologia_ID"]
+        .astype(str)
+        .str.strip()
+        ==
+        str(
+            patologia_id_actual
+        ).strip()
+    ].copy()
+
+    if entrevista_actual.empty:
+
+        st.warning(
+            "No existen preguntas de entrevista "
+            "para la patología seleccionada."
         )
 
-        entrevista_actual = Entrevista[
-            Entrevista["Patologia_ID"]
-            .astype(str)
-            .str.strip()
-            ==
-            str(
-                patologia_id_actual
-            ).strip()
-        ].copy()
-
-        if entrevista_actual.empty:
-
-            st.warning(
-                "No existen preguntas de entrevista "
-                "para la patología seleccionada."
-            )
-
-            st.session_state[
-                "entrevista_actual"
-            ] = pd.DataFrame()
-
-        else:
-
-            entrevista_actual = (
-                entrevista_actual
-                .sort_values(
-                    by="Orden"
-                )
-                .reset_index(
-                    drop=True
-                )
-            )
-
-            st.session_state[
-                "entrevista_actual"
-            ] = entrevista_actual
-
-            # =================================================
-            # VALIDACIÓN DE CARGA
-            # =================================================
-
-            st.success(
-                "Preguntas cargadas correctamente."
-            )
-
-            st.write(
-                f"**Patología:** "
-                f"{patologia_id_actual}"
-            )
-
-            st.write(
-                f"**Número de preguntas cargadas:** "
-                f"{len(entrevista_actual)}"
-            )
-    # ========================================================
-    # 6.1.3 — INICIO Y REGISTRO DE LA ENTREVISTA
-    # ========================================================
-
-    if (
-        "entrevista_actual"
-        in st.session_state
-        and not st.session_state[
+        st.session_state[
             "entrevista_actual"
-        ].empty
-    ):
+        ] = pd.DataFrame()
 
-        entrevista_actual = st.session_state[
+    else:
+
+        entrevista_actual = (
+            entrevista_actual
+            .sort_values(
+                by="Orden"
+            )
+            .reset_index(
+                drop=True
+            )
+        )
+
+        st.session_state[
             "entrevista_actual"
-        ]
+        ] = entrevista_actual
 
-        st.divider()
+        # =================================================
+        # VALIDACIÓN DE CARGA
+        # =================================================
 
-        st.subheader(
-            "INICIO DE LA ENTREVISTA"
+        st.success(
+            "Preguntas cargadas correctamente."
         )
 
         st.write(
             f"**Patología:** "
-            f"{st.session_state['patologia_nombre_asesoria']}"
+            f"{patologia_id_actual}"
         )
 
         st.write(
-            f"**Preguntas:** "
+            f"**Número de preguntas cargadas:** "
             f"{len(entrevista_actual)}"
         )
 
-        st.info(
-            "Las preguntas no son obligatorias. "
-            "Puede dejar una pregunta sin responder."
+
+# ========================================================
+# 6.1.3 — INICIO Y REGISTRO DE LA ENTREVISTA
+# ========================================================
+
+if (
+    "entrevista_actual"
+    in st.session_state
+    and not st.session_state[
+        "entrevista_actual"
+    ].empty
+):
+
+    entrevista_actual = st.session_state[
+        "entrevista_actual"
+    ]
+
+    st.divider()
+
+    st.subheader(
+        "INICIO DE LA ENTREVISTA"
+    )
+
+    st.write(
+        f"**Patología:** "
+        f"{st.session_state['patologia_nombre_asesoria']}"
+    )
+
+    st.write(
+        f"**Preguntas:** "
+        f"{len(entrevista_actual)}"
+    )
+
+    st.info(
+        "Las preguntas no son obligatorias. "
+        "Puede dejar una pregunta sin responder."
+    )
+
+    respuestas_entrevista = {}
+
+    # ====================================================
+    # MOSTRAR PREGUNTAS
+    # ====================================================
+
+    for indice, (_, fila) in enumerate(
+        entrevista_actual.iterrows(),
+        start=1
+    ):
+
+        flujo_id = str(
+            fila["Flujo_ID"]
+        ).strip()
+
+        condicion_id = str(
+            fila["Condicion_ID"]
+        ).strip()
+
+        pregunta = str(
+            fila["Pregunta"]
+        ).strip()
+
+        tipo_control = str(
+            fila["Tipo_Control"]
+        ).strip()
+
+        opciones_texto = str(
+            fila["Opciones"]
+        ).strip()
+
+        observaciones = str(
+            fila["Observaciones"]
+        ).strip()
+
+        # =================================================
+        # LLAVE ÚNICA DE LA PREGUNTA
+        # =================================================
+
+        clave_respuesta = (
+            f"respuesta_entrevista_"
+            f"{patologia_id_actual}_"
+            f"{flujo_id}_"
+            f"{condicion_id}_"
+            f"{indice}"
         )
 
-        respuestas_entrevista = {}
+        st.markdown(
+            f"### Pregunta {indice} de "
+            f"{len(entrevista_actual)}"
+        )
 
-        # ====================================================
-        # MOSTRAR PREGUNTAS
-        # ====================================================
+        st.write(
+            pregunta
+        )
 
-        for indice, (_, fila) in enumerate(
-            entrevista_actual.iterrows(),
-            start=1
+        # =================================================
+        # OBSERVACIONES
+        # =================================================
+
+        if (
+            observaciones
+            and observaciones.lower()
+            != "nan"
         ):
 
-            flujo_id = str(
-                fila["Flujo_ID"]
-            ).strip()
-
-            condicion_id = str(
-                fila["Condicion_ID"]
-            ).strip()
-
-            pregunta = str(
-                fila["Pregunta"]
-            ).strip()
-
-            tipo_control = str(
-                fila["Tipo_Control"]
-            ).strip()
-
-            opciones_texto = str(
-                fila["Opciones"]
-            ).strip()
-
-            observaciones = str(
-                fila["Observaciones"]
-            ).strip()
-
-            st.markdown(
-                f"### Pregunta {indice} de "
-                f"{len(entrevista_actual)}"
-            )
-
-            st.write(
-                pregunta
-            )
-
-            # =================================================
-            # OBSERVACIONES
-            # =================================================
-
-            if (
+            st.caption(
                 observaciones
-                and observaciones.lower()
-                != "nan"
-            ):
+            )
 
-                st.caption(
-                    observaciones
-                )
+        # =================================================
+        # PREPARAR OPCIONES
+        # =================================================
 
-            # =================================================
-            # PREPARAR OPCIONES
-            # =================================================
+        opciones = []
 
-            opciones = []
+        if (
+            opciones_texto
+            and opciones_texto.lower()
+            != "nan"
+        ):
 
-            if (
-                opciones_texto
-                and opciones_texto.lower()
-                != "nan"
-            ):
+            opciones = [
+                opcion.strip()
+                for opcion
+                in opciones_texto.split(";")
+                if opcion.strip()
+            ]
 
-                opciones = [
-                    opcion.strip()
-                    for opcion
-                    in opciones_texto.split(";")
-                    if opcion.strip()
-                ]
+        # =================================================
+        # LISTA — UNA SOLA RESPUESTA
+        # =================================================
 
-            # =================================================
-            # LISTA — UNA SOLA RESPUESTA
-            # =================================================
+        if tipo_control == "Lista":
 
-            if tipo_control == "Lista":
+            respuesta = st.radio(
+                "Seleccione una opción:",
+                opciones,
+                index=None,
+                key=clave_respuesta
+            )
 
-                respuesta = st.radio(
-                    "Seleccione una opción:",
+        # =================================================
+        # SÍ / NO
+        # =================================================
+
+        elif tipo_control == "Sí/No":
+
+            respuesta = st.radio(
+                "Seleccione una opción:",
+                [
+                    "Sí",
+                    "No"
+                ],
+                index=None,
+                key=clave_respuesta
+            )
+
+        # =================================================
+        # NÚMERO
+        # =================================================
+
+        elif tipo_control == "Número":
+
+            respuesta = st.number_input(
+                "Ingrese la respuesta:",
+                value=None,
+                placeholder="Opcional",
+                key=clave_respuesta
+            )
+
+        # =================================================
+        # SELECCIÓN MÚLTIPLE
+        # =================================================
+
+        elif tipo_control == "Selección múltiple":
+
+            if opciones:
+
+                respuesta = st.multiselect(
+                    "Seleccione las opciones que correspondan:",
                     opciones,
-                    index=None,
-                    key=f"respuesta_entrevista_{flujo_id}"
+                    key=clave_respuesta
                 )
-
-            # =================================================
-            # SÍ / NO
-            # =================================================
-
-            elif tipo_control == "Sí/No":
-
-                respuesta = st.radio(
-                    "Seleccione una opción:",
-                    [
-                        "Sí",
-                        "No"
-                    ],
-                    index=None,
-                    key=f"respuesta_entrevista_{flujo_id}"
-                )
-
-            # =================================================
-            # NÚMERO
-            # =================================================
-
-            elif tipo_control == "Número":
-
-                respuesta = st.number_input(
-                    "Ingrese la respuesta:",
-                    value=None,
-                    placeholder="Opcional",
-                    key=f"respuesta_entrevista_{flujo_id}"
-                )
-
-            # =================================================
-            # SELECCIÓN MÚLTIPLE
-            # =================================================
-
-            elif tipo_control == "Selección múltiple":
-
-                if opciones:
-
-                    respuesta = st.multiselect(
-                        "Seleccione las opciones que correspondan:",
-                        opciones,
-                        key=f"respuesta_entrevista_{flujo_id}"
-                    )
-
-                else:
-
-                    respuesta = []
-
-            # =================================================
-            # TEXTO
-            # =================================================
-
-            elif tipo_control == "Texto":
-
-                respuesta = st.text_input(
-                    "Respuesta:",
-                    placeholder="Opcional",
-                    key=f"respuesta_entrevista_{flujo_id}"
-                )
-
-            # =================================================
-            # CONTROL NO DEFINIDO
-            # =================================================
 
             else:
 
-                respuesta = st.text_input(
-                    "Respuesta:",
-                    placeholder="Opcional",
-                    key=f"respuesta_entrevista_{flujo_id}"
-                )
+                respuesta = []
 
-            # =================================================
-            # REGISTRAR RESPUESTA TEMPORAL
-            # =================================================
+        # =================================================
+        # TEXTO
+        # =================================================
 
-            respuestas_entrevista[
-                flujo_id
-            ] = {
-                "Flujo_ID": flujo_id,
-                "Condicion_ID": condicion_id,
-                "Pregunta": pregunta,
-                "Tipo_Control": tipo_control,
-                "Respuesta": respuesta
-            }
+        elif tipo_control == "Texto":
 
-            st.divider()
-
-        # ====================================================
-        # FINALIZAR ENTREVISTA
-        # ====================================================
-
-        if st.button(
-            "Finalizar entrevista",
-            key="finalizar_entrevista"
-        ):
-
-            st.session_state[
-                "respuestas_entrevista"
-            ] = respuestas_entrevista
-
-            st.session_state[
-                "entrevista_finalizada"
-            ] = True
-
-            st.success(
-                "Entrevista finalizada correctamente."
+            respuesta = st.text_input(
+                "Respuesta:",
+                placeholder="Opcional",
+                key=clave_respuesta
             )
+
+        # =================================================
+        # CONTROL NO DEFINIDO
+        # =================================================
+
+        else:
+
+            respuesta = st.text_input(
+                "Respuesta:",
+                placeholder="Opcional",
+                key=clave_respuesta
+            )
+
+        # =================================================
+        # REGISTRAR RESPUESTA TEMPORAL
+        # =================================================
+
+        respuestas_entrevista[
+            clave_respuesta
+        ] = {
+            "Flujo_ID": flujo_id,
+            "Condicion_ID": condicion_id,
+            "Pregunta": pregunta,
+            "Tipo_Control": tipo_control,
+            "Respuesta": respuesta
+        }
+
+        st.divider()
+
+    # ====================================================
+    # FINALIZAR ENTREVISTA
+    # ====================================================
+
+    if st.button(
+        "Finalizar entrevista",
+        key="finalizar_entrevista"
+    ):
+
+        st.session_state[
+            "respuestas_entrevista"
+        ] = respuestas_entrevista
+
+        st.session_state[
+            "entrevista_finalizada"
+        ] = True
+
+        st.success(
+            "Entrevista finalizada correctamente."
+        )
     # ========================================================
     # 6.1.4 — RESUMEN DE LA ENTREVISTA
     # ========================================================
